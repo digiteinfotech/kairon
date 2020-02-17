@@ -37,7 +37,7 @@ entity_helpverb_words = ['digite','agile','am', 'is', 'are','was', 'were', 'bein
 
 pos = SequenceTagger.load('pos-fast')
 
-m = gensim.models.KeyedVectors.load_word2vec_format('wiki-news-300d-1M.vec')  #load model - this takes time
+#m = gensim.models.KeyedVectors.load_word2vec_format('wiki-news-300d-1M.vec')  #load model - this takes time
 
 
 #Part of Speech function for wordnet lemmatizer
@@ -53,7 +53,7 @@ def get_wordnet_pos(word):
 
 #establishing  paths of the rasa bot files
 global nlu_path, stories_path, models_path, domain_path, config_path, term, newdict, dictrand, train_path, agent
-original_path = os.getcwd()
+original_path = '.'
 nlu_path = original_path + "/data/nlu.md"
 stories_path = original_path + "/data/stories.md"
 models_path = original_path  + "/models"
@@ -533,6 +533,27 @@ def corpus():
         questionList.remove('\n')
     
     return {"questions": questionList}
+
+
+#get intent list
+@app.route("/intentlist", methods=['POST'])
+def intentlist():
+    list1= list(term.keys())   
+    return {"intents": list1}
+
+#getQuestions and Response for an intent
+@app.route("/QandR", methods=['POST'])
+def QandR():
+    jsonObject = json.loads(request.data)
+    intentname = jsonObject['iname']
+    qlist = term[intentname]
+    interm = "utter_"+intentname
+    res = newdict[interm]    
+    return {"Qlist": qlist,"Response":res}
+
+
+#if __name__ == '__main__':
+#    app.run(host='0.0.0.0', port='5000')
     
     
     
