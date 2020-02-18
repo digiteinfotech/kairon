@@ -117,7 +117,7 @@ def newintent():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['name_intent']
-    questions = jsonObject['ques']
+    questions = jsonObject['questionList']
     response = jsonObject['respond']
     
     if len(intent_name) == 0 or len(response) == 0:
@@ -253,7 +253,7 @@ def Add():
     global term
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['name_intent']
-    component = jsonObject['comp']
+    component = jsonObject['component']
     list3 = term[intent_name]
     
     if len(component) == 0 :
@@ -288,18 +288,18 @@ def Add():
 def Rem():
     global term
     jsonObject = json.loads(request.data)
-    component1 = jsonObject['comp1']
+    component = jsonObject['component']
     intent_name = jsonObject['name_intent']
     
     
-    if len(component1) == 0 :
+    if len(component) == 0 :
         
         return {"message":"please enter required fields"}
     else:
         
         pick8 = term[intent_name]
-        if component1 in pick8:
-            pick8.remove(component1)
+        if component in pick8:
+            pick8.remove(component)
             term[intent_name] = pick8
             
             file_handler = open(nlu_path,'w')
@@ -336,22 +336,22 @@ def corpus():
 
 
 #get intent list
-@app.route("/intentlist", methods=['POST'])
-def intentlist():
+@app.route("/intentList", methods=['POST'])
+def intentList():
     list1= list(term.keys())   
     return {"intents": list1}
 
 
 
 #getQuestions and Response for an intent
-@app.route("/QandR", methods=['POST'])
-def QandR():
+@app.route("/QuestionsAndResponse", methods=['POST'])
+def QuestionsAndResponse():
     jsonObject = json.loads(request.data)
-    intentname = jsonObject['iname']
-    qlist = term[intentname]
-    interm = "utter_"+intentname
-    res = newdict[interm]    
-    return {"Qlist": qlist,"Response":res}
+    intentName = jsonObject['intent_name']
+    QuestionList = term[intentName]
+    interm = "utter_"+intentName
+    response = newdict[interm]    
+    return {"Qlist": QuestionList,"Response":response}
 
     
     
