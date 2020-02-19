@@ -104,18 +104,18 @@ for line8 in text2:
 @app.route("/predict", methods=['POST'])
 def predict():
     jsonObject = json.loads(request.data)
-    query = jsonObject['question']
+    query = jsonObject['query']
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
     Prediction = Prediction["intent"]['name']
-
-    return Prediction
+    qAndA = resolveQuesAndAnswer(Prediction)
+    return {"intent": Prediction, "questions": qAndA.get("questions"), "answer": qAndA.get("answer")}
 
 
 #add intent service
-@app.route("/newintent", methods=['POST'])
-def newintent():
+@app.route("/addIntent", methods=['POST'])
+def addIntent():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['name_intent']
@@ -123,15 +123,10 @@ def newintent():
     response = jsonObject['respond']
 
     if len(intent_name) == 0 or len(response) == 0:
-
         return {"message": "enter required fields"}
-
     elif len(questions)<5 :
-
         return {"message": "Number of Questions not sufficient"}
-
     else:
-
         if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
 
             return {"message": "Intent Name Not Accepted"}
@@ -232,7 +227,7 @@ def Rem1():
 
 
 #model training service
-@app.route("/train" , methods=['POST'])
+@app.route("/train" , methods=['GET'])
 def train_model():
     global agent
     #os.chdir(original_path)
@@ -245,16 +240,16 @@ def train_model():
 
     agent = Agent.load(modelpath1)
 
-    return {"message": "training done"}
+    return {"message": "Model training done"}
 
 
 
 #adding sentence to intent service
-@app.route("/AddComponent" , methods=['POST'])
+@app.route("/addComponent" , methods=['POST'])
 def Add():
     global term
     jsonObject = json.loads(request.data)
-    intent_name = jsonObject['name_intent']
+    intent_name = jsonObject['intentName']
     component = jsonObject['component']
     list3 = term[intent_name]
 
@@ -281,17 +276,17 @@ def Add():
 
     current = list()
     current.append(component)
-    return {'message' : 'Component added'}
+    return {'message' : 'Component added', "question": component}
 
 
 
 #removing sentence from intent service
-@app.route("/RemoveComponent" , methods=['POST'])
+@app.route("/removeComponent" , methods=['POST'])
 def Rem():
     global term
     jsonObject = json.loads(request.data)
     component = jsonObject['component']
-    intent_name = jsonObject['name_intent']
+    intent_name = jsonObject['intentName']
 
 
     if len(component) == 0 :
@@ -316,7 +311,7 @@ def Rem():
 
                 file_handler.write('\n')
             file_handler.close()
-            return {"message":"Component removed"}
+            return {"message":"Component removed", "question": component}
 
         else:
             return {'message':'Sentence not present'}
@@ -347,11 +342,15 @@ def getIntentList():
 def getQuestionsAndAnswer():
     jsonObject = json.loads(request.data)
     intentName = jsonObject['intentName']
+    qAndA = resolveQuesAndAnswer(intentName)
+
+    return qAndA
+
+def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
     interm = "utter_" + intentName
     print(type(newdict))
     response = newdict.get(interm)
     if response == 'None':
         response = ""
-
-    return {"questions": QuestionList, "answer": response}
+    return dict({"questions": QuestionList, "answer": response})
