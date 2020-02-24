@@ -113,67 +113,6 @@ def predict():
     return {"intent": Prediction, "questions": qAndA.get("questions"), "answer": qAndA.get("answer")}
 
 
-#add intent service
-@app.route("/addIntent", methods=['POST'])
-def addIntent():
-    global term, newdict, dictrand
-    jsonObject = json.loads(request.data)
-    intent_name = jsonObject['name_intent']
-    questions = jsonObject['questionList']
-    response = jsonObject['respond']
-
-    if len(intent_name) == 0 or len(response) == 0:
-        return {"message": "enter required fields"}
-    elif len(questions)<5 :
-        return {"message": "Number of Questions not sufficient"}
-    else:
-        if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
-
-            return {"message": "Intent Name Not Accepted"}
-        else:
-
-            intent = intent_name
-            response = response
-            action = "utter_"+intent
-            Questions = questions
-
-            term[intent] = Questions
-            newdict[action] = response
-            dictrand[intent] = action
-
-            file_handler = open(nlu_path,'w')
-            for finalkeys in list(term.keys()):
-
-                file_handler.write('\n'+ "## intent:")
-                file_handler.write(finalkeys)
-
-                for value in term[finalkeys]:
-
-                    file_handler.write('\n'+ "- " + value)
-
-                file_handler.write('\n')
-            file_handler.close()
-
-            dictaction= dict()
-            for k,v in newdict.items():
-                dictaction[k] = [{"text" : v}]
-
-            finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "templates": dictaction}
-
-            with open(domain_path, 'w') as file:
-                yaml.dump(finaldict, file)
-
-            file_handler = open(stories_path,'w')
-            for key2 in dictrand:
-                file_handler.write('\n'+ "## " + "path_" + key2 )
-                file_handler.write('\n'+ "* " + key2)
-                file_handler.write('\n'+ "  - " + dictrand[key2])
-
-                file_handler.write('\n')
-            file_handler.close()
-
-            return {"message": "Intent Added"}
-
 
 #remove intent service
 @app.route("/removeintent" , methods=['POST'])
@@ -318,18 +257,6 @@ def Rem():
 
 
 
-#generate questions from corpus service
-@app.route("/corpusQuestions" , methods=['POST'])
-def corpus():
-    jsonObject = json.loads(request.data)
-    inputText = jsonObject['Corpus']
-    questionList = aqg.aqgParse(inputText)
-    for x in range(questionList.count('\n')):
-        questionList.remove('\n')
-
-    return {"questions": questionList}
-
-
 
 
 #get intent list
@@ -386,3 +313,6 @@ def addAnswer():
     file_handler.close()
     
     return {'message' : 'Response added', "answer": answer}
+    
+    
+#add intent
