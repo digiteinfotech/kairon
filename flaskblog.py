@@ -316,3 +316,57 @@ def addAnswer():
     
     
 #add intent
+
+@app.route("/newintent", methods=['POST'])
+def newintent():
+    global term, newdict, dictrand
+    jsonObject = json.loads(request.data)
+    intent_name = jsonObject['name_intent']
+
+        
+    if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
+
+        return {"message": "Intent Name Not Accepted"}
+    else:
+
+        intent = intent_name
+        response = ""
+        action = "utter_"+intent
+        Questions = []
+
+        term[intent] = Questions
+        newdict[action] = response
+        dictrand[intent] = action
+
+        file_handler = open(nlu_path,'w')
+        for finalkeys in list(term.keys()):
+
+            file_handler.write('\n'+ "## intent:")
+            file_handler.write(finalkeys)
+
+            for value in term[finalkeys]:
+
+                file_handler.write('\n'+ "- " + value)
+
+            file_handler.write('\n')
+        file_handler.close()
+
+        dictaction= dict()
+        for k,v in newdict.items():
+            dictaction[k] = [{"text" : v}]
+
+        finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "templates": dictaction}
+
+        with open(domain_path, 'w') as file:
+            yaml.dump(finaldict, file)
+
+        file_handler = open(stories_path,'w')
+        for key2 in dictrand:
+            file_handler.write('\n'+ "## " + "path_" + key2 )
+            file_handler.write('\n'+ "* " + key2)
+            file_handler.write('\n'+ "  - " + dictrand[key2])
+
+            file_handler.write('\n')
+        file_handler.close()
+
+        return {"message": "Intent Added"}
