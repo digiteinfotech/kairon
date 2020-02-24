@@ -354,3 +354,35 @@ def resolveQuesAndAnswer(intentName):
     if response == 'None':
         response = ""
     return dict({"questions": QuestionList, "answer": response})
+    
+# Add answer
+@app.route("/addAnswer" , methods=['POST'])
+def addAnswer():
+    global newdict,dictrand
+    jsonObject = json.loads(request.data)
+    intent_name = jsonObject['intentName']
+    action = "utter_" + intent_name
+    answer = jsonObject['answer']
+    
+    newdict[action] = answer
+    dictrand[intent_name] = action
+    
+    dictaction = dict()
+    for k, v in newdict.items():
+    dictaction[k] = [{"text": v}]
+    
+    finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "templates": dictaction}
+    
+    with open(domain_path, 'w') as file:
+    yaml.dump(finaldict, file)
+    
+    file_handler = open(stories_path,'w')
+    for key2 in dictrand:
+        file_handler.write('\n'+ "## " + "path_" + key2 )
+        file_handler.write('\n'+ "* " + key2)
+        file_handler.write('\n'+ "  - " + dictrand[key2])
+
+        file_handler.write('\n')
+    file_handler.close()
+    
+    return {'message' : 'Response added', "answer": answer}
