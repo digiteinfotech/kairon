@@ -301,7 +301,7 @@ def addAnswer():
     finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "templates": dictaction}
     
     with open(domain_path, 'w') as file:
-    yaml.dump(finaldict, file)
+        yaml.dump(finaldict, file)
     
     file_handler = open(stories_path,'w')
     for key2 in dictrand:
