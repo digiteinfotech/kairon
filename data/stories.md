@@ -1,123 +1,124 @@
-## path1
+
+## path_greeting
 * greeting
-  - utter_greet
+  - utter_greeting
 
-## path2
+## path_need_advice
 * need_advice
-  - utter_advice
+  - utter_need_advice
 
-## path3
+## path_thanking
 * thanking
-  - utter_welcome
+  - utter_thanking
 
-## path4
+## path_feedback
 * feedback
   - utter_feedback
 
-## path5
+## path_goodbye
 * goodbye
   - utter_goodbye
 
-## path6
+## path_how_are_you
 * how_are_you
-  - utter_fine
+  - utter_how_are_you
 
-## path7
+## path_challenge_bot
 * challenge_bot
-  - utter_iamabot
+  - utter_challenge_bot
 
-## path8
+## path_location_query
 * location_query
-  - utter_location
+  - utter_location_query
 
-## path9
+## path_webinar
 * webinar
   - utter_webinar
 
-## path10
+## path_training
 * training
   - utter_training
 
-## path11
+## path_testimonials
 * testimonials
   - utter_testimonials
 
-## path12
+## path_trial
 * trial
   - utter_trial
 
-## path13
+## path_selfhosted
 * selfhosted
   - utter_selfhosted
 
-## path14
+## path_pricing
 * pricing
   - utter_pricing
 
-## path15
+## path_sEnt_updates
 * sEnt_updates
-  - utter_updates
+  - utter_sEnt_updates
 
-## path16
+## path_safetool
 * safetool
   - utter_safetool
 
-## path17
+## path_resources
 * resources
   - utter_resources
 
-## path18
+## path_products
 * products
   - utter_products
 
-## path19
+## path_mobapp
 * mobapp
   - utter_mobapp
 
-## path20
+## path_scrumtool
 * scrumtool
   - utter_scrumtool
 
-## path21
+## path_kanbantool
 * kanbantool
   - utter_kanbantool
 
-## path22
+## path_agile
 * agile
   - utter_agile
 
-## path23
+## path_login
 * login
   - utter_login
 
-## path24
+## path_integration
 * integration
   - utter_integration
 
-## path25
+## path_getstarted
 * getstarted
   - utter_getstarted
 
-## path26
+## path_demo
 * demo
   - utter_demo
 
-## path27
+## path_contact
 * contact
   - utter_contact
 
-## path28
+## path_careers
 * careers
   - utter_careers
 
-## path29
+## path_buySK
 * buySK
   - utter_buySK
 
-## path30
+## path_about
 * about
   - utter_about
 
-## path30
+## path_kanban
 * kanban
   - utter_kanban
