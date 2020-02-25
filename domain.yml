@@ -1,48 +1,99 @@
 intents:
-- kanban
-- greeting
-- need_advice
-- thanking
-- feedback
-- goodbye
-- how_are_you
+- about
+- agile
+- buySK
+- careers
 - challenge_bot
+- contact
+- demo
+- feedback
+- getstarted
+- goodbye
+- greeting
+- how_are_you
+- integration
+- kanban
+- kanbantool
 - location_query
-- webinar
-- training
-- testimonials
-- trial
-- selfhosted
+- login
+- mobapp
+- need_advice
 - pricing
+- products
+- resources
 - sEnt_updates
 - safetool
-- resources
-- products
-- mobapp
 - scrumtool
-- kanbantool
-- agile
-- login
-- integration
-- getstarted
-- demo
-- contact
-- careers
-- buySK
-- about
+- selfhosted
+- testimonials
+- thanking
+- training
+- trial
+- webinar
 templates:
-  utter_safetool:
-  - text: Our SwiftEASe tool is the only SAFe tool that has a built in electronic
-      Dependency Board that allows you to track multiple ART's and Teams all in one
-      view and allows you to drill down from your top Portfolio and Program board
-      all the way to your Team level boards
-  utter_resources:
-  - text: "You can check out our resources page for, Whitepapers, Case Studies and\
-      \ Brochures: \n  https://www.digite.com/resources/"
-  utter_products:
-  - text: "Digite provides a wide range of products for your digital transformation\
-      \ initiatives and AI-driven project delivery solutions. Learn more about them\
-      \ here: \n https://www.digite.com/products/"
+  utter_about:
+  - text: "Well! &#128515 Digite' is a Silicon Valley-based company in Cupertino California\
+      \ and has been around since 2002 with locations and customers located around\
+      \ the world. Learn more at: \n https://www.digite.com/about-us/"
+  utter_agile:
+  - text: "We provide several tools that support a variety of Agile methods such as\
+      \ Scrum, Kanban, Scrumban, Scaled Agile (SAFe), and even traditional methods.\
+      \ You can checkout our products section for all the tools that we are offering:\
+      \ \n  https://www.digite.com/products/ "
+  utter_buySK:
+  - text: 'Thanks for choosing Swiftkanban.You can get started here: \n https://buy.swiftkanban.com/xpaydigite/purchase.do'
+  utter_careers:
+  - text: 'Thanks for your interest! You can checkout the current job offers/openings
+      here: https://www.digite.com/careers/current-openings/ You can send-in your
+      resume to hr@digite.com'
+  utter_challenge_bot:
+  - text: Yes! I am a bot.A Rasa bot &#128520
+  utter_contact:
+  - text: 'You can send in your queries to sales@digite.com or fill out the form here:
+      https://www.digite.com/contact-us/ Our team of experts will get back to you
+      at the earliest. &#128521'
+  utter_default:
+  - text: "Forgive me. &#128532 I could not process your message. I'm the new bot\
+      \ here, so I've got a long way to go. You can send in your queries to sales@digite.com\
+      \ or fill out the form here: \n https://www.digite.com/contact-us/"
+  utter_demo:
+  - text: 'You can request for a customized demo of our products here:  https://www.digite.com/free-demo-request/  or
+      reach us at sales@digite.com'
+  utter_feedback:
+  - text: I'll consider that.Thank you for the feedback! &#128526
+  utter_getstarted:
+  - text: 'We offer Free Trials on most of our products for up to 30-days and our
+      Sales team would be happy to assist you in helping you build out the design
+      of your boards, cards, and give you tips on "Best Practices" to assure your
+      success. &#128516 You can signup for a FREE Trial of SwiftKanban here: \n https://www.digite.com/swiftkanban/swiftkanban-free-trial/'
+  utter_goodbye:
+  - text: See you around! &#128515
+  utter_greeting:
+  - text: Hey! How can I help you? &#128512
+  utter_how_are_you:
+  - text: I'm doing great! So tell me, how can I help you? &#128523
+  utter_integration:
+  - text: "With our SwiftSYNC product, our tools can integrate and sync with 50+ tools\
+      \ including Jira, Rally, TFS, ServiceNow, Salesforce, and many others. Learn\
+      \ More at: \n https://www.digite.com/swiftsync/ \n Get in touch with us at,\
+      \ sales@digite.com for a demo."
+  utter_kanban:
+  - text: Kanban is a visual system for managing work as it moves through a process.
+      Kanban visualizes both the process (the workflow) and the actual work passing
+      through that process. The goal of Kanban is to identify potential bottlenecks
+      in your process and fix them so work can flow through it cost-effectively at
+      an optimal speed or throughput.
+  utter_kanbantool:
+  - text: "SwiftKanban is an easy to use tool that is focused on making teams successful\
+      \ in the adoption of Kanban.You can learn more about it here - \n  https://www.digite.com/swiftkanban/"
+  utter_location_query:
+  - text: "The Digite offices are located at: \n United States \n 21060 Homestead\
+      \ Rd, Suite 220, Cupertino, CA 95014 \n \n Mumbai \n Fifth Floor, Opus Park,\
+      \ Opposite SEEPZ Main Gate, Central MIDC Road, Andheri (East), Mumbai - 400\
+      \ 093 \n \n Bengaluru \n Ground Floor, 40/1A, Basappa Complex, Lavelle Road,\
+      \ Bengaluru-560001"
+  utter_login:
+  - text: "You can login to Digite products from here: \n https://www.digite.com/login"
   utter_mobapp:
   - text: "Thanks for your interest. \n Download SwiftKanban mobile app here: \n iOS\
       \ - \n https://apps.apple.com/in/app/swiftkanban/id1002320353 \n Android - \n\
@@ -51,133 +102,82 @@ templates:
       \ \n Android - \n https://play.google.com/store/apps/details?id=com.de.alm&hl=en_IN\
       \ \n Download SwiftEASe mobile app here: \n iOS - \n https://apps.apple.com/gb/developer/digit%C3%A9-inc/id1002320352\
       \ \n Android - \n https://play.google.com/store/apps/details?"
+  utter_need_advice:
+  - text: I'll try my best! &#128517
+  utter_pricing:
+  - text: Thank You for your interest! You can get in touch with us via sales@digite.com
+      and we will get back to you with the details.
+  utter_products:
+  - text: "Digite provides a wide range of products for your digital transformation\
+      \ initiatives and AI-driven project delivery solutions. Learn more about them\
+      \ here: \n https://www.digite.com/products/"
+  utter_resources:
+  - text: "You can check out our resources page for, Whitepapers, Case Studies and\
+      \ Brochures: \n  https://www.digite.com/resources/"
+  utter_sEnt_updates:
+  - text: "You can find all the SwiftEnterprise Product Release Updates here: \n https://www.digite.com/swiftenterprise/releases/"
+  utter_safetool:
+  - text: Our SwiftEASe tool is the only SAFe tool that has a built in electronic
+      Dependency Board that allows you to track multiple ART's and Teams all in one
+      view and allows you to drill down from your top Portfolio and Program board
+      all the way to your Team level boards
   utter_scrumtool:
   - text: "You might consider SwiftKanban that supports Scrum and Scrumban and is\
       \ a great tool for small teams - \n https://www.digite.com/swiftkanban/ \n If\
       \ you need an enterprise-level tool, you should consider SwiftEnterprise- \n\
       \ https://www.digite.com/swiftenterprise/"
-  utter_kanbantool:
-  - text: "SwiftKanban is an easy to use tool that is focused on making teams successful\
-      \ in the adoption of Kanban.You can learn more about it here - \n  https://www.digite.com/swiftkanban/"
-  utter_agile:
-  - text: "We provide several tools that support a variety of Agile methods such as\
-      \ Scrum, Kanban, Scrumban, Scaled Agile (SAFe), and even traditional methods.\
-      \ You can checkout our products section for all the tools that we are offering:\
-      \ \n  https://www.digite.com/products/"
-  utter_login:
-  - text: "You can login to Digite products from here: \n https://www.digite.com/login"
-  utter_integration:
-  - text: "With our SwiftSYNC product, our tools can integrate and sync with 50+ tools\
-      \ including Jira, Rally, TFS, ServiceNow, Salesforce, and many others. Learn\
-      \ More at: \n https://www.digite.com/swiftsync/ \n Get in touch with us at,\
-      \ sales@digite.com for a demo."
-  utter_getstarted:
-  - text: 'We offer Free Trials on most of our products for up to 30-days and our
-      Sales team would be happy to assist you in helping you build out the design
-      of your boards, cards, and give you tips on "Best Practices" to assure your
-      success. You can signup for a FREE Trial of SwiftKanban here: \n https://www.digite.com/swiftkanban/swiftkanban-free-trial/'
-  utter_demo:
-  - text: 'You can request for a customized demo of our products here:  https://www.digite.com/free-demo-request/  or
-      reach us at sales@digite.com'
-  utter_contact:
-  - text: 'You can send in your queries to sales@digite.com or fill out the form here:
-      https://www.digite.com/contact-us/ Our team of experts will get back to you
-      at the earliest.'
-  utter_careers:
-  - text: 'Thanks for your interest. You can checkout the current job offers/openings
-      here: https://www.digite.com/careers/current-openings/ You can send-in your
-      resume to hr@digite.com'
-  utter_buySK:
-  - text: 'Thanks for choosing Swiftkanban.You can get started here: \n https://buy.swiftkanban.com/xpaydigite/purchase.do'
-  utter_about:
-  - text: "Well! Digite' is a Silicon Valley-based company in Cupertino California\
-      \ and has been around since 2002 with locations and customers located around\
-      \ the world. Learn more at: \n https://www.digite.com/about-us/"
-  utter_default:
-  - text: "Forgive me. I could not process your message. I'm the new bot here, so\
-      \ I've got a long way to go. You can send in your queries to sales@digite.com\
-      \ or fill out the form here: \n https://www.digite.com/contact-us/"
-  utter_greet:
-  - text: Hey! How can I help you? &#128512
-  utter_advice:
-  - text: I'll try my best!
-  utter_welcome:
-  - text: Anytime!
-  utter_feedback:
-  - text: I'll consider that.Thank you for the feedback!
-  utter_goodbye:
-  - text: See you around!
-  utter_fine:
-  - text: I'm doing great! So tell me, how can I help you?
-  utter_iamabot:
-  - text: Yes! I am a bot.A Rasa bot
-  utter_webinar:
-  - text: "You can signup for our upcoming webinars here: \n https://www.digite.com/webinars/"
+  utter_selfhosted:
+  - text: "Yes! SwiftKanban comes with both SaaS and on-premise installation. Get\
+      \ in touch with our sales team (sales@digite.com) to know more or fill out the\
+      \ contact form: \n https://www.digite.com/contact-us/"
+  utter_testimonials:
+  - text: "See How We've Helped Some of the World's Most Trusted Brands: \n https://www.digite.com/swiftkanban/kanban-case-studies/"
+  utter_thanking:
+  - text: Anytime! &#128521
   utter_training:
   - text: Yes!  When you purchase Swiftkanban, you can opt for training your team.
       We have a staff of professional and certified trainers that can provide training
       for teams of up to 25 people per session both remotely or on-site.  Email sales@digite.com
       for more information and pricing to help you customize the training that is
       right for your needs.
-  utter_testimonials:
-  - text: "See How We've Helped Some of the World's Most Trusted Brands: \n https://www.digite.com/swiftkanban/kanban-case-studies/"
   utter_trial:
   - text: "We offer a 30 day FREE trial of our SwiftKanban Enterprise plan. After\
       \ 30 days you will be converted to a basic plan with limited features and you\
       \ can use the same for 2 years for free. If you want to continue to use our\
       \ service, you will have to buy a package that suits you. Here are the pricing\
       \ details: \n  https://www.digite.com/swiftkanban/pricing/"
-  utter_selfhosted:
-  - text: "Yes! SwiftKanban comes with both SaaS and on-premise installation. Get\
-      \ in touch with our sales team (sales@digite.com) to know more or fill out the\
-      \ contact form: \n https://www.digite.com/contact-us/"
-  utter_pricing:
-  - text: Thank You for your interest.You can get in touch with us via sales@digite.com
-      and we will get back to you with the details.
-  utter_updates:
-  - text: "You can find all the SwiftEnterprise Product Release Updates here: \n https://www.digite.com/swiftenterprise/releases/"
-  utter_location:
-  - text: "The Digite offices are located at: \n United States \n 21060 Homestead\
-      \ Rd, Suite 220, Cupertino, CA 95014 \n \n Mumbai \n Fifth Floor, Opus Park,\
-      \ Opposite SEEPZ Main Gate, Central MIDC Road, Andheri (East), Mumbai - 400\
-      \ 093 \n \n Bengaluru \n Ground Floor, 40/1A, Basappa Complex, Lavelle Road,\
-      \ Bengaluru-560001"
-  utter_kanban:
-  - text: Kanban is a visual system for managing work as it moves through a process.
-      Kanban visualizes both the process (the workflow) and the actual work passing
-      through that process. The goal of Kanban is to identify potential bottlenecks
-      in your process and fix them so work can flow through it cost-effectively at
-      an optimal speed or throughput.
+  utter_webinar:
+  - text: "You can signup for our upcoming webinars here: \n https://www.digite.com/webinars/"
 actions:
-- utter_greet
-- utter_advice
-- utter_welcome
-- utter_feedback
-- utter_goodbye
-- utter_fine
-- utter_iamabot
-- utter_location
-- utter_webinar
-- utter_training
-- utter_testimonials
-- utter_trial
-- utter_selfhosted
-- utter_pricing
-- utter_updates
-- utter_safetool
-- utter_resources
-- utter_products
-- utter_mobapp
-- utter_scrumtool
-- utter_kanbantool
-- utter_agile
-- utter_login
-- utter_integration
-- utter_getstarted
-- utter_demo
-- utter_contact
-- utter_careers
-- utter_buySK
 - utter_about
+- utter_need_advice
+- utter_agile
+- utter_buySK
+- utter_careers
+- utter_contact
 - utter_default
+- utter_demo
+- utter_feedback
+- utter_how_are_you
+- utter_getstarted
+- utter_goodbye
+- utter_greeting
+- utter_challenge_bot
+- utter_integration
 - utter_kanban
+- utter_kanbantool
+- utter_location_query
+- utter_login
+- utter_mobapp
+- utter_pricing
+- utter_products
+- utter_resources
+- utter_safetool
+- utter_scrumtool
+- utter_selfhosted
+- utter_testimonials
+- utter_training
+- utter_trial
+- utter_sEnt_updates
+- utter_webinar
+- utter_thanking
