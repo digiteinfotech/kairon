@@ -30,7 +30,7 @@ intents:
 - careers
 - buySK
 - about
-templates:
+responses:
   utter_safetool:
   - text: Our SwiftEASe tool is the only SAFe tool that has a built in electronic
       Dependency Board that allows you to track multiple ART's and Teams all in one

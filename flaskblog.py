@@ -1,6 +1,7 @@
 #import libraries
 from flask import Flask, request
 from flask_cors import CORS
+from flask import jsonify
 import json
 import os
 import glob
@@ -10,8 +11,10 @@ from rasa.core.agent import Agent
 from rasa import train
 import nest_asyncio
 import sys
-sys.path.append(os.getcwd())
+from rasa.core.tracker_store import MongoTrackerStore
+from rasa.core.domain import Domain
 import aqgFunction
+
 aqg = aqgFunction.AutomaticQuestionGenerator()
 nest_asyncio.apply()
 
@@ -20,7 +23,6 @@ CORS(app)
 
 
 #establishing  paths of the rasa bot files
-global nlu_path, stories_path, models_path, domain_path, config_path, term, newdict, dictrand, train_path, agent
 original_path = '.'
 nlu_path = original_path + "/data/nlu.md"
 stories_path = original_path + "/data/stories.md"
@@ -29,12 +31,14 @@ domain_path = original_path +  "/domain.yml"
 config_path = original_path +  "/config.yml"
 train_path =  original_path + "/data/"
 
+domain = Domain.load(domain_path)
+db = MongoTrackerStore(domain=domain,host="mongodb://192.168.101.148:27019", db="conversation")
+
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
 modelpath = os.path.abspath(latest_file1)
 
 agent = Agent.load(modelpath)
-
 
 # reading and creating dictionary from nlu.md file
 with open(nlu_path, 'r') as f:
@@ -70,7 +74,7 @@ term.update(filtered)
 #reading and creating dictionary from domain.yml file
 with open(domain_path) as g:
     data1 = yaml.load(g, Loader=yaml.FullLoader)
-data2 = data1["templates"]
+    data2 = data1["responses"]
 newdict=dict()
 for keys in data2:
 
@@ -296,7 +300,7 @@ def addAnswer():
     
     dictaction = dict()
     for k, v in newdict.items():
-    dictaction[k] = [{"text": v}]
+        dictaction[k] = [{"text": v}]
     
     finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "templates": dictaction}
     
@@ -499,4 +503,24 @@ def variations():
     variation = comb(QuestionList)
     
     return { "message": "Variations generated", "Variations": variation}
+
+
+@app.route("/history/users", methods=['GET'])
+def chat_history_users():
+    return jsonify(db.keys())
+
+
+@app.route("/history/users/<sender>", methods=['POST'])
+def chat_history(sender):
+    return jsonify(list(fetch_chat_history(sender)))
     
+def fetch_chat_history(sender):
+    events = db.retrieve(sender).as_dialogue().events
+    for event in events:
+        event_data = event.as_dict()
+        if event_data['event'] in ['user', 'bot']:
+            yield {'event': event_data['event'], 'text': event_data['text']}
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', debug=True)
