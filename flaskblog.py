@@ -320,7 +320,7 @@ def addAnswer():
 def newintent():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
-    intent_name = jsonObject['name_intent']
+    intent_name = jsonObject['intentName']
 
         
     if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
@@ -368,7 +368,7 @@ def newintent():
             file_handler.write('\n')
         file_handler.close()
 
-        return {"message": "Intent Added"}
+        return {"message": "Intent Added", "intent": intent_name}
     
 ###############################################################################################New Code
     
