@@ -280,7 +280,6 @@ def getQuestionsAndAnswer():
 def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
     interm = "utter_" + intentName
-    print(type(newdict))
     response = newdict.get(interm)
     if response == 'None':
         response = ""
@@ -325,7 +324,7 @@ def addAnswer():
 def newintent():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
-    intent_name = jsonObject['name_intent']
+    intent_name = jsonObject['intentName']
 
         
     if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
@@ -373,7 +372,7 @@ def newintent():
             file_handler.write('\n')
         file_handler.close()
 
-        return {"message": "Intent Added"}
+        return {"message": "Intent Added", "intent": intent_name}
     
 ###############################################################################################New Code
     
@@ -391,12 +390,12 @@ elim = ['DT','PRP','PRP$']
 
 
 entity_helpverb_words = ['digite','agile','am', 'is', 'are','was', 'were', 'being', 'been', 'be','for','swiftly','in',
-'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'shall', 'should','im','there','here','on','or','how','of',
+'have', 'has', 'had', 'do', 'does', 'did', 'wil\wiki-news-300d-1M.vecl', 'would', 'shall', 'should','im','there','here','on','or','how','of',
                          'where','when','may', 'might', 'must', 'can', 'could','the','swiftalm', 'swift','kanban',
                          'alm','sap','cloud','scrum','jira','to','mnc','with','not','i','what','why']
                          
 
-m = gensim.models.KeyedVectors.load_word2vec_format(r'D:\\wiki-news-300d-1M.vec')  #enter the path of the model to load
+m = gensim.models.KeyedVectors.load_word2vec_format(r'./wiki-news-300d-1M.vec')  #enter the path of the model to load
 
 
 def get_wordnet_pos(word):
@@ -513,14 +512,54 @@ def chat_history_users():
 @app.route("/history/users/<sender>", methods=['POST'])
 def chat_history(sender):
     return jsonify(list(fetch_chat_history(sender)))
-    
+
 def fetch_chat_history(sender):
     events = db.retrieve(sender).as_dialogue().events
     for event in events:
         event_data = event.as_dict()
         if event_data['event'] in ['user', 'bot']:
-            yield {'event': event_data['event'], 'text': event_data['text']}
+            yield {'event': event_data['event'],'text':event_data['text']}
+    
+#chat intent service
+@app.route("/chat", methods=['POST'])
+def chat():
+    jsonObject = json.loads(request.data)
+    query = jsonObject['query']
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
+    Prediction = Prediction["intent"]['name']
+    qAndA = resolveQuesAndAnswer(Prediction)
+    answer = qAndA.get("answer")
+    if answer == '':
+        answer = newdict.get("utter_default")
+    return {"message": answer}
+    
+    
 
+#add Generated variations to the existing list of questions for an intent
+@app.route("/storeVariations", methods=['POST'])
+def storeVariations():
+    global term
+    jsonObject = json.loads(request.data)
+    intentName = jsonObject['intentName']
+    QuestionList = jsonObject['questionList']
+    term[intentName] = term[intentName] + QuestionList
+    file_handler = open(nlu_path,'w')
+    for finalkeys in list(term.keys()):
+
+        file_handler.write('\n'+ "## intent:")
+        file_handler.write(finalkeys)
+
+        for value in term[finalkeys]:
+
+            file_handler.write('\n'+ "- " + value)
+
+        file_handler.write('\n')
+    file_handler.close()
+    
+    
+    return { "message": "Variations Stored"}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
