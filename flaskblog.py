@@ -513,3 +513,29 @@ def chat():
     if answer == '':
         answer = newdict.get("utter_default")
     return {"message": answer}
+    
+    
+
+#add Generated variations to the existing list of questions for an intent
+@app.route("/storeVariations", methods=['POST'])
+def storeVariations():
+    global term
+    jsonObject = json.loads(request.data)
+    intentName = jsonObject['intentName']
+    QuestionList = jsonObject['questionList']
+    term[intentName] = term[intentName] + QuestionList
+    file_handler = open(nlu_path,'w')
+    for finalkeys in list(term.keys()):
+
+        file_handler.write('\n'+ "## intent:")
+        file_handler.write(finalkeys)
+
+        for value in term[finalkeys]:
+
+            file_handler.write('\n'+ "- " + value)
+
+        file_handler.write('\n')
+    file_handler.close()
+    
+    
+    return { "message": "Variations Stored"}
