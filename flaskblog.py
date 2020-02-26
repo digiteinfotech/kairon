@@ -276,7 +276,6 @@ def getQuestionsAndAnswer():
 def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
     interm = "utter_" + intentName
-    print(type(newdict))
     response = newdict.get(interm)
     if response == 'None':
         response = ""
@@ -296,7 +295,7 @@ def addAnswer():
     
     dictaction = dict()
     for k, v in newdict.items():
-    dictaction[k] = [{"text": v}]
+        dictaction[k] = [{"text": v}]
     
     finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "templates": dictaction}
     
@@ -387,12 +386,12 @@ elim = ['DT','PRP','PRP$']
 
 
 entity_helpverb_words = ['digite','agile','am', 'is', 'are','was', 'were', 'being', 'been', 'be','for','swiftly','in',
-'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'shall', 'should','im','there','here','on','or','how','of',
+'have', 'has', 'had', 'do', 'does', 'did', 'wil\wiki-news-300d-1M.vecl', 'would', 'shall', 'should','im','there','here','on','or','how','of',
                          'where','when','may', 'might', 'must', 'can', 'could','the','swiftalm', 'swift','kanban',
                          'alm','sap','cloud','scrum','jira','to','mnc','with','not','i','what','why']
                          
 
-m = gensim.models.KeyedVectors.load_word2vec_format(r'D:\\wiki-news-300d-1M.vec')  #enter the path of the model to load
+m = gensim.models.KeyedVectors.load_word2vec_format(r'./wiki-news-300d-1M.vec')  #enter the path of the model to load
 
 
 def get_wordnet_pos(word):
@@ -500,3 +499,17 @@ def variations():
     
     return { "message": "Variations generated", "Variations": variation}
     
+#chat intent service
+@app.route("/chat", methods=['POST'])
+def chat():
+    jsonObject = json.loads(request.data)
+    query = jsonObject['query']
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
+    Prediction = Prediction["intent"]['name']
+    qAndA = resolveQuesAndAnswer(Prediction)
+    answer = qAndA.get("answer")
+    if answer == '':
+        answer = newdict.get("utter_default")
+    return {"message": answer}
