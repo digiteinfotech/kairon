@@ -13,8 +13,8 @@ import nest_asyncio
 import sys
 from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.domain import Domain
-import questionVariations
-genquest = questionVariations.Variate()
+from .questionVariations import Variate
+genquest = Variate()
 
 nest_asyncio.apply()
 
@@ -384,7 +384,7 @@ def variations():
     QuestionList = jsonObject['questionList']
     variation = genquest.comb(QuestionList)
     
-    return { "message": "Variations generated", "Variations": variation}
+    return { "message": "Variations generated", "variations": variation}
 
 
 @app.route("/history/users", methods=['GET'])
@@ -442,7 +442,7 @@ def storeVariations():
     file_handler.close()
     
     
-    return { "message": "Variations Stored"}
+    return { "message": "Variations Stored", "questions": QuestionList}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)

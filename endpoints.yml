@@ -24,10 +24,10 @@
 #    db: <number of your database within redis, e.g. 0>
 #    password: <password used for authentication>
 
-#tracker_store:
-#    type: mongod
-#    url: <url to your mongo instance, e.g. mongodb://localhost:27017>
-#    db: <name of the db within your mongo instance, e.g. rasa>
+tracker_store:
+    type: mongod
+    url: mongodb://192.168.101.148:27019>
+    db: conversation
 #    username: <username used for authentication>
 #    password: <password used for authentication>
 

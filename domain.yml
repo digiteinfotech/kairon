@@ -1,3 +1,37 @@
+actions:
+- utter_about
+- utter_agile
+- utter_buySK
+- utter_careers
+- utter_challenge_bot
+- utter_contact
+- utter_default
+- utter_demo
+- utter_feedback
+- utter_getstarted
+- utter_goodbye
+- utter_greeting
+- utter_how_are_you
+- utter_integration
+- utter_kanban
+- utter_kanbantool
+- utter_location_query
+- utter_login
+- utter_mobapp
+- utter_need_advice
+- utter_pricing
+- utter_products
+- utter_resources
+- utter_sEnt_updates
+- utter_safetool
+- utter_scrumtool
+- utter_selfhosted
+- utter_testimonials
+- utter_thanking
+- utter_training
+- utter_trial
+- utter_webinar
+- utter_test2
 intents:
 - about
 - agile
@@ -30,6 +64,7 @@ intents:
 - training
 - trial
 - webinar
+- test2
 responses:
   utter_about:
   - text: "Well! &#128515 Digite' is a Silicon Valley-based company in Cupertino California\
@@ -130,6 +165,8 @@ responses:
   - text: "Yes! SwiftKanban comes with both SaaS and on-premise installation. Get\
       \ in touch with our sales team (sales@digite.com) to know more or fill out the\
       \ contact form: \n https://www.digite.com/contact-us/"
+  utter_test2:
+  - text: test answer
   utter_testimonials:
   - text: "See How We've Helped Some of the World's Most Trusted Brands: \n https://www.digite.com/swiftkanban/kanban-case-studies/"
   utter_thanking:
@@ -148,36 +185,3 @@ responses:
       \ details: \n  https://www.digite.com/swiftkanban/pricing/"
   utter_webinar:
   - text: "You can signup for our upcoming webinars here: \n https://www.digite.com/webinars/"
-actions:
-- utter_about
-- utter_need_advice
-- utter_agile
-- utter_buySK
-- utter_careers
-- utter_contact
-- utter_default
-- utter_demo
-- utter_feedback
-- utter_how_are_you
-- utter_getstarted
-- utter_goodbye
-- utter_greeting
-- utter_challenge_bot
-- utter_integration
-- utter_kanban
-- utter_kanbantool
-- utter_location_query
-- utter_login
-- utter_mobapp
-- utter_pricing
-- utter_products
-- utter_resources
-- utter_safetool
-- utter_scrumtool
-- utter_selfhosted
-- utter_testimonials
-- utter_training
-- utter_trial
-- utter_sEnt_updates
-- utter_webinar
-- utter_thanking
