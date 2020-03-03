@@ -1,4 +1,5 @@
 #import libraries
+import threading
 from flask import Flask, request
 from flask_cors import CORS
 from flask import jsonify
@@ -167,11 +168,9 @@ def Rem1():
         file_handler.close()
 
         return {"message": "intent removed"}
-
-
-#model training service
-@app.route("/train" , methods=['GET'])
-def train_model():
+        
+        
+def trainm():
     global agent
     #os.chdir(original_path)
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -184,6 +183,16 @@ def train_model():
     agent = Agent.load(modelpath1)
 
     return {"message": "Model training done"}
+
+    
+
+
+#model training service
+@app.route("/train" , methods=['GET'])
+def train_model():
+    task = threading.Thread(target=trainm, args=())
+    task.start()
+    return {"message": "model training started"}
 
 
 
