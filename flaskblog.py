@@ -381,8 +381,11 @@ def newintent():
         file_handler.close()
 
         return {"message": "Intent Added", "intent": intent_name}
-    
 
+
+def variate1(List):
+    variation = genquest.comb(List)
+    return { "message": "Variations generated", "variations" : variation}    
 
     
 #generate variations [accept string(s) in list format]
@@ -390,9 +393,11 @@ def newintent():
 def variations():
     jsonObject = json.loads(request.data)
     QuestionList = jsonObject['questionList']
-    variation = genquest.comb(QuestionList)
+    task1 = threading.Thread(target=variate1, args=(QuestionList, ))
+    task1.start()
     
-    return { "message": "Variations generated", "variations": variation}
+    return { "message": "Generating Variations"}
+
 
 
 @app.route("/history/users", methods=['GET'])
