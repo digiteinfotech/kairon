@@ -11,7 +11,6 @@ import asyncio
 from rasa.core.agent import Agent
 from rasa import train
 import nest_asyncio
-import sys
 from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.domain import Domain
 from .questionVariations import Variate
