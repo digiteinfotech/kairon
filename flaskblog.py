@@ -226,8 +226,7 @@ def Add():
         file_handler.write('\n')
     file_handler.close()
 
-    current = list()
-    current.append(component)
+    
     return {'message' : 'Component added', "question": component}
 
 
