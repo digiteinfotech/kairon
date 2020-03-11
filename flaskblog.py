@@ -21,6 +21,9 @@ nest_asyncio.apply()
 app = Flask(__name__)
 CORS(app)
 
+variation_flag = 0
+train_flag = 0
+
 
 #establishing  paths of the rasa bot files
 original_path = '.'
@@ -170,7 +173,7 @@ def Rem1():
         
         
 def trainm():
-    global agent
+    global agent, train_flag
     #os.chdir(original_path)
     asyncio.set_event_loop(asyncio.new_event_loop())
     train(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
@@ -180,6 +183,7 @@ def trainm():
     modelpath1 = os.path.abspath(latest_file)
 
     agent = Agent.load(modelpath1)
+    train_flag = 0
 
     return {"message": "Model training done"}
 
@@ -189,7 +193,9 @@ def trainm():
 #model training service
 @app.route("/train" , methods=['GET'])
 def train_model():
+    global train_flag
     task = threading.Thread(target=trainm, args=())
+    train_flag = 1
     task.start()
     return {"message": "model training started"}
 
@@ -383,16 +389,20 @@ def newintent():
 
 
 def variate1(List):
+    global variation_flag
     variation = genquest.comb(List)
+    variation_flag = 0
     return { "message": "Variations generated", "variations" : variation}    
 
     
 #generate variations [accept string(s) in list format]
 @app.route("/variations", methods=['POST'])
 def variations():
+    global variation_flag
     jsonObject = json.loads(request.data)
     QuestionList = jsonObject['questionList']
     task1 = threading.Thread(target=variate1, args=(QuestionList, ))
+    variation_flag = 1
     task1.start()
     
     return { "message": "Generating Variations"}
