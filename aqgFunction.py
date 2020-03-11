@@ -63,62 +63,62 @@ class AutomaticQuestionGenerator():
                                 pass
 
 
-                            else:
-                                try:
-                                    s = identification.subjectphrase_search(segmentSets, j)
+                        else:
+                            try:
+                            
+                                s = identification.subjectphrase_search(segmentSets, j)
                                 
 
-                                    if len(s) != 0:
-                                        segmentSets[j] = s + segmentSets[j]
-                                        try:
-                                            questionsList += clause.whom_1(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += clause.whom_2(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += clause.whom_3(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += clause.whose(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += clause.what_to_do(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += clause.who(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
+                                if len(s) != 0:
+                                    segmentSets[j] = s + segmentSets[j]
+                                    try:
+                                        questionsList += clause.whom_1(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += clause.whom_2(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += clause.whom_3(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += clause.whose(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += clause.what_to_do(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += clause.who(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
 
-                                    else:
-                                        try:
-                                            questionsList += nonClause.what_whom1(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += nonClause.what_whom2(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += nonClause.whose(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += nonClause.howmany(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                        try:
-                                            questionsList += nonClause.howmuch_1(segmentSets, j, ner)
-                                        except Exception:
-                                            pass
-                                except Exception:
-                                    pass
-
+                                else:
+                                    try:
+                                        questionsList += nonClause.what_whom1(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += nonClause.what_whom2(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += nonClause.whose(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += nonClause.howmany(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        questionsList += nonClause.howmuch_1(segmentSets, j, ner)
+                                    except Exception:
+                                        pass
+                            except:
+                                pass
 
                 questionsList.append('\n')
         return questionsList
@@ -131,7 +131,6 @@ class AutomaticQuestionGenerator():
         print("Start  output:\n")
 
         count = 0
-        out = ""
 
         for i in range(len(str)):
             count = count + 1
@@ -144,10 +143,10 @@ class AutomaticQuestionGenerator():
 
     # AQG Display the Generated Question
     def display(self, str):
+        
 
-        final = []
+        final=[]
         count = 0
-        #out = ""
         for i in range(len(str)):
             if (len(str[i]) >= 3):
                 if (questionValidation.hNvalidation(str[i]) == 1):
@@ -164,12 +163,11 @@ class AutomaticQuestionGenerator():
                             if (count < 10):
                                 final.append(str[i])
                                 
-                               # print("Q-0%d: %s" % (count, str[i]))
-                                #out += "Q-0" + count.__str__() + ": " + str[i] + "\n"
+
                             else:
                                 final.append(str[i])
-                               # print("Q-%d: %s" % (count, str[i]))
-                                #out += "Q-" + count.__str__() + ": " + str[i] + "\n"
+                                
+
         return list(set(final))
 
-
+        
