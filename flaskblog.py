@@ -14,6 +14,8 @@ import nest_asyncio
 from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.domain import Domain
 from .questionVariations import Variate
+from .aqgFunction import AutomaticQuestionGenerator
+aqg = AutomaticQuestionGenerator()
 genquest = Variate()
 
 nest_asyncio.apply()
@@ -23,6 +25,8 @@ CORS(app)
 
 variation_flag = 0
 train_flag = 0
+para_flag = 0
+
 
 
 #establishing  paths of the rasa bot files
@@ -103,6 +107,29 @@ for line8 in text2:
         if line6 in list(newdict.keys()):
             second = line6
             dictrand[first]= second
+            
+
+
+def paraQ(paragraph):
+    global para_flag
+    questionList = aqg.aqgParse(paragraph)
+    FinalList = aqg.display(questionList)
+    para_flag = 0
+    return {"message": "Questions Generated" , "Questions" : FinalList}
+
+
+
+#service for question generation from paragraph            
+@app.route("/para", methods=['POST'])
+def para():
+    global para_flag
+    jsonObject = json.loads(request.data)
+    paragraph = jsonObject['paragraph']
+    task2 = threading.Thread(target=paraQ, args=(paragraph,))
+    para_flag = 1
+    task2.start()
+    return { "message": "Generating Questions"}
+
 
 
 
@@ -470,7 +497,7 @@ def storeVariations():
 #get status of flags    
 @app.route("/getAppStatus", methods=['GET'])
 
-    return { "variation": variation_flag, "model":  train_flag   }
+    return { "variation": variation_flag, "model":  train_flag, "paragraph": para_flag  }
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
