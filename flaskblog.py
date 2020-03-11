@@ -465,6 +465,12 @@ def storeVariations():
     
     
     return { "message": "Variations Stored", "questions": QuestionList}
+    
+    
+#get status of flags    
+@app.route("/getAppStatus", methods=['GET'])
+
+    return { "variation": variation_flag, "model":  train_flag   }
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
