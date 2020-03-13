@@ -1,6 +1,6 @@
 import nltk
-import identification
-import nonClause
+from .identification import chunk_search, postprocess, verbphrase_identify
+from .nonClause import get_chunk
 
 
 def whom_1(segment_set, num, ner):
@@ -10,7 +10,7 @@ def whom_1(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -21,13 +21,13 @@ def whom_1(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
@@ -57,24 +57,24 @@ def whom_1(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -82,7 +82,7 @@ def whom_1(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 
@@ -96,7 +96,7 @@ def whom_2(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -107,13 +107,13 @@ def whom_2(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
@@ -142,24 +142,24 @@ def whom_2(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -167,7 +167,7 @@ def whom_2(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 
@@ -181,7 +181,7 @@ def whom_3(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -192,13 +192,13 @@ def whom_3(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
@@ -221,14 +221,14 @@ def whom_3(segment_set, num, ner):
                             else:
                                 str2 = " what "
 
-                strx = nonClause.get_chunk(chunked[j])
+                strx = get_chunk(chunked[j])
                 tok = nltk.word_tokenize(strx)
                 tag = nltk.pos_tag(tok)
                 gram = r"""chunk:{<VB.?|MD>+}"""
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                strx = nonClause.get_chunk(chunked1[0])
+                strx = get_chunk(chunked1[0])
 
                 str1 += strx
 
@@ -238,25 +238,25 @@ def whom_3(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
 
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -264,7 +264,7 @@ def whom_3(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 
@@ -278,7 +278,7 @@ def whose(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -289,14 +289,14 @@ def whose(segment_set, num, ner):
                 str2 = ""
                 for k in range(i):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
                 str1 += " whose "
 
                 for k in range(i + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
@@ -318,7 +318,7 @@ def whose(segment_set, num, ner):
                         str2 += ("," + segment_set[l])
                 str2 = str4 + str2
                 str2 += '?'
-                str2 = identification.postprocess(str2)
+                str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
                 list3.append(str2)
 
@@ -332,7 +332,7 @@ def what_to_do(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -343,26 +343,26 @@ def what_to_do(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
-                ls = nonClause.get_chunk(chunked[j])
+                ls = get_chunk(chunked[j])
                 tok = nltk.word_tokenize(ls)
                 tag = nltk.pos_tag(tok)
                 gram = r"""chunk:{<DT>?<RB.?>*<JJ.?>*<NN.?|PRP|PRP\$|POS|VBG|DT>+}"""
                 chunkparser = nltk.RegexpParser(gram)
                 chunked2 = chunkparser.parse(tag)
-                lis = identification.chunk_search(ls, chunked2)
+                lis = chunk_search(ls, chunked2)
                 if len(lis) != 0:
                     x = lis[len(lis) - 1]
-                    ls1 = nonClause.get_chunk(chunked2[x])
+                    ls1 = get_chunk(chunked2[x])
                     index = ls.find(ls1)
                     str2 = " " + ls[0:index]
                 else:
@@ -374,24 +374,24 @@ def what_to_do(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -418,7 +418,7 @@ def what_to_do(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 
@@ -432,7 +432,7 @@ def who(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -441,11 +441,11 @@ def who(segment_set, num, ner):
             str1 = ""
             for k in range(m + 1, len(chunked)):
                 if k in list1:
-                    str1 += nonClause.get_chunk(chunked[k])
+                    str1 += get_chunk(chunked[k])
                 else:
                     str1 += (chunked[k][0] + " ")
 
-            str2 = nonClause.get_chunk(chunked[m])
+            str2 = get_chunk(chunked[m])
             tok = nltk.word_tokenize(str2)
             tag = nltk.pos_tag(tok)
 
@@ -468,13 +468,13 @@ def who(segment_set, num, ner):
             chunkparser = nltk.RegexpParser(gram)
             chunked1 = chunkparser.parse(tag)
 
-            list2 = identification.chunk_search(str2, chunked1)
+            list2 = chunk_search(str2, chunked1)
             if len(list2) != 0:
-                str2 = nonClause.get_chunk(chunked1[list2[0]])
+                str2 = get_chunk(chunked1[list2[0]])
                 str2 = s11 + str2
                 for k in range(list2[0] + 1, len(chunked1)):
                     if k in list2:
-                        str2 += nonClause.get_chunk(chunked[k])
+                        str2 += get_chunk(chunked[k])
                     else:
                         str2 += (chunked[k][0] + " ")
                 str2 += (" " + str1)
@@ -491,7 +491,7 @@ def who(segment_set, num, ner):
                     str2 += ("," + segment_set[l])
                 str2 += '?'
 
-                str2 = identification.postprocess(str2)
+                str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
                 list3.append(str2)
 
@@ -505,7 +505,7 @@ def howmuch_2(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -514,11 +514,11 @@ def howmuch_2(segment_set, num, ner):
             str1 = ""
             for k in range(m + 1, len(chunked)):
                 if k in list1:
-                    str1 += nonClause.get_chunk(chunked[k])
+                    str1 += get_chunk(chunked[k])
                 else:
                     str1 += (chunked[k][0] + " ")
 
-            str2 = nonClause.get_chunk(chunked[m])
+            str2 = get_chunk(chunked[m])
             tok = nltk.word_tokenize(str2)
             tag = nltk.pos_tag(tok)
             gram = r"""chunk:{<RB.?>*<VB.?|MD|RP>+}"""
@@ -526,13 +526,13 @@ def howmuch_2(segment_set, num, ner):
             chunked1 = chunkparser.parse(tag)
             s11 = ' how much '
 
-            list2 = identification.chunk_search(str2, chunked1)
+            list2 = chunk_search(str2, chunked1)
             if len(list2) != 0:
-                str2 = nonClause.get_chunk(chunked1[list2[0]])
+                str2 = get_chunk(chunked1[list2[0]])
                 str2 = s11 + str2
                 for k in range(list2[0] + 1, len(chunked1)):
                     if k in list2:
-                        str2 += nonClause.get_chunk(chunked[k])
+                        str2 += get_chunk(chunked[k])
                     else:
                         str2 += (chunked[k][0] + " ")
                 str2 += (" " + str1)
@@ -549,7 +549,7 @@ def howmuch_2(segment_set, num, ner):
                     str2 += ("," + segment_set[l])
                 str2 += '?'
 
-                str2 = identification.postprocess(str2)
+                str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
                 list3.append(str2)
 
@@ -563,7 +563,7 @@ def howmuch_1(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -574,13 +574,13 @@ def howmuch_1(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
@@ -592,24 +592,24 @@ def howmuch_1(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -617,7 +617,7 @@ def howmuch_1(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 
@@ -631,7 +631,7 @@ def howmuch_3(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     list3 = []
 
     if len(list1) != 0:
@@ -642,24 +642,24 @@ def howmuch_3(segment_set, num, ner):
             if j in list1:
                 for k in range(j):
                     if k in list1:
-                        str1 += nonClause.get_chunk(chunked[k])
+                        str1 += get_chunk(chunked[k])
                     else:
                         str1 += (chunked[k][0] + " ")
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
-                        str3 += nonClause.get_chunk(chunked[k])
+                        str3 += get_chunk(chunked[k])
                     else:
                         str3 += (chunked[k][0] + " ")
 
-                strx = nonClause.get_chunk(chunked[j])
+                strx = get_chunk(chunked[j])
                 tok = nltk.word_tokenize(strx)
                 tag = nltk.pos_tag(tok)
                 gram = r"""chunk:{<MD>?<VB|VBD|VBG|VBP|VBN|VBZ>+<IN|TO>?<PRP|PRP\$|NN.?>?}"""
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                strx = nonClause.get_chunk(chunked1[0])
+                strx = get_chunk(chunked1[0])
                 str1 += (" " + strx)
 
                 str2 = ' how much '
@@ -670,25 +670,25 @@ def howmuch_3(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(str1, chunked1)
+                list2 = chunk_search(str1, chunked1)
 
                 if len(list2) != 0:
                     m = list2[len(list2) - 1]
 
-                    str4 = nonClause.get_chunk(chunked1[m])
-                    str4 = identification.verbphrase_identify(str4)
+                    str4 = get_chunk(chunked1[m])
+                    str4 = verbphrase_identify(str4)
                     str5 = ""
                     str6 = ""
 
                     for k in range(m):
                         if k in list2:
-                            str5 += nonClause.get_chunk(chunked1[k])
+                            str5 += get_chunk(chunked1[k])
                         else:
                             str5 += (chunked1[k][0] + " ")
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
-                            str6 += nonClause.get_chunk(chunked1[k])
+                            str6 += get_chunk(chunked1[k])
                         else:
                             str6 += (chunked1[k][0] + " ")
 
@@ -697,7 +697,7 @@ def howmuch_3(segment_set, num, ner):
                     for l in range(num + 1, len(segment_set)):
                         st += ("," + segment_set[l])
                     st += '?'
-                    st = identification.postprocess(st)
+                    st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
 

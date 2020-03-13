@@ -122,3 +122,15 @@
 ## path_kanban
 * kanban
   - utter_kanban
+
+## path_test2
+* test2
+  - utter_test2
+
+## path_Reject
+* Reject
+  - utter_Reject
+
+## path_about organization
+* about organization
+  - utter_about organization

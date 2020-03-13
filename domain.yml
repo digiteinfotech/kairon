@@ -26,12 +26,14 @@ actions:
 - utter_safetool
 - utter_scrumtool
 - utter_selfhosted
+- utter_test2
 - utter_testimonials
 - utter_thanking
 - utter_training
 - utter_trial
 - utter_webinar
-- utter_test2
+- utter_Reject
+- utter_about organization
 intents:
 - about
 - agile
@@ -65,11 +67,17 @@ intents:
 - trial
 - webinar
 - test2
+- Reject
+- about organization
 responses:
+  utter_Reject:
+  - text: Ok. I will check that for you
   utter_about:
   - text: "Well! &#128515 Digite' is a Silicon Valley-based company in Cupertino California\
       \ and has been around since 2002 with locations and customers located around\
       \ the world. Learn more at: \n https://www.digite.com/about-us/"
+  utter_about organization:
+  - text: we are based in cupertino usa a product development company
   utter_agile:
   - text: "We provide several tools that support a variety of Agile methods such as\
       \ Scrum, Kanban, Scrumban, Scaled Agile (SAFe), and even traditional methods.\

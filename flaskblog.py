@@ -495,11 +495,10 @@ def storeVariations():
     return { "message": "Variations Stored", "questions": QuestionList}
     
     
-#get status of flags    
+# get status of flags
 @app.route("/getAppStatus", methods=['GET'])
-
-    return { "variation": variation_flag, "model":  train_flag, "paragraph": para_flag  }
-    
+def getFlags():
+    return {"variation": variation_flag, "model":  train_flag, "paragraph": para_flag}
     
 #deploy code
 @app.route("/deploy" , methods=['POST'])

@@ -21,11 +21,22 @@
 - do you have agile project management software
 - what is alm
 - I am looking for a resource management tool
+- ask me about swift company
+- relate me about swift ventures
+- say me regarding swift entrepreneurship
+- hear me talking swift business
+- inform me concerning swift investment
+- what is alm
+- ask me about swift ventures
+- remind me about swift business
+- explain me abut swift investment
 
 ## intent:buySK
 - purchase swiftkanban
 - buy swiftkanban
 - i want to try swift kanban
+- acquire swiftkanban
+- purchasing swiftkanban
 
 ## intent:careers
 - opportunity
@@ -293,3 +304,22 @@
 - latest webinars
 - webinar signup
 - i would like to know about the webinar
+
+## intent:test2
+- test question
+- tester answer
+- retest ask
+- litmus whether
+- testing reply
+- tests questions
+- analyzer answer
+- developer answer
+
+## intent:Reject
+- This is not working
+
+## intent:about organization
+- tell me something about your organization
+- inform me else regarding your organisation
+- know me things talking your group
+- explain me everything abut your organizational

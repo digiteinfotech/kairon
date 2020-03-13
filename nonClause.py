@@ -1,5 +1,5 @@
 import nltk
-import identification
+from .identification import chunk_search, postprocess
 
 
 def get_chunk(chunked):
@@ -15,7 +15,7 @@ def what_whom1(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     s = []
 
     if len(list1) != 0:
@@ -58,7 +58,7 @@ def what_whom1(segment_set, num, ner):
                     if k != num:
                         str4 += ("," + segment_set[k])
                 str4 += '?'
-                str4 = identification.postprocess(str4)
+                str4 = postprocess(str4)
                 # str4 = 'Q.' + str4
                 s.append(str4)
     return s
@@ -70,7 +70,7 @@ def what_whom2(segment_set, num, ner):
     gram = r"""chunk:{<IN>+<DT>?<RB.?>*<JJ.?>*<NN.?|PRP|PRP\$|POS|VBG|DT|CD|VBN>+}"""
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     s = []
 
     if len(list1) != 0:
@@ -113,7 +113,7 @@ def what_whom2(segment_set, num, ner):
                     if k != num:
                         str4 += ("," + segment_set[k])
                 str4 += '?'
-                str4 = identification.postprocess(str4)
+                str4 = postprocess(str4)
                 # str4 = 'Q.' + str4
                 s.append(str4)
     return s
@@ -126,7 +126,7 @@ def whose(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     s = []
 
     if len(list1) != 0:
@@ -157,7 +157,7 @@ def whose(segment_set, num, ner):
                     if k != num:
                         str4 += ("," + segment_set[k])
                 str4 += '?'
-                str4 = identification.postprocess(str4)
+                str4 = postprocess(str4)
                 # str4 = 'Q.' + str4
                 s.append(str4)
     return s
@@ -170,7 +170,7 @@ def howmany(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     s = []
 
     if len(list1) != 0:
@@ -197,7 +197,7 @@ def howmany(segment_set, num, ner):
                 chunkparser = nltk.RegexpParser(gram)
                 chunked1 = chunkparser.parse(tag)
 
-                list2 = identification.chunk_search(st, chunked1)
+                list2 = chunk_search(st, chunked1)
                 z = ""
 
                 for k in range(len(chunked1)):
@@ -209,7 +209,7 @@ def howmany(segment_set, num, ner):
                     if k != num:
                         str4 += ("," + segment_set[k])
                 str4 += '?'
-                str4 = identification.postprocess(str4)
+                str4 = postprocess(str4)
                 # str4 = 'Q.' + str4
                 s.append(str4)
     return s
@@ -222,7 +222,7 @@ def howmuch_1(segment_set, num, ner):
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
-    list1 = identification.chunk_search(segment_set[num], chunked)
+    list1 = chunk_search(segment_set[num], chunked)
     s = []
 
     if len(list1) != 0:
@@ -248,7 +248,7 @@ def howmuch_1(segment_set, num, ner):
                     if k != num:
                         str4 += ("," + segment_set[k])
                 str4 += '?'
-                str4 = identification.postprocess(str4)
+                str4 = postprocess(str4)
                 # str4 = 'Q.' + str4
                 s.append(str4)
     return s
