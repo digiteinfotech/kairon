@@ -498,6 +498,31 @@ def storeVariations():
 @app.route("/getAppStatus", methods=['GET'])
 
     return { "variation": variation_flag, "model":  train_flag, "paragraph": para_flag  }
+    
+    
+#deploy code
+@app.route("/deploy" , methods=['POST'])
+def deploy():
+    list_of_files = glob.glob(models_path + '/*')
+    latest_file = max(list_of_files, key=os.path.getctime)
+    modelpath1 = os.path.abspath(latest_file)
+    
+    my_dict = yaml.load(open('./system.yaml'))
+    url = my_dict["chatbot_url"]
+    
+    req0= {
+     "model_file": modelpath1,
+     "model_server": {
+       "url": url,
+       "params": {},
+       "headers": {},
+       "basic_auth": {},
+       "wait_time_between_pulls": 0
+         }
+    }
+    requests.put('http://localhost:5005/model', data = json.dumps(req0),headers=headers)
+    
+    
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
