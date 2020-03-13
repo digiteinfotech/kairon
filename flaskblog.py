@@ -1,4 +1,5 @@
 #import libraries
+import requests
 import threading
 from flask import Flask, request
 from flask_cors import CORS
@@ -509,7 +510,7 @@ def deploy():
     
     my_dict = yaml.load(open('./system.yaml'))
     url = my_dict["chatbot_url"]
-    
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     req0= {
      "model_file": modelpath1,
      "model_server": {
