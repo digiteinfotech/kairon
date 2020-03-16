@@ -25,4 +25,4 @@ RUN rasa train
 
 EXPOSE 5005
 
-CMD["hypercorn","-w", 2", "flaskblog:app"]
+CMD ["hypercorn","-w", 2", "flaskblog:app"]
