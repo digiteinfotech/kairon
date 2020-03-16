@@ -17,6 +17,8 @@ RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install autocorrect
 RUN python3 -m pip install Quart
 RUN python3 -m pip install Quart-CORS
+RUN python3 -m pip install spacy
+RUN python3 -m spacy download en_core_web_sm
 RUN mkdir ssl
 
 COPY . ${RASA_NLU_HOME}
