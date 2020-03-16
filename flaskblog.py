@@ -51,9 +51,9 @@ system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 
 agent = Agent.load(modelpath)
 
-term = loader.intent_1(nlu_path)
-newdict = loader.domain_1(domain_path)
-dictrand = loader.story_1(stories_path)
+term = loader.load_intent(nlu_path)
+newdict = loader.load_domain(domain_path)
+dictrand = loader.load_story(stories_path,term,newdict)
 
 
 def paraQ(paragraph):
