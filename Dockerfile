@@ -17,7 +17,6 @@ RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install autocorrect
 RUN python3 -m pip install Quart
 RUN python3 -m pip install Quart-CORS
-RUN rasa train || true
 RUN mkdir ssl
 USER 1001
 
