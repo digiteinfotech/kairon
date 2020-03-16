@@ -47,7 +47,7 @@ db = MongoTrackerStore(domain=domain,host="mongodb://192.168.101.148:27019", db=
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
 modelpath = os.path.abspath(latest_file1)
-system_properties = yaml.load(open('./system.yaml',Loader=yaml.FullLoader))
+system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 
 agent = Agent.load(modelpath)
 
