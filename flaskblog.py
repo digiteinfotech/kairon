@@ -47,6 +47,7 @@ db = MongoTrackerStore(domain=domain,host="mongodb://192.168.101.148:27019", db=
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
 modelpath = os.path.abspath(latest_file1)
+system_properties = yaml.load(open('./system.yaml',Loader=yaml.FullLoader))
 
 agent = Agent.load(modelpath)
 
@@ -449,13 +450,12 @@ def getFlags():
 def deploy():
     list_of_files = glob.glob(models_path + '/*')
     latest_file = max(list_of_files, key=os.path.getctime)
-    modelpath1 = os.path.abspath(latest_file)
+    model_path = os.path.abspath(latest_file)
     
-    my_dict = yaml.load(open('./system.yaml'))
-    url = my_dict["chatbot_url"]
+    url = system_properties["chatbot_url"]
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     req0= {
-     "model_file": modelpath1,
+     "model_file": model_path,
      "model_server": {
        "url": url,
        "params": {},
@@ -464,7 +464,7 @@ def deploy():
        "wait_time_between_pulls": 0
          }
     }
-    requests.put('http://localhost:5005/model', data = json.dumps(req0),headers=headers)
+    requests.put(url, data = json.dumps(req0),headers=headers)
     
     
 
