@@ -1,4 +1,4 @@
-import aqgFunction
+from bot_trainer import aqgFunction
 
 
 # Main Function

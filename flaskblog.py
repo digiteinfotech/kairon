@@ -1,30 +1,32 @@
 #import libraries
-import requests
-import threading
-from flask import Flask, request
-from flask_cors import CORS
-from flask import jsonify
+import asyncio
+import glob
 import json
 import os
-import glob
-import yaml
-import asyncio
-from rasa.core.agent import Agent
-from rasa import train
+import threading
+
 import nest_asyncio
-from rasa.core.tracker_store import MongoTrackerStore
-from rasa.core.domain import Domain
-from .questionVariations import Variate
-from .aqgFunction import AutomaticQuestionGenerator
-from .loading import load
+import requests
+import yaml
+from quart import Quart, request, jsonify
+from quart_cors import cors
+from rasa import train
+from rasa.core.agent import Agent
+
+from bot_trainer.aqgFunction import AutomaticQuestionGenerator
+from bot_trainer.history import ChatHistory
+from bot_trainer.loading import load
+from bot_trainer.questionVariations import Variate
+
 loader = load()
+
+app = Quart(__name__)
+cors(app, allow_origin="*")
+
+system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
 genquest = Variate()
-
 nest_asyncio.apply()
-
-app = Flask(__name__)
-CORS(app)
 
 variation_flag = 0
 train_flag = 0
@@ -41,13 +43,12 @@ domain_path = original_path +  "/domain.yml"
 config_path = original_path +  "/config.yml"
 train_path =  original_path + "/data/"
 
-domain = Domain.load(domain_path)
-db = MongoTrackerStore(domain=domain,host="mongodb://192.168.101.148:27019", db="conversation")
+chat_history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']))
 
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
 modelpath = os.path.abspath(latest_file1)
-system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
+
 
 agent = Agent.load(modelpath)
 
@@ -67,7 +68,7 @@ def paraQ(paragraph):
 
 #service for question generation from paragraph            
 @app.route("/para", methods=['POST'])
-def para():
+async def para():
     global para_flag
     jsonObject = json.loads(request.data)
     paragraph = jsonObject['paragraph']
@@ -82,7 +83,7 @@ def para():
 
 #predict intent service
 @app.route("/predict", methods=['POST'])
-def predict():
+async def predict():
     jsonObject = json.loads(request.data)
     query = jsonObject['query']
     loop = asyncio.new_event_loop()
@@ -96,7 +97,7 @@ def predict():
 
 #remove intent service
 @app.route("/removeintent" , methods=['POST'])
-def Rem1():
+async def Rem1():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['name_intent']
@@ -145,7 +146,7 @@ def Rem1():
         return {"message": "intent removed"}
         
         
-def trainm():
+async def trainm():
     global agent, train_flag
     #os.chdir(original_path)
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -165,7 +166,7 @@ def trainm():
 
 #model training service
 @app.route("/train" , methods=['GET'])
-def train_model():
+async def train_model():
     global train_flag
     task = threading.Thread(target=trainm, args=())
     train_flag = 1
@@ -176,7 +177,7 @@ def train_model():
 
 #adding sentence to intent service
 @app.route("/addComponent" , methods=['POST'])
-def Add():
+async def Add():
     global term
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['intentName']
@@ -211,7 +212,7 @@ def Add():
 
 #removing sentence from intent service
 @app.route("/removeComponent" , methods=['POST'])
-def Rem():
+async def Rem():
     global term
     jsonObject = json.loads(request.data)
     component = jsonObject['component']
@@ -251,19 +252,19 @@ def Rem():
 
 #get intent list
 @app.route("/getIntentList", methods=['GET'])
-def getIntentList():
+async def getIntentList():
     return json.dumps(list(term.keys()))
 
 #getQuestions and Response for an intent
 @app.route("/getQuestionsAndAnswer", methods=['POST'])
-def getQuestionsAndAnswer():
+async def getQuestionsAndAnswer():
     jsonObject = json.loads(request.data)
     intentName = jsonObject['intentName']
     qAndA = resolveQuesAndAnswer(intentName)
 
     return qAndA
 
-def resolveQuesAndAnswer(intentName):
+async def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
     interm = "utter_" + intentName
     response = newdict.get(interm)
@@ -273,7 +274,7 @@ def resolveQuesAndAnswer(intentName):
     
 # Add answer
 @app.route("/addAnswer" , methods=['POST'])
-def addAnswer():
+async def addAnswer():
     global newdict,dictrand
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['intentName']
@@ -307,7 +308,7 @@ def addAnswer():
 #add intent
 
 @app.route("/newintent", methods=['POST'])
-def newintent():
+async def newintent():
     global term, newdict, dictrand
     jsonObject = json.loads(request.data)
     intent_name = jsonObject['intentName']
@@ -370,7 +371,7 @@ def variate1(List):
     
 #generate variations [accept string(s) in list format]
 @app.route("/variations", methods=['POST'])
-def variations():
+async def variations():
     global variation_flag
     jsonObject = json.loads(request.data)
     QuestionList = jsonObject['questionList']
@@ -383,24 +384,17 @@ def variations():
 
 
 @app.route("/history/users", methods=['GET'])
-def chat_history_users():
-    return jsonify(db.keys())
+async def chat_history_users():
+    return jsonify(chat_history.fetch_chat_users())
 
 
 @app.route("/history/users/<sender>", methods=['POST'])
-def chat_history(sender):
-    return jsonify(list(fetch_chat_history(sender)))
-
-def fetch_chat_history(sender):
-    events = db.retrieve(sender).as_dialogue().events
-    for event in events:
-        event_data = event.as_dict()
-        if event_data['event'] in ['user', 'bot']:
-            yield {'event': event_data['event'],'text':event_data['text']}
+async def chat_history(sender):
+    return jsonify(list(chat_history.fetch_chat_history(sender)))
     
 #chat intent service
 @app.route("/chat", methods=['POST'])
-def chat():
+async def chat():
     jsonObject = json.loads(request.data)
     query = jsonObject['query']
     loop = asyncio.new_event_loop()
@@ -417,7 +411,7 @@ def chat():
 
 #add Generated variations to the existing list of questions for an intent
 @app.route("/storeVariations", methods=['POST'])
-def storeVariations():
+async def storeVariations():
     global term
     jsonObject = json.loads(request.data)
     intentName = jsonObject['intentName']
@@ -442,12 +436,12 @@ def storeVariations():
     
 # get status of flags
 @app.route("/getAppStatus", methods=['GET'])
-def getFlags():
+async def getFlags():
     return {"variation": variation_flag, "model":  train_flag, "paragraph": para_flag}
     
 #deploy code
 @app.route("/deploy" , methods=['POST'])
-def deploy():
+async def deploy():
     list_of_files = glob.glob(models_path + '/*')
     latest_file = max(list_of_files, key=os.path.getctime)
     model_path = os.path.abspath(latest_file)
