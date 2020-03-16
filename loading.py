@@ -1,7 +1,7 @@
 import yaml
 
 class load():
-    def intent_1(self, nlu_path):
+    def load_intent(self, nlu_path):
         with open(nlu_path, 'r') as f:
             text = f.readlines()
         intent = None
@@ -32,7 +32,7 @@ class load():
         term.update(filtered)
         return term
     
-    def domain_1(self, domain_path):
+    def load_domain(self, domain_path):
         with open(domain_path) as g:
             data1 = yaml.load(g, Loader=yaml.FullLoader)
             data2 = data1["templates"]
@@ -46,7 +46,7 @@ class load():
             
         return newdict
     
-    def story_1(self, stories_path,term,newdict):
+    def load_story(self, stories_path,term,newdict):
         dictrand={}
         with open(stories_path, 'r') as h:
             text2 = h.readlines()
