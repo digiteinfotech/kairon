@@ -129,7 +129,7 @@ async def Rem1():
         for k,v in newdict.items():
             dictaction[k] = [{"text" : v}]
 
-        finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "templates": dictaction}
+        finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "responses": dictaction}
 
         with open(domain_path, 'w') as file:
             yaml.dump(finaldict, file)
@@ -288,7 +288,7 @@ async def addAnswer():
     for k, v in newdict.items():
         dictaction[k] = [{"text": v}]
     
-    finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "templates": dictaction}
+    finaldict = {'actions': list(newdict.keys()), "intents": list(term.keys()), "responses": dictaction}
     
     with open(domain_path, 'w') as file:
         yaml.dump(finaldict, file)
@@ -345,7 +345,7 @@ async def newintent():
         for k,v in newdict.items():
             dictaction[k] = [{"text" : v}]
 
-        finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "templates": dictaction}
+        finaldict = {'actions': list(newdict.keys()), "intents" : list(term.keys()), "responses": dictaction}
 
         with open(domain_path, 'w') as file:
             yaml.dump(finaldict, file)

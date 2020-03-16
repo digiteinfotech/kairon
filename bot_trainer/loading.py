@@ -46,7 +46,7 @@ class load():
             
         return newdict
     
-    def load_story(self, stories_path):
+    def load_story(self, stories_path, term, newdict):
         dictrand={}
         with open(stories_path, 'r') as h:
             text2 = h.readlines()
