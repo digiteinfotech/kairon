@@ -9,6 +9,7 @@ ENV RASA_NLU_DOCKER="YES" \
 WORKDIR ${RASA_NLU_HOME}
 
 USER root
+RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
 RUN python3 -m pip install nest_asyncio
 RUN python3 -m pip install gensim
