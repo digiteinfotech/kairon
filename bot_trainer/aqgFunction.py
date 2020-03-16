@@ -1,9 +1,9 @@
 import spacy
-from .clause import howmuch_2, howmuch_1 as c_howmuch_1, howmuch_3, what_to_do, who, whom_1, whom_2, whom_3, whose as c_whose
-from .nonClause import whose, howmuch_1,  howmany, what_whom1, what_whom2
-from .identification import clause_identify, subjectphrase_search
-from .questionValidation import hNvalidation
-from .nlpNER import nerTagger
+from bot_trainer.clause import howmuch_2, howmuch_1 as c_howmuch_1, howmuch_3, what_to_do, who, whom_1, whom_2, whom_3, whose as c_whose
+from bot_trainer.nonClause import whose, howmuch_1,  howmany, what_whom1, what_whom2
+from bot_trainer.identification import clause_identify, subjectphrase_search
+from bot_trainer.questionValidation import hNvalidation
+from bot_trainer.nlpNER import nerTagger
 
 
 class AutomaticQuestionGenerator():

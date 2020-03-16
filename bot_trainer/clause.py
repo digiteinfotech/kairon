@@ -1,6 +1,6 @@
 import nltk
-from .identification import chunk_search, postprocess, verbphrase_identify
-from .nonClause import get_chunk
+from bot_trainer.identification import chunk_search, postprocess, verbphrase_identify
+from bot_trainer.nonClause import get_chunk
 
 
 def whom_1(segment_set, num, ner):

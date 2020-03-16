@@ -15,7 +15,7 @@ entity_helpverb_words = ['digite','agile','am', 'is', 'are','was', 'were', 'bein
                          'where','when','may', 'might', 'must', 'can', 'could','the','swiftalm', 'swift','kanban',
                          'alm','sap','cloud','scrum','jira','to','mnc','with','not','i','what','why']
 
-m = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_mode/wiki-news-300d-1M.vec') #enter the load path of model
+m = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec') #enter the load path of model
 
 class Variate():
     def get_wordnet_pos(self,word):

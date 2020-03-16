@@ -1,5 +1,5 @@
 import nltk
-from .identification import chunk_search, postprocess
+from bot_trainer.identification import chunk_search, postprocess
 
 
 def get_chunk(chunked):

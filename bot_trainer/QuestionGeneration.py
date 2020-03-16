@@ -9,7 +9,7 @@ class QuestionGeneration:
 
     def __init__(self):
         self.nlp = spacy.load("en_core_web_sm")
-        self.sentence_transformer = SentenceTransformer('./pretrained_model/bert-large-nli-mean-tokens')
+        self.sentence_transformer = SentenceTransformer('../pretrained_model/bert-large-nli-mean-tokens')
         self.fastText = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
 
     def get_synonyms( self, text: str):
