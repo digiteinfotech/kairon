@@ -16,6 +16,8 @@ from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.domain import Domain
 from .questionVariations import Variate
 from .aqgFunction import AutomaticQuestionGenerator
+from .loading import load
+loader = load()
 aqg = AutomaticQuestionGenerator()
 genquest = Variate()
 
@@ -48,67 +50,9 @@ modelpath = os.path.abspath(latest_file1)
 
 agent = Agent.load(modelpath)
 
-# reading and creating dictionary from nlu.md file
-with open(nlu_path, 'r') as f:
-    text = f.readlines()
-intent = None
-sentences= []
-term = dict()
-for line in text:
-    if "##" and ":" and "intent" in line:
-
-        term[intent] = sentences
-        sentences=[]
-        intent = line.replace("##",'')
-        intent = intent.replace("intent",'')
-        intent = intent.replace(":",'')
-        intent = intent.replace("\n",'')
-        intent = intent.strip()
-
-
-    else:
-        line = line.replace("-",'')
-        line = line.replace("\n",'')
-        line = line.strip()
-        sentences.append(line)
-        if '' in sentences:
-            sentences.remove('')
-term[intent] = sentences
-filtered = {k: v for k, v in term.items() if k is not None}
-term.clear()
-term.update(filtered)
-
-
-#reading and creating dictionary from domain.yml file
-with open(domain_path) as g:
-    data1 = yaml.load(g, Loader=yaml.FullLoader)
-    data2 = data1["responses"]
-newdict=dict()
-for keys in data2:
-
-    data3 = data2[keys]
-    data4=data3[0]
-    data5 = data4["text"]
-    newdict[keys]= data5
-
-dictrand={}
-with open(stories_path, 'r') as h:
-    text2 = h.readlines()
-for line8 in text2:
-
-    if "*" in line8:
-        line9 = line8.replace("*","")
-        line9= line9.strip()
-        if line9 in list(term.keys()):
-            first = line9
-
-    if "##" not in line8 and "*" not in line8 and "-" in line8:
-        line6 = line8.replace("-","")
-        line6 = line6.strip()
-        if line6 in list(newdict.keys()):
-            second = line6
-            dictrand[first]= second
-            
+term = loader.intent_1(nlu_path)
+newdict = loader.domain_1(domain_path)
+dictrand = loader.story_1(stories_path)
 
 
 def paraQ(paragraph):
