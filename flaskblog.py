@@ -43,7 +43,7 @@ domain_path = original_path +  "/domain.yml"
 config_path = original_path +  "/config.yml"
 train_path =  original_path + "/data/"
 
-chat_history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']))
+history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']))
 
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
@@ -387,12 +387,12 @@ async def variations():
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():
-    return jsonify(chat_history.fetch_chat_users())
+    return jsonify(history.fetch_chat_users())
 
 
 @app.route("/history/users/<sender>", methods=['POST'])
 async def chat_history(sender):
-    return jsonify(list(chat_history.fetch_chat_history(sender)))
+    return jsonify(list(history.fetch_chat_history(sender)))
     
 #chat intent service
 @app.route("/chat", methods=['POST'])

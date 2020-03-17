@@ -1,7 +1,6 @@
 from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.domain import Domain
 class ChatHistory:
-
     def __init__(self, domainFile: str, mongo_url :str, mongo_db = 'conversation'):
         self.domain = Domain.load(domainFile)
         self.tracker = MongoTrackerStore(domain=self.domain, host=mongo_url, db=mongo_db)
