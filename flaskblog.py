@@ -70,7 +70,8 @@ def paraQ(paragraph):
 @app.route("/para", methods=['POST'])
 async def para():
     global para_flag
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     paragraph = jsonObject['paragraph']
     task2 = threading.Thread(target=paraQ, args=(paragraph,))
     para_flag = 1
@@ -84,7 +85,8 @@ async def para():
 #predict intent service
 @app.route("/predict", methods=['POST'])
 async def predict():
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     query = jsonObject['query']
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -99,7 +101,8 @@ async def predict():
 @app.route("/removeintent" , methods=['POST'])
 async def Rem1():
     global term, newdict, dictrand
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intent_name = jsonObject['name_intent']
 
 
@@ -179,7 +182,8 @@ async def train_model():
 @app.route("/addComponent" , methods=['POST'])
 async def Add():
     global term
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intent_name = jsonObject['intentName']
     component = jsonObject['component']
     list3 = term[intent_name]
@@ -214,16 +218,14 @@ async def Add():
 @app.route("/removeComponent" , methods=['POST'])
 async def Rem():
     global term
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     component = jsonObject['component']
     intent_name = jsonObject['intentName']
 
-
     if len(component) == 0 :
-
         return jsonify({"message":"please enter required fields"})
     else:
-
         pick8 = term[intent_name]
         if component in pick8:
             pick8.remove(component)
@@ -261,8 +263,10 @@ async def getQuestionsAndAnswer():
     request_data = await request.data
     jsonObject = json.loads(request_data)
     intentName = jsonObject['intentName']
-    qAndA = resolveQuesAndAnswer(intentName)
-
+    try:
+        qAndA = resolveQuesAndAnswer(intentName)
+    except:
+        qAndA = []
     return jsonify(qAndA)
 
 def resolveQuesAndAnswer(intentName):
@@ -379,11 +383,12 @@ async def variations():
     request_data = await request.data
     jsonObject = json.loads(request_data)
     QuestionList = jsonObject['questionList']
-    task1 = threading.Thread(target=variate1, args=(QuestionList, ))
-    variation_flag = 1
-    task1.start()
+    #task1 = threading.Thread(target=variate1, args=(QuestionList, ))
+    #variation_flag = 1
+    #task1.start()
+    new_questions= variate1(QuestionList)
     
-    return jsonify({ "message": "Generating Variations"})
+    return jsonify(new_questions)
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():
