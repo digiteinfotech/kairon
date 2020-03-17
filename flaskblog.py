@@ -265,13 +265,13 @@ async def getQuestionsAndAnswer():
 
     return jsonify(qAndA)
 
-async def resolveQuesAndAnswer(intentName):
+def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
     interm = "utter_" + intentName
     response = newdict.get(interm)
     if response == 'None':
         response = ""
-    return jsonify({"questions": QuestionList, "answer": response})
+    return {"questions": QuestionList, "answer": response}
     
 # Add answer
 @app.route("/addAnswer" , methods=['POST'])
@@ -383,7 +383,7 @@ async def variations():
     variation_flag = 1
     task1.start()
     
-    return { "message": "Generating Variations"}
+    return jsonify({ "message": "Generating Variations"})
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():
