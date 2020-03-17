@@ -21,7 +21,7 @@ from bot_trainer.questionVariations import Variate
 loader = load()
 
 app = Quart(__name__)
-cors(app, allow_origin="*")
+app = cors(app, allow_origin="*")
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
@@ -385,8 +385,6 @@ async def variations():
     
     return { "message": "Generating Variations"}
 
-
-
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():
     return jsonify(chat_history.fetch_chat_users())
@@ -465,8 +463,3 @@ async def deploy():
          }
     }
     requests.put(url, data = json.dumps(req0),headers=headers)
-    
-    
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True)
