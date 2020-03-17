@@ -88,9 +88,7 @@ async def predict():
     request_data = await request.data
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
+    Prediction = await agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None)
     Prediction = Prediction["intent"]['name']
     qAndA = resolveQuesAndAnswer(Prediction)
     return jsonify({"intent": Prediction, "questions": qAndA.get("questions"), "answer": qAndA.get("answer")})
@@ -405,9 +403,7 @@ async def chat():
     request_data = await request.data
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
+    Prediction = await agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None)
     Prediction = Prediction["intent"]['name']
     qAndA = resolveQuesAndAnswer(Prediction)
     answer = qAndA.get("answer")
