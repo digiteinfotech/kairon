@@ -5,7 +5,7 @@ import json
 import os
 import threading
 
-import nest_asyncio
+#import nest_asyncio
 import requests
 import yaml
 from quart import Quart, request, jsonify
@@ -26,7 +26,7 @@ cors(app, allow_origin="*")
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
 genquest = Variate()
-nest_asyncio.apply()
+#nest_asyncio.apply()
 
 variation_flag = 0
 train_flag = 0
