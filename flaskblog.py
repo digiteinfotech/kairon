@@ -75,7 +75,7 @@ async def para():
     task2 = threading.Thread(target=paraQ, args=(paragraph,))
     para_flag = 1
     task2.start()
-    return { "message": "Generating Questions"}
+    return jsonify({ "message": "Generating Questions"})
 
 
 
@@ -91,7 +91,7 @@ async def predict():
     Prediction = asyncio.run(agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None))
     Prediction = Prediction["intent"]['name']
     qAndA = resolveQuesAndAnswer(Prediction)
-    return {"intent": Prediction, "questions": qAndA.get("questions"), "answer": qAndA.get("answer")}
+    return jsonify({"intent": Prediction, "questions": qAndA.get("questions"), "answer": qAndA.get("answer")})
 
 
 
@@ -104,7 +104,7 @@ async def Rem1():
 
 
     if intent_name=='':
-        return {'message': 'Please Enter Intent.'}
+        return jsonify({'message': 'Please Enter Intent.'})
     else:
         req1 = intent_name
         req2 = "utter_" + req1
@@ -143,7 +143,7 @@ async def Rem1():
             file_handler.write('\n')
         file_handler.close()
 
-        return {"message": "intent removed"}
+        return jsonify({"message": "intent removed"})
         
         
 async def trainm():
@@ -159,7 +159,7 @@ async def trainm():
     agent = Agent.load(modelpath1)
     train_flag = 0
 
-    return {"message": "Model training done"}
+    return jsonify({"message": "Model training done"})
 
     
 
@@ -171,7 +171,7 @@ async def train_model():
     task = threading.Thread(target=trainm, args=())
     train_flag = 1
     task.start()
-    return {"message": "model training started"}
+    return jsonify({"message": "model training started"})
 
 
 
@@ -186,7 +186,7 @@ async def Add():
 
     if len(component) == 0 :
 
-        return {"message": "select required fields"}
+        return jsonify({"message": "select required fields"})
 
     list3.append(component)
 
@@ -206,7 +206,7 @@ async def Add():
     file_handler.close()
 
     
-    return {'message' : 'Component added', "question": component}
+    return jsonify({'message' : 'Component added', "question": component})
 
 
 
@@ -221,7 +221,7 @@ async def Rem():
 
     if len(component) == 0 :
 
-        return {"message":"please enter required fields"}
+        return jsonify({"message":"please enter required fields"})
     else:
 
         pick8 = term[intent_name]
@@ -241,10 +241,10 @@ async def Rem():
 
                 file_handler.write('\n')
             file_handler.close()
-            return {"message":"Component removed", "question": component}
+            return jsonify({"message":"Component removed", "question": component})
 
         else:
-            return {'message':'Sentence not present'}
+            return jsonify({'message':'Sentence not present'})
 
 
 
@@ -263,7 +263,7 @@ async def getQuestionsAndAnswer():
     intentName = jsonObject['intentName']
     qAndA = resolveQuesAndAnswer(intentName)
 
-    return qAndA
+    return jsonify(qAndA)
 
 async def resolveQuesAndAnswer(intentName):
     QuestionList = term[intentName]
@@ -271,7 +271,7 @@ async def resolveQuesAndAnswer(intentName):
     response = newdict.get(interm)
     if response == 'None':
         response = ""
-    return dict({"questions": QuestionList, "answer": response})
+    return jsonify({"questions": QuestionList, "answer": response})
     
 # Add answer
 @app.route("/addAnswer" , methods=['POST'])
@@ -304,7 +304,7 @@ async def addAnswer():
         file_handler.write('\n')
     file_handler.close()
     
-    return {'message' : 'Response added', "answer": answer}
+    return jsonify({'message' : 'Response added', "answer": answer})
     
     
 #add intent
@@ -319,7 +319,7 @@ async def newintent():
         
     if intent_name == 'default' or intent_name in list(term.keys()) or "intent" in intent_name:
 
-        return {"message": "Intent Name Not Accepted"}
+        return jsonify({"message": "Intent Name Not Accepted"})
     else:
 
         intent = intent_name
@@ -362,14 +362,14 @@ async def newintent():
             file_handler.write('\n')
         file_handler.close()
 
-        return {"message": "Intent Added", "intent": intent_name}
+        return jsonify({"message": "Intent Added", "intent": intent_name})
 
 
 def variate1(List):
     global variation_flag
     variation = genquest.comb(List)
     variation_flag = 0
-    return { "message": "Variations generated", "variations" : variation}    
+    return { "message": "Variations generated", "variations" : variation}
 
     
 #generate variations [accept string(s) in list format]
@@ -408,7 +408,7 @@ async def chat():
     answer = qAndA.get("answer")
     if answer == '':
         answer = newdict.get("utter_default")
-    return {"message": answer}
+    return jsonify({"message": answer})
     
     
 
@@ -435,13 +435,13 @@ async def storeVariations():
     file_handler.close()
     
     
-    return { "message": "Variations Stored", "questions": QuestionList}
+    return jsonify({ "message": "Variations Stored", "questions": QuestionList})
     
     
 # get status of flags
 @app.route("/getAppStatus", methods=['GET'])
 async def getFlags():
-    return {"variation": variation_flag, "model":  train_flag, "paragraph": para_flag}
+    return jsonify({"variation": variation_flag, "model":  train_flag, "paragraph": para_flag})
     
 #deploy code
 @app.route("/deploy" , methods=['POST'])
@@ -463,3 +463,4 @@ async def deploy():
          }
     }
     requests.put(url, data = json.dumps(req0),headers=headers)
+    return jsonify({"message":"Deploying model"})
