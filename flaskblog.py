@@ -258,7 +258,8 @@ async def getIntentList():
 #getQuestions and Response for an intent
 @app.route("/getQuestionsAndAnswer", methods=['POST'])
 async def getQuestionsAndAnswer():
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intentName = jsonObject['intentName']
     qAndA = resolveQuesAndAnswer(intentName)
 
@@ -276,7 +277,8 @@ async def resolveQuesAndAnswer(intentName):
 @app.route("/addAnswer" , methods=['POST'])
 async def addAnswer():
     global newdict,dictrand
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intent_name = jsonObject['intentName']
     action = "utter_" + intent_name
     answer = jsonObject['answer']
@@ -310,7 +312,8 @@ async def addAnswer():
 @app.route("/newintent", methods=['POST'])
 async def newintent():
     global term, newdict, dictrand
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intent_name = jsonObject['intentName']
 
         
@@ -373,7 +376,8 @@ def variate1(List):
 @app.route("/variations", methods=['POST'])
 async def variations():
     global variation_flag
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     QuestionList = jsonObject['questionList']
     task1 = threading.Thread(target=variate1, args=(QuestionList, ))
     variation_flag = 1
@@ -395,7 +399,8 @@ async def chat_history(sender):
 #chat intent service
 @app.route("/chat", methods=['POST'])
 async def chat():
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     query = jsonObject['query']
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -413,7 +418,8 @@ async def chat():
 @app.route("/storeVariations", methods=['POST'])
 async def storeVariations():
     global term
-    jsonObject = json.loads(request.data)
+    request_data = await request.data
+    jsonObject = json.loads(request_data)
     intentName = jsonObject['intentName']
     QuestionList = jsonObject['questionList']
     term[intentName] = term[intentName] + QuestionList
