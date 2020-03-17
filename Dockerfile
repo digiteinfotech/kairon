@@ -21,6 +21,7 @@ RUN python3 -m pip install spacy
 RUN python3 -m spacy download en_core_web_sm
 RUN python3 -m nltk.downloader punkt
 RUN python3 -m nltk.downloader wordnet
+RUN python3 -m nltk.downloader averaged_perceptron_tagger
 RUN mkdir ssl
 
 COPY . ${RASA_NLU_HOME}
