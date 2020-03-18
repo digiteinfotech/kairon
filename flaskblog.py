@@ -403,13 +403,13 @@ async def chat():
     request_data = await request.data
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
-    Prediction = await agent.parse_message_using_nlu_interpreter(message_data=query, tracker=None)
-    Prediction = Prediction["intent"]['name']
-    qAndA = resolveQuesAndAnswer(Prediction)
-    answer = qAndA.get("answer")
-    if answer == '':
-        answer = newdict.get("utter_default")
-    return jsonify({"message": answer})
+    bot_response = await agent.handle_text(text_message=query)
+    #Prediction = Prediction["intent"]['name']
+    #qAndA = resolveQuesAndAnswer(Prediction)
+    #answer = qAndA.get("answer")
+    #if answer == '':
+    #    answer = newdict.get("utter_default")
+    return jsonify({"message": bot_response})
     
     
 
