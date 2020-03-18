@@ -1,6 +1,7 @@
 stages:
   - train
   - deploy
+  - cleanup
 
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME
@@ -14,9 +15,9 @@ train:
   stage: train
   script:
     - docker build -t bot_trainer:1.0 .
-#    - docker tag bot_trainer:1.0 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/bot_trainer:1.0
-#    - $(aws ecr get-login --region us-east-1 | sed -e "s/-e none//g") && exec $passwd
-#    - docker push 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/bot_trainer:1.0
+    - docker tag bot_trainer:1.0 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
+    - $(aws ecr get-login --region us-east-1 | sed -e "s/-e none//g") && exec $passwd
+    - docker push 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
 
 deploy:
   tags:
@@ -27,3 +28,8 @@ deploy:
   script:
     - docker rm --force bot_trainer || true
     - docker run -d --name bot_trainer -p 8000:8000 bot_trainer:1.0
+	
+cleanup:
+  stage: cleanup
+  script:
+    - docker image prune -a --force --filter "until=60h"
