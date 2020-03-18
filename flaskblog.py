@@ -404,12 +404,7 @@ async def chat():
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
     bot_response = await agent.handle_text(text_message=query)
-    #Prediction = Prediction["intent"]['name']
-    #qAndA = resolveQuesAndAnswer(Prediction)
-    #answer = qAndA.get("answer")
-    #if answer == '':
-    #    answer = newdict.get("utter_default")
-    return jsonify({"message": bot_response[0]})
+    return jsonify({"message": bot_response[0].text})
     
     
 
