@@ -6,7 +6,7 @@ stages:
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME
   - export PATH=$PATH:/usr/local/bin
-    
+
 train:
   tags:
     - dspg
@@ -28,7 +28,7 @@ deploy:
   script:
     - docker rm --force bot_trainer || true
     - docker run -d --name bot_trainer -p 8000:8000 bot_trainer:1.0
-	
+
 cleanup:
   stage: cleanup
   script:
