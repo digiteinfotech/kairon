@@ -404,7 +404,7 @@ async def chat():
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
     bot_response = await agent.handle_text(text_message=query)
-    return jsonify({"message": bot_response.text})
+    return jsonify({"message": bot_response[0]['text']})
     
     
 
@@ -448,7 +448,7 @@ async def deploy():
     
     url = system_properties["chatbot_url"]
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    req0= {
+    req= {
      "model_file": model_path,
      "model_server": {
        "url": url,
@@ -458,5 +458,5 @@ async def deploy():
        "wait_time_between_pulls": 0
          }
     }
-    requests.put(url, data = json.dumps(req0),headers=headers)
+    requests.put(url, json = json.dumps(req),headers=headers)
     return jsonify({"message":"Deploying model"})

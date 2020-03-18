@@ -7,7 +7,8 @@ pipeline: supervised_embeddings
 # https://rasa.com/docs/rasa/core/policies/
 policies:
   - name: MemoizationPolicy
-  - name: KerasPolicy
+  - name: TEDPolicy
+    epochs: 10
   - name: MappingPolicy
   - name: "FallbackPolicy"
     nlu_threshold: 0.4
