@@ -158,7 +158,7 @@ async def trainm():
     latest_file = max(list_of_files, key=os.path.getctime)
     model_path = os.path.abspath(latest_file)
     agent = Agent.load(model_path)
-    threading.Thread(target=FileUploader.upload_File, args=(model_path, "marketing_bot")).start()
+    #threading.Thread(target=FileUploader.upload_File, args=(model_path, "marketing_bot")).start()
     train_flag = 0
 
     return jsonify({"message": "Model training done"})
