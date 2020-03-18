@@ -404,7 +404,7 @@ async def chat():
     jsonObject = json.loads(request_data)
     query = jsonObject['query']
     bot_response = await agent.handle_text(text_message=query)
-    return jsonify({"message": bot_response[0].text})
+    return jsonify({"message": bot_response.text})
     
     
 
