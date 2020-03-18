@@ -409,7 +409,7 @@ async def chat():
     #answer = qAndA.get("answer")
     #if answer == '':
     #    answer = newdict.get("utter_default")
-    return jsonify({"message": bot_response})
+    return jsonify({"message": bot_response[0]})
     
     
 
