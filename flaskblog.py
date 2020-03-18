@@ -17,6 +17,7 @@ from bot_trainer.aqgFunction import AutomaticQuestionGenerator
 from bot_trainer.history import ChatHistory
 from bot_trainer.loading import load
 from bot_trainer.questionVariations import Variate
+from bot_trainer.cloud_loader import FileUploader
 
 loader = load()
 
@@ -43,7 +44,7 @@ domain_path = original_path +  "/domain.yml"
 config_path = original_path +  "/config.yml"
 train_path =  original_path + "/data/"
 
-history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']))
+history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']), os.getenv('mongo_db', system_properties['mongo_db']))
 
 list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
@@ -155,9 +156,9 @@ async def trainm():
 
     list_of_files = glob.glob(models_path + '/*')
     latest_file = max(list_of_files, key=os.path.getctime)
-    modelpath1 = os.path.abspath(latest_file)
-
-    agent = Agent.load(modelpath1)
+    model_path = os.path.abspath(latest_file)
+    agent = Agent.load(model_path)
+    threading.Thread(target=FileUploader.upload_File, args=(model_path, "marketing_bot")).start()
     train_flag = 0
 
     return jsonify({"message": "Model training done"})
@@ -446,7 +447,7 @@ async def deploy():
     latest_file = max(list_of_files, key=os.path.getctime)
     model_path = os.path.abspath(latest_file)
     
-    url = system_properties["chatbot_url"]
+    url = os.getenv("chatbot_url",system_properties["chatbot_url"])
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     req= {
      "model_file": model_path,
