@@ -4,7 +4,7 @@ import glob
 import json
 import os
 import threading
-
+import nest_asyncio
 #import nest_asyncio
 import requests
 import yaml
@@ -20,7 +20,7 @@ from bot_trainer.questionVariations import Variate
 from bot_trainer.cloud_loader import FileUploader
 
 loader = load()
-
+nest_asyncio.apply()
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
 
