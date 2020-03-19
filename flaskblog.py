@@ -148,10 +148,11 @@ async def Rem1():
         return jsonify({"message": "intent removed"})
         
         
-async def trainm():
+def trainm():
     global agent, train_flag
     #os.chdir(original_path)
-    await train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
+    loop = asyncio.get_running_loop()
+    loop.run_until_complete(train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False))
 
     list_of_files = glob.glob(models_path + '/*')
     latest_file = max(list_of_files, key=os.path.getctime)
@@ -170,7 +171,7 @@ async def trainm():
 async def train_model():
     global train_flag
     #task = threading.Thread(target=trainm, args=())
-    response = await trainm()
+    response = trainm()
     #train_flag = 1
     #task.start()
     return jsonify(response)
