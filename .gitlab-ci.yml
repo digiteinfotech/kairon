@@ -16,8 +16,8 @@ train:
   script:
     - docker build -t bot_trainer:1.0 .
     - docker tag bot_trainer:1.0 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
-    - $(aws ecr get-login --region us-east-1 | sed -e "s/-e none//g") && exec $passwd
-    - docker push 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
+#    - $(aws ecr get-login --region us-east-1 | sed -e "s/-e none//g") && exec $passwd
+#    - docker push 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
 
 deploy:
   tags:
