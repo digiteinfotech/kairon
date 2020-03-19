@@ -362,13 +362,13 @@ async def newintent():
 
         return jsonify({"message": "Intent Added", "intent": intent_name})
 
-
+'''
 def variate1(List):
     global variation_flag
     variation = genquest.comb(List)
     variation_flag = 0
     return { "message": "Variations generated", "variations" : variation}
-
+'''
     
 #generate variations [accept string(s) in list format]
 @app.route("/variations", methods=['POST'])
