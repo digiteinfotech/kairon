@@ -153,7 +153,7 @@ async def trainm():
     new_model_path = os.path.abspath(new_model)
     if new_model_path == modelpath:
         agent = Agent.load(new_model_path)
-    return {"message": "Model training done"}
+    return {"message": "Model training done", "model": new_model_path}
 
     
 
