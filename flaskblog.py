@@ -17,6 +17,7 @@ from bot_trainer.history import ChatHistory
 from bot_trainer.loading import load
 from bot_trainer.questionVariations import Variate
 from bot_trainer.cloud_loader import FileUploader
+from bot_trainer.QuestionGeneration import QuestionGeneration
 
 loader = load()
 app = Quart(__name__)
@@ -24,8 +25,9 @@ app = cors(app, allow_origin="*")
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
-genquest = Variate()
+#genquest = Variate()
 #nest_asyncio.apply()
+questionGeneration = QuestionGeneration()
 
 variation_flag = 0
 train_flag = 0
@@ -374,13 +376,13 @@ async def variations():
     global variation_flag
     request_data = await request.data
     jsonObject = json.loads(request_data)
-    QuestionList = jsonObject['questionList']
+    question_list = jsonObject['questionList']
     #task1 = threading.Thread(target=variate1, args=(QuestionList, ))
     #variation_flag = 1
     #task1.start()
-    new_questions= variate1(QuestionList)
-    
-    return jsonify(new_questions)
+    #new_questions= variate1(QuestionList)
+    result = questionGeneration.generateQuestionsFromList(question_list)
+    return jsonify({ "message": "Variations generated", "variations" : list(result)})
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():

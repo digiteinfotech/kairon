@@ -50,7 +50,18 @@ class QuestionGeneration:
         questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
         return list(questions)
 
-question = QuestionGeneration()
-text = "where is digite located?"
-questions_gen = question.generateQuestions(text)
+    def generateQuestionsFromList(self ,texts):
+        result = []
+        for text in texts:
+            text_encoding = self.sentence_transformer.encode([text])[0]
+            synonyms = self.get_synonyms_fastText(text)
+            tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
+            questions = [' '.join(question) for question in list(itertools.product(*tokens))]
+            questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
+            yield result.extend(questions)
+
+
+#question = QuestionGeneration()
+#text = "where is digite located?"
+#questions_gen = question.generateQuestions(text)
 
