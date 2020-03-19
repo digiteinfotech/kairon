@@ -381,8 +381,8 @@ async def variations():
     #variation_flag = 1
     #task1.start()
     #new_questions= variate1(QuestionList)
-    result = questionGeneration.generateQuestionsFromList(question_list)
-    return jsonify({ "message": "Variations generated", "variations" : list(result)})
+    result = await questionGeneration.generateQuestionsFromList(question_list)
+    return jsonify({ "message": "Variations generated", "variations" : result})
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():

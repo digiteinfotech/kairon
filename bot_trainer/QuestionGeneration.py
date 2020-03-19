@@ -50,7 +50,7 @@ class QuestionGeneration:
         questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
         return list(questions)
 
-    def generateQuestionsFromList(self ,texts):
+    async def generateQuestionsFromList(self ,texts):
         result = []
         for text in texts:
             text_encoding = self.sentence_transformer.encode([text])[0]
@@ -58,7 +58,8 @@ class QuestionGeneration:
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
             questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
-            yield result.extend(questions)
+            result.extend(list(questions))
+        return result
 
 
 #question = QuestionGeneration()
