@@ -151,7 +151,6 @@ async def Rem1():
 async def trainm():
     global agent, train_flag
     #os.chdir(original_path)
-    asyncio.set_event_loop(asyncio.new_event_loop())
     train(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
 
     list_of_files = glob.glob(models_path + '/*')
@@ -161,7 +160,7 @@ async def trainm():
     #threading.Thread(target=FileUploader.upload_File, args=(model_path, "marketing_bot")).start()
     train_flag = 0
 
-    return jsonify({"message": "Model training done"})
+    return {"message": "Model training done"}
 
     
 
@@ -170,10 +169,11 @@ async def trainm():
 @app.route("/train" , methods=['GET'])
 async def train_model():
     global train_flag
-    task = threading.Thread(target=trainm, args=())
-    train_flag = 1
-    task.start()
-    return jsonify({"message": "model training started"})
+    #task = threading.Thread(target=trainm, args=())
+    response = await trainm()
+    #train_flag = 1
+    #task.start()
+    return jsonify(response)
 
 
 
