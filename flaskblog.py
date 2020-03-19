@@ -4,7 +4,6 @@ import glob
 import json
 import os
 import threading
-import nest_asyncio
 #import nest_asyncio
 import requests
 import yaml
@@ -20,7 +19,6 @@ from bot_trainer.questionVariations import Variate
 from bot_trainer.cloud_loader import FileUploader
 
 loader = load()
-nest_asyncio.apply()
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
 
@@ -148,19 +146,12 @@ async def Rem1():
         return jsonify({"message": "intent removed"})
         
         
-def trainm():
+async def trainm():
     global agent, train_flag
-    #os.chdir(original_path)
-    loop = asyncio.get_running_loop()
-    loop.run_until_complete(train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False))
-
-    list_of_files = glob.glob(models_path + '/*')
-    latest_file = max(list_of_files, key=os.path.getctime)
-    model_path = os.path.abspath(latest_file)
-    agent = Agent.load(model_path)
-    #threading.Thread(target=FileUploader.upload_File, args=(model_path, "marketing_bot")).start()
-    train_flag = 0
-
+    new_model = await train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
+    new_model_path = os.path.abspath(new_model)
+    if new_model_path == modelpath:
+        agent = Agent.load(new_model_path)
     return {"message": "Model training done"}
 
     
