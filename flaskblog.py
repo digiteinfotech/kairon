@@ -148,7 +148,7 @@ async def Rem1():
         return jsonify({"message": "intent removed"})
         
         
-async def trainm():
+def trainm():
     global agent, train_flag
     #os.chdir(original_path)
     train(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
@@ -170,7 +170,7 @@ async def trainm():
 async def train_model():
     global train_flag
     #task = threading.Thread(target=trainm, args=())
-    response = await trainm()
+    response = trainm()
     #train_flag = 1
     #task.start()
     return jsonify(response)
