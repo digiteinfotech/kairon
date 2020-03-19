@@ -10,7 +10,7 @@ import requests
 import yaml
 from quart import Quart, request, jsonify
 from quart_cors import cors
-from rasa import train
+from rasa.train import train_async
 from rasa.core.agent import Agent
 
 from bot_trainer.aqgFunction import AutomaticQuestionGenerator
@@ -148,10 +148,10 @@ async def Rem1():
         return jsonify({"message": "intent removed"})
         
         
-def trainm():
+async def trainm():
     global agent, train_flag
     #os.chdir(original_path)
-    train(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
+    await train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
 
     list_of_files = glob.glob(models_path + '/*')
     latest_file = max(list_of_files, key=os.path.getctime)
@@ -170,7 +170,7 @@ def trainm():
 async def train_model():
     global train_flag
     #task = threading.Thread(target=trainm, args=())
-    response = trainm()
+    response = await trainm()
     #train_flag = 1
     #task.start()
     return jsonify(response)
@@ -450,14 +450,7 @@ async def deploy():
     url = os.getenv("chatbot_url",system_properties["chatbot_url"])
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     req= {
-     "model_file": model_path,
-     "model_server": {
-       "url": url,
-       "params": {},
-       "headers": {},
-       "basic_auth": {},
-       "wait_time_between_pulls": 0
-         }
+     "model_file": model_path
     }
     requests.put(url, json = req,headers=headers)
     return jsonify({"message":"Deploying model"})
