@@ -459,5 +459,5 @@ async def deploy():
        "wait_time_between_pulls": 0
          }
     }
-    requests.put(url, json = json.dumps(req),headers=headers)
+    requests.put(url, json = req,headers=headers)
     return jsonify({"message":"Deploying model"})
