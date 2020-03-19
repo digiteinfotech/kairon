@@ -27,7 +27,7 @@ deploy:
   stage: deploy
   script:
     - docker rm --force bot_trainer || true
-    - docker run -d --name bot_trainer -p 8000:8000 bot_trainer:1.0
+#    - docker run -d --name bot_trainer -p 8000:8000 bot_trainer:1.0
 
 cleanup:
   stage: cleanup

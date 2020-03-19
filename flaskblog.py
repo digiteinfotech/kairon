@@ -149,6 +149,7 @@ async def Rem1():
 async def trainm():
     global agent, train_flag
     new_model = await train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
+    print(new_model)
     new_model_path = os.path.abspath(new_model)
     if new_model_path == modelpath:
         agent = Agent.load(new_model_path)
@@ -162,7 +163,7 @@ async def trainm():
 async def train_model():
     global train_flag
     #task = threading.Thread(target=trainm, args=())
-    response = trainm()
+    response = await trainm()
     #train_flag = 1
     #task.start()
     return jsonify(response)
