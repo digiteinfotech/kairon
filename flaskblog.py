@@ -385,7 +385,7 @@ async def variations():
     #task1.start()
     #new_questions= variate1(QuestionList)
     if question_list.__len__() <=5:
-        result = await questionGeneration.generateQuestionsFromList(question_list)
+        result = await questionGeneration.generateQuestions(question_list)
         message = "Variations generated"
     else:
         message = "Sorry!, Max 5 questions can be selected for generation"

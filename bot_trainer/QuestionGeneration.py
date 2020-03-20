@@ -39,26 +39,25 @@ class QuestionGeneration:
                 print()
         return token_list
 
-    def checkDistance(self, source, text):
-        return 1 - cosine(source, self.sentence_transformer.encode([text])[0])
+    def checkDistance(self, source, target):
+        return 1 - cosine(source, target)
 
-    async def generateQuestions(self ,text: str):
-        text_encoding = self.sentence_transformer.encode([text])[0]
-        synonyms = self.get_synonyms_fastText(text)
-        tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
-        questions = [' '.join(question) for question in list(itertools.product(*tokens))]
-        questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
-        return list(questions)
-
-    async def generateQuestionsFromList(self ,texts):
+    async def generateQuestions(self ,texts):
         result = []
-        for text in texts:
-            text_encoding = self.sentence_transformer.encode([text])[0]
+        if type(texts) == str:
+            texts = [texts]
+        text_encodings = self.sentence_transformer.encode(texts)
+        for i in range(len(texts)):
+            text = texts[i]
+            text_encoding = text_encodings[i]
             synonyms = self.get_synonyms_fastText(text)
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
-            questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
-            result.extend(list(questions))
+            questions_encodings = self.sentence_transformer.encode(questions)
+            questions = [ questions[i] for i in range(len(questions)) if self.checkDistance(text_encoding, questions_encodings[i]) > 0.90 ]
+            #questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
+            if len(questions):
+                result.extend(list(questions))
         return result
 
 
