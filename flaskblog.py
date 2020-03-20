@@ -11,6 +11,7 @@ from quart import Quart, request, jsonify
 from quart_cors import cors
 from rasa.train import train_async
 from rasa.core.agent import Agent
+import logging
 
 from bot_trainer.aqgFunction import AutomaticQuestionGenerator
 from bot_trainer.history import ChatHistory
@@ -22,6 +23,8 @@ from bot_trainer.QuestionGeneration import QuestionGeneration
 loader = load()
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
+logging.getLogger('quart.app').setLevel(logging.DEBUG)
+logging.getLogger('quart.sering').setLevel(logging.DEBUG)
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
@@ -376,13 +379,18 @@ async def variations():
     global variation_flag
     request_data = await request.data
     jsonObject = json.loads(request_data)
-    question_list = jsonObject['questionList']
+    question_list: list = jsonObject['questionList']
     #task1 = threading.Thread(target=variate1, args=(QuestionList, ))
     #variation_flag = 1
     #task1.start()
     #new_questions= variate1(QuestionList)
-    result = await questionGeneration.generateQuestionsFromList(question_list)
-    return jsonify({ "message": "Variations generated", "variations" : result})
+    if question_list.__len__() <=5:
+        result = await questionGeneration.generateQuestionsFromList(question_list)
+        message = "Variations generated"
+    else:
+        message = "Sorry!, Max 5 questions can be selected for generation"
+        result = None
+    return jsonify({ "message": message, "variations" : result})
 
 @app.route("/history/users", methods=['GET'])
 async def chat_history_users():

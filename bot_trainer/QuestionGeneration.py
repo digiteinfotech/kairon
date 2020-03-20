@@ -42,7 +42,7 @@ class QuestionGeneration:
     def checkDistance(self, source, text):
         return 1 - cosine(source, self.sentence_transformer.encode([text])[0])
 
-    def generateQuestions(self ,text: str):
+    async def generateQuestions(self ,text: str):
         text_encoding = self.sentence_transformer.encode([text])[0]
         synonyms = self.get_synonyms_fastText(text)
         tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
