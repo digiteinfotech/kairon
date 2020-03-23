@@ -1,5 +1,6 @@
-from rasa.core.tracker_store import MongoTrackerStore
+from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 from rasa.core.domain import Domain
+
 class ChatHistory:
     def __init__(self, domainFile: str, mongo_url :str, mongo_db = 'conversation'):
         self.domain = Domain.load(domainFile)
@@ -7,6 +8,12 @@ class ChatHistory:
 
     def fetch_chat_history(self, sender):
         events = self.tracker.retrieve(sender).as_dialogue().events
+        return list(self.__prepare_data(events))
+
+    def fetch_chat_users(self):
+        return self.tracker.keys()
+
+    def __prepare_data(self, events):
         bot_utterance = None
         for i in range(events.__len__()):
             event = events[i]
@@ -24,5 +31,5 @@ class ChatHistory:
             else:
                 bot_utterance = event_data['name'] if event_data['event'] == 'action' else None
 
-    def fetch_chat_users(self):
-        return self.tracker.keys()
+    def __fetch_history_for_metrics(self):
+        records = self.tracker.conversations.find()

@@ -55,8 +55,9 @@ class QuestionGeneration:
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
             questions_encodings = self.sentence_transformer.encode(questions)
             questions = [ questions[i] for i in range(len(questions)) if self.checkDistance(text_encoding, questions_encodings[i]) > 0.90 ]
-            #questions = filter( lambda x: self.checkDistance(text_encoding, x) >= 0.90  , questions)
             if len(questions):
+                if len(questions) == 1 and text[i] == questions[0]:
+                    continue
                 result.extend(list(questions))
         return result
 
