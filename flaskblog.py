@@ -1,24 +1,20 @@
-#import libraries
-import asyncio
 import glob
 import json
+import logging
 import os
 import threading
-#import nest_asyncio
+
 import requests
 import yaml
 from quart import Quart, request, jsonify
 from quart_cors import cors
-from rasa.train import train_async
 from rasa.core.agent import Agent
-import logging
+from rasa.train import train_async
 
+from bot_trainer.QuestionGeneration import QuestionGeneration
 from bot_trainer.aqgFunction import AutomaticQuestionGenerator
 from bot_trainer.history import ChatHistory
 from bot_trainer.loading import load
-from bot_trainer.questionVariations import Variate
-from bot_trainer.cloud_loader import FileUploader
-from bot_trainer.QuestionGeneration import QuestionGeneration
 
 loader = load()
 app = Quart(__name__)
@@ -27,8 +23,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
-#genquest = Variate()
-#nest_asyncio.apply()
 questionGeneration = QuestionGeneration()
 
 variation_flag = 0
