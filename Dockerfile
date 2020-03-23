@@ -23,6 +23,7 @@ RUN python3 -m nltk.downloader punkt
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
 RUN python3 -m pip install tensorflow_text
+RUN python3 -m pip install cython
 RUN mkdir ssl
 
 COPY . ${RASA_NLU_HOME}
