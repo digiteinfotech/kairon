@@ -193,3 +193,7 @@ responses:
       \ details: \n  https://www.digite.com/swiftkanban/pricing/"
   utter_webinar:
   - text: "You can signup for our upcoming webinars here: \n https://www.digite.com/webinars/"
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
