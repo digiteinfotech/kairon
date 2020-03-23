@@ -23,8 +23,7 @@ from bot_trainer.QuestionGeneration import QuestionGeneration
 loader = load()
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
-logging.getLogger('quart.app').setLevel(logging.DEBUG)
-logging.getLogger('quart.sering').setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()

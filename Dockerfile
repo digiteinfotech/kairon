@@ -27,6 +27,7 @@ RUN mkdir ssl
 
 COPY . ${RASA_NLU_HOME}
 
+RUN python3 setup.py build_ext
 RUN rasa train
 
 EXPOSE 8000
