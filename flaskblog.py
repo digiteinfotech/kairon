@@ -147,9 +147,10 @@ async def Rem1():
 async def trainm():
     global agent, train_flag
     new_model = await train_async(domain= domain_path, config= config_path, training_files= train_path, force_training=False)
-    print(new_model)
+    logging.info("new model path :"+new_model)
     new_model_path = os.path.abspath(new_model)
-    if new_model_path == modelpath:
+    if new_model_path != modelpath:
+        logging.info("loading model :" + new_model)
         agent = Agent.load(new_model_path)
     return {"message": "Model training done", "model": new_model_path}
 
