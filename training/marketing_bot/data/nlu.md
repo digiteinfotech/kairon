@@ -3,13 +3,13 @@
 - what is your indian entity name
 - is it mnc
 - is it startup
-- about digite
-- can you tell me more about digite
+- about [digite](org)
+- can you tell me more about [digite](org)
 - ceo
 - who is your ceo
 - digite history
 - what is digite
-- about the company
+- about the [company](org)
 - i want to know about the institution
 
 ## intent:agile

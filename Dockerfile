@@ -33,4 +33,4 @@ RUN rasa train
 
 EXPOSE 8000
 
-CMD ["hypercorn","-w", "2", "flaskblog:app","-b","0.0.0.0:8000"]
+CMD ["hypercorn","-w", "2", "trainer:app","-b","0.0.0.0:8000"]

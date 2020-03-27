@@ -1,0 +1,55 @@
+version: "2"
+services:
+  rasa:
+    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg-marketing-bot:1.0
+    networks:
+      - chatbotnetwork
+    container_name: rasa
+    hostname: rasa
+    ports:
+      - 443:5005
+    command: "run --cors \"*\" --enable-api --ssl-certificate /app/ssl/digite.crt --ssl-keyfile /app/ssl/digite.key --verbose --debug"
+    volumes:
+      - /home/dspg/ssl:/app/ssl
+      - rasa_model:/app/model
+    extra_hosts:
+      - "mongo:192.168.101.148"
+
+  bot_trainer_api:
+    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
+    networks:
+      - chatbotnetwork
+    container_name: bot_trainer_api
+    hostname: bot_trainer_api
+    depends_on:
+      - rasa
+    ports:
+      - 8000:8000
+    volumes:
+      - rasa_model:/app/model
+      - rasa_data:/app/training
+    environment:
+      - chatbot_url: https://rasa/model
+      - mongo_url: mongodb://192.168.101.148:27019
+      - AWS_ACCESS_KEY_ID:
+      - AWS_SECRET_ACCESS_KEY:
+
+  bot_trainer_ui:
+    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_ui:1.0
+    networks:
+      - chatbotnetwork
+    container_name: bot_trainer_ui
+    hostname: bot_trainer_ui
+    depends_on:
+      - bot_trainer_api
+    ports:
+      - 80:8080
+    environment:
+      - server: http://bot_trainer_ui:8000/
+
+networks:
+  chatbotnetwork:
+
+volumes:
+  rasa_data:
+  rasa_model:

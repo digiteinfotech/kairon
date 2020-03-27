@@ -32,10 +32,10 @@ para_flag = 0
 
 
 #establishing  paths of the rasa bot files
-original_path = '.'
+original_path = './training/marketing_bot'
 nlu_path = original_path + "/data/nlu.md"
 stories_path = original_path + "/data/stories.md"
-models_path = original_path  + "/models"
+models_path = "./models"
 domain_path = original_path +  "/domain.yml"
 config_path = original_path +  "/config.yml"
 train_path =  original_path + "/data/"
