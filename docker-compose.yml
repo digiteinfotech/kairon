@@ -11,7 +11,7 @@ services:
     command: "run --cors \"*\" --enable-api --ssl-certificate /app/ssl/digite.crt --ssl-keyfile /app/ssl/digite.key --verbose --debug"
     volumes:
       - /home/dspg/ssl:/app/ssl
-      - rasa_model:/app/model
+      - rasa_data:/app/model
     extra_hosts:
       - "mongo:192.168.101.148"
 
