@@ -10,8 +10,9 @@ services:
       - 443:5005
     command: "run --cors \"*\" --enable-api --ssl-certificate /app/ssl/digite.crt --ssl-keyfile /app/ssl/digite.key --verbose --debug"
     volumes:
-      - /home/dspg/ssl:/app/ssl
-      - rasa_model:/app/model
+      - ~/ssl:/app/ssl
+      - rasa_models:/app/models
+      - rasa_tmp:/tmp
     extra_hosts:
       - "mongo:192.168.101.148"
 
@@ -24,15 +25,16 @@ services:
     depends_on:
       - rasa
     ports:
-      - 8000:8000
+      - 8001:8000
     volumes:
-      - rasa_model:/app/model
+      - rasa_models:/app/models
       - rasa_data:/app/training
+      - rasa_tmp:/tmp
     environment:
-      - chatbot_url: https://rasa/model
-      - mongo_url: mongodb://192.168.101.148:27019
-      - AWS_ACCESS_KEY_ID:
-      - AWS_SECRET_ACCESS_KEY:
+      chatbot_url: "https://webtestbot.digite.com/model"
+      mongo_url: "mongodb://192.168.101.148:27019"
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
 
   bot_trainer_ui:
     image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_ui:1.0
@@ -45,11 +47,12 @@ services:
     ports:
       - 80:8080
     environment:
-      - server: http://bot_trainer_ui:8000/
+      server: "http://bot_trainer_api:8001/"
 
 networks:
   chatbotnetwork:
 
 volumes:
+  rasa_models:
   rasa_data:
-  rasa_model:
+  rasa_tmp:
