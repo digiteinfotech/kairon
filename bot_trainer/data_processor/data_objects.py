@@ -61,26 +61,25 @@ class RegexFeatures(Document):
     meta = {'indexes': [{'fields': ['$text']}]}
 
 class Intents(Document):
-    value = StringField(required=True)
-    bot = StringField(required=True, unique_with="value")
-    account = LongField(required=True, unique_with="bot")
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-
 
 class Entities(Document):
     name = StringField(required=True)
-    bot = StringField(required=True, unique_with="name")
-    account = LongField(required=True, unique_with="bot")
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-class Form(Document):
+class Forms(Document):
     name = StringField(required=True)
-    bot = StringField(required=True, unique_with="name")
-    account = LongField(required=True, unique_with="bot")
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -92,18 +91,18 @@ class ResponseButton(EmbeddedDocument):
 class ResponseText(EmbeddedDocument):
     text = StringField(required=True)
     image: StringField()
-    channel: StringField(required=True)
+    channel: StringField()
     buttons: ListField(EmbeddedDocumentField(ResponseButton))
 
 class ResponseCustom(EmbeddedDocument):
-    text = DictField(required=True)
+    blocks = DictField(required=True)
 
 class Responses(Document):
     name = StringField(required=True)
     texts = ListField(EmbeddedDocumentField(ResponseText))
     customs = ListField(EmbeddedDocumentField(ResponseCustom))
-    bot = StringField(required=True, unique_with="name")
-    account = LongField(required=True, unique_with="bot")
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -115,13 +114,13 @@ class Responses(Document):
 
 class Actions(Document):
     name = StringField(required=True)
-    bot = StringField(required=True, unique_with="name")
-    account = LongField(required=True, unique_with="bot")
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-class SessionConfig(Document):
+class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
     bot = StringField(required=True)

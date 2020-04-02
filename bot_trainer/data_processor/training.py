@@ -1,25 +1,48 @@
-from .data_objects import TrainingExamples, Entity, EntitySynonyms, LookupTables, RegexFeatures
+from .data_objects import *
 from collections import ChainMap
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.importers import utils
+from rasa.importers.rasa import Domain
+from mongoengine.errors import NotUniqueError
+from rasa.core.domain import SessionConfig
 
-class Processor:
+class MongoProcessor:
 
-    def save_nlu(self, file, bot, account, user):
+    def save_nlu(self, file, bot: str, account: int, user: str):
         nlu = utils.training_data_from_paths([file], 'en')
         self.__save_training_examples(nlu.training_examples, bot, account, user)
         self.__save_entity_synonyms(nlu.entity_synonyms, bot, account, user)
         self.__save_lookup_tables(nlu.lookup_tables, bot, account, user)
         self.__save_regex_features(nlu.regex_features, bot, account, user)
 
-    def load_nlu(self, bot, account):
+    def load_nlu(self, bot: str, account: int):
         training_examples = self.__prepare_training_examples(bot, account)
         entity_synonyms = self.__prepare_synonyms(bot, account)
         lookup_tables = self.__prepare_lookup_tables(bot, account)
         regex_features = self.__prepare_regex_features(bot, account)
         return TrainingData( training_examples= training_examples, entity_synonyms=entity_synonyms, lookup_tables= lookup_tables, regex_features= regex_features)
 
-    def __save_training_examples(self, training_examples, bot, account, user):
+    def save_domain(self, file, bot: str, account: int, user: str):
+        domain = Domain.from_file(file)
+        self.__save_intents(domain.intents, bot, account, user)
+        self.__save_entities(domain.entities, bot, account, user)
+        self.__save_forms(domain.form_names, bot, account, user)
+        self.__save_actions(domain.user_actions, bot, account, user)
+        self.__save_responses(domain.templates, bot, account, user)
+
+    def load_domain(self, bot: str, account: int):
+        domain_dict = {
+            'intents': self.__prepare_intents(bot, account),
+            'actions': self.__prepare_actions(bot, account),
+            'slots': [],
+            'session_config': self.__prepare_session_config(bot, account),
+            'responses': self.__prepare_responses(bot, account),
+            'forms': self.__prepare_forms(bot , account),
+            'entities': self.__prepare_domain_entities(bot, account)
+        }
+        return Domain.from_dict(domain_dict)
+
+    def __save_training_examples(self, training_examples, bot: str, account: int, user: str):
         TrainingExamples.objects.insert(list(self.__extract_training_examples(training_examples, bot, account, user)))
 
     def __extract_entities(self, training_data):
@@ -29,7 +52,7 @@ class Processor:
                                      entity=entity['entity'])
                 yield entity_data
 
-    def __extract_training_examples(self, training_examples, bot, account, user):
+    def __extract_training_examples(self, training_examples, bot: str, account: int, user: str):
         for training_example in training_examples:
             training_data = TrainingExamples()
             training_data.intent = training_example.data['intent']
@@ -40,19 +63,19 @@ class Processor:
             training_data.entities = list(self.__extract_entities(training_example.data))
             yield training_data
 
-    def __extract_synonyms(self, synonyms, bot, account, user):
+    def __extract_synonyms(self, synonyms, bot: str, account: int, user: str):
         for key, value in synonyms.items():
             yield EntitySynonyms(bot=bot, account=account, synonym=value, value=key, user=user)
 
-    def __save_entity_synonyms(self, entity_synonyms, bot, account, user):
+    def __save_entity_synonyms(self, entity_synonyms, bot: str, account: int, user: str):
         EntitySynonyms.objects.insert(list(self.__extract_synonyms(entity_synonyms, bot, account, user)))
 
-    def __fetch_synonyms(self, bot, account):
+    def __fetch_synonyms(self, bot: str, account: int):
         entitySynonyms = EntitySynonyms.objects(bot=bot, account=account)
         for entitySynonym in entitySynonyms:
             yield {entitySynonym.value: entitySynonym.synonym}
 
-    def __prepare_synonyms(self, bot, account):
+    def __prepare_synonyms(self, bot: str, account: int):
         synonyms = list(self.__fetch_synonyms(bot, account))
         return dict(ChainMap(*synonyms))
 
@@ -72,25 +95,25 @@ class Processor:
     def __prepare_training_examples(self, bot: str, account: int):
         return list(self.__fetch_training_examples(bot, account))
 
-    def __extract_lookup_tables(self, lookup_tables, bot, account, user):
+    def __extract_lookup_tables(self, lookup_tables, bot: str, account: int, user: str):
         for lookup_table in lookup_tables:
             name = lookup_table['name']
             for element in lookup_table['elements']:
                 yield LookupTables(name=name, value=element, bot=bot, account=account, user=user)
 
-    def __save_lookup_tables(self, lookup_tables, bot, account, user):
+    def __save_lookup_tables(self, lookup_tables, bot: str, account: int, user: str):
         LookupTables.objects.insert(list(self.__extract_lookup_tables(lookup_tables, bot, account, user)))
 
-    def __fetch_lookup_tables(self, bot, account):
+    def __fetch_lookup_tables(self, bot: str, account: int):
         lookup_tables = LookupTables.objects(bot=bot, account=account).aggregate(
             [{"$group": {"_id": "$name", "elements": {"$push": "$value"}}}])
         for lookup_table in lookup_tables:
             yield {'name': lookup_table['_id'], 'elements': lookup_table['elements']}
 
-    def __prepare_lookup_tables(self, bot, account):
+    def __prepare_lookup_tables(self, bot: str, account: int):
         return list(self.__fetch_lookup_tables(bot, account))
 
-    def __extract_regex_features(self, regex_features, bot, account, user):
+    def __extract_regex_features(self, regex_features, bot: str, account: int, user: str):
         for regex_feature in regex_features:
             regex_data = RegexFeatures(**regex_feature)
             regex_data.bot = bot
@@ -98,13 +121,141 @@ class Processor:
             regex_data.user = user
             yield regex_data
 
-    def __save_regex_features(self, regex_features, bot, account, user):
+    def __save_regex_features(self, regex_features, bot: str, account: int, user: str):
         RegexFeatures.objects.insert(list(self.__extract_regex_features(regex_features, bot, account, user)))
 
-    def __fetch_regex_features(self, bot, account):
+    def __fetch_regex_features(self, bot: str, account: int):
         regex_features = RegexFeatures.objects(bot=bot, account=account)
         for regex_feature in regex_features:
             yield {'name': regex_feature['name'], 'elements': regex_feature['pattern']}
 
-    def __prepare_regex_features(self, bot, account):
+    def __prepare_regex_features(self, bot: str, account: int):
         return list(self.__fetch_regex_features(bot, account))
+
+    def __extract_intents(self, intents, bot: str, account: int, user: str):
+        for intent in intents:
+            yield Intents(name=intent, bot=bot, account=account, user=user)
+
+    def __save_intents(self, intents, bot: str, account: int, user: str):
+        Intents.objects.insert(list(self.__extract_intents(intents, bot, account, user)))
+
+    def __fetch_intents(self, bot: str, account: int):
+        intents = Intents.objects(bot=bot, account=account).aggregate(
+            [{"$group": {"_id": ["$bot", "$account"], "intents": {"$push": "name"}}}])
+        return list(intents)
+
+    def __prepare_intents(self, bot: str, account: int):
+        return self.__fetch_intents(bot, account)[0]['intents']
+
+    def __extract_domain_entities(self, entities, bot: str, account: int, user: str):
+        for entity in entities:
+            yield Entities(name=entity, bot=bot, account=account, user=user)
+
+    def __save_domain_entities(self, entities, bot: str, account: int, user: str):
+        Entities.objects.insert(list(self.__extract_domain_entities(entities, bot, account, user)))
+
+    def __fetch_domain_entities(self, bot: str, account: int):
+        entities = Entities.objects(bot=bot, account=account).aggregate(
+            [{"$group": {"_id": ["$bot", "$account"], "entities": {"$push": "$name"}}}])
+        return list(entities)
+
+    def __prepare_domain_entities(self, bot: str, account: int):
+        return self.__fetch_domain_entities(bot, account)[0]['entities']
+
+    def __extract_forms(self, forms, bot: str, account: int, user: str):
+        for form in forms:
+            yield Forms(name=form, bot=bot, account=account, user=user)
+
+    def __save_forms(self, forms, bot: str, account: int, user: str):
+        Forms.objects.insert(list(self.__extract_forms(forms, bot, account, user)))
+
+    def __fetch_forms(self, bot: str, account: int):
+        forms = Forms.objects(bot=bot, account=account).aggregate(
+            [{"$group": {"_id": ["$bot", "$account"], "forms": {"$push": "$name"}}}])
+        return list(forms)
+
+    def __prepare_forms(self, bot: str, account: int):
+        return self.__fetch_forms(bot, account)[0]['forms']
+
+    def __extract_actions(self, actions, bot: str, account: int, user: str):
+        for action in actions:
+            yield Actions(name=action, bot=bot, account=account, user=user)
+
+    def __save_actions(self, actions, bot: str, account: int, user: str):
+        Actions.objects.insert(list(self.__extract_actions(actions, bot, account, user)))
+
+    def __fetch_actions(self, bot: str, account: int):
+        actions = Actions.objects(bot=bot, account=account).aggregate(
+            [{"$group": {"_id": ["$bot", "$account"], "actions": {"$push": "$name"}}}])
+        return list(actions)
+
+    def __prepare_actions(self, bot: str, account: int):
+        return self.__fetch_actions(bot, account)[0]['actions']
+
+    def __extract_session_config(self, session_config: SessionConfig, bot: str, account: int, user: str):
+        return SessionConfigs(sesssionExpirationTime=session_config.session_expiration_time,
+                              carryOverSlots=session_config.carry_over_slots, bot=bot, account=account, user=user)
+
+    def __save_session_config(self, session_config: SessionConfigs, bot: str, account: int, user: str):
+        try:
+            SessionConfigs.objects.insert(self.__extract_session_config(session_config, bot, account, user))
+        except NotUniqueError as e:
+            raise Exception("Session Config already exist for the account")
+        except Exception as e:
+            raise Exception("Internal Server Error")
+
+    def __fetch_session_config(self, bot: str, account: int):
+        session_config = SessionConfigs.objects.get(bot=bot, account=account)
+        return session_config
+
+    def __prepare_session_config(self, bot: str, account: int):
+        session_config = self.__fetch_session_config(bot, account)
+        return SessionConfig(session_expiration_time=session_config.sesssionExpirationTime,
+                             carry_over_slots=session_config.carryOverSlots)
+
+    def __extract_response_button(self, buttons):
+        for button in buttons:
+            yield ResponseButton._from_son(button)
+
+    def __extract_response_value(self, values):
+        texts = []
+        customs = []
+        for value in values:
+            if 'text' in value:
+                response_text = ResponseText(text=value['text'])
+                if 'image' in value:
+                    response_text.image = value['image']
+                if 'channel' in value:
+                    response_text.channel = value['channel']
+                if 'button' in value:
+                    response_text.buttons = list(self.__extract_response_button(value['buttons']))
+                texts.append(response_text)
+            elif 'custom' in value:
+                customs.append(ResponseCustom._from_son(value['custom']))
+        return (texts, customs)
+
+    def __extract_response(self, responses, bot, account, user):
+        for key, value in responses.items():
+            response = Responses()
+            texts, customs = self.__extract_response_value(value)
+            response.name = key
+            response.texts = texts
+            response.customs = customs
+            response.bot = bot
+            response.account = account
+            response.user = user
+            yield response
+
+    def __save_responses(self, responses, bot, account, user):
+        Responses.objects.insert(list(self.__extract_response(responses, bot, account, user)))
+
+    def __fetch_responses(self, bot, account):
+        responses = Responses.objects(bot=bot, account=account, status=True)
+        for response in responses:
+            key = response.name
+            value = [text.to_mongo().to_dict() for text in response.texts]
+            value.extend([custom.to_mongo().to_dict() for custom in response.customs])
+            yield {key: value}
+
+    def __prepare_responses(self, bot, account):
+        return dict(ChainMap(*list(self.__fetch_responses(bot, account))))
