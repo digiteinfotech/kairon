@@ -3,17 +3,27 @@ from collections import ChainMap
 from mongoengine.errors import NotUniqueError
 from rasa.core.domain import SessionConfig
 from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
+from rasa.core.training.structures import StoryGraph, StoryStep
 from rasa.importers import utils
-from rasa.importers.rasa import Domain
+from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
-
+import asyncio
+import os
 from .data_objects import *
 
 
 class MongoProcessor:
 
-    def save_nlu(self, file, bot: str, account: int, user: str):
-        nlu = utils.training_data_from_paths([file], 'en')
+    def load_from_path(self, path: str, bot: str, account: int, user: str):
+        nlu_path = os.path.join(os.path.join(path, 'data'), 'nlu.md')
+        story_path = os.path.join(os.path.join(path, 'data'), 'stories.md')
+        nlu = utils.training_data_from_paths([nlu_path], 'en')
+        domain = Domain.from_file(os.path.join(path, 'domain.ym'))
+        self.save_nlu(nlu, bot, account, user)
+        self.save_domain(domain, bot, account, user)
+        self.save_stories(story_path, domain, bot, account, user)
+
+    def save_nlu(self, nlu: TrainingData, bot: str, account: int, user: str):
         self.__save_training_examples(nlu.training_examples, bot, account, user)
         self.__save_entity_synonyms(nlu.entity_synonyms, bot, account, user)
         self.__save_lookup_tables(nlu.lookup_tables, bot, account, user)
@@ -26,8 +36,7 @@ class MongoProcessor:
         regex_features = self.__prepare_training_regex_features(bot, account)
         return TrainingData( training_examples= training_examples, entity_synonyms=entity_synonyms, lookup_tables= lookup_tables, regex_features= regex_features)
 
-    def save_domain(self, file: str, bot: str, account: int, user: str):
-        domain = Domain.from_file(file)
+    def save_domain(self, domain: Domain, bot: str, account: int, user: str):
         self.__save_intents(domain.intents, bot, account, user)
         self.__save_domain_entities(domain.entities, bot, account, user)
         self.__save_forms(domain.form_names, bot, account, user)
@@ -46,6 +55,14 @@ class MongoProcessor:
             'entities': self.__prepare_training_domain_entities(bot, account)
         }
         return Domain.from_dict(domain_dict)
+
+    def save_stories(self, file: str, domain: Domain, bot: str, account: int, user: str):
+        loop = asyncio.new_event_loop()
+        story_steps = loop.run_until_complete(StoryFileReader.read_from_file(file, domain))
+        self.__save_stories(story_steps, bot, account, user)
+
+    def load_stories(self, bot: str, account: int):
+        return self.__prepare_training_story(bot, account)
 
     def __save_training_examples(self, training_examples, bot: str, account: int, user: str):
         TrainingExamples.objects.insert(list(self.__extract_training_examples(training_examples, bot, account, user)))
@@ -239,7 +256,7 @@ class MongoProcessor:
                 customs.append(ResponseCustom._from_son(value['custom']))
         return (texts, customs)
 
-    def __extract_response(self, responses, bot, account, user):
+    def __extract_response(self, responses, bot: str, account: int, user: str):
         for key, value in responses.items():
             response = Responses()
             texts, customs = self.__extract_response_value(value)
@@ -251,10 +268,10 @@ class MongoProcessor:
             response.user = user
             yield response
 
-    def __save_responses(self, responses, bot, account, user):
+    def __save_responses(self, responses, bot: str, account: int, user: str):
         Responses.objects.insert(list(self.__extract_response(responses, bot, account, user)))
 
-    def __fetch_responses(self, bot, account):
+    def __fetch_responses(self, bot: str, account: int):
         responses = Responses.objects(bot=bot, account=account, status=True)
         for response in responses:
             key = response.name
@@ -262,10 +279,10 @@ class MongoProcessor:
             value.extend([custom.to_mongo().to_dict() for custom in response.customs])
             yield {key: value}
 
-    def __prepare_training_responses(self, bot, account):
+    def __prepare_training_responses(self, bot: str, account: int):
         return dict(ChainMap(*list(self.__fetch_responses(bot, account))))
 
-    def __extract_slots(self, slots, bot, account, user):
+    def __extract_slots(self, slots, bot: str, account: int, user: str):
         for slot in slots:
             items = vars(slot)
             items['type'] = slot.type_name
@@ -276,14 +293,14 @@ class MongoProcessor:
             items['user'] = user
             yield Slots._from_son(items)
 
-    def __save_slots(self, slots, bot, account, user):
+    def __save_slots(self, slots, bot: str, account: int, user: str):
         Slots.objects.insert(list(self.__extract_slots(slots, bot, account, user)))
 
-    def __fetch_slots(self, bot, account):
+    def __fetch_slots(self, bot: str, account: int):
         slots = Slots.objects(bot=bot, account=account, status=True)
         return list(slots)
 
-    def __prepare_training_slots(self, bot, account):
+    def __prepare_training_slots(self, bot: str, account: int):
         slots = self.__fetch_slots(bot, account)
         results = []
         for slot in slots:
@@ -310,3 +327,37 @@ class MongoProcessor:
                 results.append(UnfeaturizedSlot(name=slot.name, initial_value=slot.initial_value,
                                                 value_reset_delay=slot.value_reset_delay, auto_fill=slot.auto_fill))
         return results
+
+    def __extract_story_events(self, events):
+        for event in events:
+            if isinstance(event, UserUttered):
+                yield StoryEvents(type=event.type_name, name=event.text)
+            elif isinstance(event, ActionExecuted):
+                yield StoryEvents(type=event.type_name, name=event.action_name)
+
+    def __extract_story_step(self, story_steps, bot: str, account: int, user: str):
+        for story_step in story_steps:
+            story_events = list(self.__extract_story_events(story_step.events))
+            story = Stories(block_name=story_step.block_name, events=story_events)
+            story.bot = bot
+            story.account = account
+            story.user = user
+            yield story
+
+    def __save_stories(self, story_steps, bot: str, account: int, user: str):
+        Stories.objects.insert(list(self.__extract_story_step(story_steps, bot, account, user)))
+
+    def __prepare_training_story_events(self, events, timestamp):
+        for event in events:
+            if event.type == 'user':
+                yield UserUttered(text=event.name, intent={'name': event.name, 'confidence': 1.0}, timestamp=timestamp)
+            elif event.type == 'action':
+                yield ActionExecuted(action_name=event.name, timestamp=timestamp)
+
+    def __prepare_training_story_step(self, bot: str, account: int):
+        for story in Stories.objects(bot=bot, account=account, status=True):
+            story_events = list(self.__prepare_training_story_events(story.events, datetime.now()))
+            yield StoryStep(block_name=story.block_name, events=story_events)
+
+    def __prepare_training_story(self, bot: str, account: int):
+        return StoryGraph(list(self.__prepare_training_story_step(bot, account)))
