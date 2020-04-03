@@ -1,10 +1,14 @@
-from .data_objects import *
 from collections import ChainMap
-from rasa.nlu.training_data import Message, TrainingData
-from rasa.importers import utils
-from rasa.importers.rasa import Domain
+
 from mongoengine.errors import NotUniqueError
 from rasa.core.domain import SessionConfig
+from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
+from rasa.importers import utils
+from rasa.importers.rasa import Domain
+from rasa.nlu.training_data import Message, TrainingData
+
+from .data_objects import *
+
 
 class MongoProcessor:
 
@@ -17,28 +21,29 @@ class MongoProcessor:
 
     def load_nlu(self, bot: str, account: int):
         training_examples = self.__prepare_training_examples(bot, account)
-        entity_synonyms = self.__prepare_synonyms(bot, account)
-        lookup_tables = self.__prepare_lookup_tables(bot, account)
-        regex_features = self.__prepare_regex_features(bot, account)
+        entity_synonyms = self.__prepare_training_synonyms(bot, account)
+        lookup_tables = self.__prepare_training_lookup_tables(bot, account)
+        regex_features = self.__prepare_training_regex_features(bot, account)
         return TrainingData( training_examples= training_examples, entity_synonyms=entity_synonyms, lookup_tables= lookup_tables, regex_features= regex_features)
 
-    def save_domain(self, file, bot: str, account: int, user: str):
+    def save_domain(self, file: str, bot: str, account: int, user: str):
         domain = Domain.from_file(file)
         self.__save_intents(domain.intents, bot, account, user)
-        self.__save_entities(domain.entities, bot, account, user)
+        self.__save_domain_entities(domain.entities, bot, account, user)
         self.__save_forms(domain.form_names, bot, account, user)
         self.__save_actions(domain.user_actions, bot, account, user)
         self.__save_responses(domain.templates, bot, account, user)
+        self.__save_slots(domain.slots, bot, account, user)
 
     def load_domain(self, bot: str, account: int):
         domain_dict = {
-            'intents': self.__prepare_intents(bot, account),
-            'actions': self.__prepare_actions(bot, account),
-            'slots': [],
-            'session_config': self.__prepare_session_config(bot, account),
-            'responses': self.__prepare_responses(bot, account),
-            'forms': self.__prepare_forms(bot , account),
-            'entities': self.__prepare_domain_entities(bot, account)
+            'intents': self.__prepare_training_intents(bot, account),
+            'actions': self.__prepare_training_actions(bot, account),
+            'slots': self.__prepare_training_slots(bot, account),
+            'session_config': self.__prepare_training_session_config(bot, account),
+            'responses': self.__prepare_training_responses(bot, account),
+            'forms': self.__prepare_training_forms(bot , account),
+            'entities': self.__prepare_training_domain_entities(bot, account)
         }
         return Domain.from_dict(domain_dict)
 
@@ -71,11 +76,11 @@ class MongoProcessor:
         EntitySynonyms.objects.insert(list(self.__extract_synonyms(entity_synonyms, bot, account, user)))
 
     def __fetch_synonyms(self, bot: str, account: int):
-        entitySynonyms = EntitySynonyms.objects(bot=bot, account=account)
+        entitySynonyms = EntitySynonyms.objects(bot= bot, account= account, status= True)
         for entitySynonym in entitySynonyms:
             yield {entitySynonym.value: entitySynonym.synonym}
 
-    def __prepare_synonyms(self, bot: str, account: int):
+    def __prepare_training_synonyms(self, bot: str, account: int):
         synonyms = list(self.__fetch_synonyms(bot, account))
         return dict(ChainMap(*synonyms))
 
@@ -84,7 +89,7 @@ class MongoProcessor:
             yield entity.to_mongo().to_dict()
 
     def __fetch_training_examples(self, bot: str, account: int):
-        trainingExamples = TrainingExamples.objects(bot=bot, account=account)
+        trainingExamples = TrainingExamples.objects(bot= bot, account= account, status= True)
         for trainingExample in trainingExamples:
             message = Message(trainingExample.text)
             message.data = {'intent': trainingExample.intent}
@@ -105,12 +110,12 @@ class MongoProcessor:
         LookupTables.objects.insert(list(self.__extract_lookup_tables(lookup_tables, bot, account, user)))
 
     def __fetch_lookup_tables(self, bot: str, account: int):
-        lookup_tables = LookupTables.objects(bot=bot, account=account).aggregate(
+        lookup_tables = LookupTables.objects(bot= bot, account= account, status= True).aggregate(
             [{"$group": {"_id": "$name", "elements": {"$push": "$value"}}}])
         for lookup_table in lookup_tables:
             yield {'name': lookup_table['_id'], 'elements': lookup_table['elements']}
 
-    def __prepare_lookup_tables(self, bot: str, account: int):
+    def __prepare_training_lookup_tables(self, bot: str, account: int):
         return list(self.__fetch_lookup_tables(bot, account))
 
     def __extract_regex_features(self, regex_features, bot: str, account: int, user: str):
@@ -125,11 +130,11 @@ class MongoProcessor:
         RegexFeatures.objects.insert(list(self.__extract_regex_features(regex_features, bot, account, user)))
 
     def __fetch_regex_features(self, bot: str, account: int):
-        regex_features = RegexFeatures.objects(bot=bot, account=account)
+        regex_features = RegexFeatures.objects(bot= bot, account= account, status= True)
         for regex_feature in regex_features:
             yield {'name': regex_feature['name'], 'elements': regex_feature['pattern']}
 
-    def __prepare_regex_features(self, bot: str, account: int):
+    def __prepare_training_regex_features(self, bot: str, account: int):
         return list(self.__fetch_regex_features(bot, account))
 
     def __extract_intents(self, intents, bot: str, account: int, user: str):
@@ -140,11 +145,11 @@ class MongoProcessor:
         Intents.objects.insert(list(self.__extract_intents(intents, bot, account, user)))
 
     def __fetch_intents(self, bot: str, account: int):
-        intents = Intents.objects(bot=bot, account=account).aggregate(
+        intents = Intents.objects(bot= bot, account= account, status= True).aggregate(
             [{"$group": {"_id": ["$bot", "$account"], "intents": {"$push": "name"}}}])
         return list(intents)
 
-    def __prepare_intents(self, bot: str, account: int):
+    def __prepare_training_intents(self, bot: str, account: int):
         return self.__fetch_intents(bot, account)[0]['intents']
 
     def __extract_domain_entities(self, entities, bot: str, account: int, user: str):
@@ -155,11 +160,11 @@ class MongoProcessor:
         Entities.objects.insert(list(self.__extract_domain_entities(entities, bot, account, user)))
 
     def __fetch_domain_entities(self, bot: str, account: int):
-        entities = Entities.objects(bot=bot, account=account).aggregate(
+        entities = Entities.objects(bot= bot, account= account, status= True).aggregate(
             [{"$group": {"_id": ["$bot", "$account"], "entities": {"$push": "$name"}}}])
         return list(entities)
 
-    def __prepare_domain_entities(self, bot: str, account: int):
+    def __prepare_training_domain_entities(self, bot: str, account: int):
         return self.__fetch_domain_entities(bot, account)[0]['entities']
 
     def __extract_forms(self, forms, bot: str, account: int, user: str):
@@ -170,11 +175,11 @@ class MongoProcessor:
         Forms.objects.insert(list(self.__extract_forms(forms, bot, account, user)))
 
     def __fetch_forms(self, bot: str, account: int):
-        forms = Forms.objects(bot=bot, account=account).aggregate(
+        forms = Forms.objects(bot= bot, account= account, status= True).aggregate(
             [{"$group": {"_id": ["$bot", "$account"], "forms": {"$push": "$name"}}}])
         return list(forms)
 
-    def __prepare_forms(self, bot: str, account: int):
+    def __prepare_training_forms(self, bot: str, account: int):
         return self.__fetch_forms(bot, account)[0]['forms']
 
     def __extract_actions(self, actions, bot: str, account: int, user: str):
@@ -185,11 +190,11 @@ class MongoProcessor:
         Actions.objects.insert(list(self.__extract_actions(actions, bot, account, user)))
 
     def __fetch_actions(self, bot: str, account: int):
-        actions = Actions.objects(bot=bot, account=account).aggregate(
+        actions = Actions.objects(bot= bot, account= account, status= True).aggregate(
             [{"$group": {"_id": ["$bot", "$account"], "actions": {"$push": "$name"}}}])
         return list(actions)
 
-    def __prepare_actions(self, bot: str, account: int):
+    def __prepare_training_actions(self, bot: str, account: int):
         return self.__fetch_actions(bot, account)[0]['actions']
 
     def __extract_session_config(self, session_config: SessionConfig, bot: str, account: int, user: str):
@@ -208,7 +213,7 @@ class MongoProcessor:
         session_config = SessionConfigs.objects.get(bot=bot, account=account)
         return session_config
 
-    def __prepare_session_config(self, bot: str, account: int):
+    def __prepare_training_session_config(self, bot: str, account: int):
         session_config = self.__fetch_session_config(bot, account)
         return SessionConfig(session_expiration_time=session_config.sesssionExpirationTime,
                              carry_over_slots=session_config.carryOverSlots)
@@ -257,5 +262,51 @@ class MongoProcessor:
             value.extend([custom.to_mongo().to_dict() for custom in response.customs])
             yield {key: value}
 
-    def __prepare_responses(self, bot, account):
+    def __prepare_training_responses(self, bot, account):
         return dict(ChainMap(*list(self.__fetch_responses(bot, account))))
+
+    def __extract_slots(self, slots, bot, account, user):
+        for slot in slots:
+            items = vars(slot)
+            items['type'] = slot.type_name
+            items['value_reset_delay'] = items['_value_reset_delay']
+            items.pop('_value_reset_delay')
+            items['bot'] = bot
+            items['account'] = account
+            items['user'] = user
+            yield Slots._from_son(items)
+
+    def __save_slots(self, slots, bot, account, user):
+        Slots.objects.insert(list(self.__extract_slots(slots, bot, account, user)))
+
+    def __fetch_slots(self, bot, account):
+        slots = Slots.objects(bot=bot, account=account, status=True)
+        return list(slots)
+
+    def __prepare_training_slots(self, bot, account):
+        slots = self.__fetch_slots(bot, account)
+        results = []
+        for slot in slots:
+            if slot.type == FloatSlot.type_name:
+                results.append(FloatSlot(name=slot.name, initial_value=slot.initial_value,
+                                         value_reset_delay=slot.value_reset_delay, auto_fill=slot.auto_fill,
+                                         min_value=slot.min_value, max_value=slot.max_value))
+            elif slot.type == CategoricalSlot.type_name:
+                results.append(CategoricalSlot(name=slot.name, initial_value=slot.initial_value,
+                                               value_reset_delay=slot.value_reset_delay, auto_fill=slot.auto_fill,
+                                               values=slot.values))
+            elif slot.type == TextSlot.type_name:
+                results.append(
+                    TextSlot(name=slot.name, initial_value=slot.initial_value, value_reset_delay=slot.value_reset_delay,
+                             auto_fill=slot.auto_fill))
+            elif slot.type == BooleanSlot.type_name:
+                results.append(BooleanSlot(name=slot.name, initial_value=slot.initial_value,
+                                           value_reset_delay=slot.value_reset_delay, auto_fill=slot.auto_fill))
+            elif slot.type == ListSlot.type_name:
+                results.append(
+                    ListSlot(name=slot.name, initial_value=slot.initial_value, value_reset_delay=slot.value_reset_delay,
+                             auto_fill=slot.auto_fill))
+            elif slot.type == UnfeaturizedSlot.type_name:
+                results.append(UnfeaturizedSlot(name=slot.name, initial_value=slot.initial_value,
+                                                value_reset_delay=slot.value_reset_delay, auto_fill=slot.auto_fill))
+        return results

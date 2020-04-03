@@ -1,5 +1,10 @@
-from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, StringField, LongField, ListField, ValidationError, DateTimeField, BooleanField, DictField
 from datetime import datetime
+
+from rasa.core.events import UserUttered, ActionExecuted
+from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, StringField, LongField, ListField, \
+    ValidationError, DateTimeField, BooleanField, DictField, DynamicField
+from rasa.core.slots import CategoricalSlot, FloatSlot
+
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -58,7 +63,7 @@ class RegexFeatures(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {'indexes': [{'fields': ['$text']}]}
+    meta = {'indexes': [{'fields': ['$pattern']}]}
 
 class Intents(Document):
     name = StringField(required=True)
@@ -87,6 +92,10 @@ class Forms(Document):
 class ResponseButton(EmbeddedDocument):
     title = StringField(required=True)
     payload = StringField(required=True)
+
+    def validate(self, clean=True):
+        if not self.title or not self.payload:
+            raise ValidationError("title and payload  must be present!")
 
 class ResponseText(EmbeddedDocument):
     text = StringField(required=True)
@@ -128,10 +137,53 @@ class SessionConfigs(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-class SlotConfig(Document):
+class Slots(Document):
     name = StringField(required=True)
-    datatype = StringField(required=True)
-    fields = ListField(DictField())
+    type = StringField(required=True)
+    initial_value = DynamicField()
+    value_reset_delay = LongField()
+    auto_fill = BooleanField(default=True)
+    value = StringField()
+    values = ListField(StringField())
+    max_value = LongField()
+    min_value = LongField()
+    bot = StringField(required=True)
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if self.type == FloatSlot.type_name:
+            if not self.min_value and not self.max_value:
+                self.min_value = 0.0
+                self.max_value = 1.0
+            if self.min_value < self.max_value:
+                error = "FloatSlot must have min_value < max_value"
+            if not isinstance(self.initial_value, int):
+                if error:
+                    error += "\n"
+                error = "FloatSlot initial_value must be numeric value"
+                ValidationError(error)
+        elif self.type == CategoricalSlot.type_name:
+            if not self.values:
+                raise ValidationError("CategoricalSlot must have list of categories in values field")
+
+class StoryEvents(EmbeddedDocument):
+    name = StringField(required=True)
+    type = StringField(required=True)
+
+class Stories(Document):
+    block_name = StringField(required=True)
+    events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
+    bot = StringField(required=True)
+    account = LongField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if isinstance(self.events[0], UserUttered):
+            raise ValidationError("Stories must start with intent")
+        elif isinstance(self.events[-1], ActionExecuted):
+            raise ValidationError("Stories must end with action")
