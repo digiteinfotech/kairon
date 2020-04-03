@@ -6,6 +6,7 @@ from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
 from rasa.core.training.structures import StoryGraph, StoryStep
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
+from rasa.core.domain import InvalidDomain
 from rasa.nlu.training_data import Message, TrainingData
 import asyncio
 import os
@@ -15,13 +16,21 @@ from .data_objects import *
 class MongoProcessor:
 
     def load_from_path(self, path: str, bot: str, account: int, user: str):
-        nlu_path = os.path.join(os.path.join(path, 'data'), 'nlu.md')
-        story_path = os.path.join(os.path.join(path, 'data'), 'stories.md')
-        nlu = utils.training_data_from_paths([nlu_path], 'en')
-        domain = Domain.from_file(os.path.join(path, 'domain.ym'))
-        self.save_nlu(nlu, bot, account, user)
-        self.save_domain(domain, bot, account, user)
-        self.save_stories(story_path, domain, bot, account, user)
+        try:
+            nlu_path = path + "/data/nlu.md"
+            story_path = path + "/data/stories.md"
+            nlu = utils.training_data_from_paths([nlu_path], 'en')
+            domain = Domain.from_file(path + '/domain.yml')
+            loop = asyncio.new_event_loop()
+            story_steps = loop.run_until_complete(StoryFileReader.read_from_file(story_path, domain))
+            self.save_nlu(nlu, bot, account, user)
+            self.save_domain(domain, bot, account, user)
+            self.save_stories(story_steps, bot, account, user)
+        except InvalidDomain as e:
+            raise Exception("Failed to validate yaml file. Please make sure the file is correct and all mandatory parameters are specified")
+        except Exception as e:
+            raise e
+
 
     def save_nlu(self, nlu: TrainingData, bot: str, account: int, user: str):
         self.__save_training_examples(nlu.training_examples, bot, account, user)
@@ -56,16 +65,15 @@ class MongoProcessor:
         }
         return Domain.from_dict(domain_dict)
 
-    def save_stories(self, file: str, domain: Domain, bot: str, account: int, user: str):
-        loop = asyncio.new_event_loop()
-        story_steps = loop.run_until_complete(StoryFileReader.read_from_file(file, domain))
+    def save_stories(self, story_steps: str, bot: str, account: int, user: str):
         self.__save_stories(story_steps, bot, account, user)
 
     def load_stories(self, bot: str, account: int):
         return self.__prepare_training_story(bot, account)
 
     def __save_training_examples(self, training_examples, bot: str, account: int, user: str):
-        TrainingExamples.objects.insert(list(self.__extract_training_examples(training_examples, bot, account, user)))
+        if training_examples :
+            TrainingExamples.objects.insert(list(self.__extract_training_examples(training_examples, bot, account, user)))
 
     def __extract_entities(self, training_data):
         if "entities" in training_data:
@@ -90,7 +98,8 @@ class MongoProcessor:
             yield EntitySynonyms(bot=bot, account=account, synonym=value, value=key, user=user)
 
     def __save_entity_synonyms(self, entity_synonyms, bot: str, account: int, user: str):
-        EntitySynonyms.objects.insert(list(self.__extract_synonyms(entity_synonyms, bot, account, user)))
+        if entity_synonyms:
+            EntitySynonyms.objects.insert(list(self.__extract_synonyms(entity_synonyms, bot, account, user)))
 
     def __fetch_synonyms(self, bot: str, account: int):
         entitySynonyms = EntitySynonyms.objects(bot= bot, account= account, status= True)
@@ -124,7 +133,8 @@ class MongoProcessor:
                 yield LookupTables(name=name, value=element, bot=bot, account=account, user=user)
 
     def __save_lookup_tables(self, lookup_tables, bot: str, account: int, user: str):
-        LookupTables.objects.insert(list(self.__extract_lookup_tables(lookup_tables, bot, account, user)))
+        if lookup_tables:
+            LookupTables.objects.insert(list(self.__extract_lookup_tables(lookup_tables, bot, account, user)))
 
     def __fetch_lookup_tables(self, bot: str, account: int):
         lookup_tables = LookupTables.objects(bot= bot, account= account, status= True).aggregate(
@@ -144,7 +154,8 @@ class MongoProcessor:
             yield regex_data
 
     def __save_regex_features(self, regex_features, bot: str, account: int, user: str):
-        RegexFeatures.objects.insert(list(self.__extract_regex_features(regex_features, bot, account, user)))
+        if regex_features:
+            RegexFeatures.objects.insert(list(self.__extract_regex_features(regex_features, bot, account, user)))
 
     def __fetch_regex_features(self, bot: str, account: int):
         regex_features = RegexFeatures.objects(bot= bot, account= account, status= True)
@@ -159,7 +170,8 @@ class MongoProcessor:
             yield Intents(name=intent, bot=bot, account=account, user=user)
 
     def __save_intents(self, intents, bot: str, account: int, user: str):
-        Intents.objects.insert(list(self.__extract_intents(intents, bot, account, user)))
+        if intents:
+            Intents.objects.insert(list(self.__extract_intents(intents, bot, account, user)))
 
     def __fetch_intents(self, bot: str, account: int):
         intents = Intents.objects(bot= bot, account= account, status= True).aggregate(
@@ -174,7 +186,8 @@ class MongoProcessor:
             yield Entities(name=entity, bot=bot, account=account, user=user)
 
     def __save_domain_entities(self, entities, bot: str, account: int, user: str):
-        Entities.objects.insert(list(self.__extract_domain_entities(entities, bot, account, user)))
+        if entities:
+            Entities.objects.insert(list(self.__extract_domain_entities(entities, bot, account, user)))
 
     def __fetch_domain_entities(self, bot: str, account: int):
         entities = Entities.objects(bot= bot, account= account, status= True).aggregate(
@@ -189,7 +202,8 @@ class MongoProcessor:
             yield Forms(name=form, bot=bot, account=account, user=user)
 
     def __save_forms(self, forms, bot: str, account: int, user: str):
-        Forms.objects.insert(list(self.__extract_forms(forms, bot, account, user)))
+        if forms:
+            Forms.objects.insert(list(self.__extract_forms(forms, bot, account, user)))
 
     def __fetch_forms(self, bot: str, account: int):
         forms = Forms.objects(bot= bot, account= account, status= True).aggregate(
@@ -204,7 +218,8 @@ class MongoProcessor:
             yield Actions(name=action, bot=bot, account=account, user=user)
 
     def __save_actions(self, actions, bot: str, account: int, user: str):
-        Actions.objects.insert(list(self.__extract_actions(actions, bot, account, user)))
+        if actions:
+            Actions.objects.insert(list(self.__extract_actions(actions, bot, account, user)))
 
     def __fetch_actions(self, bot: str, account: int):
         actions = Actions.objects(bot= bot, account= account, status= True).aggregate(
@@ -220,7 +235,8 @@ class MongoProcessor:
 
     def __save_session_config(self, session_config: SessionConfigs, bot: str, account: int, user: str):
         try:
-            SessionConfigs.objects.insert(self.__extract_session_config(session_config, bot, account, user))
+            if session_config:
+                SessionConfigs.objects.insert(self.__extract_session_config(session_config, bot, account, user))
         except NotUniqueError as e:
             raise Exception("Session Config already exist for the account")
         except Exception as e:
@@ -269,7 +285,8 @@ class MongoProcessor:
             yield response
 
     def __save_responses(self, responses, bot: str, account: int, user: str):
-        Responses.objects.insert(list(self.__extract_response(responses, bot, account, user)))
+        if responses:
+            Responses.objects.insert(list(self.__extract_response(responses, bot, account, user)))
 
     def __fetch_responses(self, bot: str, account: int):
         responses = Responses.objects(bot=bot, account=account, status=True)
@@ -294,7 +311,8 @@ class MongoProcessor:
             yield Slots._from_son(items)
 
     def __save_slots(self, slots, bot: str, account: int, user: str):
-        Slots.objects.insert(list(self.__extract_slots(slots, bot, account, user)))
+        if slots:
+            Slots.objects.insert(list(self.__extract_slots(slots, bot, account, user)))
 
     def __fetch_slots(self, bot: str, account: int):
         slots = Slots.objects(bot=bot, account=account, status=True)
@@ -345,7 +363,8 @@ class MongoProcessor:
             yield story
 
     def __save_stories(self, story_steps, bot: str, account: int, user: str):
-        Stories.objects.insert(list(self.__extract_story_step(story_steps, bot, account, user)))
+        if story_steps:
+            Stories.objects.insert(list(self.__extract_story_step(story_steps, bot, account, user)))
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:

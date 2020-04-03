@@ -1,6 +1,10 @@
-flask
-flask_cors
 pyyaml
-nest_asyncio
-rasa
+rasa==1.8.1
+gensim
+sentence_transformers
 autocorrect
+Quart
+Quart-CORS
+spacy
+mongomock
+pytest
