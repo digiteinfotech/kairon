@@ -5,3 +5,4 @@ cov_html
 sample
 /*.coverage
 *.html
+coverage_html

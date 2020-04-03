@@ -1,21 +1,21 @@
+import asyncio
 from collections import ChainMap
 
 from mongoengine.errors import NotUniqueError
+from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
 from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
 from rasa.core.training.structures import StoryGraph, StoryStep
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
-from rasa.core.domain import InvalidDomain
 from rasa.nlu.training_data import Message, TrainingData
-import asyncio
-import os
+from mongoengine.errors import DoesNotExist
 from .data_objects import *
 
 
 class MongoProcessor:
 
-    def load_from_path(self, path: str, bot: str, account: int, user: str):
+    def save_from_path(self, path: str, bot: str, account: int, user: str):
         try:
             nlu_path = path + "/data/nlu.md"
             story_path = path + "/data/stories.md"
@@ -30,7 +30,6 @@ class MongoProcessor:
             raise Exception("Failed to validate yaml file. Please make sure the file is correct and all mandatory parameters are specified")
         except Exception as e:
             raise e
-
 
     def save_nlu(self, nlu: TrainingData, bot: str, account: int, user: str):
         self.__save_training_examples(nlu.training_examples, bot, account, user)
@@ -175,11 +174,15 @@ class MongoProcessor:
 
     def __fetch_intents(self, bot: str, account: int):
         intents = Intents.objects(bot= bot, account= account, status= True).aggregate(
-            [{"$group": {"_id": ["$bot", "$account"], "intents": {"$push": "name"}}}])
+            [{"$group": {"_id": ["$bot", "$account"], "intents": {"$push": "$name"}}}])
         return list(intents)
 
     def __prepare_training_intents(self, bot: str, account: int):
-        return self.__fetch_intents(bot, account)[0]['intents']
+        intents = self.__fetch_intents(bot, account)
+        if intents:
+            return intents[0]['intents']
+        else:
+            return []
 
     def __extract_domain_entities(self, entities, bot: str, account: int, user: str):
         for entity in entities:
@@ -195,7 +198,11 @@ class MongoProcessor:
         return list(entities)
 
     def __prepare_training_domain_entities(self, bot: str, account: int):
-        return self.__fetch_domain_entities(bot, account)[0]['entities']
+        entities = self.__fetch_domain_entities(bot, account)
+        if entities:
+            return entities[0]['entities']
+        else:
+            return []
 
     def __extract_forms(self, forms, bot: str, account: int, user: str):
         for form in forms:
@@ -211,7 +218,11 @@ class MongoProcessor:
         return list(forms)
 
     def __prepare_training_forms(self, bot: str, account: int):
-        return self.__fetch_forms(bot, account)[0]['forms']
+        forms = self.__fetch_forms(bot, account)
+        if forms:
+            return forms[0]['forms']
+        else:
+            return []
 
     def __extract_actions(self, actions, bot: str, account: int, user: str):
         for action in actions:
@@ -227,7 +238,11 @@ class MongoProcessor:
         return list(actions)
 
     def __prepare_training_actions(self, bot: str, account: int):
-        return self.__fetch_actions(bot, account)[0]['actions']
+        actions = self.__fetch_actions(bot, account)
+        if actions:
+            return actions[0]['actions']
+        else:
+            return []
 
     def __extract_session_config(self, session_config: SessionConfig, bot: str, account: int, user: str):
         return SessionConfigs(sesssionExpirationTime=session_config.session_expiration_time,
@@ -243,13 +258,21 @@ class MongoProcessor:
             raise Exception("Internal Server Error")
 
     def __fetch_session_config(self, bot: str, account: int):
-        session_config = SessionConfigs.objects.get(bot=bot, account=account)
+        try:
+            session_config = SessionConfigs.objects.get(bot=bot, account=account)
+        except DoesNotExist as e:
+            session_config = None
         return session_config
 
     def __prepare_training_session_config(self, bot: str, account: int):
         session_config = self.__fetch_session_config(bot, account)
-        return SessionConfig(session_expiration_time=session_config.sesssionExpirationTime,
-                             carry_over_slots=session_config.carryOverSlots)
+        if session_config:
+            return { 'session_expiration_time': session_config.sesssionExpirationTime,
+                          'carry_over_slots': session_config.carryOverSlots }
+        else:
+            default_session = SessionConfig.default()
+            return {'session_expiration_time': default_session.session_expiration_time,
+             'carry_over_slots': default_session.carry_over_slots}
 
     def __extract_response_button(self, buttons):
         for button in buttons:

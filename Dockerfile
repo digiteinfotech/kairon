@@ -11,7 +11,6 @@ WORKDIR ${RASA_NLU_HOME}
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
 RUN python3 -m pip install rasa==1.8.1
-RUN python3 -m pip install nest_asyncio
 RUN python3 -m pip install gensim
 RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install autocorrect

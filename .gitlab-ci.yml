@@ -1,4 +1,5 @@
 stages:
+  - test
   - train
   - deploy
   - cleanup
@@ -6,6 +7,15 @@ stages:
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME
   - export PATH=$PATH:/usr/local/bin
+
+test:
+  tags:
+    - dspg
+  stage: test
+  script:
+    - python -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
+
+
 
 train:
   tags:
