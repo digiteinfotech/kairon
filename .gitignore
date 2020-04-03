@@ -1,2 +1,7 @@
 .idea
 __pycache__
+assets
+cov_html
+sample
+/*.coverage
+*.html
