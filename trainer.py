@@ -23,7 +23,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 system_properties = yaml.load(open('./system.yaml'), Loader=yaml.FullLoader)
 aqg = AutomaticQuestionGenerator()
-questionGeneration = QuestionGeneration()
 
 variation_flag = 0
 train_flag = 0
@@ -379,7 +378,7 @@ async def variations():
     #task1.start()
     #new_questions= variate1(QuestionList)
     if question_list.__len__() <=5:
-        result = await questionGeneration.generateQuestions(question_list)
+        result = await QuestionGeneration.generateQuestions(question_list)
         message = "Variations generated"
     else:
         message = "Sorry!, Max 5 questions can be selected for generation"

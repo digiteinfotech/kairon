@@ -6,14 +6,13 @@ import itertools
 from scipy.spatial.distance import cosine
 
 class QuestionGeneration:
+    nlp = spacy.load("en_core_web_sm")
+    sentence_transformer = SentenceTransformer('./pretrained_model/bert-large-nli-mean-tokens')
+    fastText = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
 
-    def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
-        self.sentence_transformer = SentenceTransformer('./pretrained_model/bert-large-nli-mean-tokens')
-        self.fastText = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
-
-    def get_synonyms( self, text: str):
-        tokens = [ doc.text  for doc in self.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
+    @staticmethod
+    def get_synonyms(text: str):
+        tokens = [ doc.text  for doc in QuestionGeneration.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
         token_list = {}
         for token in tokens:
             for syn in wordnet.synsets(token):
@@ -24,12 +23,13 @@ class QuestionGeneration:
                     token_list[token] = list(synonyms)
         return token_list
 
-    def get_synonyms_fastText( self, text: str):
-        tokens = [ doc.text  for doc in self.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
+    @staticmethod
+    def get_synonyms_fastText(text: str):
+        tokens = [ doc.text  for doc in QuestionGeneration.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
         token_list = {}
         for token in tokens:
             try:
-                similar_words = self.fastText.most_similar(token, topn=10)
+                similar_words = QuestionGeneration.fastText.most_similar(token, topn=10)
                 synonyms = set()
                 for word, similarity in similar_words:
                     synonyms.add(word)
@@ -39,22 +39,24 @@ class QuestionGeneration:
                 print()
         return token_list
 
-    def checkDistance(self, source, target):
+    @staticmethod
+    def checkDistance(source, target):
         return 1 - cosine(source, target)
 
-    async def generateQuestions(self ,texts):
+    @staticmethod
+    async def generateQuestions(texts):
         result = []
         if type(texts) == str:
             texts = [texts]
-        text_encodings = self.sentence_transformer.encode(texts)
+        text_encodings = QuestionGeneration.sentence_transformer.encode(texts)
         for i in range(len(texts)):
             text = texts[i]
             text_encoding = text_encodings[i]
-            synonyms = self.get_synonyms_fastText(text)
-            tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in self.nlp(text)]
+            synonyms = QuestionGeneration.get_synonyms_fastText(text)
+            tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGeneration.nlp(text)]
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
-            questions_encodings = self.sentence_transformer.encode(questions)
-            questions = [ questions[i] for i in range(len(questions)) if self.checkDistance(text_encoding, questions_encodings[i]) > 0.90 ]
+            questions_encodings = QuestionGeneration.sentence_transformer.encode(questions)
+            questions = [ questions[i] for i in range(len(questions)) if QuestionGeneration.checkDistance(text_encoding, questions_encodings[i]) > 0.90 ]
             if len(questions):
                 if len(questions) == 1 and text[i] == questions[0]:
                     continue
@@ -62,7 +64,9 @@ class QuestionGeneration:
         return result
 
 
-#question = QuestionGeneration()
+import asyncio
+loop = asyncio.new_event_loop()
+loop.run_until_complete(QuestionGeneration.generateQuestions('where is digite located?'))
 #text = "where is digite located?"
 #questions_gen = question.generateQuestions(text)
 
