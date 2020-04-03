@@ -6,3 +6,4 @@ sample
 /*.coverage
 *.html
 coverage_html
+.pytest_cache
