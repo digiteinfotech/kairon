@@ -174,7 +174,7 @@ responses:
       \ in touch with our sales team (sales@digite.com) to know more or fill out the\
       \ contact form: \n https://www.digite.com/contact-us/"
   utter_test2:
-  - text: test answer
+  - text: tests answer
   utter_testimonials:
   - text: "See How We've Helped Some of the World's Most Trusted Brands: \n https://www.digite.com/swiftkanban/kanban-case-studies/"
   utter_thanking:
