@@ -133,7 +133,7 @@ class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
     bot = StringField(required=True)
-    account = LongField(required=True, unique_with="bot")
+    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
@@ -187,3 +187,14 @@ class Stories(Document):
             raise ValidationError("Stories must start with intent")
         elif isinstance(self.events[-1], ActionExecuted):
             raise ValidationError("Stories must end with action")
+
+
+class Configs(Document):
+    language = StringField(required=True)
+    pipeline = ListField(DictField(), required=True)
+    policies = ListField(DictField(), required=True)
+    bot = StringField(required=True)
+    account = LongField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
