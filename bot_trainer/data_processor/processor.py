@@ -1,14 +1,12 @@
 import asyncio
 from collections import ChainMap
-from typing import Dict
 
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
-from rasa.core import config
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
 from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
-from rasa.core.training.structures import StoryGraph, StoryStep
+from rasa.core.training.structures import StoryGraph, StoryStep, Checkpoint, STORY_START
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
@@ -31,7 +29,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, account, user)
             self.save_domain(domain, bot, account, user)
             self.save_stories(story_steps, bot, account, user)
-            self.__save_config(read_config_file(path + '/config.yml'))
+            self.__save_config(read_config_file(path + '/config.yml'), bot, account, user)
         except InvalidDomain as e:
             raise Exception("Failed to validate yaml file. Please make sure the file is correct and all mandatory parameters are specified")
         except Exception as e:
@@ -398,7 +396,16 @@ class MongoProcessor:
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
             if event.type == 'user':
-                yield UserUttered(text=event.name, intent={'name': event.name, 'confidence': 1.0}, timestamp=timestamp)
+                intent = {'name': event.name, 'confidence': 1.0}
+                '''
+                parse_data = {
+                    "intent": intent,
+                    "entities": [],
+                    "text": "/"+event.name,
+                    "intent_ranking":[intent]
+                }
+                '''
+                yield UserUttered(text=event.name, intent=intent, timestamp=timestamp)
             elif event.type == 'action':
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
 
@@ -407,8 +414,8 @@ class MongoProcessor:
 
     def __prepare_training_story_step(self, bot: str, account: int):
         for story in Stories.objects(bot=bot, account=account, status=True):
-            story_events = list(self.__prepare_training_story_events(story.events, datetime.now()))
-            yield StoryStep(block_name=story.block_name, events=story_events)
+            story_events = list(self.__prepare_training_story_events(story.events, datetime.now().timestamp()))
+            yield StoryStep(block_name=story.block_name, events=story_events, start_checkpoints= [Checkpoint(STORY_START)])
 
     def __prepare_training_story(self, bot: str, account: int):
         return StoryGraph(list(self.__prepare_training_story_step(bot, account)))
@@ -428,4 +435,5 @@ class MongoProcessor:
 
     def load_config(self, bot: str, account: int):
         configs = self.fetch_configs(bot, account)
-        return config.load(configs.to_mongo().to_dict())
+        config_dict = configs.to_mongo().to_dict()
+        return {key: config_dict[key] for key in config_dict if key in ['language', 'pipeline', 'policies']}

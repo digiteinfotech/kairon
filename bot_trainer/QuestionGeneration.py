@@ -63,10 +63,3 @@ class QuestionGeneration:
                 result.extend(list(questions))
         return result
 
-
-import asyncio
-loop = asyncio.new_event_loop()
-loop.run_until_complete(QuestionGeneration.generateQuestions('where is digite located?'))
-#text = "where is digite located?"
-#questions_gen = question.generateQuestions(text)
-

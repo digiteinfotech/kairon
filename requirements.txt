@@ -11,3 +11,4 @@ pytest
 pytest-html
 pytest-cov
 pytest-xdist
+pytest-asyncio

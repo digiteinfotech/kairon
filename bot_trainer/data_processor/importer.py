@@ -15,20 +15,20 @@ class MongoDataImporter(TrainingDataImporter):
             self.account = account
             self.processor = MongoProcessor()
 
-        def get_nlu_data(self, language: Optional[Text] = "en") -> TrainingData:
+        async def get_nlu_data(self, language: Optional[Text] = "en") -> TrainingData:
             return self.processor.load_nlu(self.bot, self.account)
 
-        def get_domain(self) -> Domain:
+        async def get_domain(self) -> Domain:
             return self.processor.load_domain(self.bot, self.account)
 
-        def get_config(self) -> Dict:
+        async def get_config(self) -> Dict:
             return self.processor.load_config(self.bot, self.account)
 
-        def get_stories(
+        async def get_stories(
         self,
         interpreter: "NaturalLanguageInterpreter" = RegexInterpreter(),
         template_variables: Optional[Dict] = None,
         use_e2e: bool = False,
         exclusion_percentage: Optional[int] = None,
     ) -> StoryGraph:
-            self.processor.load_stories(self.bot, self.account)
+            return self.processor.load_stories(self.bot, self.account)

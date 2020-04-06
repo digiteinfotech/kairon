@@ -1,6 +1,7 @@
-import pytest
-from bot_trainer.QuestionGeneration import QuestionGeneration
 import asyncio
+
+from bot_trainer.QuestionGeneration import QuestionGeneration
+
 
 class TestQuestionGeneration:
 
