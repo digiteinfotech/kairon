@@ -12,6 +12,7 @@ async def test_get_intent_list(testapp):
     response = await test_client.get('/getIntentList')
     assert response.status_code == 200
     result = await response.get_json()
+    print(result)
     assert all( intent in expected for intent in result )
 
 
