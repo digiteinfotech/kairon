@@ -1,4 +1,5 @@
 pyyaml
+tensorflow
 rasa==1.8.1
 gensim
 sentence_transformers
