@@ -1,6 +1,7 @@
 pyyaml
 tensorflow
 tensorflow-text
+tensorflow-addons==0.8.3
 rasa==1.9.5
 gensim
 sentence_transformers
