@@ -10,7 +10,7 @@ before_script:
 
 test:
   tags:
-    - dspg
+    - dspg_dev
   stage: test
   script:
     - python3 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
