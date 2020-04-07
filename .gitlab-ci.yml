@@ -12,11 +12,10 @@ test:
   tags:
     - dspg_dev
   stage: test
-  image: python:3.7.7-stretch
   script:
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install -r requirements.txt
-    - python3 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
+    - python3.6 -m pip install --upgrade pip
+    - python3.6 -m pip install -r requirements.txt
+    - python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
 
 
 
