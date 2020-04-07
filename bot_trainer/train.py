@@ -33,11 +33,11 @@ async def train_model(data_importer: TrainingDataImporter,
             additional_arguments,
         )
 
-async def train_model_from_mongo(bot: str, account: int,
+async def train_model_from_mongo(bot: str,
                       force_training: bool = False,
                       fixed_model_name: Optional[Text] = None,
                       persist_nlu_training_data: bool = False,
                       additional_arguments: Optional[Dict] = None,):
-    data_importer = MongoDataImporter(bot, account)
-    output = DEFAULT_MODELS_PATH+"/"+str(account)+"_"+bot
+    data_importer = MongoDataImporter(bot)
+    output = DEFAULT_MODELS_PATH+"/"+bot
     return await train_model(data_importer, output, force_training, fixed_model_name, persist_nlu_training_data, additional_arguments )

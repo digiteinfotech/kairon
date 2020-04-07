@@ -10,19 +10,18 @@ from rasa.core.interpreter import RegexInterpreter, NaturalLanguageInterpreter
 
 class MongoDataImporter(TrainingDataImporter):
 
-        def __init__(self, bot: str, account: int):
+        def __init__(self, bot: str):
             self.bot = bot
-            self.account = account
             self.processor = MongoProcessor()
 
         async def get_nlu_data(self, language: Optional[Text] = "en") -> TrainingData:
-            return self.processor.load_nlu(self.bot, self.account)
+            return self.processor.load_nlu(self.bot)
 
         async def get_domain(self) -> Domain:
-            return self.processor.load_domain(self.bot, self.account)
+            return self.processor.load_domain(self.bot)
 
         async def get_config(self) -> Dict:
-            return self.processor.load_config(self.bot, self.account)
+            return self.processor.load_config(self.bot)
 
         async def get_stories(
         self,
@@ -31,4 +30,4 @@ class MongoDataImporter(TrainingDataImporter):
         use_e2e: bool = False,
         exclusion_percentage: Optional[int] = None,
     ) -> StoryGraph:
-            return self.processor.load_stories(self.bot, self.account)
+            return self.processor.load_stories(self.bot)
