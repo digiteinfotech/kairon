@@ -12,6 +12,7 @@ test:
   tags:
     - dspg_dev
   stage: test
+  image: python:3.7.7-stretch
   script:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -r requirements.txt
