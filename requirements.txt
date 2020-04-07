@@ -1,7 +1,7 @@
 pyyaml
 tensorflow
 tensorflow-text
-rasa==1.8.1
+rasa==1.9.5
 gensim
 sentence_transformers
 autocorrect
