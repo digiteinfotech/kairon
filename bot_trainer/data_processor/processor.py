@@ -280,44 +280,43 @@ class MongoProcessor:
         for button in buttons:
             yield ResponseButton._from_son(button)
 
-    def __extract_response_value(self, values):
-        texts = []
-        customs = []
+    def __extract_response_value(self, values, key, bot: str, user: str):
         for value in values:
+            response = Responses()
+            response.name = key
+            response.bot = bot
+            response.user = user
             if 'text' in value:
-                response_text = ResponseText(text=value['text'])
+                response_text = ResponseText()
+                response_text.text = value['text']
                 if 'image' in value:
                     response_text.image = value['image']
                 if 'channel' in value:
                     response_text.channel = value['channel']
                 if 'button' in value:
                     response_text.buttons = list(self.__extract_response_button(value['buttons']))
-                texts.append(response_text)
+                response.text = response_text
             elif 'custom' in value:
-                customs.append(ResponseCustom._from_son(value['custom']))
-        return (texts, customs)
+                response.custom = ResponseCustom._from_son(value['custom'])
+            yield response
 
     def __extract_response(self, responses, bot: str, user: str):
-        for key, value in responses.items():
-            response = Responses()
-            texts, customs = self.__extract_response_value(value)
-            response.name = key
-            response.texts = texts
-            response.customs = customs
-            response.bot = bot
-            response.user = user
-            yield response
+        responses_result = []
+        for key, values in responses.items():
+            responses_result.extend(list(self.__extract_response_value( values, key, bot, user)))
+        return responses_result
 
     def __save_responses(self, responses, bot: str, user: str):
         if responses:
-            Responses.objects.insert(list(self.__extract_response(responses, bot, user)))
+            Responses.objects.insert(self.__extract_response(responses, bot, user))
 
     def fetch_responses(self, bot: str, status = True):
-        responses = Responses.objects(bot=bot, status=status)
+        responses = Responses.objects(bot=bot, status=status).aggregate(
+            [{"$group": {"_id": "$name", "texts": {"$push": "$text"}, "customs": {"$push": "$custom"}}}])
         for response in responses:
-            key = response.name
-            value = [text.to_mongo().to_dict() for text in response.texts]
-            value.extend([custom.to_mongo().to_dict() for custom in response.customs])
+            key = response['_id']
+            value = response['texts']
+            value.extend(response['customs'])
             yield {key: value}
 
     def __prepare_training_responses(self, bot: str):

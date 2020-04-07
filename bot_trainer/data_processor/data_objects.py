@@ -92,24 +92,24 @@ class ResponseButton(EmbeddedDocument):
 
 class ResponseText(EmbeddedDocument):
     text = StringField(required=True)
-    image: StringField()
-    channel: StringField()
-    buttons: ListField(EmbeddedDocumentField(ResponseButton))
+    image = StringField()
+    channel = StringField()
+    buttons = ListField(EmbeddedDocumentField(ResponseButton))
 
 class ResponseCustom(EmbeddedDocument):
     blocks = DictField(required=True)
 
 class Responses(Document):
     name = StringField(required=True)
-    texts = ListField(EmbeddedDocumentField(ResponseText))
-    customs = ListField(EmbeddedDocumentField(ResponseCustom))
+    text = EmbeddedDocumentField(ResponseText)
+    custom = EmbeddedDocumentField(ResponseCustom)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
-        if not self.texts and not self.customs:
+        if not self.text and not self.custom:
             raise ValidationError("Either Text or Custom response must be present!")
 
 
