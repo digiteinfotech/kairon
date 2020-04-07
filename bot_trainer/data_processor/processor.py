@@ -430,3 +430,6 @@ class MongoProcessor:
         configs = self.fetch_configs(bot)
         config_dict = configs.to_mongo().to_dict()
         return {key: config_dict[key] for key in config_dict if key in ['language', 'pipeline', 'policies']}
+
+    def add_intent(self, text ,bot: str):
+        pass
