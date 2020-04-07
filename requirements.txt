@@ -1,6 +1,5 @@
 pyyaml
 tensorflow
-tensorflow-addons
 tensorflow-text
 rasa==1.8.1
 gensim
