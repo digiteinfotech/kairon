@@ -16,7 +16,6 @@ class TrainingExamples(Document):
     intent = StringField(required=True)
     text = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     entities = ListField(EmbeddedDocumentField(Entity))
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -34,7 +33,6 @@ class TrainingExamples(Document):
 
 class EntitySynonyms(Document):
     bot = StringField(required=True)
-    account = LongField(required=True)
     synonym = StringField(required=True)
     value = StringField(required=True)
     user = StringField(required=True)
@@ -47,7 +45,6 @@ class LookupTables(Document):
     name = StringField(required=True)
     value = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -58,7 +55,6 @@ class RegexFeatures(Document):
     name = StringField(required=True)
     pattern = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -68,7 +64,6 @@ class RegexFeatures(Document):
 class Intents(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -76,7 +71,6 @@ class Intents(Document):
 class Entities(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -84,7 +78,6 @@ class Entities(Document):
 class Forms(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -111,7 +104,6 @@ class Responses(Document):
     texts = ListField(EmbeddedDocumentField(ResponseText))
     customs = ListField(EmbeddedDocumentField(ResponseCustom))
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -124,7 +116,6 @@ class Responses(Document):
 class Actions(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -133,7 +124,6 @@ class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
@@ -148,7 +138,6 @@ class Slots(Document):
     max_value = LongField()
     min_value = LongField()
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -177,7 +166,6 @@ class Stories(Document):
     block_name = StringField(required=True)
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -194,7 +182,6 @@ class Configs(Document):
     pipeline = ListField(DictField(), required=True)
     policies = ListField(DictField(), required=True)
     bot = StringField(required=True)
-    account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
