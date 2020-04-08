@@ -42,13 +42,11 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         expected = ['affirm', 'bot_challenge', 'deny', 'goodbye', 'greet', 'mood_great', 'mood_unhappy', 'greeting']
         actual = processor.get_intents('tests')
-        print(actual)
         assert actual.__len__() == expected.__len__()
-        assert all(item in expected for item in actual)
+        assert all(item['name'] in expected for item in actual)
 
     def test_add_intent_duplicate(self):
         processor = MongoProcessor()
-        print(Intents.objects(bot='tests', __raw__={ 'name': 'greeting' }).__len__())
         with pytest.raises(Exception):
             processor.add_intent('greeting', 'tests', 'testUser')
 
@@ -117,7 +115,7 @@ class TestMongoProcessor:
         expected = ['hey', 'hello', 'hi', 'good morning', 'good evening', 'hey there']
         actual = processor.get_training_examples('greet', 'tests')
         assert actual.__len__() == expected.__len__()
-        assert all( item in expected for item in actual  )
+        assert all( a_val['text'] in expected for a_val in actual  )
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()
@@ -125,18 +123,95 @@ class TestMongoProcessor:
         new_intent = Intents.objects(bot='tests').get(name='get_priority')
         new_entity = Entities.objects(bot='tests').get(name='priority')
         new_training_example = TrainingExamples.objects(bot= 'tests').get(text="Log a critical issue")
-        print(new_training_example.text)
+        slots = Slots.objects(bot='tests')
+        new_slot = slots.get(name='priority')
         assert new_intent.name == "get_priority"
         assert new_entity.name == "priority"
+        assert slots.__len__() == 1
+        assert new_slot.name == "priority"
+        assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
 
     def test_get_training_examples_with_entities(self):
         processor = MongoProcessor()
         processor.add_training_example('Make [TKT456](ticketID) a [critical issue](priority)', 'get_priority', 'tests', 'testUser')
         actual = processor.get_training_examples('get_priority', 'tests')
-        assert "Log a [critical issue](priority)" in actual
-        assert "Make [TKT456](ticketID) a [critical issue](priority)" in actual
+        slots = Slots.objects(bot='tests')
+        new_slot = slots.get(name='ticketID')
+        assert any([value['text'] == 'Log a [critical issue](priority)' for value in actual])
+        assert any([value['text'] == 'Make [TKT456](ticketID) a [critical issue](priority)' for value in actual])
+        assert slots.__len__() == 2
+        assert new_slot.name == "ticketID"
+        assert new_slot.type == "text"
         expected = ['hey', 'hello', 'hi', 'good morning', 'good evening', 'hey there']
         actual = processor.get_training_examples('greet', 'tests')
         assert actual.__len__() == expected.__len__()
-        assert all(item in expected for item in actual)
+        assert all(a_val['text'] in expected for a_val in actual)
+
+    def test_add_entity(self):
+        processor = MongoProcessor()
+        assert processor.add_entity('file_text', 'tests', 'testUser') == None
+        slots = Slots.objects(bot= 'tests')
+        new_slot = slots.get(name='file_text')
+        assert slots.__len__() == 3
+        assert new_slot.name == 'file_text'
+        assert new_slot.type == 'text'
+
+    def test_get_entities(self):
+        processor = MongoProcessor()
+        expected = ['priority', 'file_text', 'ticketID']
+        actual = processor.get_entities('tests')
+        assert actual.__len__() == expected.__len__()
+        assert all(item['name'] in expected for item in actual)
+
+    def test_add_entity_duplicate(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            assert processor.add_entity('file_text', 'tests', 'testUser') == None
+
+    def test_add_none_entity(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_entity(None, 'tests', 'testUser')
+
+    def test_add_empty_entity(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_entity('', 'tests', 'testUser')
+
+    def test_add_blank_entity(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_entity('  ', 'tests', 'testUser')
+
+
+    def test_add_action(self):
+        processor = MongoProcessor()
+        assert processor.add_action('utter_priority', 'tests', 'testUser') == None
+
+    def test_get_actions(self):
+        processor = MongoProcessor()
+        expected =['utter_greet', 'utter_cheer_up', 'utter_happy', 'utter_goodbye', 'utter_priority', 'utter_did_that_help', 'utter_iamabot']
+        actual = processor.get_actions('tests')
+        assert actual.__len__() == expected.__len__()
+        assert all(item['name'] in expected for item in actual)
+
+    def test_add_action_duplicate(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            assert processor.add_action('utter_priority', 'tests', 'testUser') == None
+
+    def test_add_none_action(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_action(None, 'tests', 'testUser')
+
+    def test_add_empty_action(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_action('', 'tests', 'testUser')
+
+    def test_add_blank_action(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_action('  ', 'tests', 'testUser')
