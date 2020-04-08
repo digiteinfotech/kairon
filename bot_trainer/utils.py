@@ -1,4 +1,5 @@
 import yaml
+from typing import Text, List, Dict
 
 class Utility:
 
@@ -10,3 +11,10 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def prepare_nlu_text(example: Text, entities: List[Dict]):
+        if not Utility.check_empty_string(example):
+            for entity in entities:
+                example = example.replace(entity['value'], '[' + entity['value'] + '](' + entity['entity'] + ')')
+        return example
