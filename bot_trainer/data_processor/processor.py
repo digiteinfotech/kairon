@@ -1,5 +1,6 @@
 import asyncio
 from collections import ChainMap
+from typing import Dict
 
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -13,6 +14,7 @@ from rasa.nlu.training_data import Message, TrainingData
 from rasa.utils.io import read_config_file
 
 from .data_objects import *
+import logging
 
 
 class MongoProcessor:
@@ -31,8 +33,10 @@ class MongoProcessor:
             self.save_stories(story_steps, bot, user)
             self.__save_config(read_config_file(path + '/config.yml'), bot, user)
         except InvalidDomain as e:
+            logging.info(e)
             raise Exception("Failed to validate yaml file. Please make sure the file is correct and all mandatory parameters are specified")
         except Exception as e:
+            logging.info(e)
             raise e
 
     def save_nlu(self, nlu: TrainingData, bot: str, user: str):
@@ -255,14 +259,17 @@ class MongoProcessor:
             if session_config:
                 SessionConfigs.objects.insert(self.__extract_session_config(session_config, bot, user))
         except NotUniqueError as e:
+            logging.info(e)
             raise Exception("Session Config already exist for the bot")
         except Exception as e:
+            logging.info(e)
             raise Exception("Internal Server Error")
 
     def fetch_session_config(self, bot: str):
         try:
             session_config = SessionConfigs.objects.get(bot=bot)
         except DoesNotExist as e:
+            logging.info(e)
             session_config = None
         return session_config
 
@@ -423,6 +430,7 @@ class MongoProcessor:
         try:
             configs = Configs.objects.get(bot=bot)
         except DoesNotExist as e:
+            logging.info(e)
             configs = Configs._from_son(read_config_file('./template/config.yml'))
         return configs
 
@@ -431,5 +439,28 @@ class MongoProcessor:
         config_dict = configs.to_mongo().to_dict()
         return {key: config_dict[key] for key in config_dict if key in ['language', 'pipeline', 'policies']}
 
-    def add_intent(self, text ,bot: str):
+    def add_intent(self, text: str, bot: str, user: str):
+        self.__isExist(Intents, bot= bot, query= {'name': text})
+        Intents(name= text, bot= bot, user= user).save()
+
+    def add_training_example(self, text: str, bot: str, user: str):
         pass
+
+    def remove_document(self, document: Document, id: str):
+        try:
+            doc = document.objects().get(id=id)
+            doc.update(status=False)
+        except DoesNotExist as e:
+            logging.info(e)
+            raise Exception('Unable to remove document')
+        except Exception as e:
+            logging.info(e)
+            raise Exception('Unable to remove document')
+
+    def __isExist(self, document: Document, bot: str, query: Dict):
+        try:
+            doc = document.objects(bot=bot, __raw__= query)
+            if doc.__len__():
+                raise Exception("Record already exist")
+        except Exception as e:
+            logging.info(e)

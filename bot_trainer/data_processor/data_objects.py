@@ -4,6 +4,9 @@ from rasa.core.events import UserUttered, ActionExecuted
 from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, StringField, LongField, ListField, \
     ValidationError, DateTimeField, BooleanField, DictField, DynamicField
 from rasa.core.slots import CategoricalSlot, FloatSlot
+from bot_trainer.utils import Utility
+
+
 
 
 class Entity(EmbeddedDocument):
@@ -11,6 +14,10 @@ class Entity(EmbeddedDocument):
     end = LongField(required=True)
     value = StringField(required=True)
     entity = StringField(required=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.value) or Utility.check_empty_string(self.entity):
+            raise ValidationError("Entity name and value cannot be empty or blank spaces")
 
 class TrainingExamples(Document):
     intent = StringField(required=True)
@@ -29,7 +36,8 @@ class TrainingExamples(Document):
                 extracted_ent = self.text[ent.start:ent.end]
                 if extracted_ent != ent.value:
                     raise ValidationError("Invalid entity: "+ent.entity+", value: "+ent.value+" does not match with the position in the text "+extracted_ent)
-
+        elif Utility.check_empty_string(self.text) or Utility.check_empty_string(self.intent):
+            raise ValidationError("Training Example name and text cannot be empty or blank spaces")
 
 class EntitySynonyms(Document):
     bot = StringField(required=True)
@@ -41,6 +49,10 @@ class EntitySynonyms(Document):
 
     meta = {'indexes': [{'fields': ['$value']}]}
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.synonym) or Utility.check_empty_string(self.value):
+            raise ValidationError("Synonym name and value cannot be empty or blank spaces")
+
 class LookupTables(Document):
     name = StringField(required=True)
     value = StringField(required=True)
@@ -50,6 +62,10 @@ class LookupTables(Document):
     status = BooleanField(default=True)
 
     meta = {'indexes': [{'fields': ['$value']}]}
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name) or Utility.check_empty_string(self.value) :
+            raise ValidationError("Lookup name and value cannot be empty or blank spaces")
 
 class RegexFeatures(Document):
     name = StringField(required=True)
@@ -61,12 +77,20 @@ class RegexFeatures(Document):
 
     meta = {'indexes': [{'fields': ['$pattern']}]}
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name) or Utility.check_empty_string(self.pattern):
+            raise ValidationError("Regex name and pattern cannot be empty or blank spaces")
+
 class Intents(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Intent Name cannot be empty or blank spaces")
 
 class Entities(Document):
     name = StringField(required=True)
@@ -75,6 +99,10 @@ class Entities(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Entity Name cannot be empty or blank spaces")
+
 class Forms(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
@@ -82,19 +110,29 @@ class Forms(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Form name cannot be empty or blank spaces")
+
 class ResponseButton(EmbeddedDocument):
     title = StringField(required=True)
     payload = StringField(required=True)
 
     def validate(self, clean=True):
         if not self.title or not self.payload:
-            raise ValidationError("title and payload  must be present!")
+            raise ValidationError("title and payload must be present!")
+        elif Utility.check_empty_string(self.title) or Utility.check_empty_string(self.payload.strip()):
+            raise ValidationError("Response title and payload cannot be empty or blank spaces")
 
 class ResponseText(EmbeddedDocument):
     text = StringField(required=True)
     image = StringField()
     channel = StringField()
     buttons = ListField(EmbeddedDocumentField(ResponseButton))
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.text):
+            raise ValidationError("Respone text cannot be empty or blank spaces")
 
 class ResponseCustom(EmbeddedDocument):
     blocks = DictField(required=True)
@@ -120,6 +158,10 @@ class Actions(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty or blank spaces")
+
 class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
@@ -143,6 +185,9 @@ class Slots(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if Utility.check_empty_string(self.name) or Utility.check_empty_string(self.type):
+            raise ValueError("Slot name and type cannot be empty or blank spaces")
+        error = ''
         if self.type == FloatSlot.type_name:
             if not self.min_value and not self.max_value:
                 self.min_value = 0.0
@@ -171,6 +216,8 @@ class Stories(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if Utility.check_empty_string(self.block_name):
+            raise ValidationError("Story path name cannot be empty or blank spaces")
         if isinstance(self.events[0], UserUttered):
             raise ValidationError("Stories must start with intent")
         elif isinstance(self.events[-1], ActionExecuted):
@@ -178,7 +225,7 @@ class Stories(Document):
 
 
 class Configs(Document):
-    language = StringField(required=True)
+    language = StringField(required=True, default="en")
     pipeline = ListField(DictField(), required=True)
     policies = ListField(DictField(), required=True)
     bot = StringField(required=True)
