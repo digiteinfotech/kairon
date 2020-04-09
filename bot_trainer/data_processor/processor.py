@@ -14,6 +14,7 @@ from rasa.core.training.structures import Checkpoint, STORY_START
 from rasa.core.training.structures import StoryGraph, StoryStep
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
+from rasa.core.training.structures import GENERATED_HASH_LENGTH, GENERATED_CHECKPOINT_PREFIX
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
@@ -535,6 +536,8 @@ class MongoProcessor:
             story_events = list(self.__extract_story_events(story_step.events))
             story = Stories(
                 block_name=story_step.block_name,
+                start_checkpoints = [ start_checkpoint.name for start_checkpoint in story_step.start_checkpoints],
+                end_checkpoints=[end_checkpoint.name for end_checkpoint in story_step.end_checkpoints],
                 events=story_events)
             story.bot = bot
             story.user = user
@@ -574,7 +577,10 @@ class MongoProcessor:
                 self.__prepare_training_story_events(
                     story.events, datetime.now().timestamp()))
             yield StoryStep(block_name=story.block_name, events=story_events,
-                            start_checkpoints=[Checkpoint(STORY_START)])
+                            start_checkpoints=[Checkpoint(start_checkpoint) for start_checkpoint
+                                               in story.start_checkpoints],
+                            end_checkpoints=[Checkpoint(end_checkpoints) for end_checkpoints
+                                             in story.end_checkpoints])
 
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))

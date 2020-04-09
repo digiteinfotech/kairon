@@ -5,7 +5,7 @@ from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, Strin
     ValidationError, DateTimeField, BooleanField, DictField, DynamicField
 from rasa.core.slots import CategoricalSlot, FloatSlot
 from bot_trainer.utils import Utility
-
+import re
 
 
 
@@ -81,6 +81,12 @@ class RegexFeatures(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(self.pattern):
             raise ValidationError("Regex name and pattern cannot be empty or blank spaces")
+        else:
+            try:
+                re.compile(self.pattern)
+            except Exception as e:
+                raise Exception("invalid regular expression "+self.pattern)
+
 
 class Intents(Document):
     name = StringField(required=True)
@@ -215,6 +221,8 @@ class StoryEvents(EmbeddedDocument):
 
 class Stories(Document):
     block_name = StringField(required=True)
+    start_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField(), required=True)
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
