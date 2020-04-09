@@ -17,29 +17,29 @@ from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
-
+from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from .data_objects import *
+import os
+from rasa.data import get_core_nlu_files
 
 
 class MongoProcessor:
 
     def save_from_path(self, path: Text, bot: Text, user='default'):
         try:
-            nlu_path = path + "/data/nlu.md"
-            story_path = path + "/data/stories.md"
-            nlu = utils.training_data_from_paths([nlu_path], 'en')
-            domain = Domain.from_file(path + '/domain.yml')
+            story_files, nlu_files = get_core_nlu_files(os.path.join(path, DEFAULT_DATA_PATH))
+            nlu = utils.training_data_from_paths(nlu_files, 'en')
+            domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
             loop = asyncio.new_event_loop()
             story_steps = loop.run_until_complete(
-                StoryFileReader. read_from_file(
-                    story_path, domain))
+                StoryFileReader.read_from_files(
+                    story_files, domain))
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
             self.__save_config(
                 read_config_file(
-                    path +
-                    '/config.yml'),
+                    os.path.join(path, DEFAULT_CONFIG_PATH)),
                 bot,
                 user)
         except InvalidDomain as e:
@@ -229,10 +229,10 @@ class MongoProcessor:
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
             new_intents = list(
-                    self.__extract_intents(
-                        intents,
-                        bot,
-                        user))
+                self.__extract_intents(
+                    intents,
+                    bot,
+                    user))
             if new_intents:
                 Intents.objects.insert(new_intents)
 
@@ -250,7 +250,7 @@ class MongoProcessor:
 
     def __extract_domain_entities(
             self,
-            entities: List[Dict],
+            entities: List[str],
             bot: Text,
             user: Text):
         saved_entities = self.__prepare_training_domain_entities(bot=bot)
@@ -260,14 +260,14 @@ class MongoProcessor:
 
     def __save_domain_entities(
             self,
-            entities: List[Dict],
+            entities: List[str],
             bot: Text,
             user: Text):
         if entities:
             new_entities = list(self.__extract_domain_entities(
-                        entities,
-                        bot,
-                        user))
+                entities,
+                bot,
+                user))
             if new_entities:
                 Entities.objects.insert(new_entities)
 
@@ -573,7 +573,8 @@ class MongoProcessor:
             story_events = list(
                 self.__prepare_training_story_events(
                     story.events, datetime.now().timestamp()))
-            yield StoryStep(block_name=story.block_name, events=story_events, start_checkpoints=[Checkpoint(STORY_START)])
+            yield StoryStep(block_name=story.block_name, events=story_events,
+                            start_checkpoints=[Checkpoint(STORY_START)])
 
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
@@ -611,7 +612,7 @@ class MongoProcessor:
         Intents(name=text, bot=bot, user=user).save()
 
     def get_intents(self, bot: Text):
-        intents = Intents.objects(bot=bot, status=True )
+        intents = Intents.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(intents, 'name'))
 
     def add_training_example(
@@ -676,7 +677,7 @@ class MongoProcessor:
             bot: Text,
             query: Dict,
             exp_message: Text = '',
-            raise_error=True,):
+            raise_error=True, ):
         doc = document.objects(bot=bot, status=True, __raw__=query)
         if doc.__len__():
             if raise_error:
@@ -738,7 +739,7 @@ class MongoProcessor:
         if slots:
             Slots.objects.insert(slots)
 
-    def add_text_response(self,utterance: Text, name: Text, bot: Text, user: Text):
+    def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
         self.__isExist(
             Responses,
             bot=bot,
@@ -751,11 +752,11 @@ class MongoProcessor:
         response = list(self.__extract_response_value(values=[utterances], key=name, bot=bot, user=user))[0]
         response.save()
         if not self.__isExist(
-            Actions,
-            bot=bot,
-            query={
-                'name': name},
-            raise_error=False):
+                Actions,
+                bot=bot,
+                query={
+                    'name': name},
+                raise_error=False):
             Actions(name=name, bot=bot, user=user).save()
 
     def get_response(self, name: Text, bot: Text):
