@@ -7,7 +7,6 @@ from rasa.nlu.training_data import TrainingData
 from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor
 
-
 class TestMongoProcessor:
 
     @pytest.fixture(autouse=True)
@@ -136,7 +135,7 @@ class TestMongoProcessor:
         expected = ['hey', 'hello', 'hi', 'good morning', 'good evening', 'hey there']
         actual = list(processor.get_training_examples('greet', 'tests'))
         assert actual.__len__() == expected.__len__()
-        assert all( a_val['text'] in expected for a_val in actual  )
+        assert all(a_val['text'] in expected for a_val in actual)
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()
@@ -168,6 +167,18 @@ class TestMongoProcessor:
         actual = list(processor.get_training_examples('greet', 'tests'))
         assert actual.__len__() == expected.__len__()
         assert all(a_val['text'] in expected for a_val in actual)
+
+    def test_delete_training_example(self):
+        processor = MongoProcessor()
+        training_examples = TrainingExamples.objects(bot='tests', intent='get_priority', status=True)
+        expected_length = training_examples.__len__() - 1
+        training_example = training_examples[0]
+        expected_text = training_example.text
+        processor.remove_document(TrainingExamples, training_example.id)
+        new_training_examples = list(processor.get_training_examples(intent='get_priority', bot='tests'))
+        assert new_training_examples.__len__() == expected_length
+        assert any(expected_text != example['text'] for example in new_training_examples)
+
 
     def test_add_entity(self):
         processor = MongoProcessor()
@@ -240,26 +251,37 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError):
             processor.add_action('  ', 'tests', 'testUser')
 
-    def test_add_text_Response(self):
+    def test_add_text_response(self):
         processor = MongoProcessor()
         assert processor.add_text_response('Great','utter_happy', 'tests', 'testUser') == None
         response = Responses.objects(bot='tests', name='utter_happy', text__text="Great").get()
         assert response.name == 'utter_happy'
         assert response.text.text == 'Great'
 
-    def test_get_text_Response(self):
+    def test_get_text_response(self):
         processor = MongoProcessor()
         expected =["Great, carry on!", "Great"]
         actual = list(processor.get_response('utter_happy', 'tests'))
         assert actual.__len__() == expected.__len__()
         assert all(item['value']['text'] in expected for item in actual if 'text' in item['value'])
 
-    def test_add_text_Response_duplicate(self):
+    def test_delete_text_response(self):
+        processor = MongoProcessor()
+        responses = Responses.objects(bot='tests', name='utter_happy')
+        expected_length = responses.__len__() - 1
+        response = responses[0]
+        expected_text = response.text.text
+        processor.remove_document(Responses, response.id)
+        actual = list(processor.get_response('utter_happy', 'tests'))
+        assert actual.__len__() == expected_length
+        assert all(expected_text != item['value']['text'] for item in actual if 'text' in item['value'])
+
+    def test_add_text_response_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.add_text_response('Great', 'utter_happy', 'tests', 'testUser')
 
-    def test_add_none_text_Response(self):
+    def test_add_none_text_response(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_text_response(None,'utter_happy', 'tests', 'testUser')
@@ -269,23 +291,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError):
             processor.add_text_response('','utter_happy', 'tests', 'testUser')
 
-    def test_add_blank_text_Response(self):
+    def test_add_blank_text_response(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_text_response('', 'utter_happy', 'tests', 'testUser')
 
-    def test_add_none_Response_name(self):
+    def test_add_none_response_name(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_text_response('Greet', None, 'tests', 'testUser')
 
-    def test_add_empty_Response_name(self):
+    def test_add_empty_response_name(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_text_response('Greet', '', 'tests', 'testUser')
 
-    def test_add_blank_Response_name(self):
+    def test_add_blank_response_name(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_text_response('Greet', ' ', 'tests', 'testUser')
+
 
