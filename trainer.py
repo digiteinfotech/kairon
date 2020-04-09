@@ -11,7 +11,7 @@ from quart_cors import cors
 from rasa.core.agent import Agent
 from rasa.train import train_async
 
-from bot_trainer.QuestionGeneration import QuestionGeneration
+from augmentation.generator import QuestionGenerator
 from bot_trainer.aqgFunction import AutomaticQuestionGenerator
 from bot_trainer.history import ChatHistory
 from bot_trainer.loading import load
@@ -41,7 +41,7 @@ train_path =  original_path + "/data/"
 
 history = ChatHistory(domain_path, os.getenv('mongo_url', system_properties['mongo_url']), os.getenv('mongo_db', system_properties['mongo_db']))
 
-list_of_files1 = glob.glob(models_path+ "/*") # * means all if need specific format then *.csv
+list_of_files1 = glob.glob(models_path+ "/*.gz") # * means all if need specific format then *.csv
 latest_file1 = max(list_of_files1, key=os.path.getctime)
 modelpath = os.path.abspath(latest_file1)
 
@@ -378,7 +378,7 @@ async def variations():
     #task1.start()
     #new_questions= variate1(QuestionList)
     if question_list.__len__() <=5:
-        result = await QuestionGeneration.generateQuestions(question_list)
+        result = await QuestionGenerator.generateQuestions(question_list)
         message = "Variations generated"
     else:
         message = "Sorry!, Max 5 questions can be selected for generation"

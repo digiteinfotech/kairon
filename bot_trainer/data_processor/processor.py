@@ -33,9 +33,9 @@ class MongoProcessor:
             story_steps = loop.run_until_complete(
                 StoryFileReader. read_from_file(
                     story_path, domain))
-            self.save_nlu(nlu, bot, user)
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
+            self.save_nlu(nlu, bot, user)
             self.__save_config(
                 read_config_file(
                     path +
@@ -45,7 +45,7 @@ class MongoProcessor:
         except InvalidDomain as e:
             logging.info(e)
             raise Exception('''Failed to validate yaml file.
-                            Please make sure the file is correct and all mandatory parameters are specified''')
+                            Please make sure the file is initial and all mandatory parameters are specified''')
         except Exception as e:
             logging.info(e)
             raise e
@@ -221,17 +221,20 @@ class MongoProcessor:
         return list(self.fetch_regex_features(bot))
 
     def __extract_intents(self, intents, bot: Text, user: Text):
+        saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
-            yield Intents(name=intent, bot=bot, user=user)
+            if intent not in saved_intents:
+                yield Intents(name=intent, bot=bot, user=user)
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
-            Intents.objects.insert(
-                list(
+            new_intents = list(
                     self.__extract_intents(
                         intents,
                         bot,
-                        user)))
+                        user))
+            if new_intents:
+                Intents.objects.insert(new_intents)
 
     def fetch_intents(self, bot: Text, status=True):
         intents = Intents.objects(bot=bot, status=status).aggregate(
@@ -250,8 +253,10 @@ class MongoProcessor:
             entities: List[Dict],
             bot: Text,
             user: Text):
+        saved_entities = self.__prepare_training_domain_entities(bot=bot)
         for entity in entities:
-            yield Entities(name=entity, bot=bot, user=user)
+            if entity not in saved_entities:
+                yield Entities(name=entity, bot=bot, user=user)
 
     def __save_domain_entities(
             self,
@@ -259,13 +264,10 @@ class MongoProcessor:
             bot: Text,
             user: Text):
         if entities:
-            saved_entities = self.__prepare_training_domain_entities(bot=bot)
-            new_entities = [
-                entity for entity in list(
-                    self.__extract_domain_entities(
+            new_entities = list(self.__extract_domain_entities(
                         entities,
                         bot,
-                        user)) if entity.name not in saved_entities]
+                        user))
             if new_entities:
                 Entities.objects.insert(new_entities)
 
@@ -282,8 +284,10 @@ class MongoProcessor:
             return []
 
     def __extract_forms(self, forms, bot: Text, user: Text):
+        saved_forms = self.__prepare_training_forms(bot)
         for form in forms:
-            yield Forms(name=form, bot=bot, user=user)
+            if form not in saved_forms:
+                yield Forms(name=form, bot=bot, user=user)
 
     def __save_forms(self, forms, bot: Text, user: Text):
         if forms:
@@ -302,8 +306,10 @@ class MongoProcessor:
             return []
 
     def __extract_actions(self, actions, bot: Text, user: Text):
+        saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
-            yield Actions(name=action, bot=bot, user=user)
+            if action not in saved_actions:
+                yield Actions(name=action, bot=bot, user=user)
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -378,7 +384,7 @@ class MongoProcessor:
         for button in buttons:
             yield ResponseButton._from_son(button)
 
-    def __extract_response_value(self, values, key, bot: Text, user: Text):
+    def __extract_response_value(self, values: List[Dict], key, bot: Text, user: Text):
         for value in values:
             response = Responses()
             response.name = key
@@ -418,12 +424,18 @@ class MongoProcessor:
                 self.__extract_response(
                     responses, bot, user))
 
+    def __prepare_response_Text(self, texts: List[Dict]):
+        for text in texts:
+            if not text['buttons']:
+                text.pop('buttons')
+            yield text
+
     def fetch_responses(self, bot: Text, status=True):
         responses = Responses.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$name", "texts": {"$push": "$text"}, "customs": {"$push": "$custom"}}}])
         for response in responses:
             key = response['_id']
-            value = response['texts']
+            value = list(self.__prepare_response_Text(response['texts']))
             value.extend(response['customs'])
             yield {key: value}
 
@@ -599,7 +611,7 @@ class MongoProcessor:
         Intents(name=text, bot=bot, user=user).save()
 
     def get_intents(self, bot: Text):
-        intents = Intents.objects(bot=bot)
+        intents = Intents.objects(bot=bot, status=True )
         return list(self.__prepare_document_list(intents, 'name'))
 
     def add_training_example(
@@ -641,13 +653,11 @@ class MongoProcessor:
     def get_training_examples(self, intent: Text, bot: Text):
         training_examples = list(
             TrainingExamples.objects(
-                bot=bot, intent=intent))
-        result = []
+                bot=bot, intent=intent, status=True))
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
-            result.append({'_id': example['_id'].__str__(), 'text': Utility.prepare_nlu_text(
-                example['text'], example['entities'])})
-        return result
+            yield {'_id': example['_id'].__str__(), 'text': Utility.prepare_nlu_text(
+                example['text'], example['entities'])}
 
     def remove_document(self, document: Document, id: Text):
         try:
@@ -666,8 +676,8 @@ class MongoProcessor:
             bot: Text,
             query: Dict,
             exp_message: Text = '',
-            raise_error=True):
-        doc = document.objects(bot=bot, __raw__=query)
+            raise_error=True,):
+        doc = document.objects(bot=bot, status=True, __raw__=query)
         if doc.__len__():
             if raise_error:
                 if Utility.check_empty_string(exp_message):
@@ -701,7 +711,7 @@ class MongoProcessor:
             Slots(name=name, type='text', bot=bot, user=user).save()
 
     def get_entities(self, bot: Text):
-        entities = Entities.objects(bot=bot)
+        entities = Entities.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(entities, 'name'))
 
     def add_action(self, name: Text, bot: Text, user: Text):
@@ -714,7 +724,7 @@ class MongoProcessor:
         Actions(name=name, bot=bot, user=user).save()
 
     def get_actions(self, bot: Text):
-        actions = Actions.objects(bot=bot)
+        actions = Actions.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, 'name'))
 
     def __add_slots_from_entities(
@@ -727,3 +737,33 @@ class MongoProcessor:
                  for entity in entities if entity not in slot_name_list]
         if slots:
             Slots.objects.insert(slots)
+
+    def add_text_response(self,utterance: Text, name: Text, bot: Text, user: Text):
+        self.__isExist(
+            Responses,
+            bot=bot,
+            query={
+                'text.text': utterance, 'name': name},
+            exp_message="Response already exist!")
+        self.add_response(utterances={'text': utterance}, name=name, bot=bot, user=user)
+
+    def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
+        response = list(self.__extract_response_value(values=[utterances], key=name, bot=bot, user=user))[0]
+        response.save()
+        if not self.__isExist(
+            Actions,
+            bot=bot,
+            query={
+                'name': name},
+            raise_error=False):
+            Actions(name=name, bot=bot, user=user).save()
+
+    def get_response(self, name: Text, bot: Text):
+        values = Responses.objects(bot=bot, status=True, name=name)
+        for value in values:
+            val = None
+            if value.text:
+                val = list(self.__prepare_response_Text([value.text.to_mongo().to_dict()]))[0]
+            elif value.custom:
+                val = value.custom.to_mongo().to_dict()
+            yield {"_id": value.id, "value": val}

@@ -33,6 +33,7 @@ class TrainingExamples(Document):
     def validate(self, clean=True):
         if self.entities:
             for ent in self.entities:
+                ent.validate()
                 extracted_ent = self.text[ent.start:ent.end]
                 if extracted_ent != ent.value:
                     raise ValidationError("Invalid entity: "+ent.entity+", value: "+ent.value+" does not match with the position in the text "+extracted_ent)
@@ -133,6 +134,7 @@ class ResponseText(EmbeddedDocument):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.text):
             raise ValidationError("Respone text cannot be empty or blank spaces")
+        Utility.validate_document_list(self.buttons)
 
 class ResponseCustom(EmbeddedDocument):
     blocks = DictField(required=True)
@@ -149,7 +151,11 @@ class Responses(Document):
     def validate(self, clean=True):
         if not self.text and not self.custom:
             raise ValidationError("Either Text or Custom response must be present!")
-
+        else:
+            if self.text:
+                self.text.validate()
+            elif self.custom:
+                self.custom.validate()
 
 class Actions(Document):
     name = StringField(required=True)
@@ -216,6 +222,7 @@ class Stories(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        Utility.validate_document_list(self.events)
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("Story path name cannot be empty or blank spaces")
         if isinstance(self.events[0], UserUttered):

@@ -1,6 +1,5 @@
-import yaml
 from typing import Text, List, Dict
-
+from mongoengine.document import BaseDocument
 class Utility:
 
     @staticmethod
@@ -18,3 +17,8 @@ class Utility:
             for entity in entities:
                 example = example.replace(entity['value'], '[' + entity['value'] + '](' + entity['entity'] + ')')
         return example
+
+    @staticmethod
+    def validate_document_list(documents: List[BaseDocument]):
+        for document in documents:
+            document.validate()
