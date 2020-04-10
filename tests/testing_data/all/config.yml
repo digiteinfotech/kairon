@@ -1,0 +1,17 @@
+# Configuration for Rasa NLU.
+# https://rasa.com/docs/rasa/nlu/components/
+language: en
+pipeline: supervised_embeddings
+
+# Configuration for Rasa Core.
+# https://rasa.com/docs/rasa/core/policies/
+policies:
+  - name: MemoizationPolicy
+  - name: KerasPolicy
+    random_seed: 0
+  - name: MappingPolicy
+  - name: FormPolicy
+  - name: FallbackPolicy
+    nlu_threshold: 0.75
+    core_threshold: 0.3
+    fallback_action_name: "action_small_talk"
