@@ -16,3 +16,4 @@ pytest-cov
 pytest-xdist
 pytest-asyncio
 pandas
+mongoengine
