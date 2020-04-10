@@ -139,7 +139,7 @@ class ResponseText(EmbeddedDocument):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.text):
-            raise ValidationError("Respone text cannot be empty or blank spaces")
+            raise ValidationError("Response text cannot be empty or blank spaces")
         Utility.validate_document_list(self.buttons)
 
 class ResponseCustom(EmbeddedDocument):
@@ -155,7 +155,9 @@ class Responses(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
-        if not self.text and not self.custom:
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Response name cannot be empty or blank spaces")
+        elif not self.text and not self.custom:
             raise ValidationError("Either Text or Custom response must be present!")
         else:
             if self.text:

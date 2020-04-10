@@ -736,15 +736,10 @@ class MongoProcessor:
             Slots.objects.insert(slots)
 
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
-        self.__isExist(
-            Responses,
-            bot=bot,
-            query={
-                'text.text': utterance, 'name': name},
-            exp_message="Response already exist!")
         self.add_response(utterances={'text': utterance}, name=name, bot=bot, user=user)
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
+        self.__check_response_existence(response=utterances,bot=bot, exp_message="Response already exist!")
         response = list(self.__extract_response_value(values=[utterances], key=name, bot=bot, user=user))[0]
         response.save()
         if not self.__isExist(
@@ -764,3 +759,34 @@ class MongoProcessor:
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
             yield {"_id": value.id, "value": val}
+
+    def __check_response_existence(self, response :Dict, bot: Text, exp_message: Text, raise_error = True):
+        saved_texts = list(Responses.objects(bot=bot, status=True).aggregate(
+            [{"$group": {"_id": "$name", "texts": {"$push": "$text"}}}]))
+
+        saved_customs = list(Responses.objects(bot=bot, status=True).aggregate(
+            [{"$group": {"_id": "$name", "customs": {"$push": "$custom"}}}]))
+
+        if 'text' in response:
+            saved_items = saved_texts
+        else:
+            saved_items = saved_customs
+
+        for saved_item in saved_items:
+            if 'text' in response:
+                items = saved_item['texts']
+            else:
+                items = saved_item['customs']
+            for item in items:
+                if item:
+                    if "buttons" in item and not item['buttons']:
+                        item.pop('buttons')
+                    if item == response:
+                        if raise_error:
+                            if Utility.check_empty_string(exp_message):
+                                raise Exception("Exception message cannot be empty")
+                            raise Exception(exp_message)
+                        else:
+                            return True
+        if not raise_error:
+            return False

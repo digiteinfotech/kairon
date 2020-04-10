@@ -324,11 +324,13 @@ class TestMongoProcessor:
     def test_add_empty_response_name(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.add_text_response('Greet', '', 'tests', 'testUser')
+            processor.add_text_response('Welcome', '', 'tests', 'testUser')
 
     def test_add_blank_response_name(self):
         processor = MongoProcessor()
+        for response in Responses.objects(bot='tests', status=True):
+            print(response.to_mongo().to_dict())
         with pytest.raises(ValidationError):
-            processor.add_text_response('Greet', ' ', 'tests', 'testUser')
+            processor.add_text_response('Welcome', ' ', 'tests', 'testUser')
 
 
