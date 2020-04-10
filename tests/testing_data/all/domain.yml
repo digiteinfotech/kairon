@@ -36,7 +36,8 @@ slots:
   priority:
     type: unfeaturized
   ticketID:
-    type: unfeaturized
+    type: float
+    initial_value: 1.0
   requested_slot:
     type: unfeaturized
   file:

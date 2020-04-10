@@ -143,7 +143,7 @@ class ResponseText(EmbeddedDocument):
         Utility.validate_document_list(self.buttons)
 
 class ResponseCustom(EmbeddedDocument):
-    blocks = DictField(required=True)
+    custom = DictField(required=True)
 
 class Responses(Document):
     name = StringField(required=True)
@@ -187,7 +187,6 @@ class Slots(Document):
     initial_value = DynamicField()
     value_reset_delay = LongField()
     auto_fill = BooleanField(default=True)
-    value = StringField()
     values = ListField(StringField())
     max_value = LongField()
     min_value = LongField()
@@ -206,7 +205,7 @@ class Slots(Document):
                 self.max_value = 1.0
             if self.min_value < self.max_value:
                 error = "FloatSlot must have min_value < max_value"
-            if not isinstance(self.initial_value, int):
+            if not isinstance(self.value, int):
                 if error:
                     error += "\n"
                 error = "FloatSlot initial_value must be numeric value"
@@ -216,8 +215,9 @@ class Slots(Document):
                 raise ValidationError("CategoricalSlot must have list of categories in values field")
 
 class StoryEvents(EmbeddedDocument):
-    name = StringField(required=True)
+    name = StringField()
     type = StringField(required=True)
+    value = StringField()
 
 class Stories(Document):
     block_name = StringField(required=True)

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import re
 from collections import ChainMap
 from typing import Dict
 from typing import Text, List
@@ -9,9 +8,9 @@ from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
-from rasa.core.slots import TextSlot, UnfeaturizedSlot, BooleanSlot, ListSlot
-from rasa.core.training.structures import Checkpoint, STORY_START
-from rasa.core.training.structures import StoryGraph, StoryStep
+from rasa.core.slots import FloatSlot
+from rasa.core.training.structures import Checkpoint
+from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.core.training.structures import GENERATED_HASH_LENGTH, GENERATED_CHECKPOINT_PREFIX
@@ -22,6 +21,7 @@ from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAI
 from .data_objects import *
 import os
 from rasa.data import get_core_nlu_files
+from rasa.core.events import Form
 
 
 class MongoProcessor:
@@ -216,7 +216,7 @@ class MongoProcessor:
     def fetch_regex_features(self, bot: Text, status=True):
         regex_features = RegexFeatures.objects(bot=bot, status=status)
         for regex_feature in regex_features:
-            yield {'name': regex_feature['name'], 'elements': regex_feature['pattern']}
+            yield {'name': regex_feature['name'], 'pattern': regex_feature['pattern']}
 
     def __prepare_training_regex_features(self, bot: Text):
         return list(self.fetch_regex_features(bot))
@@ -404,7 +404,7 @@ class MongoProcessor:
                             value['buttons']))
                 response.text = response_text
             elif 'custom' in value:
-                response.custom = ResponseCustom._from_son(value['custom'])
+                response.custom = ResponseCustom._from_son(value)
             yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
@@ -437,11 +437,13 @@ class MongoProcessor:
         for response in responses:
             key = response['_id']
             value = list(self.__prepare_response_Text(response['texts']))
-            value.extend(response['customs'])
+            if response['customs']:
+                value.extend(response['customs'])
             yield {key: value}
 
     def __prepare_training_responses(self, bot: Text):
-        return dict(ChainMap(*list(self.fetch_responses(bot))))
+        responses = dict(ChainMap(*list(self.fetch_responses(bot))))
+        return responses
 
     def __fetch_slot_names(self, bot: Text):
         saved_slots = list(Slots.objects(bot=bot).aggregate(
@@ -461,6 +463,7 @@ class MongoProcessor:
                 items.pop('_value_reset_delay')
                 items['bot'] = bot
                 items['user'] = user
+                items.pop('value')
                 yield Slots._from_son(items)
 
     def __save_slots(self, slots, bot: Text, user: Text):
@@ -477,52 +480,31 @@ class MongoProcessor:
         slots = self.fetch_slots(bot)
         results = []
         for slot in slots:
+            key = slot.name
             if slot.type == FloatSlot.type_name:
-                results.append(
-                    FloatSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill,
-                        min_value=slot.min_value,
-                        max_value=slot.max_value))
+                value = {
+                    'initial_value': slot.initial_value,
+                    'value_reset_delay': slot.value_reset_delay,
+                    'auto_fill': slot.auto_fill,
+                    'min_value': slot.min_value,
+                    'max_value': slot.max_value
+                }
             elif slot.type == CategoricalSlot.type_name:
-                results.append(
-                    CategoricalSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill,
-                        values=slot.values))
-            elif slot.type == TextSlot.type_name:
-                results.append(
-                    TextSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill))
-            elif slot.type == BooleanSlot.type_name:
-                results.append(
-                    BooleanSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill))
-            elif slot.type == ListSlot.type_name:
-                results.append(
-                    ListSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill))
-            elif slot.type == UnfeaturizedSlot.type_name:
-                results.append(
-                    UnfeaturizedSlot(
-                        name=slot.name,
-                        initial_value=slot.initial_value,
-                        value_reset_delay=slot.value_reset_delay,
-                        auto_fill=slot.auto_fill))
-        return results
+                value = {
+                    'initial_value': slot.initial_value,
+                    'value_reset_delay': slot.value_reset_delay,
+                    'auto_fill': slot.auto_fill,
+                    'values': slot.values
+                }
+            else:
+                value = {
+                    'initial_value': slot.initial_value,
+                    'value_reset_delay': slot.value_reset_delay,
+                    'auto_fill': slot.auto_fill,
+                }
+            value['type'] = slot.type
+            results.append({key: value})
+        return dict(ChainMap(*results))
 
     def __extract_story_events(self, events):
         for event in events:
@@ -530,6 +512,10 @@ class MongoProcessor:
                 yield StoryEvents(type=event.type_name, name=event.text)
             elif isinstance(event, ActionExecuted):
                 yield StoryEvents(type=event.type_name, name=event.action_name)
+            elif isinstance(event, Form):
+                yield StoryEvents(type=event.type_name, name=event.name)
+            elif isinstance(event, SlotSet):
+                yield StoryEvents(type=event.type_name, name=event.key, value=event.value)
 
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         for story_step in story_steps:
@@ -554,7 +540,7 @@ class MongoProcessor:
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
-            if event.type == 'user':
+            if event.type == UserUttered.type_name:
                 intent = {'name': event.name, 'confidence': 1.0}
                 '''
                 parse_data = {
@@ -565,8 +551,12 @@ class MongoProcessor:
                 }
                 '''
                 yield UserUttered(text=event.name, intent=intent, timestamp=timestamp)
-            elif event.type == 'action':
+            elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
+            elif event.type == Form.type_name:
+                yield Form(name=event.name, timestamp=timestamp)
+            elif event.type == SlotSet.type_name:
+                yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
     def fetch_stories(self, bot: Text, status=True):
         return list(Stories.objects(bot=bot, status=status))

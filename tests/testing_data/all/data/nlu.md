@@ -334,3 +334,8 @@
 
 ## regex:file_upload_json
  - [azAz09]*:[azAz09\s+]*
+ 
+## lookup:priority
+ - high issues
+ - med issues
+ - low issues

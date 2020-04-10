@@ -22,6 +22,27 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             processor.save_from_path('tests/testing_data/error', 'tests', 'testUser')
 
+    def test_load_from_path_all_sccenario(self):
+        processor = MongoProcessor()
+        processor.save_from_path('tests/testing_data/all', 'all', 'testUser')
+        training_data = processor.load_nlu('all')
+        assert isinstance(training_data, TrainingData) == True
+        assert training_data.training_examples.__len__() == 283
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories('all')
+        assert isinstance(story_graph, StoryGraph) == True
+        assert story_graph.story_steps.__len__() == 11
+        domain = processor.load_domain('all')
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 8
+        assert domain.templates.keys().__len__() == 21
+        assert domain.entities.__len__() == 7
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 32
+        assert domain.intents.__len__() == 22
+
     def test_load_nlu(self):
         processor = MongoProcessor()
         training_data = processor.load_nlu('tests')
@@ -35,7 +56,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain('tests')
         assert isinstance(domain, Domain)
-        assert domain
         assert domain.slots.__len__() == 0
         assert domain.templates.keys().__len__() == 6
         assert domain.entities.__len__() == 0
@@ -46,7 +66,7 @@ class TestMongoProcessor:
     def test_load_stories(self):
         processor = MongoProcessor()
         story_graph = processor.load_stories('tests')
-        assert isinstance(processor.load_stories('tests'), StoryGraph) == True
+        assert isinstance(story_graph, StoryGraph) == True
         assert story_graph.story_steps.__len__() == 5
 
     def test_add_intent(self):
