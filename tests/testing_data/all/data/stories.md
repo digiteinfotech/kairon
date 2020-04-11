@@ -19,9 +19,10 @@
   - utter_ticket_attributes
 * affirm
   - utter_attachment_upload
-* affirm
+* affirm OR affirm_attachment
   - action_clear_file
   - ticket_file_form
+  - slot{"priority":"High"}
   - form{"name":"ticket_file_form"}
   - form{"name":null}
   - action_log_ticket

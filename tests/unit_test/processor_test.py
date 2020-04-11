@@ -33,7 +33,7 @@ class TestMongoProcessor:
         assert training_data.lookup_tables.__len__() == 1
         story_graph = processor.load_stories('all')
         assert isinstance(story_graph, StoryGraph) == True
-        assert story_graph.story_steps.__len__() == 11
+        assert story_graph.story_steps.__len__() == 13
         domain = processor.load_domain('all')
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
@@ -42,6 +42,10 @@ class TestMongoProcessor:
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 32
         assert domain.intents.__len__() == 22
+        assert not Utility.check_empty_string(domain.templates['utter_cheer_up'][0]['image'])
+        assert domain.templates['utter_did_that_help'][0]['buttons'].__len__() == 2
+        assert domain.templates['utter_offer_help'][0]['custom']
+        assert domain.slots[0].type_name == "unfeaturized"
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -328,9 +332,51 @@ class TestMongoProcessor:
 
     def test_add_blank_response_name(self):
         processor = MongoProcessor()
-        for response in Responses.objects(bot='tests', status=True):
-            print(response.to_mongo().to_dict())
         with pytest.raises(ValidationError):
             processor.add_text_response('Welcome', ' ', 'tests', 'testUser')
 
+    def test_add_story(self):
+        processor = MongoProcessor()
+        events = [{'name':'greet', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        processor.add_story('happy path', events, 'tests', 'testUser')
 
+    def test_add_duplicate_story(self):
+        processor = MongoProcessor()
+        events = [{'name':'greet', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        with pytest.raises(Exception):
+            processor.add_story('happy path', events, 'tests', 'testUser')
+
+    def test_add_none_story_name(self):
+        processor = MongoProcessor()
+        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        with pytest.raises(ValidationError):
+            processor.add_story(None, events, 'tests', 'testUser')
+
+    def test_add_empty_story_name(self):
+        processor = MongoProcessor()
+        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        with pytest.raises(ValidationError):
+            processor.add_story('', events, 'tests', 'testUser')
+
+    def test_add_blank_story_name(self):
+        processor = MongoProcessor()
+        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        with pytest.raises(ValidationError):
+            processor.add_story('  ', events, 'tests', 'testUser')
+
+    def test_add_empty_story_event(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            processor.add_story('happy path', [], 'tests', 'testUser')
+
+    def test_add_story_start_with_action(self):
+        processor = MongoProcessor()
+        events = [{'name':'utter_greet', 'type':'action'}, {'name':'greeting', 'type':'user'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        with pytest.raises(ValidationError):
+            processor.add_story('greeting', events, 'tests', 'testUser')
+
+    def test_add_story_end_with_user(self):
+        processor = MongoProcessor()
+        events = [{'name':'greeting', 'type':'user'}, {'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'}]
+        with pytest.raises(ValidationError):
+            processor.add_story('greeting', events, 'tests', 'testUser')

@@ -217,7 +217,7 @@ class Slots(Document):
                 raise ValidationError("CategoricalSlot must have list of categories in values field")
 
 class StoryEvents(EmbeddedDocument):
-    name = StringField()
+    name = StringField(required=True)
     type = StringField(required=True)
     value = StringField()
 
@@ -235,9 +235,11 @@ class Stories(Document):
         Utility.validate_document_list(self.events)
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("Story path name cannot be empty or blank spaces")
-        if isinstance(self.events[0], UserUttered):
+        elif not self.events:
+            raise ValidationError("Stories cannot be empty")
+        elif self.events[0].type != 'user':
             raise ValidationError("Stories must start with intent")
-        elif isinstance(self.events[-1], ActionExecuted):
+        elif self.events[-1].type != "action":
             raise ValidationError("Stories must end with action")
 
 

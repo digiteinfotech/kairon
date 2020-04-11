@@ -57,6 +57,11 @@ templates:
     image: https://i.imgur.com/nGF1K8f.jpg
   utter_did_that_help:
   - text: Did that help you?
+    buttons:
+      - title: "Yes"
+        payload: "Yes"
+      - title: "No"
+        payload: "No"
   utter_happy:
   - text: Great, carry on!
   utter_goodbye:
