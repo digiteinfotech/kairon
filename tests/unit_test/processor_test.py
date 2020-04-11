@@ -337,30 +337,30 @@ class TestMongoProcessor:
 
     def test_add_story(self):
         processor = MongoProcessor()
-        events = [{'name':'greet', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name': 'greet', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         processor.add_story('happy path', events, 'tests', 'testUser')
 
     def test_add_duplicate_story(self):
         processor = MongoProcessor()
-        events = [{'name':'greet', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name': 'greet', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         with pytest.raises(Exception):
             processor.add_story('happy path', events, 'tests', 'testUser')
 
     def test_add_none_story_name(self):
         processor = MongoProcessor()
-        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name': 'greeting', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         with pytest.raises(ValidationError):
             processor.add_story(None, events, 'tests', 'testUser')
 
     def test_add_empty_story_name(self):
         processor = MongoProcessor()
-        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name': 'greeting', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         with pytest.raises(ValidationError):
             processor.add_story('', events, 'tests', 'testUser')
 
     def test_add_blank_story_name(self):
         processor = MongoProcessor()
-        events = [{'name':'greeting', 'type':'user'},{'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name': 'greeting', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         with pytest.raises(ValidationError):
             processor.add_story('  ', events, 'tests', 'testUser')
 
@@ -371,12 +371,12 @@ class TestMongoProcessor:
 
     def test_add_story_start_with_action(self):
         processor = MongoProcessor()
-        events = [{'name':'utter_greet', 'type':'action'}, {'name':'greeting', 'type':'user'}, {'name':'mood_great', 'type':'user'},{'name':'utter_greet', 'type':'utter_happy'}]
+        events = [{'name':'utter_greet', 'type': 'action'}, {'name': 'greeting', 'type': 'user'}, {'name': 'mood_great', 'type': 'user'},{'name': 'utter_greet', 'type': 'action'}]
         with pytest.raises(ValidationError):
             processor.add_story('greeting', events, 'tests', 'testUser')
 
     def test_add_story_end_with_user(self):
         processor = MongoProcessor()
-        events = [{'name':'greeting', 'type':'user'}, {'name':'utter_greet', 'type':'action'}, {'name':'mood_great', 'type':'user'}]
+        events = [{'name':'greeting', 'type': 'user'}, {'name': 'utter_greet', 'type': 'action'}, {'name': 'mood_great', 'type': 'user'}]
         with pytest.raises(ValidationError):
             processor.add_story('greeting', events, 'tests', 'testUser')
