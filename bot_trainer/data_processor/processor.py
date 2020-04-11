@@ -1,29 +1,30 @@
 import asyncio
+import itertools
 import logging
+import os
 from collections import ChainMap
 from typing import Dict
 from typing import Text, List
 
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
+from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
-from rasa.core.slots import FloatSlot
+from rasa.core.events import Form
 from rasa.core.training.structures import Checkpoint
+from rasa.core.training.structures import STORY_START
 from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
+from rasa.data import get_core_nlu_files
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
-from rasa.core.training.structures import GENERATED_HASH_LENGTH, GENERATED_CHECKPOINT_PREFIX, STORY_START
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
-from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-from .data_objects import *
-import os
-from rasa.data import get_core_nlu_files
-from rasa.core.events import Form
+
 from .constant import *
-import itertools
+from .data_objects import *
+
 
 class MongoProcessor:
 
@@ -320,10 +321,10 @@ class MongoProcessor:
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
             new_actions = list(
-                    self.__extract_actions(
-                        actions,
-                        bot,
-                        user))
+                self.__extract_actions(
+                    actions,
+                    bot,
+                    user))
             if new_actions:
                 Actions.objects.insert(new_actions)
 
@@ -410,7 +411,7 @@ class MongoProcessor:
                             value[RESPONSE.BUTTONS.value]))
                 response.text = response_text
             elif RESPONSE.CUSTOM.value in value:
-                response.custom = ResponseCustom._from_son({RESPONSE.CUSTOM.value:value[RESPONSE.CUSTOM.value]})
+                response.custom = ResponseCustom._from_son({RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]})
             yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
@@ -528,7 +529,7 @@ class MongoProcessor:
             story_events = list(self.__extract_story_events(story_step.events))
             story = Stories(
                 block_name=story_step.block_name,
-                start_checkpoints = [ start_checkpoint.name for start_checkpoint in story_step.start_checkpoints],
+                start_checkpoints=[start_checkpoint.name for start_checkpoint in story_step.start_checkpoints],
                 end_checkpoints=[end_checkpoint.name for end_checkpoint in story_step.end_checkpoints],
                 events=story_events)
             story.bot = bot
@@ -737,7 +738,7 @@ class MongoProcessor:
         self.add_response(utterances={'text': utterance}, name=name, bot=bot, user=user)
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
-        self.__check_response_existence(response=utterances,bot=bot, exp_message="Response already exists!")
+        self.__check_response_existence(response=utterances, bot=bot, exp_message="Response already exists!")
         response = list(self.__extract_response_value(values=[utterances], key=name, bot=bot, user=user))[0]
         response.save()
         if not self.__is_exist(
@@ -762,7 +763,8 @@ class MongoProcessor:
         saved_responses = list(Responses.objects(bot=bot, status=True).aggregate(
             [{"$group": {"_id": "$name", "texts": {"$push": "$text"}, "customs": {"$push": "$custom"}}}]))
 
-        saved_items = list(itertools.chain.from_iterable([items['texts'] + items['customs'] for items in saved_responses]))
+        saved_items = list(
+            itertools.chain.from_iterable([items['texts'] + items['customs'] for items in saved_responses]))
         [t.pop('buttons') if 'text' in t and not t['buttons'] else t for t in saved_items]
 
         if response in saved_items:
