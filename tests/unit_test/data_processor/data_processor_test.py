@@ -127,9 +127,7 @@ class TestMongoProcessor:
 
     def test_add_training_example(self):
         processor = MongoProcessor()
-        assert (
-            processor.add_training_example("Hi", "greeting", "tests", "testUser")
-        )
+        assert processor.add_training_example("Hi", "greeting", "tests", "testUser")
         training_example = TrainingExamples.objects(bot="tests").get(
             intent="greeting", text="Hi"
         )

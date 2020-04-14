@@ -1,6 +1,6 @@
 stages:
   - test
-  - train
+  - build
   - deploy
   - cleanup
 
@@ -23,14 +23,14 @@ test:
 
 
 
-train:
+build:
   tags:
     - dspg
   only:
     - master
-  stage: train
+  stage: build
   script:
-    - docker build -f Dockerfile_app -t bot-trainer-api:0.1 .
+    - docker build -f docker/Dockerfile_api -t bot-trainer-api:0.1 .
 
 cleanup:
   stage: cleanup

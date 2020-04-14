@@ -32,6 +32,7 @@ async def startlette_exception_handler(request, exc):
         {"success": False, "error_code": exc.status_code, "message": str(exc.detail)}
     )
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     logging.exception(exc)

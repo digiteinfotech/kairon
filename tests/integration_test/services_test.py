@@ -89,7 +89,7 @@ def test_add_intents():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"]['_id']
+    assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Intent added successfully!"
@@ -150,7 +150,7 @@ def test_add_training_examples():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"]['_id']
+    assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Training Example added successfully!"
@@ -184,7 +184,10 @@ def test_add_empty_training_examples():
     print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 400
-    assert actual["message"] == "Training Example name and text cannot be empty or blank spaces"
+    assert (
+        actual["message"]
+        == "Training Example name and text cannot be empty or blank spaces"
+    )
 
 
 def test_remove_training_examples():
@@ -196,7 +199,7 @@ def test_remove_training_examples():
     assert len(training_examples["data"]) == 9
     response = client.delete(
         "/api/bot/training_examples",
-        json={"data": training_examples['data'][0]['_id']},
+        json={"data": training_examples["data"][0]["_id"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -222,6 +225,7 @@ def test_remove_training_examples_empty_id():
     assert actual["error_code"] == 400
     assert actual["message"] == "Unable to remove document"
 
+
 def test_get_responses():
     response = client.get(
         "/api/bot/responses/utter_greet",
@@ -242,7 +246,7 @@ def test_add_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"]['_id']
+    assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Response added successfully!"
@@ -288,7 +292,7 @@ def test_remove_response():
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/responses",
-        json={"data": training_examples['data'][0]['_id']},
+        json={"data": training_examples["data"][0]["_id"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -302,6 +306,7 @@ def test_remove_response():
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 1
+
 
 def test_remove_response_empty_id():
     response = client.delete(
