@@ -11,7 +11,7 @@ from mongoengine.errors import NotUniqueError
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
-from rasa.core.events import Form
+from rasa.core.events import Form, ActionExecuted, UserUttered
 from rasa.core.training.structures import Checkpoint
 from rasa.core.training.structures import STORY_START
 from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
@@ -21,37 +21,38 @@ from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
-
+from bot_trainer.exceptions import AppException
 from .constant import *
 from .data_objects import *
 
 
 class MongoProcessor:
-
-    def save_from_path(self, path: Text, bot: Text, user='default'):
+    def save_from_path(self, path: Text, bot: Text, user="default"):
         try:
-            story_files, nlu_files = get_core_nlu_files(os.path.join(path, DEFAULT_DATA_PATH))
-            nlu = utils.training_data_from_paths(nlu_files, 'en')
+            story_files, nlu_files = get_core_nlu_files(
+                os.path.join(path, DEFAULT_DATA_PATH)
+            )
+            nlu = utils.training_data_from_paths(nlu_files, "en")
             domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
             loop = asyncio.new_event_loop()
             story_steps = loop.run_until_complete(
-                StoryFileReader.read_from_files(
-                    story_files, domain))
+                StoryFileReader.read_from_files(story_files, domain)
+            )
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
             self.__save_config(
-                read_config_file(
-                    os.path.join(path, DEFAULT_CONFIG_PATH)),
-                bot,
-                user)
+                read_config_file(os.path.join(path, DEFAULT_CONFIG_PATH)), bot, user
+            )
         except InvalidDomain as e:
             logging.info(e)
-            raise Exception('''Failed to validate yaml file.
-                            Please make sure the file is initial and all mandatory parameters are specified''')
+            raise AppException(
+                """Failed to validate yaml file.
+                            Please make sure the file is initial and all mandatory parameters are specified"""
+            )
         except Exception as e:
             logging.info(e)
-            raise e
+            raise AppException(e)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         self.__save_training_examples(nlu.training_examples, bot, user)
@@ -68,7 +69,8 @@ class MongoProcessor:
             training_examples=training_examples,
             entity_synonyms=entity_synonyms,
             lookup_tables=lookup_tables,
-            regex_features=regex_features)
+            regex_features=regex_features,
+        )
 
     def save_domain(self, domain: Domain, bot: Text, user: Text):
         self.__save_intents(domain.intents, bot, user)
@@ -86,7 +88,7 @@ class MongoProcessor:
             DOMAIN.SESSION_CONFIG.value: self.__prepare_training_session_config(bot),
             DOMAIN.RESPONSES.value: self.__prepare_training_responses(bot),
             DOMAIN.FORMS.value: self.__prepare_training_forms(bot),
-            DOMAIN.ENTITIES.value: self.__prepare_training_domain_entities(bot)
+            DOMAIN.ENTITIES.value: self.__prepare_training_domain_entities(bot),
         }
         return Domain.from_dict(domain_dict)
 
@@ -96,18 +98,11 @@ class MongoProcessor:
     def load_stories(self, bot: Text) -> StoryGraph:
         return self.__prepare_training_story(bot)
 
-    def __save_training_examples(
-            self,
-            training_examples,
-            bot: Text,
-            user: Text):
+    def __save_training_examples(self, training_examples, bot: Text, user: Text):
         if training_examples:
             TrainingExamples.objects.insert(
-                list(
-                    self.__extract_training_examples(
-                        training_examples,
-                        bot,
-                        user)))
+                list(self.__extract_training_examples(training_examples, bot, user))
+            )
 
     def __extract_entities(self, entities):
         for entity in entities:
@@ -115,14 +110,11 @@ class MongoProcessor:
                 start=entity[ENTITY.START.value],
                 end=entity[ENTITY.END.value],
                 value=entity[ENTITY.VALUE.value],
-                entity=entity[ENTITY.ENTITY.value])
+                entity=entity[ENTITY.ENTITY.value],
+            )
             yield entity_data
 
-    def __extract_training_examples(
-            self,
-            training_examples,
-            bot: Text,
-            user: Text):
+    def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         for training_example in training_examples:
             training_data = TrainingExamples()
             training_data.intent = training_example.data[TRAINING_EXAMPLE.INTENT.value]
@@ -132,7 +124,9 @@ class MongoProcessor:
             if "entities" in training_example.data:
                 training_data.entities = list(
                     self.__extract_entities(
-                        training_example.data[TRAINING_EXAMPLE.ENTITIES.value]))
+                        training_example.data[TRAINING_EXAMPLE.ENTITIES.value]
+                    )
+                )
             yield training_data
 
     def __extract_synonyms(self, synonyms, bot: Text, user: Text):
@@ -142,11 +136,8 @@ class MongoProcessor:
     def __save_entity_synonyms(self, entity_synonyms, bot: Text, user: Text):
         if entity_synonyms:
             EntitySynonyms.objects.insert(
-                list(
-                    self.__extract_synonyms(
-                        entity_synonyms,
-                        bot,
-                        user)))
+                list(self.__extract_synonyms(entity_synonyms, bot, user))
+            )
 
     def fetch_synonyms(self, bot: Text, status=True):
         entitySynonyms = EntitySynonyms.objects(bot=bot, status=status)
@@ -168,8 +159,8 @@ class MongoProcessor:
             message.data = {TRAINING_EXAMPLE.INTENT.value: trainingExample.intent}
             if trainingExample.entities:
                 message.data[TRAINING_EXAMPLE.ENTITIES.value] = list(
-                    self.__prepare_entities(
-                        trainingExample.entities))
+                    self.__prepare_entities(trainingExample.entities)
+                )
             yield message
 
     def __prepare_training_examples(self, bot: Text):
@@ -184,18 +175,18 @@ class MongoProcessor:
     def __save_lookup_tables(self, lookup_tables, bot: Text, user: Text):
         if lookup_tables:
             LookupTables.objects.insert(
-                list(
-                    self.__extract_lookup_tables(
-                        lookup_tables,
-                        bot,
-                        user)))
+                list(self.__extract_lookup_tables(lookup_tables, bot, user))
+            )
 
     def fetch_lookup_tables(self, bot: Text, status=True):
         lookup_tables = LookupTables.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$name", "elements": {"$push": "$value"}}}])
+            [{"$group": {"_id": "$name", "elements": {"$push": "$value"}}}]
+        )
         for lookup_table in lookup_tables:
-            yield {LOOKUP_TABLE.NAME.value: lookup_table['_id'],
-                   LOOKUP_TABLE.ELEMENTS.value: lookup_table['elements']}
+            yield {
+                LOOKUP_TABLE.NAME.value: lookup_table["_id"],
+                LOOKUP_TABLE.ELEMENTS.value: lookup_table["elements"],
+            }
 
     def __prepare_training_lookup_tables(self, bot: Text):
         return list(self.fetch_lookup_tables(bot))
@@ -210,17 +201,16 @@ class MongoProcessor:
     def __save_regex_features(self, regex_features, bot: Text, user: Text):
         if regex_features:
             RegexFeatures.objects.insert(
-                list(
-                    self.__extract_regex_features(
-                        regex_features,
-                        bot,
-                        user)))
+                list(self.__extract_regex_features(regex_features, bot, user))
+            )
 
     def fetch_regex_features(self, bot: Text, status=True):
         regex_features = RegexFeatures.objects(bot=bot, status=status)
         for regex_feature in regex_features:
-            yield {REGEX_FEATURES.NAME.value: regex_feature['name'],
-                   REGEX_FEATURES.PATTERN.value: regex_feature['pattern']}
+            yield {
+                REGEX_FEATURES.NAME.value: regex_feature["name"],
+                REGEX_FEATURES.PATTERN.value: regex_feature["pattern"],
+            }
 
     def __prepare_training_regex_features(self, bot: Text):
         return list(self.fetch_regex_features(bot))
@@ -233,58 +223,45 @@ class MongoProcessor:
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
-            new_intents = list(
-                self.__extract_intents(
-                    intents,
-                    bot,
-                    user))
+            new_intents = list(self.__extract_intents(intents, bot, user))
             if new_intents:
                 Intents.objects.insert(new_intents)
 
     def fetch_intents(self, bot: Text, status=True):
         intents = Intents.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "intents": {"$push": "$name"}}}])
+            [{"$group": {"_id": "$bot", "intents": {"$push": "$name"}}}]
+        )
         return list(intents)
 
     def __prepare_training_intents(self, bot: Text):
         intents = self.fetch_intents(bot)
         if intents:
-            return intents[0]['intents']
+            return intents[0]["intents"]
         else:
             return []
 
-    def __extract_domain_entities(
-            self,
-            entities: List[str],
-            bot: Text,
-            user: Text):
+    def __extract_domain_entities(self, entities: List[str], bot: Text, user: Text):
         saved_entities = self.__prepare_training_domain_entities(bot=bot)
         for entity in entities:
             if entity not in saved_entities:
                 yield Entities(name=entity, bot=bot, user=user)
 
-    def __save_domain_entities(
-            self,
-            entities: List[str],
-            bot: Text,
-            user: Text):
+    def __save_domain_entities(self, entities: List[str], bot: Text, user: Text):
         if entities:
-            new_entities = list(self.__extract_domain_entities(
-                entities,
-                bot,
-                user))
+            new_entities = list(self.__extract_domain_entities(entities, bot, user))
             if new_entities:
                 Entities.objects.insert(new_entities)
 
     def fetch_domain_entities(self, bot: Text, status=True):
         entities = Entities.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "entities": {"$push": "$name"}}}])
+            [{"$group": {"_id": "$bot", "entities": {"$push": "$name"}}}]
+        )
         return list(entities)
 
     def __prepare_training_domain_entities(self, bot: Text):
         entities = self.fetch_domain_entities(bot)
         if entities:
-            return entities[0]['entities']
+            return entities[0]["entities"]
         else:
             return []
 
@@ -302,13 +279,14 @@ class MongoProcessor:
 
     def fetch_forms(self, bot: Text, status=True):
         forms = Forms.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "forms": {"$push": "$name"}}}])
+            [{"$group": {"_id": "$bot", "forms": {"$push": "$name"}}}]
+        )
         return list(forms)
 
     def __prepare_training_forms(self, bot: Text):
         forms = self.fetch_forms(bot)
         if forms:
-            return forms[0]['forms']
+            return forms[0]["forms"]
         else:
             return []
 
@@ -320,53 +298,47 @@ class MongoProcessor:
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
-            new_actions = list(
-                self.__extract_actions(
-                    actions,
-                    bot,
-                    user))
+            new_actions = list(self.__extract_actions(actions, bot, user))
             if new_actions:
                 Actions.objects.insert(new_actions)
 
     def fetch_actions(self, bot: Text, status=True):
         actions = Actions.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}}}])
+            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}}}]
+        )
         return list(actions)
 
     def __prepare_training_actions(self, bot: Text):
         actions = self.fetch_actions(bot)
         if actions:
-            return actions[0]['actions']
+            return actions[0]["actions"]
         else:
             return []
 
     def __extract_session_config(
-            self,
-            session_config: SessionConfig,
-            bot: Text,
-            user: Text):
+        self, session_config: SessionConfig, bot: Text, user: Text
+    ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
             carryOverSlots=session_config.carry_over_slots,
             bot=bot,
-            user=user)
+            user=user,
+        )
 
     def __save_session_config(
-            self,
-            session_config: SessionConfig,
-            bot: Text,
-            user: Text):
+        self, session_config: SessionConfig, bot: Text, user: Text
+    ):
         try:
             if session_config:
                 SessionConfigs.objects.insert(
-                    self.__extract_session_config(
-                        session_config, bot, user))
+                    self.__extract_session_config(session_config, bot, user)
+                )
         except NotUniqueError as e:
             logging.info(e)
-            raise Exception("Session Config already exists for the bot")
+            raise AppException("Session Config already exists for the bot")
         except Exception as e:
             logging.info(e)
-            raise Exception("Internal Server Error")
+            raise AppException("Internal Server Error")
 
     def fetch_session_config(self, bot: Text):
         try:
@@ -381,12 +353,14 @@ class MongoProcessor:
         if session_config:
             return {
                 SESSION_CONFIG.SESSION_EXPIRATION_TIME.value: session_config.sesssionExpirationTime,
-                SESSION_CONFIG.CARRY_OVER_SLOTS.value: session_config.carryOverSlots}
+                SESSION_CONFIG.CARRY_OVER_SLOTS.value: session_config.carryOverSlots,
+            }
         else:
             default_session = SessionConfig.default()
             return {
                 SESSION_CONFIG.SESSION_EXPIRATION_TIME.value: default_session.session_expiration_time,
-                SESSION_CONFIG.CARRY_OVER_SLOTS.value: default_session.carry_over_slots}
+                SESSION_CONFIG.CARRY_OVER_SLOTS.value: default_session.carry_over_slots,
+            }
 
     def __extract_response_button(self, buttons):
         for button in buttons:
@@ -404,33 +378,29 @@ class MongoProcessor:
                 if RESPONSE.IMAGE.value in value:
                     response_text.image = value[RESPONSE.IMAGE.value]
                 if RESPONSE.CHANNEL.value in value:
-                    response_text.channel = value['channel']
+                    response_text.channel = value["channel"]
                 if RESPONSE.BUTTONS.value in value:
                     response_text.buttons = list(
-                        self.__extract_response_button(
-                            value[RESPONSE.BUTTONS.value]))
+                        self.__extract_response_button(value[RESPONSE.BUTTONS.value])
+                    )
                 response.text = response_text
             elif RESPONSE.CUSTOM.value in value:
-                response.custom = ResponseCustom._from_son({RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]})
+                response.custom = ResponseCustom._from_son(
+                    {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
+                )
             yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
         responses_result = []
         for key, values in responses.items():
             responses_result.extend(
-                list(
-                    self.__extract_response_value(
-                        values,
-                        key,
-                        bot,
-                        user)))
+                list(self.__extract_response_value(values, key, bot, user))
+            )
         return responses_result
 
     def __save_responses(self, responses, bot: Text, user: Text):
         if responses:
-            Responses.objects.insert(
-                self.__extract_response(
-                    responses, bot, user))
+            Responses.objects.insert(self.__extract_response(responses, bot, user))
 
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
@@ -440,12 +410,21 @@ class MongoProcessor:
 
     def fetch_responses(self, bot: Text, status=True):
         responses = Responses.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$name", "texts": {"$push": "$text"}, "customs": {"$push": "$custom"}}}])
+            [
+                {
+                    "$group": {
+                        "_id": "$name",
+                        "texts": {"$push": "$text"},
+                        "customs": {"$push": "$custom"},
+                    }
+                }
+            ]
+        )
         for response in responses:
-            key = response['_id']
-            value = list(self.__prepare_response_Text(response['texts']))
-            if response['customs']:
-                value.extend(response['customs'])
+            key = response["_id"]
+            value = list(self.__prepare_response_Text(response["texts"]))
+            if response["customs"]:
+                value.extend(response["customs"])
             yield {key: value}
 
     def __prepare_training_responses(self, bot: Text):
@@ -453,24 +432,27 @@ class MongoProcessor:
         return responses
 
     def __fetch_slot_names(self, bot: Text):
-        saved_slots = list(Slots.objects(bot=bot).aggregate(
-            [{"$group": {"_id": "$bot", "slots": {"$push": "$name"}}}]))
+        saved_slots = list(
+            Slots.objects(bot=bot).aggregate(
+                [{"$group": {"_id": "$bot", "slots": {"$push": "$name"}}}]
+            )
+        )
         slots_list = []
         if saved_slots:
-            slots_list = saved_slots[0]['slots']
+            slots_list = saved_slots[0]["slots"]
         return slots_list
 
     def __extract_slots(self, slots, bot: Text, user: Text):
         slots_name_list = self.__fetch_slot_names(bot)
         for slot in slots:
             items = vars(slot)
-            if items['name'] not in slots_name_list:
-                items['type'] = slot.type_name
-                items['value_reset_delay'] = items['_value_reset_delay']
-                items.pop('_value_reset_delay')
-                items['bot'] = bot
-                items['user'] = user
-                items.pop('value')
+            if items["name"] not in slots_name_list:
+                items["type"] = slot.type_name
+                items["value_reset_delay"] = items["_value_reset_delay"]
+                items.pop("_value_reset_delay")
+                items["bot"] = bot
+                items["user"] = user
+                items.pop("value")
                 yield Slots._from_son(items)
 
     def __save_slots(self, slots, bot: Text, user: Text):
@@ -494,14 +476,14 @@ class MongoProcessor:
                     SLOTS.VALUE_RESET_DELAY.value: slot.value_reset_delay,
                     SLOTS.AUTO_FILL.value: slot.auto_fill,
                     SLOTS.MIN_VALUE.value: slot.min_value,
-                    SLOTS.MAX_VALUE.value: slot.max_value
+                    SLOTS.MAX_VALUE.value: slot.max_value,
                 }
             elif slot.type == CategoricalSlot.type_name:
                 value = {
                     SLOTS.INITIAL_VALUE.value: slot.initial_value,
                     SLOTS.VALUE_RESET_DELAY.value: slot.value_reset_delay,
                     SLOTS.AUTO_FILL.value: slot.auto_fill,
-                    SLOTS.VALUES.value: slot.values
+                    SLOTS.VALUES.value: slot.values,
                 }
             else:
                 value = {
@@ -522,16 +504,24 @@ class MongoProcessor:
             elif isinstance(event, Form):
                 yield StoryEvents(type=event.type_name, name=event.name)
             elif isinstance(event, SlotSet):
-                yield StoryEvents(type=event.type_name, name=event.key, value=event.value)
+                yield StoryEvents(
+                    type=event.type_name, name=event.key, value=event.value
+                )
 
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         for story_step in story_steps:
             story_events = list(self.__extract_story_events(story_step.events))
             story = Stories(
                 block_name=story_step.block_name,
-                start_checkpoints=[start_checkpoint.name for start_checkpoint in story_step.start_checkpoints],
-                end_checkpoints=[end_checkpoint.name for end_checkpoint in story_step.end_checkpoints],
-                events=story_events)
+                start_checkpoints=[
+                    start_checkpoint.name
+                    for start_checkpoint in story_step.start_checkpoints
+                ],
+                end_checkpoints=[
+                    end_checkpoint.name for end_checkpoint in story_step.end_checkpoints
+                ],
+                events=story_events,
+            )
             story.bot = bot
             story.user = user
             yield story
@@ -539,16 +529,16 @@ class MongoProcessor:
     def __save_stories(self, story_steps, bot: Text, user: Text):
         if story_steps:
             Stories.objects.insert(
-                list(
-                    self.__extract_story_step(
-                        story_steps,
-                        bot,
-                        user)))
+                list(self.__extract_story_step(story_steps, bot, user))
+            )
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
             if event.type == UserUttered.type_name:
-                intent = {STORY_EVENT.NAME.value: event.name, STORY_EVENT.CONFIDENCE.value: 1.0}
+                intent = {
+                    STORY_EVENT.NAME.value: event.name,
+                    STORY_EVENT.CONFIDENCE.value: 1.0,
+                }
                 yield UserUttered(text=event.name, intent=intent, timestamp=timestamp)
             elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
@@ -564,19 +554,28 @@ class MongoProcessor:
         for story in Stories.objects(bot=bot, status=True):
             story_events = list(
                 self.__prepare_training_story_events(
-                    story.events, datetime.now().timestamp()))
-            yield StoryStep(block_name=story.block_name, events=story_events,
-                            start_checkpoints=[Checkpoint(start_checkpoint) for start_checkpoint
-                                               in story.start_checkpoints],
-                            end_checkpoints=[Checkpoint(end_checkpoints) for end_checkpoints
-                                             in story.end_checkpoints])
+                    story.events, datetime.now().timestamp()
+                )
+            )
+            yield StoryStep(
+                block_name=story.block_name,
+                events=story_events,
+                start_checkpoints=[
+                    Checkpoint(start_checkpoint)
+                    for start_checkpoint in story.start_checkpoints
+                ],
+                end_checkpoints=[
+                    Checkpoint(end_checkpoints)
+                    for end_checkpoints in story.end_checkpoints
+                ],
+            )
 
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
     def __save_config(self, config: dict, bot: Text, user: Text):
-        config['bot'] = bot
-        config['user'] = user
+        config["bot"] = bot
+        config["user"] = user
         Configs.objects.insert(Configs._from_son(config))
 
     def fetch_configs(self, bot: Text):
@@ -584,194 +583,189 @@ class MongoProcessor:
             configs = Configs.objects.get(bot=bot)
         except DoesNotExist as e:
             logging.info(e)
-            configs = Configs._from_son(
-                read_config_file('./template/config.yml'))
+            configs = Configs._from_son(read_config_file("./template/config.yml"))
         return configs
 
     def load_config(self, bot: Text):
         configs = self.fetch_configs(bot)
         config_dict = configs.to_mongo().to_dict()
         return {
-            key: config_dict[key] for key in config_dict if key in [
-                'language',
-                'pipeline',
-                'policies']}
+            key: config_dict[key]
+            for key in config_dict
+            if key in ["language", "pipeline", "policies"]
+        }
 
     def add_intent(self, text: Text, bot: Text, user: Text):
-        self.__is_exist(
+        Utility.is_exist(
             Intents,
-            bot=bot,
-            query={
-                'name': text},
-            exp_message="Intent already exists!")
-        Intents(name=text, bot=bot, user=user).save()
+            query={"name": text, "bot": bot},
+            exp_message="Intent already exists!",
+        )
+        saved = Intents(name=text, bot=bot, user=user).save().to_mongo().to_dict()
+        return saved["_id"].__str__()
 
     def get_intents(self, bot: Text):
         intents = Intents.objects(bot=bot, status=True)
-        return list(self.__prepare_document_list(intents, 'name'))
+        return list(self.__prepare_document_list(intents, "name"))
 
-    def add_training_example(
-            self,
-            example: Text,
-            intent: Text,
-            bot: Text,
-            user: Text):
-        self.__is_exist(
+    def add_training_example(self, example: Text, intent: Text, bot: Text, user: Text):
+        Utility.is_exist(
             TrainingExamples,
-            bot=bot,
-            query={
-                'text': example},
-            exp_message="Training Example already exists!")
+            query={"text": example, "bot": bot},
+            exp_message="Training Example already exists!",
+        )
 
-        if not self.__is_exist(
-                Intents,
-                bot=bot,
-                query={
-                    'name': intent},
-                raise_error=False):
+        if not Utility.is_exist(
+            Intents, query={"name": intent, "bot": bot}, raise_error=False
+        ):
             Intents(name=intent, bot=bot, user=user).save()
 
         training_example = TrainingExamples(
-            intent=intent, text=example, bot=bot, user=user)
+            intent=intent, text=example, bot=bot, user=user
+        )
         if not Utility.check_empty_string(example):
-            entities = MarkdownReader._find_entities_in_training_example(
-                example)
+            entities = MarkdownReader._find_entities_in_training_example(example)
             if entities:
-                ext_entity = [ent['entity'] for ent in entities]
+                ext_entity = [ent["entity"] for ent in entities]
                 self.__save_domain_entities(ext_entity, bot=bot, user=user)
                 self.__add_slots_from_entities(ext_entity, bot, user)
                 training_example.text = re.sub(
-                    ent_regex, lambda m: m.groupdict()["entity_text"], example)
-                training_example.entities = list(
-                    self.__extract_entities(entities))
-        training_example.save()
+                    ent_regex, lambda m: m.groupdict()["entity_text"], example
+                )
+                training_example.entities = list(self.__extract_entities(entities))
+        saved = training_example.save().to_mongo().to_dict()
+        return saved["_id"].__str__()
 
     def get_training_examples(self, intent: Text, bot: Text):
         training_examples = list(
-            TrainingExamples.objects(
-                bot=bot, intent=intent, status=True))
+            TrainingExamples.objects(bot=bot, intent=intent, status=True)
+        )
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
-            yield {'_id': example['_id'].__str__(), 'text': Utility.prepare_nlu_text(
-                example['text'], example['entities'])}
+            yield {
+                "_id": example["_id"].__str__(),
+                "text": Utility.prepare_nlu_text(example["text"], example["entities"]),
+            }
 
-    def remove_document(self, document: Document, id: Text):
+    def remove_document(self, document: Document, id: Text, bot: Text, user: Text):
         try:
-            doc = document.objects().get(id=id)
-            doc.update(status=False)
+            doc = document.objects(bot=bot).get(id=id)
+            doc.update(status=False, user=user)
         except DoesNotExist as e:
             logging.info(e)
-            raise Exception('Unable to remove document')
+            raise AppException("Unable to remove document")
         except Exception as e:
             logging.info(e)
-            raise Exception('Unable to remove document')
-
-    def __is_exist(
-            self,
-            document: Document,
-            bot: Text,
-            query: Dict,
-            exp_message: Text = None,
-            raise_error=True, ):
-        doc = document.objects(bot=bot, status=True, __raw__=query)
-        if doc.__len__():
-            if raise_error:
-                if Utility.check_empty_string(exp_message):
-                    raise Exception("Exception message cannot be empty")
-                raise Exception(exp_message)
-            else:
-                return True
-        else:
-            if not raise_error:
-                return False
+            raise AppException("Unable to remove document")
 
     def __prepare_document_list(self, documents: List[Document], field: Text):
         for document in documents:
             doc_dict = document.to_mongo().to_dict()
-            yield {'_id': doc_dict['_id'].__str__(), field: doc_dict[field]}
+            yield {"_id": doc_dict["_id"].__str__(), field: doc_dict[field]}
 
     def add_entity(self, name: Text, bot: Text, user: Text):
-        self.__is_exist(
+        Utility.is_exist(
             Entities,
-            bot=bot,
-            query={
-                'name': name},
-            exp_message="Entity already exists!")
+            query={"name": name, "bot": bot},
+            exp_message="Entity already exists!",
+        )
         Entities(name=name, bot=bot, user=user).save()
-        if not self.__is_exist(
-                Slots,
-                bot=bot,
-                query={
-                    'name': name},
-                raise_error=False):
-            Slots(name=name, type='text', bot=bot, user=user).save()
+        if not Utility.is_exist(
+            Slots, query={"name": name, "bot": bot}, raise_error=False
+        ):
+            Slots(name=name, type="text", bot=bot, user=user).save()
 
     def get_entities(self, bot: Text):
         entities = Entities.objects(bot=bot, status=True)
-        return list(self.__prepare_document_list(entities, 'name'))
+        return list(self.__prepare_document_list(entities, "name"))
 
     def add_action(self, name: Text, bot: Text, user: Text):
-        self.__is_exist(
+        Utility.is_exist(
             Actions,
-            bot=bot,
-            query={
-                'name': name},
-            exp_message="Entity already exists!")
+            query={"name": name, "bot": bot},
+            exp_message="Entity already exists!",
+        )
         Actions(name=name, bot=bot, user=user).save()
 
     def get_actions(self, bot: Text):
         actions = Actions.objects(bot=bot, status=True)
-        return list(self.__prepare_document_list(actions, 'name'))
+        return list(self.__prepare_document_list(actions, "name"))
 
-    def __add_slots_from_entities(
-            self,
-            entities: List[Text],
-            bot: Text,
-            user: Text):
+    def __add_slots_from_entities(self, entities: List[Text], bot: Text, user: Text):
         slot_name_list = self.__fetch_slot_names(bot)
-        slots = [Slots(name=entity, type='text', bot=bot, user=user)
-                 for entity in entities if entity not in slot_name_list]
+        slots = [
+            Slots(name=entity, type="text", bot=bot, user=user)
+            for entity in entities
+            if entity not in slot_name_list
+        ]
         if slots:
             Slots.objects.insert(slots)
 
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
-        self.add_response(utterances={'text': utterance}, name=name, bot=bot, user=user)
+        return self.add_response(
+            utterances={"text": utterance}, name=name, bot=bot, user=user
+        )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
-        self.__check_response_existence(response=utterances, bot=bot, exp_message="Response already exists!")
-        response = list(self.__extract_response_value(values=[utterances], key=name, bot=bot, user=user))[0]
-        response.save()
-        if not self.__is_exist(
-                Actions,
-                bot=bot,
-                query={
-                    'name': name},
-                raise_error=False):
+        self.__check_response_existence(
+            response=utterances, bot=bot, exp_message="Response already exists!"
+        )
+        response = list(
+            self.__extract_response_value(
+                values=[utterances], key=name, bot=bot, user=user
+            )
+        )[0]
+        value = response.save().to_mongo().to_dict()
+        if not Utility.is_exist(
+            Actions, query={"name": name, "bot": bot}, raise_error=False
+        ):
             Actions(name=name, bot=bot, user=user).save()
+        return value["_id"].__str__()
 
     def get_response(self, name: Text, bot: Text):
         values = Responses.objects(bot=bot, status=True, name=name)
         for value in values:
             val = None
             if value.text:
-                val = list(self.__prepare_response_Text([value.text.to_mongo().to_dict()]))[0]
+                val = list(
+                    self.__prepare_response_Text([value.text.to_mongo().to_dict()])
+                )[0]
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
-            yield {"_id": value.id, "value": val}
+            yield {"_id": value.id.__str__(), "value": val}
 
-    def __check_response_existence(self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True):
-        saved_responses = list(Responses.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$name", "texts": {"$push": "$text"}, "customs": {"$push": "$custom"}}}]))
+    def __check_response_existence(
+        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+    ):
+        saved_responses = list(
+            Responses.objects(bot=bot, status=True).aggregate(
+                [
+                    {
+                        "$group": {
+                            "_id": "$name",
+                            "texts": {"$push": "$text"},
+                            "customs": {"$push": "$custom"},
+                        }
+                    }
+                ]
+            )
+        )
 
         saved_items = list(
-            itertools.chain.from_iterable([items['texts'] + items['customs'] for items in saved_responses]))
-        [t.pop('buttons') if 'text' in t and not t['buttons'] else t for t in saved_items]
+            itertools.chain.from_iterable(
+                [items["texts"] + items["customs"] for items in saved_responses]
+            )
+        )
+        [
+            t.pop("buttons") if "text" in t and not t["buttons"] else t
+            for t in saved_items
+        ]
 
         if response in saved_items:
             if raise_error:
                 if Utility.check_empty_string(exp_message):
-                    raise Exception("Exception message cannot be empty")
-                raise Exception(exp_message)
+                    raise AppException("Exception message cannot be empty")
+                raise AppException(exp_message)
             else:
                 return True
         else:
@@ -780,24 +774,35 @@ class MongoProcessor:
 
     ## need to add the logic to add action, slots and forms if it does not exist
     def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
-        self.__check_event_existence(events, bot=bot, exp_message="Story already exists!")
-        Stories(block_name=name,
-                events=events,
-                bot=bot,
-                user=user,
-                start_checkpoints=[STORY_START]).save()
+        self.__check_event_existence(
+            events, bot=bot, exp_message="Story already exists!"
+        )
+        Stories(
+            block_name=name,
+            events=events,
+            bot=bot,
+            user=user,
+            start_checkpoints=[STORY_START],
+        ).save()
 
-    def __check_event_existence(self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True):
-        saved_events = list(Stories.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$name", "events": {"$push": "$events"}}}]))
+    def __check_event_existence(
+        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+    ):
+        saved_events = list(
+            Stories.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$name", "events": {"$push": "$events"}}}]
+            )
+        )
 
-        saved_items = list(itertools.chain.from_iterable([items['events'] for items in saved_events]))
+        saved_items = list(
+            itertools.chain.from_iterable([items["events"] for items in saved_events])
+        )
 
         if events in saved_items:
             if raise_error:
                 if Utility.check_empty_string(exp_message):
-                    raise Exception("Exception message cannot be empty")
-                raise Exception(exp_message)
+                    raise AppException("Exception message cannot be empty")
+                raise AppException(exp_message)
             else:
                 return True
         else:

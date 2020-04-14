@@ -1,12 +1,13 @@
 import nltk
 
+
 def chunk_search(segment, chunked):
     m = len(chunked)
     list1 = []
     for j in range(m):
-        if (len(chunked[j]) > 2 or len(chunked[j]) == 1):
+        if len(chunked[j]) > 2 or len(chunked[j]) == 1:
             list1.append(j)
-        if (len(chunked[j]) == 2):
+        if len(chunked[j]) == 2:
             try:
                 str1 = chunked[j][0][0] + " " + chunked[j][1][0]
             except Exception:
@@ -15,6 +16,7 @@ def chunk_search(segment, chunked):
                 if (str1 in segment) == True:
                     list1.append(j)
     return list1
+
 
 def segment_identify(sen):
     segment_set = sen.split(",")
@@ -30,9 +32,9 @@ def clause_identify(segment):
 
     flag = 0
     for j in range(len(chunked)):
-        if (len(chunked[j]) > 2):
+        if len(chunked[j]) > 2:
             flag = 1
-        if (len(chunked[j]) == 2):
+        if len(chunked[j]) == 2:
             try:
                 str1 = chunked[j][0][0] + " " + chunked[j][1][0]
             except Exception:
@@ -64,7 +66,9 @@ def verbphrase_identify(clause):
 
     tok1 = nltk.word_tokenize(str1)
     tag1 = nltk.pos_tag(tok1)
-    gram1 = r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+<RB.?>*}"""
+    gram1 = (
+        r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+<RB.?>*}"""
+    )
     chunkparser1 = nltk.RegexpParser(gram1)
     chunked1 = chunkparser1.parse(tag1)
 
@@ -73,7 +77,7 @@ def verbphrase_identify(clause):
 
         m = list2[0]
         for j in range(len(chunked1[m])):
-            str2 += (chunked1[m][j][0] + " ")
+            str2 += chunked1[m][j][0] + " "
 
     tok1 = nltk.word_tokenize(str1)
     tag1 = nltk.pos_tag(tok1)
@@ -86,7 +90,7 @@ def verbphrase_identify(clause):
 
         m = list3[0]
         for j in range(len(chunked2[m])):
-            str3 += (chunked2[m][j][0] + " ")
+            str3 += chunked2[m][j][0] + " "
 
     X = ""
     str4 = ""
@@ -102,15 +106,25 @@ def verbphrase_identify(clause):
 
     if len(st) == 1:
         tag1 = nltk.pos_tag(st)
-        if tag1[0][0] != 'are' and tag1[0][0] != 'were' and tag1[0][0] != 'is' and tag1[0][0] != 'am':
-            if tag1[0][1] == 'VB' or tag1[0][1] == 'VBP':
-                X = 'do'
-            if tag1[0][1] == 'VBD' or tag1[0][1] == 'VBN':
-                X = 'did'
-            if tag1[0][1] == 'VBZ':
-                X = 'does'
+        if (
+            tag1[0][0] != "are"
+            and tag1[0][0] != "were"
+            and tag1[0][0] != "is"
+            and tag1[0][0] != "am"
+        ):
+            if tag1[0][1] == "VB" or tag1[0][1] == "VBP":
+                X = "do"
+            if tag1[0][1] == "VBD" or tag1[0][1] == "VBN":
+                X = "did"
+            if tag1[0][1] == "VBZ":
+                X = "does"
             str4 = X + " " + str2 + str3
-        if (tag1[0][0] == 'are' or tag1[0][0] == 'were' or tag1[0][0] == 'is' or tag1[0][0] == 'am'):
+        if (
+            tag1[0][0] == "are"
+            or tag1[0][0] == "were"
+            or tag1[0][0] == "is"
+            or tag1[0][0] == "am"
+        ):
             str4 = tag1[0][0] + " " + str2
 
     return str4
@@ -136,7 +150,9 @@ def subjectphrase_search(segment_set, num):
 
             tok1 = nltk.word_tokenize(str1)
             tag1 = nltk.pos_tag(tok1)
-            gram1 = r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+}"""
+            gram1 = (
+                r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+}"""
+            )
             chunkparser1 = nltk.RegexpParser(gram1)
             chunked1 = chunkparser1.parse(tag1)
 
@@ -144,13 +160,15 @@ def subjectphrase_search(segment_set, num):
             if len(list2) != 0:
                 m = list2[len(list2) - 1]
                 for j in range(len(chunked1[m])):
-                    str2 += (chunked1[m][j][0] + " ")
+                    str2 += chunked1[m][j][0] + " "
                 flag = 1
 
         if flag == 0:
             tok1 = nltk.word_tokenize(segment_set[j])
             tag1 = nltk.pos_tag(tok1)
-            gram1 = r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+}"""
+            gram1 = (
+                r"""chunk:{<EX>?<DT>?<JJ.?>*<NN.?|PRP|PRP\$|POS|IN|DT|CC|VBG|VBN>+}"""
+            )
             chunkparser1 = nltk.RegexpParser(gram1)
             chunked1 = chunkparser1.parse(tag1)
 
@@ -197,7 +215,7 @@ def postprocess(string):
                     to = nltk.word_tokenize(tok[i - 1])
                     ta = nltk.pos_tag(to)
                     # print ta
-                    if ta[0][1] == 'IN':
+                    if ta[0][1] == "IN":
                         str1 += "me"
                         str1 += " "
                     else:
@@ -214,4 +232,3 @@ def postprocess(string):
                 str1 += " "
 
     return str1
-

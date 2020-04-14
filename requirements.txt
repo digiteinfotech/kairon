@@ -17,3 +17,9 @@ pytest-xdist
 pytest-asyncio
 pandas
 mongoengine
+pyjwt
+passlib[bcrypt]
+python-multipart
+validate_email
+py3dns
+black

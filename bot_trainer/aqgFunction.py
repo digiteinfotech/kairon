@@ -1,17 +1,27 @@
 import spacy
-from bot_trainer.clause import howmuch_2, howmuch_1 as c_howmuch_1, howmuch_3, what_to_do, who, whom_1, whom_2, whom_3, whose as c_whose
-from bot_trainer.nonClause import whose, howmuch_1,  howmany, what_whom1, what_whom2
+from bot_trainer.clause import (
+    howmuch_2,
+    howmuch_1 as c_howmuch_1,
+    howmuch_3,
+    what_to_do,
+    who,
+    whom_1,
+    whom_2,
+    whom_3,
+    whose as c_whose,
+)
+from bot_trainer.nonClause import whose, howmuch_1, howmany, what_whom1, what_whom2
 from bot_trainer.identification import clause_identify, subjectphrase_search
 from bot_trainer.questionValidation import hNvalidation
 from bot_trainer.nlpNER import nerTagger
 
 
-class AutomaticQuestionGenerator():
+class AutomaticQuestionGenerator:
     # AQG Parsing & Generate a question
     def aqgParse(self, sentence):
 
-        #nlp = spacy.load("en")
-        nlp = spacy.load('en_core_web_sm')
+        # nlp = spacy.load("en")
+        nlp = spacy.load("en_core_web_sm")
 
         singleSentences = sentence.split(".")
         questionsList = []
@@ -62,12 +72,10 @@ class AutomaticQuestionGenerator():
                             except Exception:
                                 pass
 
-
                         else:
                             try:
-                            
+
                                 s = subjectphrase_search(segmentSets, j)
-                                
 
                                 if len(s) != 0:
                                     segmentSets[j] = s + segmentSets[j]
@@ -120,10 +128,8 @@ class AutomaticQuestionGenerator():
                             except:
                                 pass
 
-                questionsList.append('\n')
+                questionsList.append("\n")
         return questionsList
-
-
 
     def DisNormal(self, str):
         print("\n")
@@ -140,34 +146,31 @@ class AutomaticQuestionGenerator():
         print("End  OutPut")
         print("-----X-----\n\n")
 
-
     # AQG Display the Generated Question
     def display(self, str):
-        
 
-        final=[]
+        final = []
         count = 0
         for i in range(len(str)):
-            if (len(str[i]) >= 3):
-                if (hNvalidation(str[i]) == 1):
-                    if ((str[i][0] == 'W' and str[i][1] == 'h') or (str[i][0] == 'H' and str[i][1] == 'o') or (
-                            str[i][0] == 'H' and str[i][1] == 'a')):
-                        WH = str[i].split(',')
-                        if (len(WH) == 1):
+            if len(str[i]) >= 3:
+                if hNvalidation(str[i]) == 1:
+                    if (
+                        (str[i][0] == "W" and str[i][1] == "h")
+                        or (str[i][0] == "H" and str[i][1] == "o")
+                        or (str[i][0] == "H" and str[i][1] == "a")
+                    ):
+                        WH = str[i].split(",")
+                        if len(WH) == 1:
                             str[i] = str[i][:-1]
                             str[i] = str[i][:-1]
                             str[i] = str[i][:-1]
                             str[i] = str[i] + "?"
                             count = count + 1
 
-                            if (count < 10):
+                            if count < 10:
                                 final.append(str[i])
-                                
 
                             else:
                                 final.append(str[i])
-                                
 
         return list(set(final))
-
-        

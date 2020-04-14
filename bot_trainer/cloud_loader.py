@@ -1,12 +1,12 @@
 import boto3
 import os
 
-class FileUploader:
 
+class FileUploader:
     @staticmethod
     def upload_File(self, file, bucket):
         session = boto3.Session()
-        s3 = session.client('s3')
+        s3 = session.client("s3")
         if not FileUploader.__check_bucket_exist(s3, bucket):
             s3.create_bucket(bucket)
         s3.upload_file(file, bucket, os.path.basename(file))

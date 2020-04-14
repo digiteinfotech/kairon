@@ -10,13 +10,13 @@ class RESPONSE(Enum):
 
 
 class DOMAIN(Enum):
-    INTENTS = 'intents'
-    ACTIONS = 'actions'
-    SLOTS = 'slots'
-    SESSION_CONFIG = 'session_config'
-    RESPONSES = 'responses'
-    FORMS = 'forms'
-    ENTITIES = 'entities'
+    INTENTS = "intents"
+    ACTIONS = "actions"
+    SLOTS = "slots"
+    SESSION_CONFIG = "session_config"
+    RESPONSES = "responses"
+    FORMS = "forms"
+    ENTITIES = "entities"
 
 
 class ENTITY(Enum):

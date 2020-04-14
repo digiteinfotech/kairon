@@ -23,20 +23,24 @@ def whom_1(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
-                if chunked[j][1][1] == 'PRP':
+                if chunked[j][1][1] == "PRP":
                     str2 = " to whom "
                 else:
                     for x in range(len(chunked[j])):
-                        if (chunked[j][x][1] == "NNP" or chunked[j][x][1] == "NNPS" or chunked[j][x][1] == "NNS" or
-                                chunked[j][x][1] == "NN"):
+                        if (
+                            chunked[j][x][1] == "NNP"
+                            or chunked[j][x][1] == "NNPS"
+                            or chunked[j][x][1] == "NNS"
+                            or chunked[j][x][1] == "NN"
+                        ):
                             break
 
                     for x1 in range(len(ner)):
@@ -44,7 +48,11 @@ def whom_1(segment_set, num, ner):
                         if ner[x1][0] == chunked[j][x][0]:
                             if ner[x1][1] == "PERSON":
                                 str2 = " to whom "
-                            elif ner[x1][1] == "LOC" or ner[x1][1] == "ORG" or ner[x1][1] == "GPE":
+                            elif (
+                                ner[x1][1] == "LOC"
+                                or ner[x1][1] == "ORG"
+                                or ner[x1][1] == "GPE"
+                            ):
                                 str2 = " where "
                             elif ner[x1][1] == "TIME" or ner[x1][1] == "DATE":
                                 str2 = " when "
@@ -70,18 +78,18 @@ def whom_1(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
                     st = str5 + str2 + str4 + str6 + str3
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
@@ -109,27 +117,35 @@ def whom_2(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
-                if chunked[j][1][1] == 'PRP':
+                if chunked[j][1][1] == "PRP":
                     str2 = " " + chunked[j][0][0] + " whom "
                 else:
                     for x in range(len(chunked[j])):
-                        if (chunked[j][x][1] == "NNP" or chunked[j][x][1] == "NNPS" or chunked[j][x][1] == "NNS" or
-                                chunked[j][x][1] == "NN"):
+                        if (
+                            chunked[j][x][1] == "NNP"
+                            or chunked[j][x][1] == "NNPS"
+                            or chunked[j][x][1] == "NNS"
+                            or chunked[j][x][1] == "NN"
+                        ):
                             break
 
                     for x1 in range(len(ner)):
                         if ner[x1][0] == chunked[j][x][0]:
                             if ner[x1][1] == "PERSON":
                                 str2 = " " + chunked[j][0][0] + " whom "
-                            elif ner[x1][1] == "LOC" or ner[x1][1] == "ORG" or ner[x1][1] == "GPE":
+                            elif (
+                                ner[x1][1] == "LOC"
+                                or ner[x1][1] == "ORG"
+                                or ner[x1][1] == "GPE"
+                            ):
                                 str2 = " where "
                             elif ner[x1][1] == "TIME" or ner[x1][1] == "DATE":
                                 str2 = " when "
@@ -155,18 +171,18 @@ def whom_2(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
                     st = str5 + str2 + str4 + str6 + str3
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
@@ -194,27 +210,35 @@ def whom_3(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
-                if chunked[j][1][1] == 'PRP':
+                if chunked[j][1][1] == "PRP":
                     str2 = " whom "
                 else:
                     for x in range(len(chunked[j])):
-                        if (chunked[j][x][1] == "NNP" or chunked[j][x][1] == "NNPS" or chunked[j][x][1] == "NNS" or
-                                chunked[j][x][1] == "NN"):
+                        if (
+                            chunked[j][x][1] == "NNP"
+                            or chunked[j][x][1] == "NNPS"
+                            or chunked[j][x][1] == "NNS"
+                            or chunked[j][x][1] == "NN"
+                        ):
                             break
 
                     for x1 in range(len(ner)):
                         if ner[x1][0] == chunked[j][x][0]:
                             if ner[x1][1] == "PERSON":
                                 str2 = " whom "
-                            elif ner[x1][1] == "LOC" or ner[x1][1] == "ORG" or ner[x1][1] == "GPE":
+                            elif (
+                                ner[x1][1] == "LOC"
+                                or ner[x1][1] == "ORG"
+                                or ner[x1][1] == "GPE"
+                            ):
                                 str2 = " what "
                             elif ner[x1][1] == "TIME" or ner[x1][1] == "DATE":
                                 str2 = " what time "
@@ -252,18 +276,18 @@ def whom_3(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
                     st = str5 + str2 + str4 + str6 + str3
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
@@ -291,33 +315,33 @@ def whose(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
                 str1 += " whose "
 
                 for k in range(i + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
-                if chunked[i][1][1] == 'POS':
+                if chunked[i][1][1] == "POS":
                     for k in range(2, len(chunked[i])):
-                        str2 += (chunked[i][k][0] + " ")
+                        str2 += chunked[i][k][0] + " "
 
-                if chunked[i][0][1] == 'PRP$':
+                if chunked[i][0][1] == "PRP$":
                     for k in range(1, len(chunked[i])):
-                        str2 += (chunked[i][k][0] + " ")
+                        str2 += chunked[i][k][0] + " "
 
                 str2 = str1 + str2 + str3
                 str4 = ""
 
                 for l in range(0, len(segment_set)):
                     if l < num:
-                        str4 += (segment_set[l] + ",")
+                        str4 += segment_set[l] + ","
                     if l > num:
-                        str2 += ("," + segment_set[l])
+                        str2 += "," + segment_set[l]
                 str2 = str4 + str2
-                str2 += '?'
+                str2 += "?"
                 str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
                 list3.append(str2)
@@ -328,7 +352,9 @@ def whose(segment_set, num, ner):
 def what_to_do(segment_set, num, ner):
     tok = nltk.word_tokenize(segment_set[num])
     tag = nltk.pos_tag(tok)
-    gram = r"""chunk:{<TO>+<VB|VBP|RP>+<DT>?<RB.?>*<JJ.?>*<NN.?|PRP|PRP\$|POS|VBG|DT>*}"""
+    gram = (
+        r"""chunk:{<TO>+<VB|VBP|RP>+<DT>?<RB.?>*<JJ.?>*<NN.?|PRP|PRP\$|POS|VBG|DT>*}"""
+    )
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
@@ -345,13 +371,13 @@ def what_to_do(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
                 ls = get_chunk(chunked[j])
                 tok = nltk.word_tokenize(ls)
@@ -387,27 +413,35 @@ def what_to_do(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
-                    if chunked2[j][1][1] == 'PRP':
+                    if chunked2[j][1][1] == "PRP":
                         tr = " whom "
                     else:
                         for x in range(len(chunked[j])):
-                            if (chunked[j][x][1] == "NNP" or chunked[j][x][1] == "NNPS" or chunked[j][x][1] == "NNS" or
-                                    chunked[j][x][1] == "NN"):
+                            if (
+                                chunked[j][x][1] == "NNP"
+                                or chunked[j][x][1] == "NNPS"
+                                or chunked[j][x][1] == "NNS"
+                                or chunked[j][x][1] == "NN"
+                            ):
                                 break
 
                         for x1 in range(len(ner)):
                             if ner[x1][0] == chunked[j][x][0]:
                                 if ner[x1][1] == "PERSON":
                                     tr = " whom "
-                                elif ner[x1][1] == "LOC" or ner[x1][1] == "ORG" or ner[x1][1] == "GPE":
+                                elif (
+                                    ner[x1][1] == "LOC"
+                                    or ner[x1][1] == "ORG"
+                                    or ner[x1][1] == "GPE"
+                                ):
                                     tr = " where "
                                 elif ner[x1][1] == "TIME" or ner[x1][1] == "DATE":
                                     tr = " when "
@@ -416,8 +450,8 @@ def what_to_do(segment_set, num, ner):
 
                     st = str5 + tr + str4 + str2 + str6 + str3
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
@@ -443,26 +477,31 @@ def who(segment_set, num, ner):
                 if k in list1:
                     str1 += get_chunk(chunked[k])
                 else:
-                    str1 += (chunked[k][0] + " ")
+                    str1 += chunked[k][0] + " "
 
             str2 = get_chunk(chunked[m])
             tok = nltk.word_tokenize(str2)
             tag = nltk.pos_tag(tok)
 
             for m11 in range(len(tag)):
-                if tag[m11][1] == 'NNP' or tag[m11][1] == 'NNPS' or tag[m11][1] == 'NNS' or tag[m11][1] == 'NN':
+                if (
+                    tag[m11][1] == "NNP"
+                    or tag[m11][1] == "NNPS"
+                    or tag[m11][1] == "NNS"
+                    or tag[m11][1] == "NN"
+                ):
                     break
-            s11 = ' who '
+            s11 = " who "
             for m12 in range(len(ner)):
                 if ner[m12][0] == tag[m11][0]:
-                    if ner[m12][1] == 'LOC':
-                        s11 = ' which place '
-                    elif ner[m12][1] == 'ORG':
-                        s11 = ' who '
-                    elif ner[m12][1] == 'DATE' or ner[m12][1] == 'TIME':
-                        s11 = ' what time '
+                    if ner[m12][1] == "LOC":
+                        s11 = " which place "
+                    elif ner[m12][1] == "ORG":
+                        s11 = " who "
+                    elif ner[m12][1] == "DATE" or ner[m12][1] == "TIME":
+                        s11 = " what time "
                     else:
-                        s11 = ' who '
+                        s11 = " who "
 
             gram = r"""chunk:{<RB.?>*<VB.?|MD|RP>+}"""
             chunkparser = nltk.RegexpParser(gram)
@@ -476,8 +515,8 @@ def who(segment_set, num, ner):
                     if k in list2:
                         str2 += get_chunk(chunked[k])
                     else:
-                        str2 += (chunked[k][0] + " ")
-                str2 += (" " + str1)
+                        str2 += chunked[k][0] + " "
+                str2 += " " + str1
 
                 tok_1 = nltk.word_tokenize(str2)
                 str2 = ""
@@ -485,11 +524,11 @@ def who(segment_set, num, ner):
                     if tok_1[h] == "am":
                         str2 += " is "
                     else:
-                        str2 += (tok_1[h] + " ")
+                        str2 += tok_1[h] + " "
 
                 for l in range(num + 1, len(segment_set)):
-                    str2 += ("," + segment_set[l])
-                str2 += '?'
+                    str2 += "," + segment_set[l]
+                str2 += "?"
 
                 str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
@@ -516,7 +555,7 @@ def howmuch_2(segment_set, num, ner):
                 if k in list1:
                     str1 += get_chunk(chunked[k])
                 else:
-                    str1 += (chunked[k][0] + " ")
+                    str1 += chunked[k][0] + " "
 
             str2 = get_chunk(chunked[m])
             tok = nltk.word_tokenize(str2)
@@ -524,7 +563,7 @@ def howmuch_2(segment_set, num, ner):
             gram = r"""chunk:{<RB.?>*<VB.?|MD|RP>+}"""
             chunkparser = nltk.RegexpParser(gram)
             chunked1 = chunkparser.parse(tag)
-            s11 = ' how much '
+            s11 = " how much "
 
             list2 = chunk_search(str2, chunked1)
             if len(list2) != 0:
@@ -534,8 +573,8 @@ def howmuch_2(segment_set, num, ner):
                     if k in list2:
                         str2 += get_chunk(chunked[k])
                     else:
-                        str2 += (chunked[k][0] + " ")
-                str2 += (" " + str1)
+                        str2 += chunked[k][0] + " "
+                str2 += " " + str1
 
                 tok_1 = nltk.word_tokenize(str2)
                 str2 = ""
@@ -543,11 +582,11 @@ def howmuch_2(segment_set, num, ner):
                     if tok_1[h] == "am":
                         str2 += " is "
                     else:
-                        str2 += (tok_1[h] + " ")
+                        str2 += tok_1[h] + " "
 
                 for l in range(num + 1, len(segment_set)):
-                    str2 += ("," + segment_set[l])
-                str2 += '?'
+                    str2 += "," + segment_set[l]
+                str2 += "?"
 
                 str2 = postprocess(str2)
                 # str2 = 'Q.' + str2
@@ -576,15 +615,15 @@ def howmuch_1(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
-                str2 = ' ' + chunked[j][0][0] + ' how much '
+                str2 = " " + chunked[j][0][0] + " how much "
 
                 tok = nltk.word_tokenize(str1)
                 tag = nltk.pos_tag(tok)
@@ -605,18 +644,18 @@ def howmuch_1(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
                     st = str5 + str2 + str4 + str6 + str3
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
@@ -627,7 +666,9 @@ def howmuch_1(segment_set, num, ner):
 def howmuch_3(segment_set, num, ner):
     tok = nltk.word_tokenize(segment_set[num])
     tag = nltk.pos_tag(tok)
-    gram = r"""chunk:{<MD>?<VB|VBD|VBG|VBP|VBN|VBZ>+<IN|TO>?<PRP|PRP\$|NN.?>?<\$>*<CD>+}"""
+    gram = (
+        r"""chunk:{<MD>?<VB|VBD|VBG|VBP|VBN|VBZ>+<IN|TO>?<PRP|PRP\$|NN.?>?<\$>*<CD>+}"""
+    )
     chunkparser = nltk.RegexpParser(gram)
     chunked = chunkparser.parse(tag)
 
@@ -644,13 +685,13 @@ def howmuch_3(segment_set, num, ner):
                     if k in list1:
                         str1 += get_chunk(chunked[k])
                     else:
-                        str1 += (chunked[k][0] + " ")
+                        str1 += chunked[k][0] + " "
 
                 for k in range(j + 1, len(chunked)):
                     if k in list1:
                         str3 += get_chunk(chunked[k])
                     else:
-                        str3 += (chunked[k][0] + " ")
+                        str3 += chunked[k][0] + " "
 
                 strx = get_chunk(chunked[j])
                 tok = nltk.word_tokenize(strx)
@@ -660,9 +701,9 @@ def howmuch_3(segment_set, num, ner):
                 chunked1 = chunkparser.parse(tag)
 
                 strx = get_chunk(chunked1[0])
-                str1 += (" " + strx)
+                str1 += " " + strx
 
-                str2 = ' how much '
+                str2 = " how much "
 
                 tok = nltk.word_tokenize(str1)
                 tag = nltk.pos_tag(tok)
@@ -684,19 +725,19 @@ def howmuch_3(segment_set, num, ner):
                         if k in list2:
                             str5 += get_chunk(chunked1[k])
                         else:
-                            str5 += (chunked1[k][0] + " ")
+                            str5 += chunked1[k][0] + " "
 
                     for k in range(m + 1, len(chunked1)):
                         if k in list2:
                             str6 += get_chunk(chunked1[k])
                         else:
-                            str6 += (chunked1[k][0] + " ")
+                            str6 += chunked1[k][0] + " "
 
                     st = str5 + str2 + str4 + str6 + str3
 
                     for l in range(num + 1, len(segment_set)):
-                        st += ("," + segment_set[l])
-                    st += '?'
+                        st += "," + segment_set[l]
+                    st += "?"
                     st = postprocess(st)
                     # st = 'Q.' + st
                     list3.append(st)
