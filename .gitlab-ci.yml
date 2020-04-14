@@ -30,7 +30,7 @@ build:
     - master
   stage: build
   script:
-    - docker build -f docker/Dockerfile_api -t bot-trainer-api:0.1 .
+    - docker build -t bot-trainer-api:0.1 -f docker/Dockerfile_api
 
 cleanup:
   stage: cleanup
