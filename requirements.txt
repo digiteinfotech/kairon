@@ -6,8 +6,7 @@ rasa==1.9.5
 gensim
 sentence_transformers
 autocorrect
-Quart
-Quart-CORS
+fastapi==0.54.1
 spacy
 mongomock
 pytest
