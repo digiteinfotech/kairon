@@ -7,3 +7,4 @@ sample
 *.html
 coverage_html
 .pytest_cache
+*.log

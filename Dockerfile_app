@@ -1,0 +1,24 @@
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+
+SHELL ["/bin/bash", "-c"]
+
+ENV RASA_NLU_DOCKER="YES" \
+    RASA_NLU_HOME=/app \
+    RASA_NLU_PYTHON_PACKAGES=/usr/local/lib/python3.6/dist-packages
+
+WORKDIR ${RASA_NLU_HOME}
+
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install pyyaml
+RUN python3 -m pip install rasa==1.9.5
+RUN python3 -m pip install cython
+RUN python3 -m pip install pandas
+RUN mkdir ssl
+
+COPY ${RASA_NLU_HOME}/bot_trainer
+
+RUN python3 setup.py build_ext
+
+EXPOSE 80
+
+CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80"]
