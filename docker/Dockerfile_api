@@ -15,9 +15,7 @@ RUN python3 -m pip install cython
 RUN python3 -m pip install pandas
 RUN mkdir ssl
 
-COPY ${RASA_NLU_HOME}/bot_trainer
-
-RUN python3 setup.py build_ext
+COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
 
 EXPOSE 80
 
