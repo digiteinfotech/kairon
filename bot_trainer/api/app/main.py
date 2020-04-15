@@ -44,7 +44,15 @@ async def http_exception_handler(request, exc):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logging.exception(exc)
-    return JSONResponse({"success": False, "error_code": 400, "message": str(exc)})
+    exception_str = str(exc)
+    last_index = exception_str.find("(")
+    return JSONResponse(
+        {
+            "success": False,
+            "error_code": 400,
+            "message": exception_str[:last_index].strip(),
+        }
+    )
 
 
 @app.exception_handler(DoesNotExist)
@@ -67,3 +75,4 @@ async def app_exception_handler(request, exc):
 
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(bot.router, prefix="/api/bot")
+app.include_router(bot.router, prefix="/api/augment")

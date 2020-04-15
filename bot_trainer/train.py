@@ -1,11 +1,13 @@
-from bot_trainer.data_processor.importer import MongoDataImporter
+import tempfile
+from contextlib import ExitStack
 from typing import Text, Optional, Dict
+
 from rasa.importers.importer import TrainingDataImporter
 from rasa.train import DEFAULT_MODELS_PATH
-from contextlib import ExitStack
-from rasa.utils.common import TempDirectoryPath
-import tempfile
 from rasa.train import _train_async_internal, handle_domain_if_not_exists
+from rasa.utils.common import TempDirectoryPath
+
+from bot_trainer.data_processor.importer import MongoDataImporter
 
 
 async def train_model(

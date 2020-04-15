@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import Dict, List, Any
+from pydantic import BaseModel, validator
+from typing import List, Any
+from enum import Enum
 
 
 class Token(BaseModel):
@@ -22,10 +23,31 @@ class User(BaseModel):
 
 class Response(BaseModel):
     success: bool = True
-    message: str = ""
+    message: str = None
     data: Any
     error_code: int = 0
 
 
 class RequestData(BaseModel):
     data: Any
+
+
+class StoryEventType(str, Enum):
+    user = "user"
+    action = "action"
+    form = "form"
+    slot = "slot"
+
+
+class StoryEventRequest(BaseModel):
+    name: str
+    type: StoryEventType
+    value: str = None
+
+
+class StoryRequest(BaseModel):
+    name: str
+    events: List[StoryEventRequest]
+
+    def get_events(self):
+        return [event.dict() for event in self.events]

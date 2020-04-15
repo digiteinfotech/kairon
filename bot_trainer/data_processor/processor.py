@@ -777,13 +777,19 @@ class MongoProcessor:
         self.__check_event_existence(
             events, bot=bot, exp_message="Story already exists!"
         )
-        Stories(
-            block_name=name,
-            events=events,
-            bot=bot,
-            user=user,
-            start_checkpoints=[STORY_START],
-        ).save()
+        return (
+            Stories(
+                block_name=name,
+                events=events,
+                bot=bot,
+                user=user,
+                start_checkpoints=[STORY_START],
+            )
+            .save()
+            .to_mongo()
+            .to_dict()["_id"]
+            .__str__()
+        )
 
     def __check_event_existence(
         self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
@@ -808,3 +814,21 @@ class MongoProcessor:
         else:
             if not raise_error:
                 return False
+
+    def get_stories(self, bot: Text):
+        for value in Stories.objects(bot=bot, status=True):
+            item = value.to_mongo().to_dict()
+            item.pop("bot")
+            item.pop("user")
+            item.pop("timestamp")
+            item.pop("status")
+            item["_id"] = item["_id"].__str__()
+            yield item
+
+    def get_utterance_from_intent(self, intent: Text, bot: Text):
+        responses = Responses.objects(bot=bot).distinct(field="name")
+        story = Stories.objects(bot=bot, events__name=intent)
+        if story:
+            for event in story[0].events:
+                if event.type == "action" and event.name in responses:
+                    return event.name

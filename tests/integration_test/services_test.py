@@ -228,7 +228,7 @@ def test_remove_training_examples_empty_id():
 
 def test_get_responses():
     response = client.get(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -241,7 +241,7 @@ def test_get_responses():
 
 def test_add_response():
     response = client.post(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         json={"data": "Wow! How are you?"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -251,7 +251,7 @@ def test_add_response():
     assert actual["error_code"] == 0
     assert actual["message"] == "Response added successfully!"
     response = client.get(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -260,7 +260,7 @@ def test_add_response():
 
 def test_add_response_duplicate():
     response = client.post(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         json={"data": "Wow! How are you?"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -272,7 +272,7 @@ def test_add_response_duplicate():
 
 def test_add_empty_response():
     response = client.post(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         json={"data": ""},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -285,13 +285,13 @@ def test_add_empty_response():
 
 def test_remove_response():
     training_examples = client.get(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 2
     response = client.delete(
-        "/api/bot/responses",
+        "/api/bot/response",
         json={"data": training_examples["data"][0]["_id"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -301,7 +301,7 @@ def test_remove_response():
     assert actual["error_code"] == 0
     assert actual["message"] == "Response removed successfully!"
     training_examples = client.get(
-        "/api/bot/responses/utter_greet",
+        "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
@@ -310,7 +310,7 @@ def test_remove_response():
 
 def test_remove_response_empty_id():
     response = client.delete(
-        "/api/bot/responses",
+        "/api/bot/response",
         json={"data": ""},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -318,3 +318,110 @@ def test_remove_response_empty_id():
     assert not actual["success"]
     assert actual["error_code"] == 400
     assert actual["message"] == "Unable to remove document"
+
+
+def test_add_story():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "events": [
+                {"name": "greet", "type": "user"},
+                {"name": "utter_greet", "type": "action"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story added successfully"
+    assert actual["data"]["_id"]
+
+
+def test_add_story_empty_event():
+    response = client.post(
+        "/api/bot/stories",
+        json={"name": "test_path", "events": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 400
+    assert actual["message"] == "Stories cannot be empty"
+
+
+def test_add_story_missing_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "events": [{"name": "greet"}, {"name": "utter_greet", "type": "action"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 400
+    assert (
+        actual["message"]
+        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required"
+    )
+
+
+def test_add_story_invalid_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "events": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_greet", "type": "action"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 400
+    assert (
+        actual["message"]
+        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot'"
+    )
+
+
+def test_get_stories():
+    response = client.get(
+        "/api/bot/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_get_story_from_intent():
+    response = client.get(
+        "/api/bot/story_from_intent/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_get_story_from_not_exist_intent():
+    response = client.get(
+        "/api/bot/story_from_intent/greeting",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert Utility.check_empty_string(actual["message"])

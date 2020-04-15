@@ -5,6 +5,7 @@ from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.data_processor.data_objects import *
+from bot_trainer.train import train_model_from_mongo
 
 router = APIRouter()
 auth = Authentication()
@@ -57,14 +58,14 @@ async def remove_training_examples(
     return {"message": "Training Example removed successfully!"}
 
 
-@router.get("/responses/{utterance}", response_model=Response)
+@router.get("/response/{utterance}", response_model=Response)
 async def get_responses(
     utterance: str, current_user: User = Depends(auth.get_current_user)
 ):
     return {"data": list(mongo_processor.get_response(utterance, current_user.bot))}
 
 
-@router.post("/responses/{utterance}", response_model=Response)
+@router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
     request_data: RequestData,
     utterance: str,
@@ -76,7 +77,7 @@ async def add_responses(
     return {"message": "Response added successfully!", "data": {"_id": id}}
 
 
-@router.delete("/responses", response_model=Response)
+@router.delete("/response", response_model=Response)
 async def remove_responses(
     request_data: RequestData, current_user: User = Depends(auth.get_current_user)
 ):
@@ -86,3 +87,56 @@ async def remove_responses(
     return {
         "message": "Response removed successfully!",
     }
+
+
+@router.get("/stories", response_model=Response)
+async def get_stories(current_user: User = Depends(auth.get_current_user)):
+    return {"data": list(mongo_processor.get_stories(current_user.bot))}
+
+
+@router.post("/stories", response_model=Response)
+async def add_stories(
+    story: StoryRequest, current_user: User = Depends(auth.get_current_user)
+):
+    return {
+        "message": "Story added successfully",
+        "data": {
+            "_id": mongo_processor.add_story(
+                story.name, story.get_events(), current_user.bot, current_user.email
+            )
+        },
+    }
+
+
+@router.get("/stories", response_model=Response)
+async def get_stories(current_user: User = Depends(auth.get_current_user)):
+    return {"data": list(mongo_processor.get_stories(current_user.bot))}
+
+
+@router.get("/story_from_intent/{intent}", response_model=Response)
+async def get_story_from_intent(
+    intent: Text, current_user: User = Depends(auth.get_current_user)
+):
+    return {"data": mongo_processor.get_utterance_from_intent(intent, current_user.bot)}
+
+
+@router.post("/chat", response_model=Response)
+async def chat(
+    request_data: RequestData, current_user: User = Depends(auth.get_current_user)
+):
+    return {"data": ""}
+
+
+@router.post("/train", response_model=Response)
+async def train(
+    current_user: User = Depends(auth.get_current_user)
+):
+    model_file = await train_model_from_mongo(current_user.bot)
+    return {"data": {"file":model_file}, "message": "Model trained successfully"}
+
+
+@router.post("/deploy", response_model=Response)
+async def deploy(
+    current_user: User = Depends(auth.get_current_user)
+):
+    return {"data": ""}

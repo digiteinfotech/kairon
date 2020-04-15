@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from bot_trainer.exceptions import AppException
-
+from typing import Text, List, Dict
 from mongoengine import (
     Document,
     EmbeddedDocument,
