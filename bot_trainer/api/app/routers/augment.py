@@ -13,4 +13,4 @@ mongo_processor = MongoProcessor()
 async def questions(
     current_user: User = Depends(auth.get_current_user)
 ):
-    return None
+    return {"data":{"questions":[]}}

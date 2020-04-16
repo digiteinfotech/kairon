@@ -124,7 +124,7 @@ async def get_story_from_intent(
 async def chat(
     request_data: RequestData, current_user: User = Depends(auth.get_current_user)
 ):
-    return {"data": ""}
+    return {"data": {"response":""}}
 
 
 @router.post("/train", response_model=Response)
@@ -139,4 +139,4 @@ async def train(
 async def deploy(
     current_user: User = Depends(auth.get_current_user)
 ):
-    return {"data": ""}
+    return {"message":"Model deployed successfully"}
