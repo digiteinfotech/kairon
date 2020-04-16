@@ -22,7 +22,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert (
             processor.save_from_path("tests/testing_data/initial", "tests", "testUser")
-            == None
+            is None
         )
 
     def test_load_from_path_error(self):
@@ -34,7 +34,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_from_path("tests/testing_data/all", "all", "testUser")
         training_data = processor.load_nlu("all")
-        assert isinstance(training_data, TrainingData) == True
+        assert isinstance(training_data, TrainingData)
         assert training_data.training_examples.__len__() == 283
         assert training_data.entity_synonyms.__len__() == 3
         assert training_data.regex_features.__len__() == 5
@@ -60,7 +60,7 @@ class TestMongoProcessor:
     def test_load_nlu(self):
         processor = MongoProcessor()
         training_data = processor.load_nlu("tests")
-        assert isinstance(training_data, TrainingData) == True
+        assert isinstance(training_data, TrainingData)
         assert training_data.training_examples.__len__() == 43
         assert training_data.entity_synonyms.__len__() == 0
         assert training_data.regex_features.__len__() == 0
@@ -80,7 +80,7 @@ class TestMongoProcessor:
     def test_load_stories(self):
         processor = MongoProcessor()
         story_graph = processor.load_stories("tests")
-        assert isinstance(story_graph, StoryGraph) == True
+        assert isinstance(story_graph, StoryGraph)
         assert story_graph.story_steps.__len__() == 5
 
     def test_add_intent(self):
@@ -475,3 +475,58 @@ class TestMongoProcessor:
         ]
         with pytest.raises(ValidationError):
             processor.add_story("greeting", events, "tests", "testUser")
+
+    def test_get_session_config(self):
+        processor = MongoProcessor()
+        session_config = processor.get_session_config("tests")
+        assert session_config
+        assert all(
+            session_config[key] for key in ["sesssionExpirationTime", "carryOverSlots"]
+        )
+
+    def test_update_session_config(self):
+        processor = MongoProcessor()
+        session_config = processor.get_session_config("tests")
+        assert session_config
+        assert all(
+            session_config[key] for key in ["sesssionExpirationTime", "carryOverSlots"]
+        )
+        id = processor.add_session_config(
+            id=session_config["_id"],
+            sesssionExpirationTime=30,
+            carryOverSlots=False,
+            bot="tests",
+            user="testUser",
+        )
+        assert id == session_config["_id"]
+        session_config = processor.get_session_config("tests")
+        assert session_config["sesssionExpirationTime"] == 30
+        assert session_config["carryOverSlots"] is False
+
+    def test_add_session_config_duplicate(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.add_session_config(
+                sesssionExpirationTime=30,
+                carryOverSlots=False,
+                bot="tests",
+                user="testUser",
+            )
+
+    def test_add_session_config_empty_id(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.add_session_config(
+                id="",
+                sesssionExpirationTime=30,
+                carryOverSlots=False,
+                bot="tests",
+                user="testUser",
+            )
+
+    def test_add_session_config(self):
+        processor = MongoProcessor()
+        id = processor.add_session_config(
+            sesssionExpirationTime=30, carryOverSlots=False, bot="test", user="testUser"
+        )
+        assert id

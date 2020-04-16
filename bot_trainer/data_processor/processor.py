@@ -77,6 +77,7 @@ class MongoProcessor:
         self.__save_actions(domain.user_actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
+        self.__save_session_config(domain.session_config, bot, user)
 
     def load_domain(self, bot: Text) -> Domain:
         domain_dict = {
@@ -830,3 +831,36 @@ class MongoProcessor:
             for event in story[0].events:
                 if event.type == "action" and event.name in responses:
                     return event.name
+
+    def add_session_config(
+        self,
+        bot: Text,
+        user: Text,
+        id: Text = None,
+        sesssionExpirationTime: int = 60,
+        carryOverSlots: bool = True,
+    ):
+        if not Utility.check_empty_string(id):
+
+            session_config = SessionConfigs.objects().get(id=id)
+            session_config.sesssionExpirationTime = sesssionExpirationTime
+            session_config.carryOverSlots = carryOverSlots
+        else:
+            if SessionConfigs.objects(bot=bot):
+                raise AppException("Session config already exists!")
+            session_config = SessionConfigs(
+                sesssionExpirationTime=sesssionExpirationTime,
+                carryOverSlots=carryOverSlots,
+                bot=bot,
+                user=user,
+            )
+
+        return session_config.save().to_mongo().to_dict()["_id"].__str__()
+
+    def get_session_config(self, bot: Text):
+        session_config = SessionConfigs.objects().get(bot=bot).to_mongo().to_dict()
+        return {
+            "_id": session_config["_id"].__str__(),
+            "sesssionExpirationTime": session_config["sesssionExpirationTime"],
+            "carryOverSlots": session_config["carryOverSlots"],
+        }

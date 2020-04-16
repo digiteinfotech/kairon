@@ -22,3 +22,4 @@ python-multipart
 validate_email
 py3dns
 black
+uvicorn

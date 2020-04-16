@@ -13,14 +13,14 @@ class ChatHistory:
     @staticmethod
     def get_tracker_and_domain(bot: Text):
         domain = ChatHistory.mongo_processor.load_domain(bot)
-        tracker = MongoTrackerStore(
-            domain=domain, host="", db=""
-        )
+        tracker = MongoTrackerStore(domain=domain, host="", db="")
         return (domain, tracker)
 
     @staticmethod
-    def fetch_chat_history(bot: Text,sender, latest_history=False):
-        events = ChatHistory.__fetch_user_history(bot, sender, latest_history=latest_history)
+    def fetch_chat_history(bot: Text, sender, latest_history=False):
+        events = ChatHistory.__fetch_user_history(
+            bot, sender, latest_history=latest_history
+        )
         return list(ChatHistory.__prepare_data(events))
 
     @staticmethod
@@ -66,9 +66,7 @@ class ChatHistory:
         if latest_history:
             return tracker.retrieve(sender_id).as_dialogue().events
         else:
-            user_conversation = tracker.conversations.find_one(
-                {"sender_id": sender_id}
-            )
+            user_conversation = tracker.conversations.find_one({"sender_id": sender_id})
             return (
                 DialogueStateTracker.from_dict(
                     sender_id, list(user_conversation["events"]), domain.slots
@@ -153,7 +151,7 @@ class ChatHistory:
         )
 
     @staticmethod
-    def __fetch_history_metrics(bot: Text,show_session=False, filter_columns=None):
+    def __fetch_history_metrics(bot: Text, show_session=False, filter_columns=None):
         filter_events = ["user", "bot"]
         if show_session:
             filter_events.append("session_started")

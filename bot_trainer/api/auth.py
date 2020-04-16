@@ -11,12 +11,11 @@ from .processor import AccountProcessor
 
 Utility.load_evironment()
 
+
 class Authentication:
     SECRET_KEY = Utility.environment["SECRET_KEY"]
     ALGORITHM = Utility.environment["ALGORITHM"]
-    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment[
-            "ACCESS_TOKEN_EXPIRE_MINUTES"
-        ]
+    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment["ACCESS_TOKEN_EXPIRE_MINUTES"]
 
     async def get_current_user(self, token: str = Depends(Utility.oauth2_scheme)):
         credentials_exception = HTTPException(

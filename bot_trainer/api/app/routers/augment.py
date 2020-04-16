@@ -9,8 +9,7 @@ router = APIRouter()
 auth = Authentication()
 mongo_processor = MongoProcessor()
 
+
 @router.post("/questions", response_model=Response)
-async def questions(
-    current_user: User = Depends(auth.get_current_user)
-):
-    return {"data":{"questions":[]}}
+async def questions(current_user: User = Depends(auth.get_current_user)):
+    return {"data": {"questions": []}}

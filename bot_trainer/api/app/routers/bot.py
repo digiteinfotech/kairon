@@ -124,19 +124,15 @@ async def get_story_from_intent(
 async def chat(
     request_data: RequestData, current_user: User = Depends(auth.get_current_user)
 ):
-    return {"data": {"response":""}}
+    return {"data": {"response": ""}}
 
 
 @router.post("/train", response_model=Response)
-async def train(
-    current_user: User = Depends(auth.get_current_user)
-):
-    model_file = await train_model_from_mongo(current_user.bot)
-    return {"data": {"file":model_file}, "message": "Model trained successfully"}
+async def train(current_user: User = Depends(auth.get_current_user)):
+    model_file = await train_model_from_mongo(str(current_user.account)+"_"+current_user.bot)
+    return {"data": {"file": model_file}, "message": "Model trained successfully"}
 
 
 @router.post("/deploy", response_model=Response)
-async def deploy(
-    current_user: User = Depends(auth.get_current_user)
-):
-    return {"message":"Model deployed successfully"}
+async def deploy(current_user: User = Depends(auth.get_current_user)):
+    return {"message": "Model deployed successfully"}
