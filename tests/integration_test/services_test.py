@@ -19,8 +19,8 @@ def pytest_namespace():
 
 
 def add_user():
-    environment = Utility.load_evironment()
-    connect(environment["mongo_db"], host=environment["mongo_url"])
+    Utility.load_evironment()
+    connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
     account = AccountProcessor.add_account("integration", "testAdmin")
     bot = AccountProcessor.add_bot("integration", account["_id"], "testAdmin")
     AccountProcessor.add_user(

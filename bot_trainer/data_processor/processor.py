@@ -3,8 +3,6 @@ import itertools
 import logging
 import os
 from collections import ChainMap
-from typing import Dict
-from typing import Text, List
 
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -21,7 +19,7 @@ from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
-from bot_trainer.exceptions import AppException
+
 from .constant import *
 from .data_objects import *
 

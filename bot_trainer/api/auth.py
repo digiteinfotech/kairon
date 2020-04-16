@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Text, Dict
+from typing import Text
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -9,17 +9,12 @@ from bot_trainer.utils import Utility
 from .models import *
 from .processor import AccountProcessor
 
+Utility.load_evironment()
 
 class Authentication:
-    SECRET_KEY = None
-    ALGORITHM = None
-    ACCESS_TOKEN_EXPIRE_MINUTES = None
-
-    @staticmethod
-    def load(environment: Dict):
-        Authentication.SECRET_KEY = environment["SECRET_KEY"]
-        Authentication.ALGORITHM = environment["ALGORITHM"]
-        Authentication.ACCESS_TOKEN_EXPIRE_MINUTES = environment[
+    SECRET_KEY = Utility.environment["SECRET_KEY"]
+    ALGORITHM = Utility.environment["ALGORITHM"]
+    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment[
             "ACCESS_TOKEN_EXPIRE_MINUTES"
         ]
 

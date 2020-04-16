@@ -15,8 +15,8 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 class TestMongoProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        environment = Utility.load_evironment()
-        connect(environment["mongo_db"], host=environment["mongo_url"])
+        Utility.load_evironment()
+        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 
     def test_load_from_path(self):
         processor = MongoProcessor()

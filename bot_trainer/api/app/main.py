@@ -1,23 +1,22 @@
-from fastapi import FastAPI, HTTPException
-from mongoengine import connect, disconnect
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from bot_trainer.utils import Utility
-from fastapi.responses import JSONResponse
-from .routers import auth, bot
-from mongoengine.errors import DoesNotExist, ValidationError
-from bot_trainer.exceptions import AppException
 import logging
-from bot_trainer.api.auth import Authentication
 
-environment = Utility.load_evironment()
-Authentication.load(environment)
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from mongoengine import connect, disconnect
+from mongoengine.errors import DoesNotExist, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
+from .routers import auth, bot
+
 app = FastAPI()
 
 
 @app.on_event("startup")
 async def start_up():
-    connect(environment["mongo_db"], host=environment["mongo_url"])
+    connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 
 
 @app.on_event("shutdown")

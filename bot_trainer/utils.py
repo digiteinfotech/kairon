@@ -11,6 +11,7 @@ from bot_trainer.exceptions import AppException
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+    environment = None
 
     @staticmethod
     def check_empty_string(value: str):
@@ -47,7 +48,7 @@ class Utility:
         for key in environment:
             if key in os.environ:
                 environment[key] = os.getenv(key)
-        return environment
+        Utility.environment = environment
 
     @staticmethod
     def validate_fields(fields: Dict, data: Dict):

@@ -1,10 +1,10 @@
 from fastapi import APIRouter
-from fastapi import Depends, Path
+from fastapi import Depends
 
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
-from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.data_processor.data_objects import *
+from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.train import train_model_from_mongo
 
 router = APIRouter()

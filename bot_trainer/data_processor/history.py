@@ -1,24 +1,34 @@
-from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
-from rasa.core.domain import Domain
-import pandas as pd
 from datetime import datetime
+from typing import Text
+
+import pandas as pd
+from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
+
+from .processor import MongoProcessor
 
 
 class ChatHistory:
-    def __init__(self, domainFile: str, mongo_url: str, mongo_db="conversation"):
-        self.domain = Domain.load(domainFile)
-        self.tracker = MongoTrackerStore(
-            domain=self.domain, host=mongo_url, db=mongo_db
+    mongo_processor = MongoProcessor()
+
+    @staticmethod
+    def get_tracker_and_domain(bot: Text):
+        domain = ChatHistory.mongo_processor.load_domain(bot)
+        tracker = MongoTrackerStore(
+            domain=domain, host="", db=""
         )
+        return (domain, tracker)
 
-    def fetch_chat_history(self, sender, latest_history=False):
-        events = self.__fetch_user_history(sender, latest_history=latest_history)
-        return list(self.__prepare_data(events))
+    @staticmethod
+    def fetch_chat_history(sender, latest_history=False):
+        events = ChatHistory.__fetch_user_history(sender, latest_history=latest_history)
+        return list(ChatHistory.__prepare_data(events))
 
+    @staticmethod
     def fetch_chat_users(self):
         return self.tracker.keys()
 
-    def __prepare_data(self, events, show_session=False):
+    @staticmethod
+    def __prepare_data(events, show_session=False):
         bot_action = None
         for i in range(events.__len__()):
             event = events[i]
@@ -49,30 +59,34 @@ class ChatHistory:
                     event_data["name"] if event_data["event"] == "action" else None
                 )
 
-    def __fetch_user_history(self, sender_id, latest_history=True):
+    @staticmethod
+    def __fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
+        domain, tracker = ChatHistory.get_tracker(bot)
         if latest_history:
-            return self.tracker.retrieve(sender_id).as_dialogue().events
+            return tracker.retrieve(sender_id).as_dialogue().events
         else:
-            user_conversation = self.tracker.conversations.find_one(
+            user_conversation = tracker.conversations.find_one(
                 {"sender_id": sender_id}
             )
             return (
                 DialogueStateTracker.from_dict(
-                    sender_id, list(user_conversation["events"]), self.domain.slots
+                    sender_id, list(user_conversation["events"]), domain.slots
                 )
                 .as_dialogue()
                 .events
             )
 
-    def visitor_hit_fallback(self):
-        data_frame = self.__fetch_history_metrics()
+    @staticmethod
+    def visitor_hit_fallback():
+        data_frame = ChatHistory.__fetch_history_metrics()
         fallback_count = data_frame[
             data_frame["name"] == "action_default_fallback"
         ].count()["name"]
         total_count = data_frame.count()["name"]
         return {"fallback_count": fallback_count, "total_count": total_count}
 
-    def conversation_steps(self):
+    @staticmethod
+    def conversation_steps():
         """
         data_frame = data_frame.groupby(['sender_id', data_frame.event.ne('session_started')])
         data_frame = data_frame.size().reset_index()
@@ -80,7 +94,7 @@ class ChatHistory:
         data_frame = data_frame[data_frame['event'] != 0]
         return data_frame.to_json(orient='records')
         """
-        data_frame = self.__fetch_history_metrics()
+        data_frame = ChatHistory.__fetch_history_metrics()
         data_frame["prev_event"] = data_frame["event"].shift()
         data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
         data_frame.fillna("", inplace=True)
@@ -94,7 +108,8 @@ class ChatHistory:
             .to_json(orient="records")
         )
 
-    def conversation_steps(self):
+    @staticmethod
+    def conversation_steps():
         """
         data_frame = data_frame.groupby(['sender_id', data_frame.event.ne('session_started')])
         data_frame = data_frame.size().reset_index()
@@ -102,7 +117,7 @@ class ChatHistory:
         data_frame = data_frame[data_frame['event'] != 0]
         return data_frame.to_json(orient='records')
         """
-        data_frame = self.__fetch_history_metrics()
+        data_frame = ChatHistory.__fetch_history_metrics()
         data_frame["prev_event"] = data_frame["event"].shift()
         data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
         data_frame.fillna("", inplace=True)
@@ -116,8 +131,9 @@ class ChatHistory:
             .to_json(orient="records")
         )
 
-    def conversation_time(self):
-        data_frame = self.__fetch_history_metrics()
+    @staticmethod
+    def conversation_time():
+        data_frame = ChatHistory.__fetch_history_metrics()
         data_frame["prev_event"] = data_frame["event"].shift()
         data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
         data_frame.fillna("", inplace=True)
@@ -135,7 +151,8 @@ class ChatHistory:
             .to_json(orient="records")
         )
 
-    def __fetch_history_metrics(self, show_session=False, filter_columns=None):
+    @staticmethod
+    def __fetch_history_metrics(bot: Text,show_session=False, filter_columns=None):
         filter_events = ["user", "bot"]
         if show_session:
             filter_events.append("session_started")
@@ -150,7 +167,8 @@ class ChatHistory:
                 "input_channel",
                 "message_id",
             ]
-        records = self.tracker.conversations.find()
+        _, tracker = ChatHistory.get_tracker_and_domain(bot)
+        records = tracker.conversations.find()
         data_frame = pd.DataFrame(list(records))
         data_frame = data_frame.explode(column="events")
         data_frame = pd.concat(
