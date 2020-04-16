@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
-from .routers import auth, bot
+from .routers import auth, bot, augment, history
 
 app = FastAPI()
 
@@ -74,4 +74,5 @@ async def app_exception_handler(request, exc):
 
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(bot.router, prefix="/api/bot")
-app.include_router(bot.router, prefix="/api/augment")
+app.include_router(augment.router, prefix="/api/augment")
+app.include_router(history.router, prefix="/api/history")

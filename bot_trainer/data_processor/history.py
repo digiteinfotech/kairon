@@ -19,13 +19,14 @@ class ChatHistory:
         return (domain, tracker)
 
     @staticmethod
-    def fetch_chat_history(sender, latest_history=False):
-        events = ChatHistory.__fetch_user_history(sender, latest_history=latest_history)
+    def fetch_chat_history(bot: Text,sender, latest_history=False):
+        events = ChatHistory.__fetch_user_history(bot, sender, latest_history=latest_history)
         return list(ChatHistory.__prepare_data(events))
 
     @staticmethod
-    def fetch_chat_users(self):
-        return self.tracker.keys()
+    def fetch_chat_users(bot: Text):
+        _, tracker = ChatHistory.get_tracker_and_domain(bot)
+        return tracker.keys()
 
     @staticmethod
     def __prepare_data(events, show_session=False):
@@ -61,7 +62,7 @@ class ChatHistory:
 
     @staticmethod
     def __fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
-        domain, tracker = ChatHistory.get_tracker(bot)
+        domain, tracker = ChatHistory.get_tracker_and_domain(bot)
         if latest_history:
             return tracker.retrieve(sender_id).as_dialogue().events
         else:
