@@ -10,7 +10,7 @@ WORKDIR ${RASA_NLU_HOME}
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install spacy
-RUN python3 -m spacy download en_core_web_lg
+RUN python3 -m spacy download en_core_web_sm
 RUN python3 -m nltk.downloader wordnet
 RUN mkdir pretrained_model
 
