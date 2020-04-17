@@ -5,7 +5,6 @@ tensorflow-addons==0.8.3
 rasa==1.9.5
 gensim
 sentence_transformers
-autocorrect
 fastapi==0.54.1
 spacy
 mongomock
@@ -15,7 +14,7 @@ pytest-cov
 pytest-xdist
 pytest-asyncio
 pandas
-mongoengine
+mongoengine==0.19.1
 pyjwt
 passlib[bcrypt]
 python-multipart

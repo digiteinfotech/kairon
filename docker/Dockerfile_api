@@ -10,9 +10,15 @@ WORKDIR ${RASA_NLU_HOME}
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
+RUN python3 -m pip install mongoengine==0.19.1
 RUN python3 -m pip install rasa==1.9.5
 RUN python3 -m pip install cython
 RUN python3 -m pip install pandas
+RUN python3 -m pip install pyjwt
+RUN python3 -m pip install passlib[bcrypt]
+RUN python3 -m pip install python-multipart
+RUN python3 -m pip install validate_email
+RUN python3 -m pip install py3dns
 RUN mkdir ssl
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
