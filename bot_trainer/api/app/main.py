@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .routers import auth, bot, augment, history
+from bot_trainer.api.models import Response
 
 app = FastAPI()
 
@@ -27,8 +28,9 @@ async def start_up():
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     logging.exception(exc)
+
     return JSONResponse(
-        {"success": False, "error_code": exc.status_code, "message": str(exc.detail)}
+        Response(success=False, error_code=exc.status_code, message=str(exc.detail)).dict()
     )
 
 
@@ -36,7 +38,7 @@ async def startlette_exception_handler(request, exc):
 async def http_exception_handler(request, exc):
     logging.exception(exc)
     return JSONResponse(
-        {"success": False, "error_code": exc.status_code, "message": str(exc.detail)}
+        Response(success=False, error_code=exc.status_code, message=str(exc.detail)).dict()
     )
 
 
@@ -45,31 +47,25 @@ async def validation_exception_handler(request, exc):
     logging.exception(exc)
     exception_str = str(exc)
     last_index = exception_str.find("(")
-    return JSONResponse(
-        {
-            "success": False,
-            "error_code": 400,
-            "message": exception_str[:last_index].strip(),
-        }
-    )
+    return JSONResponse(Response(success=False, error_code=400, message=exception_str[:last_index].strip()).dict())
 
 
 @app.exception_handler(DoesNotExist)
 async def app_does_not_exist_exception_handler(request, exc):
     logging.exception(exc)
-    return JSONResponse({"success": False, "error_code": 400, "message": str(exc)})
+    return JSONResponse(Response(success=False, error_code=400, message=str(exc)).dict())
 
 
 @app.exception_handler(ValidationError)
 async def app_validation_exception_handler(request, exc):
     logging.exception(exc)
-    return JSONResponse({"success": False, "error_code": 400, "message": str(exc)})
+    return JSONResponse(Response(success=False, error_code=400, message=str(exc)).dict())
 
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request, exc):
     logging.exception(exc)
-    return JSONResponse({"success": False, "error_code": 400, "message": str(exc)})
+    return JSONResponse(Response(success=False, error_code=400, message=str(exc)).dict())
 
 
 app.include_router(auth.router, prefix="/api/auth")
