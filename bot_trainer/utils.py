@@ -6,7 +6,8 @@ from mongoengine import StringField, ListField
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from bot_trainer.exceptions import AppException
-
+import glob
+import os
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -87,3 +88,10 @@ class Utility:
     def get_password_hash(password):
         if not Utility.check_empty_string(password):
             return Utility.pwd_context.hash(password)
+
+
+    @staticmethod
+    def get_latest_file(folder):
+        if not os.path.exists(folder):
+            raise AppException("Folder does not exists!")
+        return max(glob.iglob(folder+"/*"), key=os.path.getctime)

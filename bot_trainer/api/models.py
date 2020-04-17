@@ -20,6 +20,9 @@ class User(BaseModel):
     account: int
     status: bool
 
+    def get_bot(self):
+        return str(self.account) + "_" + self.bot
+
 
 class Response(BaseModel):
     success: bool = True

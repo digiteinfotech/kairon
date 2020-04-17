@@ -5,9 +5,12 @@ from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 
 from bot_trainer.data_processor.data_objects import *
-from bot_trainer.data_processor.processor import MongoProcessor
+from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 import os
 from bot_trainer.utils import Utility
+from bot_trainer.train import train_model_from_mongo
+import asyncio
+from rasa.core.agent import Agent
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -530,3 +533,26 @@ class TestMongoProcessor:
             sesssionExpirationTime=30, carryOverSlots=False, bot="test", user="testUser"
         )
         assert id
+
+    def test_train_model(self):
+        loop = asyncio.new_event_loop()
+        model = loop.run_until_complete(train_model_from_mongo("tests"))
+        assert model
+
+    def test_train_model_empty_data(self):
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException):
+            model = loop.run_until_complete(train_model_from_mongo("test"))
+            assert model
+
+
+class TestAgentProcessor:
+
+    def test_get_agent_from_cache(self):
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_from_cache_does_not_exists(self):
+        with pytest.raises(AppException):
+            agent = AgentProcessor.get_agent("test")
+            assert isinstance(agent, Agent)

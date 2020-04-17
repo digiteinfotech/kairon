@@ -22,6 +22,9 @@ from rasa.utils.io import read_config_file
 
 from .constant import *
 from .data_objects import *
+from .cache import InMemoryAgentCache
+from rasa.train import DEFAULT_MODELS_PATH
+from rasa.core.agent import Agent
 
 
 class MongoProcessor:
@@ -864,3 +867,18 @@ class MongoProcessor:
             "sesssionExpirationTime": session_config["sesssionExpirationTime"],
             "carryOverSlots": session_config["carryOverSlots"],
         }
+
+
+class AgentProcessor:
+
+    @staticmethod
+    def get_agent(bot: Text) -> Agent:
+        if bot in InMemoryAgentCache.cache.keys():
+            InMemoryAgentCache.cache.get(bot)
+        else:
+            try:
+                agent = Agent.load(Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot)))
+                InMemoryAgentCache.set(bot, agent)
+                return agent
+            except Exception:
+                raise AppException("Please train the bot first")

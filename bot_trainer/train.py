@@ -6,7 +6,7 @@ from rasa.importers.importer import TrainingDataImporter
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.train import _train_async_internal, handle_domain_if_not_exists
 from rasa.utils.common import TempDirectoryPath
-
+import os
 from bot_trainer.data_processor.importer import MongoDataImporter
 
 
@@ -47,7 +47,7 @@ async def train_model_from_mongo(
     additional_arguments: Optional[Dict] = None,
 ):
     data_importer = MongoDataImporter(bot)
-    output = DEFAULT_MODELS_PATH + "/" + bot
+    output = os.path.join(DEFAULT_MODELS_PATH, bot)
     return await train_model(
         data_importer,
         output,

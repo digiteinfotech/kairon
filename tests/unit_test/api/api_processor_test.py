@@ -18,15 +18,15 @@ class TestAccountProcessor:
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
         assert account_response
-        assert account_response["_id"] == 2
+        assert account_response["_id"] == 3
         assert account_response["name"] == "paypal"
         account_response = AccountProcessor.add_account("ebay", "testAdmin")
         assert account_response
-        assert account_response["_id"] == 3
+        assert account_response["_id"] == 4
         assert account_response["name"] == "ebay"
 
     def test_get_account(self):
-        account = AccountProcessor.get_account(2)
+        account = AccountProcessor.get_account(3)
         assert account
         assert account["name"] == "paypal"
 

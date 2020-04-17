@@ -33,10 +33,22 @@ def add_user():
         user="testAdmin",
     )
 
+    account = AccountProcessor.add_account("integration2", "testAdmin")
+    bot = AccountProcessor.add_bot("integration2", account["_id"], "testAdmin")
+    AccountProcessor.add_user(
+        email="integration2@demo.ai",
+        first_name="Demo",
+        last_name="User",
+        password="welcome@1",
+        account=account["_id"],
+        bot=bot["name"],
+        user="testAdmin",
+    )
+
 
 add_user()
 processor = MongoProcessor()
-processor.save_from_path("tests/testing_data/all", "integration", "testAdmin")
+processor.save_from_path("tests/testing_data/all", "1_integration", "testAdmin")
 
 
 def test_api_wrong_login():
@@ -44,7 +56,6 @@ def test_api_wrong_login():
         "/api/auth/login", data={"username": "test@demo.ai", "password": "welcome@1"}
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 400
     assert not actual["success"]
     assert actual["message"] == "User does not exists!"
@@ -425,3 +436,64 @@ def test_get_story_from_not_exist_intent():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_train():
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] is 0
+    assert actual["data"]
+    assert actual["message"] == "Model trained successfully"
+
+
+def test_train_empty():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "welcome@1"},
+    )
+    token = response.json()
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": token['data']['token_type'] + " " + token['data']['access_token']},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 400
+    assert actual["data"] is None
+    assert actual["message"] == "Training data does not exists!"
+
+
+def test_chat():
+    response = client.post(
+        "/api/bot/chat",
+        json={"data": "Hi"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_chat_model_not_trained():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "welcome@1"},
+    )
+    token = response.json()
+    response = client.post(
+        "/api/bot/chat",
+        json={"data":"Hi"},
+        headers={"Authorization": token['data']['token_type'] + " " + token['data']['access_token']}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 400
+    assert actual["data"] is None
+    assert actual["message"] == "Please train the bot first"

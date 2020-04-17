@@ -18,7 +18,7 @@ from mongoengine import (
 from rasa.core.slots import CategoricalSlot, FloatSlot
 
 from bot_trainer.utils import Utility
-
+from urllib.parse import urlparse
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -312,3 +312,38 @@ class Configs(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+
+class EndPointTracker(EmbeddedDocument):
+    type = StringField(required=True)
+    url = StringField(required=True)
+    db = StringField(required=True)
+    username = StringField()
+    password = StringField()
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.type) or Utility.check_empty_string(self.url) or Utility.check_empty_string(self.db):
+            raise ValidationError("Type, Url and DB cannot be blank or empty spaces")
+        else:
+            if self.type == "mongo" and not str(self._data[self.url]).startswith("mongodb://"):
+                raise AppException("Invalid tracker url!")
+
+
+class Endpoints(Document):
+    bot_endpoint = StringField()
+    action_endpoint = StringField()
+    tracker = EmbeddedDocumentField(EndPointTracker)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.bot_url):
+            raise ValidationError("Bot url cannot be blank")
+        else:
+            try:
+                urlparse(self.bot_url)
+            except Exception as e:
+                raise AppException("Invalid Bot url")
+        if self.tracker:
+            self.tracker.validate()
