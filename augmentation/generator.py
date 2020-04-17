@@ -8,7 +8,7 @@ from scipy.spatial.distance import cosine
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
     sentence_transformer = SentenceTransformer('./pretrained_model/bert-large-nli-mean-tokens')
-    fastText = gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
+    fastText = None#gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
 
     @staticmethod
     def get_synonyms(text: str):
@@ -52,7 +52,7 @@ class QuestionGenerator:
         for i in range(len(texts)):
             text = texts[i]
             text_encoding = text_encodings[i]
-            synonyms = QuestionGenerator.get_synonyms_fastText(text)
+            synonyms = QuestionGenerator.get_synonyms(text)
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGenerator.nlp(text)]
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
             questions_encodings = QuestionGenerator.sentence_transformer.encode(questions)

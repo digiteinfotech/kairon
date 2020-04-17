@@ -1,6 +1,6 @@
-chatbot_url: 'http://localhost:5005/model'
 mongo_url: "mongodb://192.168.101.148:27019"
 mongo_db: "conversation"
 SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
 ALGORITHM: "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES: 60
+augmentation_url: "http://localhost:8000/"
