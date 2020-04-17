@@ -22,6 +22,7 @@ RUN python3 -m pip install py3dns
 RUN mkdir ssl
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
+COPY system.yaml ${RASA_NLU_HOME}/
 
 EXPOSE 80
 
