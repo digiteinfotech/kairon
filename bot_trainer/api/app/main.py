@@ -11,8 +11,16 @@ from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .routers import auth, bot, augment, history
 from bot_trainer.api.models import Response
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -69,6 +77,6 @@ async def app_exception_handler(request, exc):
 
 
 app.include_router(auth.router, prefix="/api/auth")
-app.include_router(bot.router, prefix="/api/bot")
-app.include_router(augment.router, prefix="/api/augment")
-app.include_router(history.router, prefix="/api/history")
+app.include_router(bot.router, prefix="/api/bot", tags=["Bot"])
+app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
+app.include_router(history.router, prefix="/api/history", tags=["History"])

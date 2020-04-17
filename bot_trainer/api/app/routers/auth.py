@@ -4,7 +4,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
-from bot_trainer.utils import Utility
 
 router = APIRouter()
 auth = Authentication()

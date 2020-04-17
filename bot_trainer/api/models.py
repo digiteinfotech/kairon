@@ -1,7 +1,7 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, ValidationError
 from typing import List, Any
 from enum import Enum
-
+from bot_trainer.utils import Utility
 
 class Token(BaseModel):
     access_token: str
@@ -33,6 +33,14 @@ class Response(BaseModel):
 
 class RequestData(BaseModel):
     data: Any
+
+
+class TextData(BaseModel):
+    data: str
+
+
+class ListData(BaseModel):
+    data: List[str]
 
 
 class StoryEventType(str, Enum):

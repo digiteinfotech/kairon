@@ -17,7 +17,7 @@ async def get_intents(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/intents", response_model=Response)
 async def add_intents(
-    request_data: RequestData, current_user: User = Depends(auth.get_current_user)
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     id = mongo_processor.add_intent(
         text=request_data.data, bot=current_user.get_bot(), user=current_user.email
@@ -37,7 +37,7 @@ async def get_training_examples(
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
     intent: str,
-    request_data: RequestData,
+    request_data: TextData,
     current_user: User = Depends(auth.get_current_user),
 ):
     id = mongo_processor.add_training_example(
@@ -48,7 +48,7 @@ async def add_training_examples(
 
 @router.delete("/training_examples", response_model=Response)
 async def remove_training_examples(
-    request_data: RequestData, current_user: User = Depends(auth.get_current_user)
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     mongo_processor.remove_document(
         TrainingExamples, request_data.data, current_user.get_bot(), current_user.email
@@ -65,7 +65,7 @@ async def get_responses(
 
 @router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
-    request_data: RequestData,
+    request_data: TextData,
     utterance: str,
     current_user: User = Depends(auth.get_current_user),
 ):
@@ -77,7 +77,7 @@ async def add_responses(
 
 @router.delete("/response", response_model=Response)
 async def remove_responses(
-    request_data: RequestData, current_user: User = Depends(auth.get_current_user)
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     mongo_processor.remove_document(
         Responses, request_data.data, current_user.get_bot(), current_user.email
@@ -113,14 +113,14 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
 
 @router.get("/story_from_intent/{intent}", response_model=Response)
 async def get_story_from_intent(
-    intent: Text, current_user: User = Depends(auth.get_current_user)
+    intent: str, current_user: User = Depends(auth.get_current_user)
 ):
     return {"data": mongo_processor.get_utterance_from_intent(intent, current_user.get_bot())}
 
 
 @router.post("/chat", response_model=Response)
 async def chat(
-    request_data: RequestData, current_user: User = Depends(auth.get_current_user)
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     model = AgentProcessor.get_agent(current_user.get_bot())
     response = await model.handle_text(request_data.data)

@@ -9,6 +9,6 @@ auth = Authentication()
 
 
 @router.post("/questions", response_model=Response)
-async def questions(request_data: RequestData, current_user: User = Depends(auth.get_current_user)):
+async def questions(request_data: ListData, current_user: User = Depends(auth.get_current_user)):
     response = requests.post(Utility.environment['augmentation_url'], json=request_data.data)
     return response

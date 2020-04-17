@@ -95,3 +95,10 @@ class Utility:
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(glob.iglob(folder+"/*"), key=os.path.getctime)
+
+    @staticmethod
+    def check_empty_list_elements(items: List[Text]):
+        for item in items:
+            if Utility.check_empty_string(item):
+                return True
+        return False
