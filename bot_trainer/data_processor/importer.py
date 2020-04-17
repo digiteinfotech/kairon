@@ -8,6 +8,7 @@ from .processor import MongoProcessor
 from rasa.core.interpreter import RegexInterpreter, NaturalLanguageInterpreter
 from bot_trainer.exceptions import AppException
 
+
 class MongoDataImporter(TrainingDataImporter):
     def __init__(self, bot: str):
         self.bot = bot

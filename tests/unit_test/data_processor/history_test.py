@@ -4,7 +4,6 @@ from bot_trainer.utils import Utility
 
 
 class TestHistory:
-
     @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()

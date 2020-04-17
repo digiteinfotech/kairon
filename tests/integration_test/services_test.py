@@ -56,7 +56,7 @@ def test_api_wrong_login():
         "/api/auth/login", data={"username": "test@demo.ai", "password": "welcome@1"}
     )
     actual = response.json()
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exists!"
 
@@ -114,7 +114,7 @@ def test_add_intents_duplicate():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Intent already exists!"
 
 
@@ -126,7 +126,7 @@ def test_add_empty_intents():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Intent Name cannot be empty or blank spaces"
 
 
@@ -181,7 +181,7 @@ def test_add_training_examples_duplicate():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Training Example already exists!"
 
 
@@ -194,7 +194,7 @@ def test_add_empty_training_examples():
     actual = response.json()
     print(actual)
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert (
         actual["message"]
         == "Training Example name and text cannot be empty or blank spaces"
@@ -233,7 +233,7 @@ def test_remove_training_examples_empty_id():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
 
@@ -277,7 +277,7 @@ def test_add_response_duplicate():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Response already exists!"
 
 
@@ -290,7 +290,7 @@ def test_add_empty_response():
     actual = response.json()
     print(actual)
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Response text cannot be empty or blank spaces"
 
 
@@ -327,7 +327,7 @@ def test_remove_response_empty_id():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
 
@@ -359,7 +359,7 @@ def test_add_story_empty_event():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["message"] == "Stories cannot be empty"
 
 
@@ -373,11 +373,12 @@ def test_add_story_missing_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert (
         actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required"
+        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required (type=value_error.missing)"
     )
 
 
@@ -394,11 +395,12 @@ def test_add_story_invalid_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert (
         actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot'"
+        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
     )
 
 
@@ -459,11 +461,15 @@ def test_train_empty():
     token = response.json()
     response = client.post(
         "/api/bot/train",
-        headers={"Authorization": token['data']['token_type'] + " " + token['data']['access_token']},
+        headers={
+            "Authorization": token["data"]["token_type"]
+            + " "
+            + token["data"]["access_token"]
+        },
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "Training data does not exists!"
 
@@ -489,11 +495,15 @@ def test_chat_model_not_trained():
     token = response.json()
     response = client.post(
         "/api/bot/chat",
-        json={"data":"Hi"},
-        headers={"Authorization": token['data']['token_type'] + " " + token['data']['access_token']}
+        json={"data": "Hi"},
+        headers={
+            "Authorization": token["data"]["token_type"]
+            + " "
+            + token["data"]["access_token"]
+        },
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["error_code"] == 400
+    assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "Please train the bot first"

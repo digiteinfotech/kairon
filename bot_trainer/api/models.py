@@ -3,6 +3,7 @@ from typing import List, Any
 from enum import Enum
 from bot_trainer.utils import Utility
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str

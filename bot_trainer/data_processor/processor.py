@@ -870,14 +870,15 @@ class MongoProcessor:
 
 
 class AgentProcessor:
-
     @staticmethod
     def get_agent(bot: Text) -> Agent:
         if bot in InMemoryAgentCache.cache.keys():
             InMemoryAgentCache.cache.get(bot)
         else:
             try:
-                agent = Agent.load(Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot)))
+                agent = Agent.load(
+                    Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+                )
                 InMemoryAgentCache.set(bot, agent)
                 return agent
             except Exception:

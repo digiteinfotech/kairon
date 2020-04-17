@@ -6,13 +6,15 @@ from bot_trainer.api.models import *
 from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 from bot_trainer.train import train_model_from_mongo
+
 router = APIRouter()
 auth = Authentication()
 mongo_processor = MongoProcessor()
 
+
 @router.get("/intents", response_model=Response)
 async def get_intents(current_user: User = Depends(auth.get_current_user)):
-    return {"data": mongo_processor.get_intents(current_user.get_bot())}
+    return Response(data=mongo_processor.get_intents(current_user.get_bot())).dict()
 
 
 @router.post("/intents", response_model=Response)
@@ -30,7 +32,9 @@ async def get_training_examples(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):
     return {
-        "data": list(mongo_processor.get_training_examples(intent, current_user.get_bot()))
+        "data": list(
+            mongo_processor.get_training_examples(intent, current_user.get_bot())
+        )
     }
 
 
@@ -60,7 +64,9 @@ async def remove_training_examples(
 async def get_responses(
     utterance: str, current_user: User = Depends(auth.get_current_user)
 ):
-    return {"data": list(mongo_processor.get_response(utterance, current_user.get_bot()))}
+    return {
+        "data": list(mongo_processor.get_response(utterance, current_user.get_bot()))
+    }
 
 
 @router.post("/response/{utterance}", response_model=Response)
@@ -100,7 +106,10 @@ async def add_stories(
         "message": "Story added successfully",
         "data": {
             "_id": mongo_processor.add_story(
-                story.name, story.get_events(), current_user.get_bot(), current_user.email
+                story.name,
+                story.get_events(),
+                current_user.get_bot(),
+                current_user.email,
             )
         },
     }
@@ -115,7 +124,11 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
 async def get_story_from_intent(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):
-    return {"data": mongo_processor.get_utterance_from_intent(intent, current_user.get_bot())}
+    return {
+        "data": mongo_processor.get_utterance_from_intent(
+            intent, current_user.get_bot()
+        )
+    }
 
 
 @router.post("/chat", response_model=Response)
@@ -124,7 +137,7 @@ async def chat(
 ):
     model = AgentProcessor.get_agent(current_user.get_bot())
     response = await model.handle_text(request_data.data)
-    return {"data": {"response": response[0]['text'] if response else None } }
+    return {"data": {"response": response[0]["text"] if response else None}}
 
 
 @router.post("/train", response_model=Response)

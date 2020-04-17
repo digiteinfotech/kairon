@@ -4,7 +4,6 @@ from cachetools.lru import LRUCache
 
 
 class AgentCache:
-
     def set(self, bot: Text, agent: Agent):
         pass
 

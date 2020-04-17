@@ -547,7 +547,6 @@ class TestMongoProcessor:
 
 
 class TestAgentProcessor:
-
     def test_get_agent_from_cache(self):
         agent = AgentProcessor.get_agent("tests")
         assert isinstance(agent, Agent)

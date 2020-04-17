@@ -20,6 +20,7 @@ from rasa.core.slots import CategoricalSlot, FloatSlot
 from bot_trainer.utils import Utility
 from urllib.parse import urlparse
 
+
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -322,10 +323,16 @@ class EndPointTracker(EmbeddedDocument):
     password = StringField()
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.type) or Utility.check_empty_string(self.url) or Utility.check_empty_string(self.db):
+        if (
+            Utility.check_empty_string(self.type)
+            or Utility.check_empty_string(self.url)
+            or Utility.check_empty_string(self.db)
+        ):
             raise ValidationError("Type, Url and DB cannot be blank or empty spaces")
         else:
-            if self.type == "mongo" and not str(self._data[self.url]).startswith("mongodb://"):
+            if self.type == "mongo" and not str(self._data[self.url]).startswith(
+                "mongodb://"
+            ):
                 raise AppException("Invalid tracker url!")
 
 
