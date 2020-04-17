@@ -6,7 +6,7 @@ from rasa.core.domain import Domain
 from rasa.core.training.structures import StoryGraph
 from .processor import MongoProcessor
 from rasa.core.interpreter import RegexInterpreter, NaturalLanguageInterpreter
-
+from bot_trainer.exceptions import AppException
 
 class MongoDataImporter(TrainingDataImporter):
     def __init__(self, bot: str):
@@ -14,7 +14,10 @@ class MongoDataImporter(TrainingDataImporter):
         self.processor = MongoProcessor()
 
     async def get_nlu_data(self, language: Optional[Text] = "en") -> TrainingData:
-        return self.processor.load_nlu(self.bot)
+        training_data = self.processor.load_nlu(self.bot)
+        if not training_data.training_examples:
+            raise AppException("Training data does not exists!")
+        return training_data
 
     async def get_domain(self) -> Domain:
         return self.processor.load_domain(self.bot)
