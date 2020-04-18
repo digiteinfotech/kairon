@@ -7,7 +7,7 @@ from scipy.spatial.distance import cosine
 
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
-    sentence_transformer = SentenceTransformer('./pretrained_model/bert-large-nli-mean-tokens')
+    sentence_transformer = SentenceTransformer('bert-large-nli-stsb-mean-tokens')
     fastText = None#gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
 
     @staticmethod
