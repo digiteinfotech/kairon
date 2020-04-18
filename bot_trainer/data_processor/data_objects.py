@@ -40,7 +40,7 @@ class TrainingExamples(Document):
     intent = StringField(required=True)
     text = StringField(required=True)
     bot = StringField(required=True)
-    entities = ListField(EmbeddedDocumentField(Entity))
+    entities = ListField(EmbeddedDocumentField(Entity), default=None)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
@@ -186,7 +186,7 @@ class ResponseText(EmbeddedDocument):
     text = StringField(required=True)
     image = StringField()
     channel = StringField()
-    buttons = ListField(EmbeddedDocumentField(ResponseButton))
+    buttons = ListField(EmbeddedDocumentField(ResponseButton), default=None)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.text):
@@ -245,7 +245,7 @@ class Slots(Document):
     initial_value = DynamicField()
     value_reset_delay = LongField()
     auto_fill = BooleanField(default=True)
-    values = ListField(StringField())
+    values = ListField(StringField(), default=None)
     max_value = LongField()
     min_value = LongField()
     bot = StringField(required=True)
@@ -316,11 +316,12 @@ class Configs(Document):
 
 
 class EndPointTracker(EmbeddedDocument):
-    type = StringField(required=True)
+    type = StringField(required=True, default="mongo")
     url = StringField(required=True)
     db = StringField(required=True)
     username = StringField()
     password = StringField()
+    auth_source = StringField()
 
     def validate(self, clean=True):
         if (
@@ -336,16 +337,24 @@ class EndPointTracker(EmbeddedDocument):
                 raise AppException("Invalid tracker url!")
 
 
+class EndPointAction(EmbeddedDocument):
+    url = StringField(required=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.url):
+            raise AppException("Action url cannot be blank or empty spaces")
+
+
 class Endpoints(Document):
     bot_endpoint = StringField()
-    action_endpoint = StringField()
+    action_endpoint = EmbeddedDocumentField(EndPointAction)
     tracker = EmbeddedDocumentField(EndPointTracker)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.bot_url):
+        if Utility.check_empty_string(self.bot_endpoint):
             raise ValidationError("Bot url cannot be blank")
         else:
             try:
@@ -354,3 +363,6 @@ class Endpoints(Document):
                 raise AppException("Invalid Bot url")
         if self.tracker:
             self.tracker.validate()
+
+        if self.action_endpoint:
+            self.action_endpoint.validate()

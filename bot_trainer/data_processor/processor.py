@@ -19,6 +19,7 @@ from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
 from rasa.utils.io import read_config_file
+from rasa.utils.endpoints import EndpointConfig
 
 from .constant import *
 from .data_objects import *
@@ -406,8 +407,6 @@ class MongoProcessor:
 
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
-            if not text[RESPONSE.BUTTONS.value]:
-                text.pop(RESPONSE.BUTTONS.value)
             yield text
 
     def fetch_responses(self, bot: Text, status=True):
@@ -644,9 +643,10 @@ class MongoProcessor:
         )
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
+            entities = example["entities"] if "entities" in example else None
             yield {
                 "_id": example["_id"].__str__(),
-                "text": Utility.prepare_nlu_text(example["text"], example["entities"]),
+                "text": Utility.prepare_nlu_text(example["text"], entities),
             }
 
     def remove_document(self, document: Document, id: Text, bot: Text, user: Text):
@@ -758,10 +758,6 @@ class MongoProcessor:
                 [items["texts"] + items["customs"] for items in saved_responses]
             )
         )
-        [
-            t.pop("buttons") if "text" in t and not t["buttons"] else t
-            for t in saved_items
-        ]
 
         if response in saved_items:
             if raise_error:
@@ -867,6 +863,12 @@ class MongoProcessor:
             "sesssionExpirationTime": session_config["sesssionExpirationTime"],
             "carryOverSlots": session_config["carryOverSlots"],
         }
+
+    def add_endpoints(self, endpoint_config: Dict, bot: Text, user:Text):
+        pass
+
+    def get_endpoints(self, bot: Text):
+        return Endpoints.objects().get(bot=bot).to_mongo().to_dict()
 
 
 class AgentProcessor:
