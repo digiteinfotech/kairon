@@ -6,7 +6,7 @@ from bot_trainer.api.models import *
 from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 from bot_trainer.train import train_model_from_mongo
-
+import requests
 router = APIRouter()
 auth = Authentication()
 mongo_processor = MongoProcessor()
@@ -148,4 +148,5 @@ async def train(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):
-    return {"message": "Model deployed successfully"}
+    endpoint = mongo_processor.get_endpoints(current_user.get_bot(),raise_exception=False)
+    return {"message": Utility.deploy_model(endpoint, current_user.get_bot())}

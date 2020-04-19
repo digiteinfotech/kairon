@@ -546,6 +546,109 @@ class TestMongoProcessor:
             assert model
 
 
+    def test_add_endpoints(self):
+        processor = MongoProcessor()
+        config = {}
+        processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint") is None
+        assert endpoint.get("action_endpoint") is None
+        assert endpoint.get("tracker") is None
+        assert endpoint.get("bot")
+
+    def test_add_endpoints_add_bot_endpoint_empty_url(self):
+        processor = MongoProcessor()
+        config = {"bot_endpoint": {"url": ""}}
+        with pytest.raises(AppException):
+            processor.add_endpoints(config, bot="tests1", user="testUser")
+            endpoint = processor.get_endpoints("tests1")
+            assert endpoint.get("bot_endpoint") is None
+            assert endpoint.get("action_endpoint") is None
+            assert endpoint.get("tracker") is None
+            assert endpoint.get("bot")
+
+    def test_add_endpoints_add_bot_endpoint(self):
+        processor = MongoProcessor()
+        config = {"bot_endpoint": {"url": "http://localhost:5000/"}}
+        processor.add_endpoints(config, bot="tests1", user="testUser")
+        endpoint = processor.get_endpoints("tests1")
+        assert endpoint["bot_endpoint"].get('url') == "http://localhost:5000/"
+        assert endpoint.get("action_endpoint") is None
+        assert endpoint.get("tracker") is None
+        assert endpoint.get("bot")
+
+    def test_add_endpoints_add_action_endpoint_empty_url(self):
+        processor = MongoProcessor()
+        config = {"action_endpoint": {"url": ""}}
+        with pytest.raises(AppException):
+            processor.add_endpoints(config, bot="tests2", user="testUser")
+            endpoint = processor.get_endpoints("tests2")
+            assert endpoint.get("bot_endpoint") is None
+            assert endpoint.get("action_endpoint") is None
+            assert endpoint.get("tracker") is None
+            assert endpoint.get("bot")
+
+    def test_add_endpoints_add_action_endpoint(self):
+        processor = MongoProcessor()
+        config = {"action_endpoint": {"url": "http://localhost:5000/"}}
+        processor.add_endpoints(config, bot="tests2", user="testUser")
+        endpoint = processor.get_endpoints("tests2")
+        assert endpoint.get("bot_endpoint") is None
+        assert endpoint.get("action_endpoint").get('url') == "http://localhost:5000/"
+        assert endpoint.get("tracker") is None
+        assert endpoint.get("bot")
+
+    def test_add_endpoints_add_tracker_endpoint_missing_db(self):
+        processor = MongoProcessor()
+        config = {"tracker_endpoint": {"url": "mongodb://localhost:27017"}}
+        with pytest.raises(ValidationError):
+            processor.add_endpoints(config, bot="tests3", user="testUser")
+            endpoint = processor.get_endpoints("tests3")
+            assert endpoint.get("bot_endpoint") is None
+            assert endpoint.get("action_endpoint") is None
+            assert endpoint.get("tracker_endpoint") is None
+            assert endpoint.get("bot")
+
+
+    def test_add_endpoints_add_tracker_endpoint_invalid_url(self):
+        processor = MongoProcessor()
+        config = {"tracker_endpoint": {"url": "mongo://localhost:27017", "db": "conversations"}}
+        with pytest.raises(AppException):
+            processor.add_endpoints(config, bot="tests3", user="testUser")
+            endpoint = processor.get_endpoints("tests3")
+            assert endpoint.get("bot_endpoint") is None
+            assert endpoint.get("action_endpoint") is None
+            assert endpoint.get("tracker") is None
+            assert endpoint.get("bot")
+
+    def test_add_endpoints_add_tracker_endpoint(self):
+        processor = MongoProcessor()
+        config = {"tracker_endpoint": {"url": "mongodb://localhost:27017/", "db": "conversations"}}
+        processor.add_endpoints(config, bot="tests3", user="testUser")
+        endpoint = processor.get_endpoints("tests3")
+        assert endpoint.get("bot_endpoint") is None
+        assert endpoint.get("action_endpoint") is None
+        assert endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
+        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("bot")
+
+
+    def test_update_endpoints(self):
+        processor = MongoProcessor()
+        config = {"action_endpoint": {"url": "http://localhost:8000/"},
+                  "bot_endpoint": {"url": "http://localhost:5000/"},
+                  "tracker_endpoint": {"url": "mongodb://localhost:27017/", "db": "conversations"}}
+        processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
+        assert endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
+        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("bot")
+
+
 class TestAgentProcessor:
     def test_get_agent_from_cache(self):
         agent = AgentProcessor.get_agent("tests")

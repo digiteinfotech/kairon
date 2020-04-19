@@ -13,7 +13,12 @@ class ChatHistory:
     @staticmethod
     def get_tracker_and_domain(bot: Text):
         domain = ChatHistory.mongo_processor.load_domain(bot)
-        tracker = MongoTrackerStore(domain=domain, host="", db="")
+        endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
+        tracker = MongoTrackerStore(domain=domain,
+                                    host=endpoint['tracker_endpoint']['url'],
+                                    db=endpoint['tracker_endpoint']['db'],
+                                    username=endpoint['tracker_endpoint'].get("username"),
+                                    password=endpoint['tracker_endpoint'].get("password"))
         return (domain, tracker)
 
     @staticmethod

@@ -9,8 +9,7 @@ from mongoengine import (
 from mongoengine.errors import ValidationError
 from datetime import datetime
 from bot_trainer.utils import Utility
-from validate_email import validate_email
-
+from validators import email, ValidationFailure
 
 class User(Document):
     email = StringField(required=True)
@@ -34,7 +33,7 @@ class User(Document):
             raise ValidationError(
                 "Email, FirstName, LastName and password cannot be empty or blank space"
             )
-        elif not validate_email(self.email):
+        elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Please enter valid email address")
 
 

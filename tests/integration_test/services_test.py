@@ -7,6 +7,9 @@ from bot_trainer.utils import Utility
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
 import logging
+import responses
+import requests
+from typing import Text
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -507,3 +510,31 @@ def test_chat_model_not_trained():
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "Please train the bot first"
+
+
+def test_deploy_missing_configuration():
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Please configure the bot endpoint for deployment!"
+
+@responses.activate
+def test_deploy():
+    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+    responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
+    response = client.post("/api/bot/deploy",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model was successfully replaced."

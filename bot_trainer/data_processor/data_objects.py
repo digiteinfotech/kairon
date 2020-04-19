@@ -15,12 +15,12 @@ from mongoengine import (
     DictField,
     DynamicField,
 )
-from rasa.core.slots import CategoricalSlot, FloatSlot
+from rasa.core.slots import CategoricalSlot, FloatSlot, UnfeaturizedSlot, ListSlot, TextSlot, BooleanSlot
 
 from bot_trainer.utils import Utility
-from urllib.parse import urlparse
-
-
+from validators import url, ValidationFailure
+from pymongo.uri_parser import parse_uri
+from pymongo.errors import InvalidURI
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -241,7 +241,12 @@ class SessionConfigs(Document):
 
 class Slots(Document):
     name = StringField(required=True)
-    type = StringField(required=True)
+    type = StringField(required=True, choices=[FloatSlot.type_name,
+                                               CategoricalSlot.type_name,
+                                               UnfeaturizedSlot.type_name,
+                                               ListSlot.type_name,
+                                               TextSlot.type_name,
+                                               BooleanSlot.type_name])
     initial_value = DynamicField()
     value_reset_delay = LongField()
     auto_fill = BooleanField(default=True)
@@ -279,7 +284,7 @@ class Slots(Document):
 
 class StoryEvents(EmbeddedDocument):
     name = StringField(required=True)
-    type = StringField(required=True)
+    type = StringField(required=True, choices=["user","action","form","slot"])
     value = StringField()
 
 
@@ -331,38 +336,44 @@ class EndPointTracker(EmbeddedDocument):
         ):
             raise ValidationError("Type, Url and DB cannot be blank or empty spaces")
         else:
-            if self.type == "mongo" and not str(self._data[self.url]).startswith(
-                "mongodb://"
-            ):
-                raise AppException("Invalid tracker url!")
+            if self.type == "mongo":
+                try:
+                    parse_uri(self.url)
+                except InvalidURI:
+                    raise AppException("Invalid tracker url!")
 
 
 class EndPointAction(EmbeddedDocument):
     url = StringField(required=True)
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.url):
-            raise AppException("Action url cannot be blank or empty spaces")
+        if isinstance(url(self.url), ValidationFailure):
+            raise AppException("Invalid Action server url ")
 
+
+class EndPointBot(EmbeddedDocument):
+    url = StringField(required=True)
+    token = StringField()
+    token_type = StringField()
+
+    def validate(self, clean=True):
+        if isinstance(url(self.url), ValidationFailure):
+            raise AppException("Invalid Bot server url")
 
 class Endpoints(Document):
-    bot_endpoint = StringField()
+    bot_endpoint = EmbeddedDocumentField(EndPointBot)
     action_endpoint = EmbeddedDocumentField(EndPointAction)
-    tracker = EmbeddedDocumentField(EndPointTracker)
+    tracker_endpoint = EmbeddedDocumentField(EndPointTracker)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.bot_endpoint):
-            raise ValidationError("Bot url cannot be blank")
-        else:
-            try:
-                urlparse(self.bot_url)
-            except Exception as e:
-                raise AppException("Invalid Bot url")
-        if self.tracker:
-            self.tracker.validate()
+        if self.bot_endpoint:
+            self.bot_endpoint.validate()
+
+        if self.tracker_endpoint:
+            self.tracker_endpoint.validate()
 
         if self.action_endpoint:
             self.action_endpoint.validate()

@@ -26,7 +26,7 @@ from .data_objects import *
 from .cache import InMemoryAgentCache
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.core.agent import Agent
-
+import logging
 
 class MongoProcessor:
     def save_from_path(self, path: Text, bot: Text, user="default"):
@@ -865,23 +865,53 @@ class MongoProcessor:
         }
 
     def add_endpoints(self, endpoint_config: Dict, bot: Text, user:Text):
-        pass
+        try:
+            endpoint = Endpoints.objects().get(bot=bot)
+        except DoesNotExist:
+            if Endpoints.objects(bot=bot):
+                raise AppException("Endpoint Configuration already exists!")
+            endpoint = Endpoints()
 
-    def get_endpoints(self, bot: Text):
-        return Endpoints.objects().get(bot=bot).to_mongo().to_dict()
+        endpoint.bot_endpoint = (EndPointBot(**endpoint_config.get("bot_endpoint"))
+                                 if endpoint_config.get("bot_endpoint")
+                                 else None)
+        endpoint.action_endpoint = (EndPointAction(**endpoint_config.get("action_endpoint"))
+                                    if endpoint_config.get("action_endpoint")
+                                    else None)
+        endpoint.tracker_endpoint = (EndPointTracker(**endpoint_config.get("tracker_endpoint"))
+                            if endpoint_config.get("tracker_endpoint")
+                            else None)
+        endpoint.bot = bot
+        endpoint.user = user
+        return endpoint.save().to_mongo().to_dict()['_id']
+
+    def get_endpoints(self, bot: Text, raise_exception = True):
+        try:
+            return Endpoints.objects().get(bot=bot).to_mongo().to_dict()
+        except DoesNotExist as e:
+            logging.info(e)
+            if raise_exception:
+                raise AppException("Endpoint Configuration does not exists!")
 
 
 class AgentProcessor:
+    mongo_processor = MongoProcessor()
+
     @staticmethod
     def get_agent(bot: Text) -> Agent:
         if bot in InMemoryAgentCache.cache.keys():
             InMemoryAgentCache.cache.get(bot)
         else:
             try:
+                endpoint = AgentProcessor.mongo_processor.get_endpoints(bot, raise_exception=False)
+                action_endpoint = EndpointConfig(url=endpoint['action_endpoint']['url']) if endpoint and endpoint.get("action_endpoint") else None
                 agent = Agent.load(
-                    Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+                    Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot)),
+                    action_endpoint=action_endpoint
                 )
                 InMemoryAgentCache.set(bot, agent)
                 return agent
-            except Exception:
+            except Exception as e:
+                print(str(e))
+                logging.info(e)
                 raise AppException("Please train the bot first")

@@ -13,13 +13,13 @@ pytest-html
 pytest-cov
 pytest-xdist
 pytest-asyncio
-requests-mock
+responses
 pandas
 mongoengine==0.19.1
 pyjwt
 passlib[bcrypt]
 python-multipart
-validate_email
 py3dns
 black
 uvicorn
+validators

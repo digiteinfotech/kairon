@@ -8,7 +8,8 @@ from passlib.context import CryptContext
 from bot_trainer.exceptions import AppException
 import glob
 import os
-
+import requests
+from rasa.constants import DEFAULT_MODELS_PATH
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -104,3 +105,27 @@ class Utility:
             if Utility.check_empty_string(item):
                 return True
         return False
+
+    @staticmethod
+    def deploy_model(endpoint: Dict, bot: Text):
+        if not endpoint or not endpoint.get("bot_endpoint"):
+            raise AppException("Please configure the bot endpoint for deployment!")
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        url = endpoint["bot_endpoint"].get("url")
+        if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get("token"):
+            headers['Authorization'] = endpoint["bot_endpoint"].get("token_type") +" "+ endpoint["bot_endpoint"].get("token")
+
+        try:
+            response = requests.put(url + "/model",
+                                    json={"model_file": Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))},
+                                    headers=headers)
+            json_response = response.json()
+            if 'message' in json_response:
+                result = json_response['message']
+            elif 'reason' in json_response:
+                result = json_response['reason']
+            else:
+                result = json_response
+        except requests.exceptions.ConnectionError as e:
+            raise AppException(str(e))
+        return result
