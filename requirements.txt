@@ -1,7 +1,7 @@
 pyyaml
+torch
+torchvision
 tensorflow
-tensorflow-text
-tensorflow-addons==0.8.3
 rasa==1.9.5
 gensim
 sentence_transformers
@@ -13,6 +13,7 @@ pytest-html
 pytest-cov
 pytest-xdist
 pytest-asyncio
+requests-mock
 pandas
 mongoengine==0.19.1
 pyjwt
