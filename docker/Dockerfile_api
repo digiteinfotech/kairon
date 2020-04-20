@@ -17,8 +17,7 @@ RUN python3 -m pip install pandas
 RUN python3 -m pip install pyjwt
 RUN python3 -m pip install passlib[bcrypt]
 RUN python3 -m pip install python-multipart
-RUN python3 -m pip install validate_email
-RUN python3 -m pip install py3dns
+RUN python3 -m pip install validators
 RUN mkdir ssl
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
