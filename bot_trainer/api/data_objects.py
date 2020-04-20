@@ -17,6 +17,7 @@ class User(Document):
     last_name = StringField(required=True)
     password = StringField(required=True)
     role = StringField(required=True, default="trainer")
+    is_integration_user = BooleanField(default=False)
     account = LongField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)

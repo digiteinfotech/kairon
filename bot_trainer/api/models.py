@@ -20,9 +20,17 @@ class User(BaseModel):
     bot: str
     account: int
     status: bool
+    alias_user: str = None
+    is_integration_user: bool
 
     def get_bot(self):
         return str(self.account) + "_" + self.bot
+
+    def get_user(self):
+        if self.is_integration_user:
+            return self.alias_user
+        return self.email
+
 
 
 class Response(BaseModel):

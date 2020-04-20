@@ -255,11 +255,11 @@ class TestAccountProcessor:
 
     def test_get_user(self):
         user = AccountProcessor.get_user("fshaikh@digite.com")
-        assert all(user[key] for key in user.keys())
+        assert all(user[key] == False if key == "is_integration_user" else user[key] for key in user.keys())
 
     def test_get_user_details(self):
         user = AccountProcessor.get_user_details("fshaikh@digite.com")
-        assert all(user[key] for key in user.keys())
+        assert all(user[key] == False if key == "is_integration_user" else user[key] for key in user.keys())
 
     def test_get_user_details_user_inactive(self):
         account = AccountProcessor.add_account("paytm", "testAdmin")
@@ -274,26 +274,26 @@ class TestAccountProcessor:
             user="testAdmin",
         )
         user_details = AccountProcessor.get_user_details(user["email"])
-        assert all(user_details[key] for key in user_details.keys())
+        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         user_details = User.objects().get(id=user["_id"])
         user_details.status = False
         user_details.save()
         with pytest.raises(Exception):
             user_details = AccountProcessor.get_user_details(user_details["email"])
-            assert all(user_details[key] for key in user_details.keys())
+            assert all( user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         user_details.status = True
         user_details.save()
 
     def test_get_user_details_bot_inactive(self):
         user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] for key in user_details.keys())
+        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         bot = Bot.objects().get(name="support")
         bot.status = False
         bot.save()
         with pytest.raises(Exception):
             user_details = AccountProcessor.get_user_details(user_details["email"])
             assert all(
-                user_details[key]
+                user_details[key] == False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
@@ -303,17 +303,23 @@ class TestAccountProcessor:
 
     def test_get_user_details_account_inactive(self):
         user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] for key in user_details.keys())
+        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         account = Account.objects().get(name="paytm")
         account.status = False
         account.save()
         with pytest.raises(Exception):
             user_details = AccountProcessor.get_user_details(user_details["email"])
             assert all(
-                user_details[key]
+                user_details[key] == False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
             )
         account.status = True
         account.save()
+
+    def test_get_integration_user(self):
+        user_details = AccountProcessor.get_user_details("demo@demo.ai")
+        integration_user = AccountProcessor.get_integration_user(bot=user_details['bot'], account=user_details['account'])
+        assert integration_user['is_integration_user']
+        assert all(integration_user[key] for key in integration_user.keys())

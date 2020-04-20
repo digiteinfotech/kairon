@@ -22,7 +22,7 @@ async def add_intents(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     id = mongo_processor.add_intent(
-        text=request_data.data, bot=current_user.get_bot(), user=current_user.email
+        text=request_data.data, bot=current_user.get_bot(), user=current_user.get_user()
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
 
@@ -45,7 +45,7 @@ async def add_training_examples(
     current_user: User = Depends(auth.get_current_user),
 ):
     id = mongo_processor.add_training_example(
-        request_data.data, intent, current_user.get_bot(), current_user.email
+        request_data.data, intent, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Training Example added successfully!", "data": {"_id": id}}
 
@@ -55,7 +55,7 @@ async def remove_training_examples(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     mongo_processor.remove_document(
-        TrainingExamples, request_data.data, current_user.get_bot(), current_user.email
+        TrainingExamples, request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Training Example removed successfully!"}
 
@@ -76,7 +76,7 @@ async def add_responses(
     current_user: User = Depends(auth.get_current_user),
 ):
     id = mongo_processor.add_text_response(
-        request_data.data, utterance, current_user.get_bot(), current_user.email
+        request_data.data, utterance, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Response added successfully!", "data": {"_id": id}}
 
@@ -86,7 +86,7 @@ async def remove_responses(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     mongo_processor.remove_document(
-        Responses, request_data.data, current_user.get_bot(), current_user.email
+        Responses, request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {
         "message": "Response removed successfully!",
@@ -109,7 +109,7 @@ async def add_stories(
                 story.name,
                 story.get_events(),
                 current_user.get_bot(),
-                current_user.email,
+                current_user.get_user(),
             )
         },
     }
@@ -120,7 +120,7 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
     return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
 
 
-@router.get("/story_from_intent/{intent}", response_model=Response)
+@router.get("/utterance_from_intent/{intent}", response_model=Response)
 async def get_story_from_intent(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):

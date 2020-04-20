@@ -10,6 +10,8 @@ import glob
 import os
 import requests
 from rasa.constants import DEFAULT_MODELS_PATH
+import string
+import random
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -127,5 +129,9 @@ class Utility:
             else:
                 result = json_response
         except requests.exceptions.ConnectionError as e:
-            raise AppException(str(e))
+            raise AppException("Host is not reachable")
         return result
+
+    @staticmethod
+    def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))

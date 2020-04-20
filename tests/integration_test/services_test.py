@@ -1,15 +1,15 @@
-from bot_trainer.api.app.main import app
-from fastapi.testclient import TestClient
+import logging
 import os
+
 import pytest
+import responses
+from fastapi.testclient import TestClient
 from mongoengine import connect
-from bot_trainer.utils import Utility
+
+from bot_trainer.api.app.main import app
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
-import logging
-import responses
-import requests
-from typing import Text
+from bot_trainer.utils import Utility
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -419,9 +419,9 @@ def test_get_stories():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_get_story_from_intent():
+def test_get_utterance_from_intent():
     response = client.get(
-        "/api/bot/story_from_intent/greet",
+        "/api/bot/utterance_from_intent/greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -431,9 +431,9 @@ def test_get_story_from_intent():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_get_story_from_not_exist_intent():
+def test_get_utterance_from_not_exist_intent():
     response = client.get(
-        "/api/bot/story_from_intent/greeting",
+        "/api/bot/utterance_from_intent/greeting",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -538,3 +538,98 @@ def test_deploy():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model was successfully replaced."
+
+
+@responses.activate
+def test_deploy_bad_request():
+    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+    responses.add(responses.PUT,
+                  "http://localhost:5000/model",
+                  json={"version": "1.0.0",
+                        "status": "failure",
+                        "reason": "BadRequest",
+                        "code": 400
+                        },
+                  status=200)
+    response = client.post("/api/bot/deploy",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "BadRequest"
+
+
+@responses.activate
+def test_deploy_server_error():
+    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+    responses.add(responses.PUT,
+                  "http://localhost:5000/model",
+                  json={
+                      "version": "1.0.0",
+                      "status": "ServerError",
+                      "message": "An unexpected error occurred.",
+                      "code": 500
+                  },
+                  status=200)
+    response = client.post("/api/bot/deploy",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "An unexpected error occurred."
+
+
+def test_integration_token():
+    response = client.get("/api/auth/integration/token",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['access_token']
+    assert actual["data"]['token_type']
+    assert actual["message"] == '''It is your responsibility to keep the token secret.
+        If leaked then other may have access to your system.'''
+    response = client.get(
+        "/api/bot/intents",
+        headers={"Authorization": actual["data"]['token_type'] + " " + actual["data"]['access_token'],
+                 "X-USER": "integration"},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 23
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_integration_token_missing_x_user():
+    response = client.get("/api/auth/integration/token",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['access_token']
+    assert actual["data"]['token_type']
+    assert actual["message"] == '''It is your responsibility to keep the token secret.
+        If leaked then other may have access to your system.'''
+    response = client.get(
+        "/api/bot/intents",
+        headers={"Authorization": actual["data"]['token_type'] + " " + actual["data"]['access_token']}
+    )
+    actual = response.json()
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Alias user missing for integration'
