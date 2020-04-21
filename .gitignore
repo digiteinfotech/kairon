@@ -1,10 +1,18 @@
+# IDE
 .idea
+.vscode
+
+# Python
 __pycache__
+.pytest_cache
+
+# Tests
 assets
 cov_html
 sample
 /*.coverage
 *.html
 coverage_html
-.pytest_cache
+
+# Logs
 *.log
