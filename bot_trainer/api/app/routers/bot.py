@@ -26,6 +26,16 @@ async def add_intents(
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
 
+@router.post("/intents/predict", response_model=Response)
+async def predict_intent(
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+):
+    model = AgentProcessor.get_agent(current_user.get_bot())
+    response = await model.parse_message_using_nlu_interpreter(request_data.data)
+    intent = response.get("intent").get("name") if response else None
+    confidence = response.get("intent").get("confidence") if response else None
+    return {"data": {"intent": intent, "confidence": confidence}}
+
 
 @router.get("/training_examples/{intent}", response_model=Response)
 async def get_training_examples(

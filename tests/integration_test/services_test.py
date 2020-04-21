@@ -593,7 +593,6 @@ def test_deploy_server_error():
                            )
 
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -646,3 +645,36 @@ def test_integration_token_missing_x_user():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Alias user missing for integration'
+
+
+def test_predict_intent():
+    response = client.post("/api/bot/intents/predict",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json={"data": "Hi"},
+                          )
+
+    actual = response.json()
+    assert actual.get('data').get("intent")
+    assert actual.get('data').get("confidence")
+
+
+def test_predict_intent_error():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "welcome@1"},
+    )
+    token = response.json()
+    response = client.post(
+        "/api/bot/intents/predict",
+        json={"data": "Hi"},
+        headers={
+            "Authorization": token["data"]["token_type"]
+                             + " "
+                             + token["data"]["access_token"]
+        },
+    )
+    actual = response.json()
+    assert actual["data"] is None
+    assert actual["success"] is False
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Please train the bot first"
