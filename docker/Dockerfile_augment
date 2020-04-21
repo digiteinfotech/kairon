@@ -12,11 +12,6 @@ RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install spacy
 RUN python3 -m spacy download en_core_web_sm
 RUN python3 -m nltk.downloader wordnet
-RUN mkdir pretrained_model
-
-ADD https://public.ukp.informatik.tu-darmstadt.de/reimers/sentence-transformers/v0.2/bert-large-nli-stsb-mean-tokens.zip ${RASA_NLU_HOME}/pretrained_model
-
-RUN unzip ./pretrained_model/bert-large-nli-stsb-mean-tokens.zip -d ./pretrained_model/bert-large-nli-stsb-mean-tokens
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 

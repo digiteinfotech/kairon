@@ -1,6 +1,7 @@
+import requests
 from fastapi import APIRouter
 from fastapi import Depends
-import requests
+
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
 from bot_trainer.utils import Utility

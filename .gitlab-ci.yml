@@ -31,6 +31,7 @@ build:
   stage: build
   script:
     -  docker build -f ./docker/Dockerfile_api -t bot-trainer-api:0.1 .
+    -  docker build -f ./docker/Dockerfile_augment -t bot-augment-api:0.1 .
 
 cleanup:
   stage: cleanup

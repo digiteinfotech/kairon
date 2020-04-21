@@ -1,9 +1,10 @@
-from nltk.corpus import wordnet
-import spacy
-import gensim
-from sentence_transformers import SentenceTransformer
 import itertools
+
+import spacy
+from nltk.corpus import wordnet
 from scipy.spatial.distance import cosine
+from sentence_transformers import SentenceTransformer
+
 
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
