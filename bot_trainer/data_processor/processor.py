@@ -888,7 +888,7 @@ class MongoProcessor:
                             else None)
         endpoint.bot = bot
         endpoint.user = user
-        return endpoint.save().to_mongo().to_dict()['_id']
+        return endpoint.save().to_mongo().to_dict()['_id'].__str__()
 
     def get_endpoints(self, bot: Text, raise_exception = True):
         try:
