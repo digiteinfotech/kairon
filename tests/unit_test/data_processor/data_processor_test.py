@@ -130,52 +130,71 @@ class TestMongoProcessor:
 
     def test_add_training_example(self):
         processor = MongoProcessor()
-        assert processor.add_training_example("Hi", "greeting", "tests", "testUser")
-        training_example = TrainingExamples.objects(bot="tests").get(
-            intent="greeting", text="Hi"
-        )
-        assert training_example.intent == "greeting"
-        assert training_example.text == "Hi"
+        results = list(processor.add_training_example(["Hi"], "greeting", "tests", "testUser"))
+        assert results[0]['_id']
+        assert results[0]['text'] == "Hi"
+        assert results[0]['message'] == "Training Example added successfully!"
 
     def test_add_same_training_example(self):
         processor = MongoProcessor()
-        with pytest.raises(Exception):
-            processor.add_training_example("Hi", "greeting", "tests", "testUser")
+        results = list(processor.add_training_example(["Hi"], "greeting", "tests", "testUser"))
+        assert results[0]['_id'] is None
+        assert results[0]['text'] == "Hi"
+        assert results[0]['message'] == "Training Example already exists!"
 
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            processor.add_training_example(None, "greeting", "tests", "testUser")
+        results = list(processor.add_training_example([None], "greeting", "tests", "testUser"))
+        assert results[0]['_id'] is None
+        assert results[0]['text'] is None
+        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_add_training_example_empty_text(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            processor.add_training_example("", "greeting", "tests", "testUser")
+        results = list(processor.add_training_example([""], "greeting", "tests", "testUser"))
+        assert results[0]['_id'] is None
+        assert results[0]['text'] == ""
+        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_add_training_example_blank_text(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            processor.add_training_example("  ", "greeting", "tests", "testUser")
+        results = list(processor.add_training_example(["  "], "greeting", "tests", "testUser"))
+        assert results[0]['_id'] is None
+        assert results[0]['text'] == "  "
+        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_add_training_example_none_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.add_training_example("Hi! How are you", None, "tests", "testUser")
+            results = list(processor.add_training_example(["Hi! How are you"], None, "tests", "testUser"))
+            assert results[0]['_id'] is None
+            assert results[0]['text'] == "Hi! How are you"
+            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+
 
     def test_add_training_example_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.add_training_example("Hi! How are you", "", "tests", "testUser")
+            results = list(processor.add_training_example(["Hi! How are you"], "", "tests", "testUser"))
+            assert results[0]['_id'] is None
+            assert results[0]['text'] == "Hi! How are you"
+            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_add_training_example_blank_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.add_training_example("Hi! How are you", "  ", "tests", "testUser")
+            results = list(processor.add_training_example(["Hi! How are you"], "  ", "tests", "testUser"))
+            assert results[0]['_id'] is None
+            assert results[0]['text'] == "Hi! How are you"
+            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_add_empty_training_example(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.add_training_example("", None, "tests", "testUser")
+            results = list(processor.add_training_example([""], None, "tests", "testUser"))
+            assert results[0]['_id'] is None
+            assert results[0]['text'] == "Hi! How are you"
+            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
 
     def test_get_training_examples(self):
         processor = MongoProcessor()
@@ -186,18 +205,21 @@ class TestMongoProcessor:
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()
-        processor.add_training_example(
-            "Log a [critical issue](priority)", "get_priority", "tests", "testUser"
-        )
-        new_intent = Intents.objects(bot="tests").get(name="get_priority")
-        new_entity = Entities.objects(bot="tests").get(name="priority")
+        results = list(processor.add_training_example(
+            ["Log a [critical issue](priority)"], "get_priority", "tests", "testUser"
+        ))
+        assert results[0]['_id']
+        assert results[0]['text'] == "Log a [critical issue](priority)"
+        assert results[0]['message'] == "Training Example added successfully!"
+        intents = processor.get_intents("tests")
+        assert any("get_priority" == intent['name'] for intent in intents)
+        entities = processor.get_entities("tests")
+        assert any("priority" == entity['name'] for entity in entities)
         new_training_example = TrainingExamples.objects(bot="tests").get(
             text="Log a critical issue"
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert new_intent.name == "get_priority"
-        assert new_entity.name == "priority"
         assert slots.__len__() == 1
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
@@ -205,12 +227,15 @@ class TestMongoProcessor:
 
     def test_get_training_examples_with_entities(self):
         processor = MongoProcessor()
-        processor.add_training_example(
-            "Make [TKT456](ticketID) a [critical issue](priority)",
+        results = list(processor.add_training_example(
+            ["Make [TKT456](ticketID) a [critical issue](priority)"],
             "get_priority",
             "tests",
             "testUser",
-        )
+        ))
+        assert results[0]['_id']
+        assert results[0]['text'] == "Make [TKT456](ticketID) a [critical issue](priority)"
+        assert results[0]['message'] == "Training Example added successfully!"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="ticketID")

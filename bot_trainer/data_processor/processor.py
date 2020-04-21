@@ -609,33 +609,38 @@ class MongoProcessor:
         intents = Intents.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(intents, "name"))
 
-    def add_training_example(self, example: Text, intent: Text, bot: Text, user: Text):
-        Utility.is_exist(
-            TrainingExamples,
-            query={"text": example, "bot": bot},
-            exp_message="Training Example already exists!",
-        )
-
+    def add_training_example(self, examples: List[Text], intent: Text, bot: Text, user: Text):
         if not Utility.is_exist(
-            Intents, query={"name": intent, "bot": bot}, raise_error=False
+                Intents, query={"name": intent, "bot": bot}, raise_error=False
         ):
-            Intents(name=intent, bot=bot, user=user).save()
-
-        training_example = TrainingExamples(
-            intent=intent, text=example, bot=bot, user=user
-        )
-        if not Utility.check_empty_string(example):
-            entities = MarkdownReader._find_entities_in_training_example(example)
-            if entities:
-                ext_entity = [ent["entity"] for ent in entities]
-                self.__save_domain_entities(ext_entity, bot=bot, user=user)
-                self.__add_slots_from_entities(ext_entity, bot, user)
-                training_example.text = re.sub(
-                    ent_regex, lambda m: m.groupdict()["entity_text"], example
+            self.add_intent(intent, bot, user)
+        for example in examples:
+            if (Utility.is_exist(
+                TrainingExamples,
+                query={"text": example, "bot": bot},
+                raise_error=False
+            )):
+                yield {"text": example, "message": "Training Example already exists!", "_id": None}
+            else:
+                training_example = TrainingExamples(
+                    intent=intent, text=example, bot=bot, user=user
                 )
-                training_example.entities = list(self.__extract_entities(entities))
-        saved = training_example.save().to_mongo().to_dict()
-        return saved["_id"].__str__()
+                if not Utility.check_empty_string(example):
+                    entities = MarkdownReader._find_entities_in_training_example(example)
+                    if entities:
+                        ext_entity = [ent["entity"] for ent in entities]
+                        self.__save_domain_entities(ext_entity, bot=bot, user=user)
+                        self.__add_slots_from_entities(ext_entity, bot, user)
+                        training_example.text = re.sub(
+                            ent_regex, lambda m: m.groupdict()["entity_text"], example
+                        )
+                        training_example.entities = list(self.__extract_entities(entities))
+                try:
+                    saved = training_example.save().to_mongo().to_dict()
+                    yield {"text": example, "_id": saved["_id"].__str__(),
+                           "message": "Training Example added successfully!"}
+                except Exception as e:
+                    yield {"text": example, "_id": None, "message": str(e)}
 
     def get_training_examples(self, intent: Text, bot: Text):
         training_examples = list(

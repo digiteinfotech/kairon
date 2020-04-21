@@ -160,14 +160,14 @@ def test_get_training_examples_empty_intent():
 def test_add_training_examples():
     response = client.post(
         "/api/bot/training_examples/greet",
-        json={"data": "How do you do?"},
+        json={"data": ["How do you do?"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"]["_id"]
+    assert actual["data"][0]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Training Example added successfully!"
+    assert actual["message"] is None
     response = client.get(
         "/api/bot/training_examples/greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -179,28 +179,36 @@ def test_add_training_examples():
 def test_add_training_examples_duplicate():
     response = client.post(
         "/api/bot/training_examples/greet",
-        json={"data": "How do you do?"},
+        json={"data": ["How do you do?"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Training Example already exists!"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert (
+            actual["data"][0]["message"]
+            == "Training Example already exists!"
+    )
+    assert (
+            actual["data"][0]["_id"] is None
+    )
 
 
 def test_add_empty_training_examples():
     response = client.post(
         "/api/bot/training_examples/greet",
-        json={"data": ""},
+        json={"data": [""]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert (
-        actual["message"]
+        actual["data"][0]["message"]
         == "Training Example name and text cannot be empty or blank spaces"
+    )
+    assert (
+            actual["data"][0]["_id"] is None
     )
 
 

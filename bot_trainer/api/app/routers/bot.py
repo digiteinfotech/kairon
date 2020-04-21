@@ -51,13 +51,13 @@ async def get_training_examples(
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
     intent: str,
-    request_data: TextData,
+    request_data: ListData,
     current_user: User = Depends(auth.get_current_user),
 ):
-    id = mongo_processor.add_training_example(
+    results = list(mongo_processor.add_training_example(
         request_data.data, intent, current_user.get_bot(), current_user.get_user()
-    )
-    return {"message": "Training Example added successfully!", "data": {"_id": id}}
+    ))
+    return {"data": results}
 
 
 @router.delete("/training_examples", response_model=Response)
