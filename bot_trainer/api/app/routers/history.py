@@ -12,7 +12,7 @@ auth = Authentication()
 
 @router.get("/users", response_model=Response)
 async def chat_history_users(current_user: User = Depends(auth.get_current_user)):
-    return {"data": {"users": ChatHistory.fetch_chat_users(current_user.bot)}}
+    return {"data": {"users": ChatHistory.fetch_chat_users(current_user.get_bot())}}
 
 
 @router.post("/history/users/{sender}", response_model=Response)
@@ -21,6 +21,6 @@ async def chat_history(
 ):
     return {
         "data": {
-            "history": list(ChatHistory.fetch_chat_history(current_user.bot, sender))
+            "history": list(ChatHistory.fetch_chat_history(current_user.get_bot(), sender))
         }
     }
