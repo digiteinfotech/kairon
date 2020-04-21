@@ -490,6 +490,19 @@ def test_chat():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_chat_fetch_from_cache():
+    response = client.post(
+        "/api/bot/chat",
+        json={"data": "Hi"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_chat_model_not_trained():
     response = client.post(
         "/api/auth/login",
