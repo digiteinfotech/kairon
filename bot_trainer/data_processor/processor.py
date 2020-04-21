@@ -900,18 +900,18 @@ class AgentProcessor:
     @staticmethod
     def get_agent(bot: Text) -> Agent:
         if bot in InMemoryAgentCache.cache.keys():
-            InMemoryAgentCache.cache.get(bot)
+            return InMemoryAgentCache.cache.get(bot)
         else:
             try:
                 endpoint = AgentProcessor.mongo_processor.get_endpoints(bot, raise_exception=False)
                 action_endpoint = EndpointConfig(url=endpoint['action_endpoint']['url']) if endpoint and endpoint.get("action_endpoint") else None
+                model_path = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
                 agent = Agent.load(
-                    Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot)),
+                    model_path,
                     action_endpoint=action_endpoint
                 )
                 InMemoryAgentCache.set(bot, agent)
                 return agent
             except Exception as e:
-                print(str(e))
                 logging.info(e)
                 raise AppException("Please train the bot first")
