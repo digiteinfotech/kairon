@@ -545,16 +545,21 @@ def test_deploy_missing_configuration():
     assert actual["data"] is None
     assert actual["message"] == "Please configure the bot endpoint for deployment!"
 
+def endpoint_response(*args, **kwargs):
+    return {"bot_endpoint": {"url": "http://localhost:5000"}}
+
+@pytest.fixture
+def mock_endpoint(monkeypatch):
+    monkeypatch.setattr(MongoProcessor,"get_endpoints", endpoint_response)
+
 @responses.activate
-def test_deploy():
-    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+def test_deploy(mock_endpoint):
     responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
     response = client.post("/api/bot/deploy",
                            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
                            )
 
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -562,8 +567,7 @@ def test_deploy():
 
 
 @responses.activate
-def test_deploy_bad_request():
-    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+def test_deploy_bad_request(mock_endpoint):
     responses.add(responses.PUT,
                   "http://localhost:5000/model",
                   json={"version": "1.0.0",
@@ -577,7 +581,6 @@ def test_deploy_bad_request():
                            )
 
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -585,8 +588,7 @@ def test_deploy_bad_request():
 
 
 @responses.activate
-def test_deploy_server_error():
-    processor.add_endpoints({"bot_endpoint": {"url": "http://localhost:5000"}}, bot="1_integration", user="testAdmin")
+def test_deploy_server_error(mock_endpoint):
     responses.add(responses.PUT,
                   "http://localhost:5000/model",
                   json={
