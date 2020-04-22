@@ -1,7 +1,6 @@
 import itertools
 
 import spacy
-from nltk.corpus import wordnet
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
 import gensim.downloader as api
@@ -13,21 +12,9 @@ class QuestionGenerator:
     model = api.load('word2vec-google-news-300')
 
     @staticmethod
-    def get_synonyms(text: str):
-        tokens = [ doc.text  for doc in QuestionGenerator.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
-        token_list = {}
-        for token in tokens:
-            for syn in wordnet.synsets(token):
-                synonyms = set()
-                for l in syn.lemmas():
-                    synonyms.add(l.name())
-                if synonyms.__len__() > 0:
-                    token_list[token] = list(synonyms)
-        return token_list
-
-    @staticmethod
     def get_synonyms_from_embedding(text: str):
-        tokens = [ doc.text  for doc in QuestionGenerator.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
+        tokens = [doc.text for doc in QuestionGenerator.nlp(text)
+                  if not doc.is_punct and not doc.is_stop and not doc.is_quote]
         token_list = {}
         for token in tokens:
             try:
