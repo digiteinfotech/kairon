@@ -4,12 +4,13 @@ import spacy
 from nltk.corpus import wordnet
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
+import gensim.downloader as api
 
 
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
     sentence_transformer = SentenceTransformer('bert-large-nli-stsb-mean-tokens')
-    fastText = None#gensim.models.KeyedVectors.load_word2vec_format('./pretrained_model/wiki-news-300d-1M.vec')
+    model = api.load('word2vec-google-news-300')
 
     @staticmethod
     def get_synonyms(text: str):
@@ -25,19 +26,17 @@ class QuestionGenerator:
         return token_list
 
     @staticmethod
-    def get_synonyms_fastText(text: str):
+    def get_synonyms_from_embedding(text: str):
         tokens = [ doc.text  for doc in QuestionGenerator.nlp(text) if not doc.is_punct and not doc.is_stop and not doc.is_quote]
         token_list = {}
         for token in tokens:
             try:
-                similar_words = QuestionGenerator.fastText.most_similar(token, topn=10)
-                synonyms = set()
-                for word, similarity in similar_words:
-                    synonyms.add(word)
+                similar_words = QuestionGenerator.model.most_similar(token, topn=10)
+                synonyms = set([str(word).replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
                 if synonyms.__len__() > 0:
                     token_list[token] = list(synonyms)
             except:
-                print()
+                pass
         return token_list
 
     @staticmethod
@@ -53,7 +52,7 @@ class QuestionGenerator:
         for i in range(len(texts)):
             text = texts[i]
             text_encoding = text_encodings[i]
-            synonyms = QuestionGenerator.get_synonyms(text)
+            synonyms = QuestionGenerator.get_synonyms_from_embedding(text)
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGenerator.nlp(text)]
             questions = [' '.join(question) for question in list(itertools.product(*tokens))]
             questions_encodings = QuestionGenerator.sentence_transformer.encode(questions)

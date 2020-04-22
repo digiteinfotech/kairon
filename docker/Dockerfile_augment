@@ -11,7 +11,8 @@ RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install sentence_transformers
 RUN python3 -m pip install spacy
 RUN python3 -m spacy download en_core_web_sm
-RUN python3 -m nltk.downloader wordnet
+RUN python3 -m pip install gensim
+RUN python3 -m gensim.downloader --download word2vec-google-news-300
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 
