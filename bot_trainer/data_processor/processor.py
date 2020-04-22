@@ -904,8 +904,8 @@ class AgentProcessor:
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
-        if bot in InMemoryAgentCache.cache.keys():
-            return InMemoryAgentCache.cache.get(bot)
+        if InMemoryAgentCache.is_exists(bot):
+            return InMemoryAgentCache.get(bot)
         else:
             try:
                 endpoint = AgentProcessor.mongo_processor.get_endpoints(bot, raise_exception=False)

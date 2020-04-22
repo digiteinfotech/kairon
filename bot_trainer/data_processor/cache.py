@@ -10,6 +10,9 @@ class AgentCache:
     def get(self, bot: Text) -> Agent:
         pass
 
+    def is_exists(self) -> Agent:
+        pass
+
 
 class InMemoryAgentCache(AgentCache):
     cache = LRUCache(maxsize=100)
@@ -20,4 +23,10 @@ class InMemoryAgentCache(AgentCache):
 
     @staticmethod
     def get(bot: Text) -> Agent:
-        InMemoryAgentCache.get(bot)
+        return InMemoryAgentCache.cache.get(bot)
+
+    @staticmethod
+    def is_exists(bot: Text) -> Agent:
+        return bot in InMemoryAgentCache.cache.keys()
+
+
