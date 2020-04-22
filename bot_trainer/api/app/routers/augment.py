@@ -17,4 +17,4 @@ async def questions(
     response = requests.post(
         Utility.environment["augmentation_url"], json=request_data.data
     )
-    return response
+    return response.json()
