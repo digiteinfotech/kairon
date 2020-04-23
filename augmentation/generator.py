@@ -4,12 +4,13 @@ import spacy
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
 import gensim.downloader as api
-
+from string import punctuation
 
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
     sentence_transformer = SentenceTransformer('bert-large-nli-stsb-mean-tokens')
     model = api.load('word2vec-google-news-300')
+    punct_token = set(punctuation)
 
     @staticmethod
     def get_synonyms_from_embedding(text: str):
@@ -19,7 +20,7 @@ class QuestionGenerator:
         for token in tokens:
             try:
                 similar_words = QuestionGenerator.model.most_similar(token, topn=10)
-                synonyms = set([str(word).replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
+                synonyms = set([str(word).lower().replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
                 if synonyms.__len__() > 0:
                     token_list[token] = list(synonyms)
             except:
@@ -41,11 +42,11 @@ class QuestionGenerator:
             text_encoding = text_encodings[i]
             synonyms = QuestionGenerator.get_synonyms_from_embedding(text)
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGenerator.nlp(text)]
-            questions = [' '.join(question) for question in list(itertools.product(*tokens))]
+            questions = [''.join(w if set(w) <= punct_token else ' '+w for w in question).strip() for question in list(itertools.product(*tokens))]
             questions_encodings = QuestionGenerator.sentence_transformer.encode(questions)
-            questions = [ questions[i] for i in range(len(questions)) if QuestionGenerator.checkDistance(text_encoding, questions_encodings[i]) > 0.90 ]
+            questions = [ questions[i] for i in range(len(questions)) if QuestionGenerator.checkDistance(text_encoding, questions_encodings[i]) > 0.70 ]
             if len(questions):
                 if len(questions) == 1 and text[i] == questions[0]:
                     continue
                 result.extend(list(questions))
-        return result
+        return set(result) - set(texts)
