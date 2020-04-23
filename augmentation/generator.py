@@ -49,4 +49,4 @@ class QuestionGenerator:
                 if len(questions) == 1 and text[i] == questions[0]:
                     continue
                 result.extend(list(questions))
-        return set(result) - set(texts)
+        return list(set(result) - set(texts))
