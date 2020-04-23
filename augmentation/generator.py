@@ -42,7 +42,7 @@ class QuestionGenerator:
             text_encoding = text_encodings[i]
             synonyms = QuestionGenerator.get_synonyms_from_embedding(text)
             tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGenerator.nlp(text)]
-            questions = [''.join(w if set(w) <= punct_token else ' '+w for w in question).strip() for question in list(itertools.product(*tokens))]
+            questions = [''.join(w if set(w) == QuestionGenerator.punct_token else ' '+w for w in question).strip() for question in list(itertools.product(*tokens))]
             questions_encodings = QuestionGenerator.sentence_transformer.encode(questions)
             questions = [ questions[i] for i in range(len(questions)) if QuestionGenerator.checkDistance(text_encoding, questions_encodings[i]) > 0.70 ]
             if len(questions):
