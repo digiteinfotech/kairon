@@ -1,0 +1,2026 @@
+[
+	{ 
+    "_id" : "5e564fbcdcf0d5fad89e3acd", 
+    "sender_id" : "5b029887-bed2-4bbb-aa25-bd12fda26244", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1582714812.8352926, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582714812.9233751, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greet", 
+                    "confidence" : 0.957819402217865
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greet", 
+                        "confidence" : 0.957819402217865
+                    }, 
+                    {
+                        "name" : "mood_great", 
+                        "confidence" : 0.013401745818555355
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.009069026447832584
+                    }, 
+                    {
+                        "name" : "deny", 
+                        "confidence" : 0.006835118401795626
+                    }, 
+                    {
+                        "name" : "affirm", 
+                        "confidence" : 0.00682105915620923
+                    }, 
+                    {
+                        "name" : "mood_unhappy", 
+                        "confidence" : 0.006053679622709751
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "be4affeffd634401af61191b367d7ac6", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714813.205575, 
+            "name" : "utter_greet", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582714813.205575, 
+            "text" : "Hey! How are you?", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714813.214581, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582714865.957085, 
+            "text" : "where is digite located", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "affirm", 
+                    "confidence" : 0.3129556477069855
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "affirm", 
+                        "confidence" : 0.3129556477069855
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.2507178783416748
+                    }, 
+                    {
+                        "name" : "mood_great", 
+                        "confidence" : 0.13869991898536682
+                    }, 
+                    {
+                        "name" : "mood_unhappy", 
+                        "confidence" : 0.13546432554721832
+                    }, 
+                    {
+                        "name" : "greet", 
+                        "confidence" : 0.10203812271356583
+                    }, 
+                    {
+                        "name" : "deny", 
+                        "confidence" : 0.06012418121099472
+                    }
+                ], 
+                "text" : "where is digite located"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "e3c6c8d1a77d4565a2c80711832d6054", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714865.9691007, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.3068053424358368
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582714997.052953, 
+            "text" : "where is digite located", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "location_query", 
+                    "confidence" : 0.9906349778175354
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.9906349778175354
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0017103198915719986
+                    }, 
+                    {
+                        "name" : "demo", 
+                        "confidence" : 0.0016654428327456117
+                    }, 
+                    {
+                        "name" : "integration", 
+                        "confidence" : 0.0008215609122999012
+                    }, 
+                    {
+                        "name" : "feedback", 
+                        "confidence" : 0.00051131471991539
+                    }, 
+                    {
+                        "name" : "login", 
+                        "confidence" : 0.0004865138907916844
+                    }, 
+                    {
+                        "name" : "contact", 
+                        "confidence" : 0.00044387351954355836
+                    }, 
+                    {
+                        "name" : "webinar", 
+                        "confidence" : 0.0004209910985082388
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.00034798323758877814
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.0003352740313857794
+                    }
+                ], 
+                "text" : "where is digite located"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "9181296bae71439aac2b05a4e9205855", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714997.5523076, 
+            "name" : "action_default_fallback", 
+            "policy" : "policy_3_FallbackPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582714997.5523076, 
+            "text" : "Forgive me. I could not process your message. I'm the new bot here, so I've got a long way to go. You can send in your queries to sales@digite.com or fill out the form here: \n https://www.digite.com/contact-us/", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "rewind", 
+            "timestamp" : 1582714997.5523076
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714997.5763245, 
+            "name" : "action_default_fallback", 
+            "policy" : "policy_3_FallbackPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582714997.5763245, 
+            "text" : "Forgive me. I could not process your message. I'm the new bot here, so I've got a long way to go. You can send in your queries to sales@digite.com or fill out the form here: \n https://www.digite.com/contact-us/", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "rewind", 
+            "timestamp" : 1582714997.5763245
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582714997.5953372, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9998100399971008
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582715013.012148, 
+            "text" : "where is digite located?", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "location_query", 
+                    "confidence" : 0.9906349778175354
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.9906349778175354
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0017103198915719986
+                    }, 
+                    {
+                        "name" : "demo", 
+                        "confidence" : 0.0016654428327456117
+                    }, 
+                    {
+                        "name" : "integration", 
+                        "confidence" : 0.0008215609122999012
+                    }, 
+                    {
+                        "name" : "feedback", 
+                        "confidence" : 0.00051131471991539
+                    }, 
+                    {
+                        "name" : "login", 
+                        "confidence" : 0.0004865138907916844
+                    }, 
+                    {
+                        "name" : "contact", 
+                        "confidence" : 0.00044387351954355836
+                    }, 
+                    {
+                        "name" : "webinar", 
+                        "confidence" : 0.0004209910985082388
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.00034798323758877814
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.0003352740313857794
+                    }
+                ], 
+                "text" : "where is digite located?"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "af8dab677c9a4fc0a0773fd41f4fef00", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715013.0271442, 
+            "name" : "utter_location_query", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9888001680374146
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582715013.0271442, 
+            "text" : "The Digite offices are located at: \n United States \n 21060 Homestead Rd, Suite 220, Cupertino, CA 95014 \n \n Mumbai \n Fifth Floor, Opus Park, Opposite SEEPZ Main Gate, Central MIDC Road, Andheri (East, Mumbai - 400 093 \n \n Bengaluru \n Ground Floor, 40/1A, Basappa Complex, Lavelle Road, Bengaluru-560001", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715013.0411549, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9998675584793091
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582715035.0665848, 
+            "text" : "what is swiftkanban?", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "buySK", 
+                    "confidence" : 0.18579000234603882
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "buySK", 
+                        "confidence" : 0.18579000234603882
+                    }, 
+                    {
+                        "name" : "agile", 
+                        "confidence" : 0.06309351325035095
+                    }, 
+                    {
+                        "name" : "kanbantool", 
+                        "confidence" : 0.05291488394141197
+                    }, 
+                    {
+                        "name" : "login", 
+                        "confidence" : 0.04949937015771866
+                    }, 
+                    {
+                        "name" : "kanban", 
+                        "confidence" : 0.0482025220990181
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.04802853986620903
+                    }, 
+                    {
+                        "name" : "training", 
+                        "confidence" : 0.0436650887131691
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.04060499370098114
+                    }, 
+                    {
+                        "name" : "thanking", 
+                        "confidence" : 0.04001115635037422
+                    }, 
+                    {
+                        "name" : "challenge_bot", 
+                        "confidence" : 0.03828959912061691
+                    }
+                ], 
+                "text" : "what is swiftkanban?"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "8be94522f30b46e98ced79868feb1f7a", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715035.0805962, 
+            "name" : "action_default_fallback", 
+            "policy" : "policy_3_FallbackPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582715035.0815954, 
+            "text" : "Forgive me. I could not process your message. I'm the new bot here, so I've got a long way to go. You can send in your queries to sales@digite.com or fill out the form here: \n https://www.digite.com/contact-us/", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "rewind", 
+            "timestamp" : 1582715035.0815954
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715035.0936036, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9998675584793091
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582715117.4420745, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9226725101470947
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9226725101470947
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.011206472292542458
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.011174755170941353
+                    }, 
+                    {
+                        "name" : "sEnt_updates", 
+                        "confidence" : 0.007838386110961437
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.00459981570020318
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.0039045687299221754
+                    }, 
+                    {
+                        "name" : "trial", 
+                        "confidence" : 0.0038383817300200462
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.003739400766789913
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.0026965367142111063
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0025860052555799484
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "d352092054994457bb8ab02beaa37fec", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715117.4600854, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9967999458312988
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582715117.4600854, 
+            "text" : "Hey! How can I help you?", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582715117.4761014, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9999673366546631
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1582715117.4761014, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "greeting", 
+            "confidence" : 0.9226725101470947
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "greeting", 
+                "confidence" : 0.9226725101470947
+            }, 
+            {
+                "name" : "scrumtool", 
+                "confidence" : 0.011206472292542458
+            }, 
+            {
+                "name" : "pricing", 
+                "confidence" : 0.011174755170941353
+            }, 
+            {
+                "name" : "sEnt_updates", 
+                "confidence" : 0.007838386110961437
+            }, 
+            {
+                "name" : "products", 
+                "confidence" : 0.00459981570020318
+            }, 
+            {
+                "name" : "selfhosted", 
+                "confidence" : 0.0039045687299221754
+            }, 
+            {
+                "name" : "trial", 
+                "confidence" : 0.0038383817300200462
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.003739400766789913
+            }, 
+            {
+                "name" : "need_advice", 
+                "confidence" : 0.0026965367142111063
+            }, 
+            {
+                "name" : "resources", 
+                "confidence" : 0.0025860052555799484
+            }
+        ], 
+        "text" : "Hi"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e589350dcf0d5fad89e4cae", 
+    "sender_id" : "b868d6ee-f98f-4c1b-b284-ce034aaad01f", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1582863184.1239572, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582863184.2039475, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9139798879623413
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9139798879623413
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.01156450342386961
+                    }, 
+                    {
+                        "name" : "agile", 
+                        "confidence" : 0.010233263485133648
+                    }, 
+                    {
+                        "name" : "testimonials", 
+                        "confidence" : 0.008896262384951115
+                    }, 
+                    {
+                        "name" : "login", 
+                        "confidence" : 0.00613460224121809
+                    }, 
+                    {
+                        "name" : "feedback", 
+                        "confidence" : 0.005838586017489433
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.005153654608875513
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.005122104659676552
+                    }, 
+                    {
+                        "name" : "kanban", 
+                        "confidence" : 0.004308411851525307
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.0034057500306516886
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "abd7b211592f4609a66cf3fb8fc5ba6d", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582863184.4359326, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582863184.4399333, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582863705.5298803, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9307786822319031
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9307786822319031
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.029643665999174118
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.016441477462649345
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006357754580676556
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.006006825715303421
+                    }, 
+                    {
+                        "name" : "kanban", 
+                        "confidence" : 0.004110375419259071
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.002021032851189375
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0018460165010765195
+                    }, 
+                    {
+                        "name" : "thanking", 
+                        "confidence" : 0.0017601312138140202
+                    }, 
+                    {
+                        "name" : "demo", 
+                        "confidence" : 0.0010340485023334622
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "b85c6920f73e42308891cd14c3bcfdbb", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582863705.786631, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.957145631313324
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582863705.786631, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582863705.8146315, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9998342990875244
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1582863705.8146315, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "greeting", 
+            "confidence" : 0.9307786822319031
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "greeting", 
+                "confidence" : 0.9307786822319031
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.029643665999174118
+            }, 
+            {
+                "name" : "resources", 
+                "confidence" : 0.016441477462649345
+            }, 
+            {
+                "name" : "products", 
+                "confidence" : 0.006357754580676556
+            }, 
+            {
+                "name" : "goodbye", 
+                "confidence" : 0.006006825715303421
+            }, 
+            {
+                "name" : "kanban", 
+                "confidence" : 0.004110375419259071
+            }, 
+            {
+                "name" : "scrumtool", 
+                "confidence" : 0.002021032851189375
+            }, 
+            {
+                "name" : "getstarted", 
+                "confidence" : 0.0018460165010765195
+            }, 
+            {
+                "name" : "thanking", 
+                "confidence" : 0.0017601312138140202
+            }, 
+            {
+                "name" : "demo", 
+                "confidence" : 0.0010340485023334622
+            }
+        ], 
+        "text" : "Hi"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e58a2b8dcf0d5fad89e4fbc", 
+    "sender_id" : "b868d6ee-f98f-4c1b-b284-ce034aaad61f", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1582867128.5974743, 
+            "name" : "action_session_start", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "session_started", 
+            "timestamp" : 1582867128.5974743
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867128.5974743, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582867128.6334462, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9307786822319031
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9307786822319031
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.029643665999174118
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.016441477462649345
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006357754580676556
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.006006825715303421
+                    }, 
+                    {
+                        "name" : "kanban", 
+                        "confidence" : 0.004110375419259071
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.002021032851189375
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0018460165010765195
+                    }, 
+                    {
+                        "name" : "thanking", 
+                        "confidence" : 0.0017601312138140202
+                    }, 
+                    {
+                        "name" : "demo", 
+                        "confidence" : 0.0010340485023334622
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "ac069e672bab4deda07ba8927b61d76a", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867128.6614482, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582867128.6614482, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867128.689465, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1582867128.689465, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "greeting", 
+            "confidence" : 0.9307786822319031
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "greeting", 
+                "confidence" : 0.9307786822319031
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.029643665999174118
+            }, 
+            {
+                "name" : "resources", 
+                "confidence" : 0.016441477462649345
+            }, 
+            {
+                "name" : "products", 
+                "confidence" : 0.006357754580676556
+            }, 
+            {
+                "name" : "goodbye", 
+                "confidence" : 0.006006825715303421
+            }, 
+            {
+                "name" : "kanban", 
+                "confidence" : 0.004110375419259071
+            }, 
+            {
+                "name" : "scrumtool", 
+                "confidence" : 0.002021032851189375
+            }, 
+            {
+                "name" : "getstarted", 
+                "confidence" : 0.0018460165010765195
+            }, 
+            {
+                "name" : "thanking", 
+                "confidence" : 0.0017601312138140202
+            }, 
+            {
+                "name" : "demo", 
+                "confidence" : 0.0010340485023334622
+            }
+        ], 
+        "text" : "Hi"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e58a39adcf0d5fad89e4ff3", 
+    "sender_id" : "b868d6ee-f98f-4c1b-b284-ce4534aaad61f", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1582867354.094053, 
+            "name" : "action_session_start", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "session_started", 
+            "timestamp" : 1582867354.094053
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867354.094053, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1582867354.1300244, 
+            "text" : "where is digite located?", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "location_query", 
+                    "confidence" : 0.9968919157981873
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.9968919157981873
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.0019517458276823163
+                    }, 
+                    {
+                        "name" : "feedback", 
+                        "confidence" : 0.0004896337050013244
+                    }, 
+                    {
+                        "name" : "login", 
+                        "confidence" : 0.00020646920893341303
+                    }, 
+                    {
+                        "name" : "careers", 
+                        "confidence" : 0.00015717341739218682
+                    }, 
+                    {
+                        "name" : "testimonials", 
+                        "confidence" : 0.00011799901403719559
+                    }, 
+                    {
+                        "name" : "about", 
+                        "confidence" : 0.00006703629333060235
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.00005191146919969469
+                    }, 
+                    {
+                        "name" : "challenge_bot", 
+                        "confidence" : 0.000035105764254694805
+                    }, 
+                    {
+                        "name" : "webinar", 
+                        "confidence" : 0.00003101372203673236
+                    }
+                ], 
+                "text" : "where is digite located?"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "a1a9cb37fd3047e1bef504d029f04acc", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867354.1540272, 
+            "name" : "utter_location_query", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1582867354.1540272, 
+            "text" : "The Digite offices are located at: \n United States \n 21060 Homestead Rd, Suite 220, Cupertino, CA 95014 \n \n Mumbai \n Fifth Floor, Opus Park, Opposite SEEPZ Main Gate, Central MIDC Road, Andheri (East, Mumbai - 400 093 \n \n Bengaluru \n Ground Floor, 40/1A, Basappa Complex, Lavelle Road, Bengaluru-560001", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1582867354.1900303, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1582867354.1900303, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "location_query", 
+            "confidence" : 0.9968919157981873
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "location_query", 
+                "confidence" : 0.9968919157981873
+            }, 
+            {
+                "name" : "selfhosted", 
+                "confidence" : 0.0019517458276823163
+            }, 
+            {
+                "name" : "feedback", 
+                "confidence" : 0.0004896337050013244
+            }, 
+            {
+                "name" : "login", 
+                "confidence" : 0.00020646920893341303
+            }, 
+            {
+                "name" : "careers", 
+                "confidence" : 0.00015717341739218682
+            }, 
+            {
+                "name" : "testimonials", 
+                "confidence" : 0.00011799901403719559
+            }, 
+            {
+                "name" : "about", 
+                "confidence" : 0.00006703629333060235
+            }, 
+            {
+                "name" : "mobapp", 
+                "confidence" : 0.00005191146919969469
+            }, 
+            {
+                "name" : "challenge_bot", 
+                "confidence" : 0.000035105764254694805
+            }, 
+            {
+                "name" : "webinar", 
+                "confidence" : 0.00003101372203673236
+            }
+        ], 
+        "text" : "where is digite located?"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e72f616dcf0d5fad89f2c08", 
+    "sender_id" : "49931985-2b51-4db3-89d5-a50767e6d98e", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1584592407.1270387, 
+            "name" : "action_session_start", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "session_started", 
+            "timestamp" : 1584592407.1367166
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584592407.137146, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584592421.683303, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9449414014816284
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9449414014816284
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.02342386171221733
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.006630190182477236
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006060377694666386
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0060149990022182465
+                    }, 
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.0042845262214541435
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.003603869816288352
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.002028284827247262
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.0015137146692723036
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0014987395843490958
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "09cd79d0c15549a8b21dcd16f6194091", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584592423.051706, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584592423.0517173, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584592423.2831728, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584592423.6917777, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9449414014816284
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9449414014816284
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.02342386171221733
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.006630190182477236
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006060377694666386
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0060149990022182465
+                    }, 
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.0042845262214541435
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.003603869816288352
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.002028284827247262
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.0015137146692723036
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0014987395843490958
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "6d9b966ce125430d86f371191f75e68e", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584592423.8013806, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.5798691511154175
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584592423.8013875, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584592423.9071045, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.9123079180717468
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1584592423.9071045, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "greeting", 
+            "confidence" : 0.9449414014816284
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "greeting", 
+                "confidence" : 0.9449414014816284
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.02342386171221733
+            }, 
+            {
+                "name" : "need_advice", 
+                "confidence" : 0.006630190182477236
+            }, 
+            {
+                "name" : "products", 
+                "confidence" : 0.006060377694666386
+            }, 
+            {
+                "name" : "getstarted", 
+                "confidence" : 0.0060149990022182465
+            }, 
+            {
+                "name" : "location_query", 
+                "confidence" : 0.0042845262214541435
+            }, 
+            {
+                "name" : "mobapp", 
+                "confidence" : 0.003603869816288352
+            }, 
+            {
+                "name" : "goodbye", 
+                "confidence" : 0.002028284827247262
+            }, 
+            {
+                "name" : "pricing", 
+                "confidence" : 0.0015137146692723036
+            }, 
+            {
+                "name" : "resources", 
+                "confidence" : 0.0014987395843490958
+            }
+        ], 
+        "text" : "Hi"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e733382dcf0d5fad89f3a4d", 
+    "sender_id" : "2e409e7c-06f8-4de8-8c88-93b4cf0b7211", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1584608130.5387452, 
+            "name" : "action_session_start", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "session_started", 
+            "timestamp" : 1584608130.5489042
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584608130.5489285, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584608170.4202535, 
+            "text" : "hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9449414014816284
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9449414014816284
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.02342386171221733
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.006630190182477236
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006060377694666386
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0060149990022182465
+                    }, 
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.0042845262214541435
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.003603869816288352
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.002028284827247262
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.0015137146692723036
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0014987395843490958
+                    }
+                ], 
+                "text" : "hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "ae2af9561ac6421d8e7bdbfebba1a833", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584608177.9489794, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584608177.948999, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584608179.1618729, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584608180.540545, 
+            "text" : "hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9449414014816284
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9449414014816284
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.02342386171221733
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.006630190182477236
+                    }, 
+                    {
+                        "name" : "products", 
+                        "confidence" : 0.006060377694666386
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.0060149990022182465
+                    }, 
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.0042845262214541435
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.003603869816288352
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.002028284827247262
+                    }, 
+                    {
+                        "name" : "pricing", 
+                        "confidence" : 0.0015137146692723036
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.0014987395843490958
+                    }
+                ], 
+                "text" : "hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "6e756a490b1b404d8b758493c262a029", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584608180.9413762, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.5798691511154175
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584608180.9413846, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584608181.0970204, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.9123079180717468
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1584608181.0970204, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "greeting", 
+            "confidence" : 0.9449414014816284
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "greeting", 
+                "confidence" : 0.9449414014816284
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.02342386171221733
+            }, 
+            {
+                "name" : "need_advice", 
+                "confidence" : 0.006630190182477236
+            }, 
+            {
+                "name" : "products", 
+                "confidence" : 0.006060377694666386
+            }, 
+            {
+                "name" : "getstarted", 
+                "confidence" : 0.0060149990022182465
+            }, 
+            {
+                "name" : "location_query", 
+                "confidence" : 0.0042845262214541435
+            }, 
+            {
+                "name" : "mobapp", 
+                "confidence" : 0.003603869816288352
+            }, 
+            {
+                "name" : "goodbye", 
+                "confidence" : 0.002028284827247262
+            }, 
+            {
+                "name" : "pricing", 
+                "confidence" : 0.0015137146692723036
+            }, 
+            {
+                "name" : "resources", 
+                "confidence" : 0.0014987395843490958
+            }
+        ], 
+        "text" : "hi"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+},
+{ 
+    "_id" : "5e734a83dcf0d5fad89f4257", 
+    "sender_id" : "2fed7769-b647-4088-8ed9-a4f4f3653f25", 
+    "active_form" : {
+
+    }, 
+    "events" : [
+        {
+            "event" : "action", 
+            "timestamp" : 1584614019.4506466, 
+            "name" : "action_session_start", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "session_started", 
+            "timestamp" : 1584614019.4506547
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584614019.4506721, 
+            "name" : "action_listen", 
+            "policy" : null, 
+            "confidence" : null
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584614019.5990233, 
+            "text" : "Hi", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting", 
+                    "confidence" : 0.9081786274909973
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting", 
+                        "confidence" : 0.9081786274909973
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.02987700328230858
+                    }, 
+                    {
+                        "name" : "challenge_bot", 
+                        "confidence" : 0.019648954272270203
+                    }, 
+                    {
+                        "name" : "goodbye", 
+                        "confidence" : 0.01707642152905464
+                    }, 
+                    {
+                        "name" : "kanban", 
+                        "confidence" : 0.00722672650590539
+                    }, 
+                    {
+                        "name" : "getstarted", 
+                        "confidence" : 0.004596314392983913
+                    }, 
+                    {
+                        "name" : "feedback", 
+                        "confidence" : 0.003805450862273574
+                    }, 
+                    {
+                        "name" : "careers", 
+                        "confidence" : 0.0034543543588370085
+                    }, 
+                    {
+                        "name" : "resources", 
+                        "confidence" : 0.003077950095757842
+                    }, 
+                    {
+                        "name" : "testimonials", 
+                        "confidence" : 0.0030581739265471697
+                    }
+                ], 
+                "text" : "Hi"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "ed735614e0c64c3f9bf73857f25dc537", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584614019.628524, 
+            "name" : "utter_greeting", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584614019.6285417, 
+            "text" : "Hey! How can I help you? &#128512", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584614019.6490548, 
+            "name" : "action_listen", 
+            "policy" : "policy_0_MemoizationPolicy", 
+            "confidence" : 1.0
+        }, 
+        {
+            "event" : "user", 
+            "timestamp" : 1584614026.6368606, 
+            "text" : "where is digite located", 
+            "parse_data" : {
+                "intent" : {
+                    "name" : "location_query", 
+                    "confidence" : 0.9589952230453491
+                }, 
+                "entities" : [
+
+                ], 
+                "intent_ranking" : [
+                    {
+                        "name" : "location_query", 
+                        "confidence" : 0.9589952230453491
+                    }, 
+                    {
+                        "name" : "contact", 
+                        "confidence" : 0.011002595536410809
+                    }, 
+                    {
+                        "name" : "mobapp", 
+                        "confidence" : 0.010699853301048279
+                    }, 
+                    {
+                        "name" : "about", 
+                        "confidence" : 0.006741629447788
+                    }, 
+                    {
+                        "name" : "scrumtool", 
+                        "confidence" : 0.004323999397456646
+                    }, 
+                    {
+                        "name" : "about organization", 
+                        "confidence" : 0.003247651271522045
+                    }, 
+                    {
+                        "name" : "careers", 
+                        "confidence" : 0.002168431878089905
+                    }, 
+                    {
+                        "name" : "how_are_you", 
+                        "confidence" : 0.0012934296391904354
+                    }, 
+                    {
+                        "name" : "need_advice", 
+                        "confidence" : 0.00102046481333673
+                    }, 
+                    {
+                        "name" : "selfhosted", 
+                        "confidence" : 0.0005067281890660524
+                    }
+                ], 
+                "text" : "where is digite located"
+            }, 
+            "input_channel" : "rest", 
+            "message_id" : "95d1c6b6a53145eeac1e985721f74853", 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584614026.657228, 
+            "name" : "utter_location_query", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.9446393847465515
+        }, 
+        {
+            "event" : "bot", 
+            "timestamp" : 1584614026.6572354, 
+            "text" : "The Digite offices are located at: \n United States \n 21060 Homestead Rd, Suite 220, Cupertino, CA 95014 \n \n Mumbai \n Fifth Floor, Opus Park, Opposite SEEPZ Main Gate, Central MIDC Road, Andheri (East, Mumbai - 400 093 \n \n Bengaluru \n Ground Floor, 40/1A, Basappa Complex, Lavelle Road, Bengaluru-560001", 
+            "data" : {
+                "elements" : null, 
+                "quick_replies" : null, 
+                "buttons" : null, 
+                "attachment" : null, 
+                "image" : null, 
+                "custom" : null
+            }, 
+            "metadata" : {
+
+            }
+        }, 
+        {
+            "event" : "action", 
+            "timestamp" : 1584614026.6775184, 
+            "name" : "action_listen", 
+            "policy" : "policy_1_TEDPolicy", 
+            "confidence" : 0.8387892246246338
+        }
+    ], 
+    "followup_action" : null, 
+    "latest_action_name" : "action_listen", 
+    "latest_event_time" : 1584614026.6775184, 
+    "latest_input_channel" : "rest", 
+    "latest_message" : {
+        "intent" : {
+            "name" : "location_query", 
+            "confidence" : 0.9589952230453491
+        }, 
+        "entities" : [
+
+        ], 
+        "intent_ranking" : [
+            {
+                "name" : "location_query", 
+                "confidence" : 0.9589952230453491
+            }, 
+            {
+                "name" : "contact", 
+                "confidence" : 0.011002595536410809
+            }, 
+            {
+                "name" : "mobapp", 
+                "confidence" : 0.010699853301048279
+            }, 
+            {
+                "name" : "about", 
+                "confidence" : 0.006741629447788
+            }, 
+            {
+                "name" : "scrumtool", 
+                "confidence" : 0.004323999397456646
+            }, 
+            {
+                "name" : "about organization", 
+                "confidence" : 0.003247651271522045
+            }, 
+            {
+                "name" : "careers", 
+                "confidence" : 0.002168431878089905
+            }, 
+            {
+                "name" : "how_are_you", 
+                "confidence" : 0.0012934296391904354
+            }, 
+            {
+                "name" : "need_advice", 
+                "confidence" : 0.00102046481333673
+            }, 
+            {
+                "name" : "selfhosted", 
+                "confidence" : 0.0005067281890660524
+            }
+        ], 
+        "text" : "where is digite located"
+    }, 
+    "paused" : false, 
+    "slots" : {
+
+    }
+}
+
+]

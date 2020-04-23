@@ -654,6 +654,24 @@ class MongoProcessor:
                 "text": Utility.prepare_nlu_text(example["text"], entities),
             }
 
+    def get_all_training_examples(self, bot: Text):
+        training_examples = list(TrainingExamples.objects(bot=bot, status=True).aggregate(
+                [
+                    {
+                        "$group": {
+                            "_id": "$bot",
+                            "text": {"$push": "$text"}
+                        }
+                    }
+                ]
+            ))
+
+        if training_examples:
+            return training_examples[0]['text']
+        else:
+            return []
+
+
     def remove_document(self, document: Document, id: Text, bot: Text, user: Text):
         try:
             doc = document.objects(bot=bot).get(id=id)

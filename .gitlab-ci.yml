@@ -15,10 +15,8 @@ test:
   script:
     - pip3.6 install --upgrade pip
     - pip3.6 install -r requirements.txt
-    - python3.6 -m nltk.downloader punkt
-    - python3.6 -m nltk.downloader wordnet
-    - python3.6 -m nltk.downloader averaged_perceptron_tagger
     - python3.6 -m spacy download en_core_web_sm
+    - python3.6 -m gensim.downloader --download word2vec-google-news-300
     - python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
 
 
