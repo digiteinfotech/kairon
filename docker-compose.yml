@@ -1,43 +1,52 @@
 version: "2"
 services:
-  rasa:
-    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg-marketing-bot:1.0
+  mongo:
+    image: mongo
     networks:
       - chatbotnetwork
-    container_name: rasa
-    hostname: rasa
+    container_name: mongo
+    hostname: mongo
     ports:
-      - 443:5005
-    command: "run --cors \"*\" --enable-api --ssl-certificate /app/ssl/digite.crt --ssl-keyfile /app/ssl/digite.key --verbose --debug"
+      - "27017:27017"
     volumes:
-      - ~/ssl:/app/ssl
-      - rasa_models:/app/models
-      - rasa_tmp:/tmp
-    extra_hosts:
-      - "mongo:192.168.101.148"
+      - mongo_data:/data/db
+	  
+  bot_augment-api:
+    image: bot-augment-api:0.1
+    networks:
+      - chatbotnetwork
+    container_name: bot-augment-api
+    hostname: bot-augment-api
+    depends_on:
+      - mongo
+    ports:
+      - 8000:8000
+    volumes:
+      - augment_tmp:/root/.cache/
+    environment:
+      mongo_url: "mongodb://192.168.101.148:27019"
 
   bot_trainer_api:
-    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_api:1.0
+    image: bot-trainer-api:0.1
     networks:
       - chatbotnetwork
     container_name: bot_trainer_api
     hostname: bot_trainer_api
     depends_on:
-      - rasa
+      - mongo
+      - bot_augment-api
     ports:
-      - 8001:8000
+      - 80:80
     volumes:
-      - rasa_models:/app/models
-      - rasa_data:/app/training
-      - rasa_tmp:/tmp
+      - trainer_models:/app/models
     environment:
-      chatbot_url: "https://webtestbot.digite.com/model"
-      mongo_url: "mongodb://192.168.101.148:27019"
-      AWS_ACCESS_KEY_ID: ""
-      AWS_SECRET_ACCESS_KEY: ""
+      mongo_url: "mongodb://mongo:27017"
+      mongo_db: "bot-trainer"
+      SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
+      augmentation_url: "http://bot-augment-api:8000/"
 
   bot_trainer_ui:
-    image: 014936247795.dkr.ecr.us-east-1.amazonaws.com/digite/dspg_bot_trainer_ui:1.0
+    image: bot-trainer-ui:0.1
     networks:
       - chatbotnetwork
     container_name: bot_trainer_ui
@@ -53,6 +62,6 @@ networks:
   chatbotnetwork:
 
 volumes:
-  rasa_models:
-  rasa_data:
-  rasa_tmp:
+  trainer_models:
+  augment_tmp:
+  mongo_data:
