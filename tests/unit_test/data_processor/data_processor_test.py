@@ -128,12 +128,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError):
             processor.add_intent("  ", "tests", "testUser")
 
-
-    def test_get_all_training_examples_empty(self):
-        processor = MongoProcessor()
-        results = processor.get_all_training_examples("tests")
-        assert not results
-
     def test_add_training_example(self):
         processor = MongoProcessor()
         results = list(processor.add_training_example(["Hi"], "greeting", "tests", "testUser"))
