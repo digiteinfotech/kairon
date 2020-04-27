@@ -5,6 +5,7 @@ from typing import Any, List, Text
 import logging
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 
 class Response(BaseModel):
@@ -15,6 +16,13 @@ class Response(BaseModel):
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
