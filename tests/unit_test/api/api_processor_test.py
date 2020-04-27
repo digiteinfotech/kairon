@@ -1,10 +1,10 @@
 import os
-from mongoengine import connect
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.utils import Utility
+
 import pytest
-from mongoengine.errors import ValidationError
+from mongoengine import connect
+
 from bot_trainer.api.data_objects import *
+from bot_trainer.api.processor import AccountProcessor
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -255,11 +255,11 @@ class TestAccountProcessor:
 
     def test_get_user(self):
         user = AccountProcessor.get_user("fshaikh@digite.com")
-        assert all(user[key] == False if key == "is_integration_user" else user[key] for key in user.keys())
+        assert all(user[key] is False if key == "is_integration_user" else user[key] for key in user.keys())
 
     def test_get_user_details(self):
         user = AccountProcessor.get_user_details("fshaikh@digite.com")
-        assert all(user[key] == False if key == "is_integration_user" else user[key] for key in user.keys())
+        assert all(user[key] is False if key == "is_integration_user" else user[key] for key in user.keys())
 
     def test_get_user_details_user_inactive(self):
         account = AccountProcessor.add_account("paytm", "testAdmin")
@@ -274,26 +274,26 @@ class TestAccountProcessor:
             user="testAdmin",
         )
         user_details = AccountProcessor.get_user_details(user["email"])
-        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
+        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         user_details = User.objects().get(id=user["_id"])
         user_details.status = False
         user_details.save()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details(user_details["email"])
-            assert all( user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
+            assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         user_details.status = True
         user_details.save()
 
     def test_get_user_details_bot_inactive(self):
         user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
+        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         bot = Bot.objects().get(name="support")
         bot.status = False
         bot.save()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details(user_details["email"])
             assert all(
-                user_details[key] == False if key == "is_integration_user" else user_details[key]
+                user_details[key] is False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
@@ -303,14 +303,14 @@ class TestAccountProcessor:
 
     def test_get_user_details_account_inactive(self):
         user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] == False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
+        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
         account = Account.objects().get(name="paytm")
         account.status = False
         account.save()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details(user_details["email"])
             assert all(
-                user_details[key] == False if key == "is_integration_user" else user_details[key]
+                user_details[key] is False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
