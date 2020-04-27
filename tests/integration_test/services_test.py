@@ -688,3 +688,31 @@ def test_predict_intent_error():
     assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["message"] == "Please train the bot first"
+
+
+@responses.activate
+def test_augment_questions():
+    responses.add(responses.POST,
+                  "http://localhost:8000/questions",
+                  json={
+                      "sucess": True,
+                      "data": {"questions":['where is digite centrally located?',
+                     'where is digite conveniently located?',
+                     'where is digite islocated?',
+                     'where is digite situated?',
+                     'where is digite strategically located?']},
+                      "message": None,
+                      "error_code": 0
+                  },
+                  status=200)
+    response = client.post("/api/augment/questions",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                           json = {"data":["where is digite located?'"]}
+                           )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+

@@ -45,7 +45,7 @@ class Authentication:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             user_model.alias_user = alias_user
-        return User(**user)
+        return user_model
 
     def __create_access_token(self, *, data: dict, is_integration = False):
         expires_delta = timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)

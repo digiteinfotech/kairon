@@ -103,11 +103,6 @@ async def remove_responses(
     }
 
 
-@router.get("/stories", response_model=Response)
-async def get_stories(current_user: User = Depends(auth.get_current_user)):
-    return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
-
-
 @router.post("/stories", response_model=Response)
 async def add_stories(
     story: StoryRequest, current_user: User = Depends(auth.get_current_user)
