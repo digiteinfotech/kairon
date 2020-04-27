@@ -19,10 +19,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 
 @router.get("/integration/token", response_model=Response)
-async def generate_integration_token(current_user: User = Depends(auth.get_current_user)):
-    access_token = auth.generate_integration_token(bot=current_user.bot, account=current_user.account)
+async def generate_integration_token(
+    current_user: User = Depends(auth.get_current_user),
+):
+    access_token = auth.generate_integration_token(
+        bot=current_user.bot, account=current_user.account
+    )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
-        "message": '''It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system.''',
+        "message": """It is your responsibility to keep the token secret.
+        If leaked then other may have access to your system.""",
     }

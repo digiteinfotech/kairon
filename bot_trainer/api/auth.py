@@ -17,7 +17,9 @@ class Authentication:
     ALGORITHM = Utility.environment["ALGORITHM"]
     ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment["ACCESS_TOKEN_EXPIRE_MINUTES"]
 
-    async def get_current_user(self, request: Request, token: str = Depends(Utility.oauth2_scheme)):
+    async def get_current_user(
+        self, request: Request, token: str = Depends(Utility.oauth2_scheme)
+    ):
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -36,18 +38,18 @@ class Authentication:
             raise credentials_exception
 
         user_model = User(**user)
-        if user['is_integration_user']:
+        if user["is_integration_user"]:
             alias_user = request.headers.get("X-USER")
             if Utility.check_empty_string(alias_user):
                 raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Alias user missing for integration",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Alias user missing for integration",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             user_model.alias_user = alias_user
         return user_model
 
-    def __create_access_token(self, *, data: dict, is_integration = False):
+    def __create_access_token(self, *, data: dict, is_integration=False):
         expires_delta = timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode = data.copy()
         if not is_integration:
@@ -75,15 +77,12 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token = self.__create_access_token(
-            data={"sub": user["email"]}
-        )
+        access_token = self.__create_access_token(data={"sub": user["email"]})
         return access_token
 
     def generate_integration_token(self, bot: Text, account: int):
         integration_user = AccountProcessor.get_integration_user(bot, account)
         access_token = self.__create_access_token(
-            data={"sub": integration_user["email"]},
-            is_integration=True
+            data={"sub": integration_user["email"]}, is_integration=True
         )
         return access_token

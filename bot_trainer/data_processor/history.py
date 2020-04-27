@@ -14,11 +14,13 @@ class ChatHistory:
     def get_tracker_and_domain(bot: Text):
         domain = ChatHistory.mongo_processor.load_domain(bot)
         endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
-        tracker = MongoTrackerStore(domain=domain,
-                                    host=endpoint['tracker_endpoint']['url'],
-                                    db=endpoint['tracker_endpoint']['db'],
-                                    username=endpoint['tracker_endpoint'].get("username"),
-                                    password=endpoint['tracker_endpoint'].get("password"))
+        tracker = MongoTrackerStore(
+            domain=domain,
+            host=endpoint["tracker_endpoint"]["url"],
+            db=endpoint["tracker_endpoint"]["db"],
+            username=endpoint["tracker_endpoint"].get("username"),
+            password=endpoint["tracker_endpoint"].get("password"),
+        )
         return (domain, tracker)
 
     @staticmethod
@@ -34,9 +36,9 @@ class ChatHistory:
         return tracker.keys()
 
     @staticmethod
-    def __prepare_data(bot: Text,events, show_session=False):
+    def __prepare_data(bot: Text, events, show_session=False):
         bot_action = None
-        training_examples =  ChatHistory.mongo_processor.get_all_training_examples(bot)
+        training_examples = ChatHistory.mongo_processor.get_all_training_examples(bot)
         if events:
             for i in range(events.__len__()):
                 event = events[i]
@@ -93,7 +95,7 @@ class ChatHistory:
         else:
             fallback_count = data_frame[
                 data_frame["name"] == "action_default_fallback"
-                ].count()["name"]
+            ].count()["name"]
             total_count = data_frame.count()["name"]
         return {"fallback_count": int(fallback_count), "total_count": int(total_count)}
 
@@ -140,10 +142,10 @@ class ChatHistory:
             ) - pd.to_datetime(data_frame["prev_timestamp"], unit="s")
             return (
                 data_frame[["sender_id", "time"]]
-                    .groupby("sender_id")
-                    .sum()
-                    .reset_index()
-                    .to_dict(orient="records")
+                .groupby("sender_id")
+                .sum()
+                .reset_index()
+                .to_dict(orient="records")
             )
 
     @staticmethod

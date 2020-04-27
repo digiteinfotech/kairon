@@ -4,7 +4,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from mongoengine import connect, disconnect
-from mongoengine.errors import DoesNotExist, ValidationError, OperationError, NotRegistered, InvalidDocumentError, LookUpError, MultipleObjectsReturned, InvalidQueryError
+from mongoengine.errors import (
+    DoesNotExist,
+    ValidationError,
+    OperationError,
+    NotRegistered,
+    InvalidDocumentError,
+    LookUpError,
+    MultipleObjectsReturned,
+    InvalidQueryError,
+)
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from bot_trainer.exceptions import AppException
@@ -70,12 +79,14 @@ async def app_does_not_exist_exception_handler(request, exc):
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
 
+
 @app.exception_handler(PyMongoError)
 async def pymongo_exception_handler(request, exc):
     logging.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
+
 
 @app.exception_handler(ValidationError)
 async def app_validation_exception_handler(request, exc):
@@ -84,12 +95,14 @@ async def app_validation_exception_handler(request, exc):
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
 
+
 @app.exception_handler(OperationError)
 async def mongoengine_operation_exception_handler(request, exc):
     logging.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
+
 
 @app.exception_handler(NotRegistered)
 async def mongoengine_notregistered_exception_handler(request, exc):
@@ -106,12 +119,14 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
 
+
 @app.exception_handler(LookUpError)
 async def mongoengine_lookup_exception_handler(request, exc):
     logging.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
+
 
 @app.exception_handler(MultipleObjectsReturned)
 async def mongoengine_multiple_objects_exception_handler(request, exc):
@@ -120,12 +135,14 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
 
+
 @app.exception_handler(InvalidQueryError)
 async def mongoengine_invalid_query_exception_handler(request, exc):
     logging.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
+
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request, exc):

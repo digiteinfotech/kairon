@@ -32,7 +32,6 @@ class User(BaseModel):
         return self.email
 
 
-
 class Response(BaseModel):
     success: bool = True
     message: str = None

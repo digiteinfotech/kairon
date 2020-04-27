@@ -11,6 +11,7 @@ from datetime import datetime
 from bot_trainer.utils import Utility
 from validators import email, ValidationFailure
 
+
 class User(Document):
     email = StringField(required=True)
     first_name = StringField(required=True)

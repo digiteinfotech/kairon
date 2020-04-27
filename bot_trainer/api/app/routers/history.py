@@ -21,32 +21,23 @@ async def chat_history(
 ):
     return {
         "data": {
-            "history": list(ChatHistory.fetch_chat_history(current_user.get_bot(), sender))
+            "history": list(
+                ChatHistory.fetch_chat_history(current_user.get_bot(), sender)
+            )
         }
     }
 
+
 @router.get("/metrics/visitor_hit_fallback", response_model=Response)
-async def visitor_hit_fallback(
-   current_user: User = Depends(auth.get_current_user)
-):
-    return {
-        "data": ChatHistory.visitor_hit_fallback(current_user.get_bot())
-    }
+async def visitor_hit_fallback(current_user: User = Depends(auth.get_current_user)):
+    return {"data": ChatHistory.visitor_hit_fallback(current_user.get_bot())}
 
 
 @router.get("/metrics/conversation_steps", response_model=Response)
-async def conversation_steps(
-   current_user: User = Depends(auth.get_current_user)
-):
-    return {
-        "data": ChatHistory.conversation_steps(current_user.get_bot())
-    }
+async def conversation_steps(current_user: User = Depends(auth.get_current_user)):
+    return {"data": ChatHistory.conversation_steps(current_user.get_bot())}
 
 
 @router.get("/metrics/conversation_time", response_model=Response)
-async def conversation_time(
-   current_user: User = Depends(auth.get_current_user)
-):
-    return {
-        "data": ChatHistory.conversation_time(current_user.get_bot())
-    }
+async def conversation_time(current_user: User = Depends(auth.get_current_user)):
+    return {"data": ChatHistory.conversation_time(current_user.get_bot())}

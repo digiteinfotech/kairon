@@ -15,12 +15,21 @@ from mongoengine import (
     DictField,
     DynamicField,
 )
-from rasa.core.slots import CategoricalSlot, FloatSlot, UnfeaturizedSlot, ListSlot, TextSlot, BooleanSlot
+from rasa.core.slots import (
+    CategoricalSlot,
+    FloatSlot,
+    UnfeaturizedSlot,
+    ListSlot,
+    TextSlot,
+    BooleanSlot,
+)
 
 from bot_trainer.utils import Utility
 from validators import url, ValidationFailure
 from pymongo.uri_parser import parse_uri
 from pymongo.errors import InvalidURI
+
+
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -241,12 +250,17 @@ class SessionConfigs(Document):
 
 class Slots(Document):
     name = StringField(required=True)
-    type = StringField(required=True, choices=[FloatSlot.type_name,
-                                               CategoricalSlot.type_name,
-                                               UnfeaturizedSlot.type_name,
-                                               ListSlot.type_name,
-                                               TextSlot.type_name,
-                                               BooleanSlot.type_name])
+    type = StringField(
+        required=True,
+        choices=[
+            FloatSlot.type_name,
+            CategoricalSlot.type_name,
+            UnfeaturizedSlot.type_name,
+            ListSlot.type_name,
+            TextSlot.type_name,
+            BooleanSlot.type_name,
+        ],
+    )
     initial_value = DynamicField()
     value_reset_delay = LongField()
     auto_fill = BooleanField(default=True)
@@ -284,7 +298,7 @@ class Slots(Document):
 
 class StoryEvents(EmbeddedDocument):
     name = StringField(required=True)
-    type = StringField(required=True, choices=["user","action","form","slot"])
+    type = StringField(required=True, choices=["user", "action", "form", "slot"])
     value = StringField()
 
 
@@ -359,6 +373,7 @@ class EndPointBot(EmbeddedDocument):
     def validate(self, clean=True):
         if isinstance(url(self.url), ValidationFailure):
             raise AppException("Invalid Bot server url")
+
 
 class Endpoints(Document):
     bot_endpoint = EmbeddedDocumentField(EndPointBot)

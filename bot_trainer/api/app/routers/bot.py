@@ -7,6 +7,7 @@ from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 from bot_trainer.train import train_model_from_mongo
 import requests
+
 router = APIRouter()
 auth = Authentication()
 mongo_processor = MongoProcessor()
@@ -25,6 +26,7 @@ async def add_intents(
         text=request_data.data, bot=current_user.get_bot(), user=current_user.get_user()
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
+
 
 @router.post("/intents/predict", response_model=Response)
 async def predict_intent(
@@ -54,9 +56,11 @@ async def add_training_examples(
     request_data: ListData,
     current_user: User = Depends(auth.get_current_user),
 ):
-    results = list(mongo_processor.add_training_example(
-        request_data.data, intent, current_user.get_bot(), current_user.get_user()
-    ))
+    results = list(
+        mongo_processor.add_training_example(
+            request_data.data, intent, current_user.get_bot(), current_user.get_user()
+        )
+    )
     return {"data": results}
 
 
@@ -65,7 +69,10 @@ async def remove_training_examples(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     mongo_processor.remove_document(
-        TrainingExamples, request_data.data, current_user.get_bot(), current_user.get_user()
+        TrainingExamples,
+        request_data.data,
+        current_user.get_bot(),
+        current_user.get_user(),
     )
     return {"message": "Training Example removed successfully!"}
 
@@ -153,5 +160,7 @@ async def train(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):
-    endpoint = mongo_processor.get_endpoints(current_user.get_bot(),raise_exception=False)
+    endpoint = mongo_processor.get_endpoints(
+        current_user.get_bot(), raise_exception=False
+    )
     return {"message": Utility.deploy_model(endpoint, current_user.get_bot())}

@@ -28,5 +28,3 @@ class InMemoryAgentCache(AgentCache):
     @staticmethod
     def is_exists(bot: Text) -> Agent:
         return bot in InMemoryAgentCache.cache.keys()
-
-

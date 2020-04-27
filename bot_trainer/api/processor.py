@@ -1,6 +1,7 @@
 from bot_trainer.api.data_objects import *
 from bot_trainer.utils import Utility
 from mongoengine.errors import DoesNotExist
+from typing import Dict, Text
 
 
 class AccountProcessor:
@@ -14,7 +15,7 @@ class AccountProcessor:
     @staticmethod
     def get_account(account: int):
         try:
-            return Account.objects(status=True).get(id=account).to_mongo().to_dict()
+            return Account.objects().get(id=account).to_mongo().to_dict()
         except:
             raise DoesNotExist("Account does not exists")
 
@@ -28,7 +29,7 @@ class AccountProcessor:
     @staticmethod
     def get_bot(name: str):
         try:
-            return Bot.objects(status=True).get(name=name).to_mongo().to_dict()
+            return Bot.objects().get(name=name).to_mongo().to_dict()
         except:
             raise DoesNotExist("Bot does not exists!")
 
@@ -41,7 +42,7 @@ class AccountProcessor:
         account: int,
         bot: str,
         user: str,
-        is_integration_user = False
+        is_integration_user=False,
     ):
         Utility.is_exist(
             User,
@@ -57,7 +58,7 @@ class AccountProcessor:
                 account=account,
                 bot=bot,
                 user=user,
-                is_integration_user= is_integration_user
+                is_integration_user=is_integration_user,
             )
             .save()
             .to_mongo()
@@ -67,7 +68,7 @@ class AccountProcessor:
     @staticmethod
     def get_user(email: str):
         try:
-            return User.objects(status=True).get(email=email).to_mongo().to_dict()
+            return User.objects().get(email=email).to_mongo().to_dict()
         except:
             raise DoesNotExist("User does not exists!")
 
@@ -86,16 +87,26 @@ class AccountProcessor:
 
     @staticmethod
     def get_integration_user(bot: str, account: int):
-        if not Utility.is_exist(User, query={"bot": bot, "is_integration_user": True}, raise_error=False):
-            email = bot+"@integration.com"
+        if not Utility.is_exist(
+            User, query={"bot": bot, "is_integration_user": True}, raise_error=False
+        ):
+            email = bot + "@integration.com"
             password = Utility.generate_password()
-            return AccountProcessor.add_user(email=email,
-                                      password=password,
-                                      first_name=bot,
-                                      last_name=bot,
-                                      account=account,
-                                      bot=bot,
-                                      user="auto_gen",
-                                      is_integration_user=True)
+            return AccountProcessor.add_user(
+                email=email,
+                password=password,
+                first_name=bot,
+                last_name=bot,
+                account=account,
+                bot=bot,
+                user="auto_gen",
+                is_integration_user=True,
+            )
         else:
-            return User.objects(bot=bot).get(is_integration_user=True).to_mongo().to_dict()
+            return (
+                User.objects(bot=bot).get(is_integration_user=True).to_mongo().to_dict()
+            )
+
+    @staticmethod
+    def account_setup(values: Dict, user: Text):
+        pass
