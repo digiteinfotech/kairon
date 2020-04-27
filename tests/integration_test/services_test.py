@@ -552,8 +552,38 @@ def endpoint_response(*args, **kwargs):
 def mock_endpoint(monkeypatch):
     monkeypatch.setattr(MongoProcessor,"get_endpoints", endpoint_response)
 
+@pytest.fixture
+def mock_endpoint_with_token(monkeypatch):
+    def _endpoint_response(*args, **kwargs):
+        return {"bot_endpoint": {"url": "http://localhost:5000", "token": "AGTSUDH!@#78JNKLD", "token_type": "Bearer"}}
+    monkeypatch.setattr(MongoProcessor,"get_endpoints", _endpoint_response)
+
+def test_deploy_connection_error(mock_endpoint):
+    response = client.post("/api/bot/deploy",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Host is not reachable"
+
 @responses.activate
 def test_deploy(mock_endpoint):
+    responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
+    response = client.post("/api/bot/deploy",
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+                           )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model was successfully replaced."
+
+@responses.activate
+def test_deploy_with_token(mock_endpoint_with_token):
     responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
     response = client.post("/api/bot/deploy",
                            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -614,16 +644,16 @@ def test_integration_token():
                            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
                            )
 
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]['access_token']
-    assert actual["data"]['token_type']
-    assert actual["message"] == '''It is your responsibility to keep the token secret.
+    token = response.json()
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["data"]['access_token']
+    assert token["data"]['token_type']
+    assert token["message"] == '''It is your responsibility to keep the token secret.
         If leaked then other may have access to your system.'''
     response = client.get(
         "/api/bot/intents",
-        headers={"Authorization": actual["data"]['token_type'] + " " + actual["data"]['access_token'],
+        headers={"Authorization": token["data"]['token_type'] + " " + token["data"]['access_token'],
                  "X-USER": "integration"},
     )
     actual = response.json()
@@ -632,6 +662,17 @@ def test_integration_token():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
+    response = client.post(
+        "/api/bot/intents",
+        headers={"Authorization": token["data"]['token_type'] + " " + token["data"]['access_token'],
+                 "X-USER": "integration"},
+        json={"data": "integration"}
+    )
+    actual = response.json()
+    assert actual["data"]['_id']
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
 
 
 def test_integration_token_missing_x_user():
