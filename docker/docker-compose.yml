@@ -20,7 +20,7 @@ services:
     depends_on:
       - mongo
     ports:
-      - 8000:8000
+      - 8001:8000
     volumes:
       - augment_tmp:/root/.cache/
     environment:
@@ -36,14 +36,14 @@ services:
       - mongo
       - bot_augment-api
     ports:
-      - 80:80
+      - 81:80
     volumes:
       - trainer_models:/app/models
     environment:
       mongo_url: "mongodb://mongo:27017"
       mongo_db: "bot-trainer"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      augmentation_url: "http://bot-augment-api:8000/"
+      augmentation_url: "http://bot-augment-api:8001/"
 
   bot_trainer_ui:
     image: bot-trainer-ui:0.1
@@ -57,6 +57,15 @@ services:
       - 80:8080
     environment:
       server: "http://bot_trainer_api:8001/"
+	  
+  duckling:
+    image: duckling
+    networks:
+      - chatbotnetwork
+    container_name: duckling
+    hostname: duckling
+    ports:
+      - 8000:8000
 
 networks:
   chatbotnetwork:
