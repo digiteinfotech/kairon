@@ -12,7 +12,7 @@ services:
       - mongo_data:/data/db
 	  
   bot_augment-api:
-    image: bot-augment-api:0.1
+    image: digite/bot-augment-api:0.1
     networks:
       - chatbotnetwork
     container_name: bot-augment-api
@@ -27,7 +27,7 @@ services:
       mongo_url: "mongodb://192.168.101.148:27019"
 
   bot_trainer_api:
-    image: bot-trainer-api:0.1
+    image: digite/bot-trainer-api:0.1
     networks:
       - chatbotnetwork
     container_name: bot_trainer_api
@@ -46,7 +46,7 @@ services:
       augmentation_url: "http://bot-augment-api:8001/"
 
   bot_trainer_ui:
-    image: bot-trainer-ui:0.1
+    image: digite/bot-trainer-ui:0.1
     networks:
       - chatbotnetwork
     container_name: bot_trainer_ui
@@ -59,7 +59,7 @@ services:
       server: "http://bot_trainer_api:8001/"
 	  
   duckling:
-    image: duckling
+    image: rasa/duckling
     networks:
       - chatbotnetwork
     container_name: duckling
