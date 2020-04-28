@@ -8,6 +8,9 @@ from bot_trainer.api.processor import AccountProcessor
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
+def pytest_namespace():
+    return {"bot":None}
+
 
 class TestAccountProcessor:
     @pytest.fixture(autouse=True)
@@ -49,9 +52,10 @@ class TestAccountProcessor:
     def test_add_bot(self):
         bot = AccountProcessor.add_bot("test", 1, "testAdmin")
         assert bot
+        pytest.bot = bot['_id'].__str__()
 
     def test_get_bot(self):
-        bot = AccountProcessor.get_bot("test")
+        bot = AccountProcessor.get_bot(pytest.bot)
         assert bot
         assert bot["account"] == 1
 
@@ -78,7 +82,7 @@ class TestAccountProcessor:
             last_name="Shaikh",
             password="12345",
             account=1,
-            bot="test",
+            bot=pytest.bot,
             user="testAdmin",
         )
         assert user
@@ -93,7 +97,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -105,7 +109,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -117,7 +121,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -129,7 +133,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -141,7 +145,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -153,7 +157,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -165,7 +169,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -177,7 +181,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -189,7 +193,7 @@ class TestAccountProcessor:
                 last_name="",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -201,7 +205,7 @@ class TestAccountProcessor:
                 last_name=None,
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -213,7 +217,7 @@ class TestAccountProcessor:
                 last_name=" ",
                 password="12345",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -225,7 +229,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -237,7 +241,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password=" ",
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -249,7 +253,7 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password=None,
                 account=1,
-                bot="test",
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -261,65 +265,128 @@ class TestAccountProcessor:
         user = AccountProcessor.get_user_details("fshaikh@digite.com")
         assert all(user[key] is False if key == "is_integration_user" else user[key] for key in user.keys())
 
-    def test_get_user_details_user_inactive(self):
-        account = AccountProcessor.add_account("paytm", "testAdmin")
-        bot = AccountProcessor.add_bot("support", account["_id"], "testAdmin")
-        user = AccountProcessor.add_user(
-            email="demo@demo.ai",
-            first_name="Demo",
-            last_name="User",
-            password="welcome@1",
-            account=account["_id"],
-            bot=bot["name"],
-            user="testAdmin",
-        )
-        user_details = AccountProcessor.get_user_details(user["email"])
-        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
-        user_details = User.objects().get(id=user["_id"])
-        user_details.status = False
-        user_details.save()
+    @pytest.fixture
+    def mock_user_inactive(self, monkeypatch):
+
+        def user_response(*args, **kwargs):
+            return {"email": "demo@demo.ai", "status": False, "bot": "support", "account": 2}
+
+        def bot_response(*args, **kwargs):
+            return {"name":"support", "status": True}
+
+        def account_response(*args, **kwargs):
+            return {"name": "paytm", "status": True}
+
+        monkeypatch.setattr(AccountProcessor, "get_user", user_response)
+        monkeypatch.setattr(AccountProcessor, "get_bot", bot_response)
+        monkeypatch.setattr(AccountProcessor, "get_account", account_response)
+
+    def test_get_user_details_user_inactive(self, mock_user_inactive):
         with pytest.raises(ValidationError):
-            user_details = AccountProcessor.get_user_details(user_details["email"])
+            user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
-        user_details.status = True
-        user_details.save()
 
-    def test_get_user_details_bot_inactive(self):
-        user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
-        bot = Bot.objects().get(name="support")
-        bot.status = False
-        bot.save()
+    @pytest.fixture
+    def mock_bot_inactive(self, monkeypatch):
+        def user_response(*args, **kwargs):
+            return {"email": "demo@demo.ai", "status": True, "bot": "support", "account": 2}
+
+        def bot_response(*args, **kwargs):
+            return {"name": "support", "status": False}
+
+        def account_response(*args, **kwargs):
+            return {"name": "paytm", "status": True}
+
+
+        monkeypatch.setattr(AccountProcessor, "get_user", user_response)
+        monkeypatch.setattr(AccountProcessor, "get_bot", bot_response)
+        monkeypatch.setattr(AccountProcessor, "get_account", account_response)
+
+    def test_get_user_details_bot_inactive(self, mock_bot_inactive):
         with pytest.raises(ValidationError):
-            user_details = AccountProcessor.get_user_details(user_details["email"])
+            user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(
                 user_details[key] is False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
             )
-        bot.status = True
-        bot.save()
 
-    def test_get_user_details_account_inactive(self):
-        user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        assert all(user_details[key] is False if key == "is_integration_user" else user_details[key] for key in user_details.keys())
-        account = Account.objects().get(name="paytm")
-        account.status = False
-        account.save()
+    @pytest.fixture
+    def mock_account_inactive(self, monkeypatch):
+        def user_response(*args, **kwargs):
+            return {"email": "demo@demo.ai", "status": True, "bot": "support", "account": 2}
+
+        def bot_response(*args, **kwargs):
+            return {"name": "support", "status": True}
+
+        def account_response(*args, **kwargs):
+            return {"name": "paytm", "status": False}
+
+        monkeypatch.setattr(AccountProcessor, "get_user", user_response)
+        monkeypatch.setattr(AccountProcessor, "get_bot", bot_response)
+        monkeypatch.setattr(AccountProcessor, "get_account", account_response)
+
+    def test_get_user_details_account_inactive(self, mock_account_inactive):
         with pytest.raises(ValidationError):
-            user_details = AccountProcessor.get_user_details(user_details["email"])
+            user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(
                 user_details[key] is False if key == "is_integration_user" else user_details[key]
                 for key in AccountProcessor.get_user_details(
                     user_details["email"]
                 ).keys()
             )
-        account.status = True
-        account.save()
 
     def test_get_integration_user(self):
-        user_details = AccountProcessor.get_user_details("demo@demo.ai")
-        integration_user = AccountProcessor.get_integration_user(bot=user_details['bot'], account=user_details['account'])
+        integration_user = AccountProcessor.get_integration_user(bot="support", account=2)
         assert integration_user['is_integration_user']
         assert all(integration_user[key] for key in integration_user.keys())
+
+
+    def test_account_setup_empty_values(self):
+        account = {}
+        with pytest.raises(ValidationError):
+            AccountProcessor.account_setup(account_setup = account, user="testAdmin")
+
+
+    def test_account_setup_missing_account(self):
+        account = {"bot": "Test",
+                   "email": "demo@ac.in",
+                   "first_name": "Test_First",
+                   "last_name": "Test_Last",
+                   "password": "welcome@1"}
+        with pytest.raises(ValidationError):
+            AccountProcessor.account_setup(account_setup = account, user="testAdmin")
+
+    def test_account_setup_missing_bot_name(self):
+        account = {"account": "TestAccount",
+                   "email": "demo@ac.in",
+                   "first_name": "Test_First",
+                   "last_name": "Test_Last",
+                   "password": "welcome@1"}
+        with pytest.raises(ValidationError):
+            AccountProcessor.account_setup(account_setup = account, user="testAdmin")
+
+
+    def test_account_setup_user_info(self):
+        account = {"account": "Test_Account",
+                   "bot": "Test",
+                   "first_name": "Test_First",
+                   "last_name": "Test_Last",
+                   "password": "welcome@1"}
+        with pytest.raises(ValidationError):
+            AccountProcessor.account_setup(account_setup = account, user="testAdmin")
+
+
+    def test_account_setup(self):
+        account = {"account": "Test_Account",
+                   "bot": "Test",
+                   "email": "demo@ac.in",
+                   "first_name": "Test_First",
+                   "last_name": "Test_Last",
+                   "password": "welcome@1"}
+        actual = AccountProcessor.account_setup(account_setup = account, user="testAdmin")
+        assert actual['role'] == "admin"
+        assert actual['_id']
+        assert actual['account']
+        assert actual['bot']

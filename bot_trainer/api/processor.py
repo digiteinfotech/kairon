@@ -2,7 +2,7 @@ from bot_trainer.api.data_objects import *
 from bot_trainer.utils import Utility
 from mongoengine.errors import DoesNotExist
 from typing import Dict, Text
-
+import logging
 
 class AccountProcessor:
     @staticmethod
@@ -27,9 +27,9 @@ class AccountProcessor:
         return Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
 
     @staticmethod
-    def get_bot(name: str):
+    def get_bot(id: str):
         try:
-            return Bot.objects().get(name=name).to_mongo().to_dict()
+            return Bot.objects().get(id=id).to_mongo().to_dict()
         except:
             raise DoesNotExist("Bot does not exists!")
 
@@ -43,6 +43,7 @@ class AccountProcessor:
         bot: str,
         user: str,
         is_integration_user=False,
+        role="trainer"
     ):
         Utility.is_exist(
             User,
@@ -59,6 +60,7 @@ class AccountProcessor:
                 bot=bot,
                 user=user,
                 is_integration_user=is_integration_user,
+                role=role
             )
             .save()
             .to_mongo()
@@ -108,5 +110,38 @@ class AccountProcessor:
             )
 
     @staticmethod
-    def account_setup(values: Dict, user: Text):
-        pass
+    def account_setup(account_setup: Dict, user: Text):
+        account = None
+        bot = None
+        try:
+            account = AccountProcessor.add_account(account_setup.get('account'), user)
+            bot = AccountProcessor.add_bot(account_setup.get('bot'), account['_id'], user)
+            user = AccountProcessor.add_user(email=account_setup.get('email'),
+                                             first_name=account_setup.get('first_name'),
+                                             last_name=account_setup.get('last_name'),
+                                             password=account_setup.get('password'),
+                                             account=account["_id"],
+                                             bot=bot["_id"].__str__(),
+                                             user=user,
+                                             role="admin")
+        except Exception as e:
+            if account and "_id" in account:
+                Account.objects().get(id=account['_id']).delete()
+            if bot and "_id" in bot:
+                Bot.objects().get(id=bot['_id']).delete()
+            raise e
+        return user
+
+    @staticmethod
+    def default_account_setup():
+        account = {"account": "DemoAccount",
+                   "bot": "Demo",
+                   "email": "test@demo.in",
+                   "first_name": "Test_First",
+                   "last_name": "Test_Last",
+                   "password": "welcome@1"}
+        try:
+            AccountProcessor.account_setup(account, user="sysadmin")
+        except Exception as e:
+            logging.info(str(e))
+

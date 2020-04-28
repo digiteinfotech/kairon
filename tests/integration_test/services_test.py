@@ -16,43 +16,32 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)
 
-
 def pytest_namespace():
     return {"access_token": None, "token_type": None, "user_created": False}
-
 
 def add_user():
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
-    account = AccountProcessor.add_account("integration", "testAdmin")
-    bot = AccountProcessor.add_bot("integration", account["_id"], "testAdmin")
-    AccountProcessor.add_user(
-        email="integration@demo.ai",
-        first_name="Demo",
-        last_name="User",
-        password="welcome@1",
-        account=account["_id"],
-        bot=bot["name"],
-        user="testAdmin",
-    )
+    user = AccountProcessor.account_setup({"email": "integration@demo.ai",
+                                           "first_name": "Demo",
+                                           "last_name": "User",
+                                           "password": "welcome@1",
+                                           "account": "integration",
+                                           "bot": "integration"},
+                                          user="testAdmin")
+    processor = MongoProcessor()
+    processor.save_from_path("tests/testing_data/all", user['bot'], "testAdmin")
 
-    account = AccountProcessor.add_account("integration2", "testAdmin")
-    bot = AccountProcessor.add_bot("integration2", account["_id"], "testAdmin")
-    AccountProcessor.add_user(
-        email="integration2@demo.ai",
-        first_name="Demo",
-        last_name="User",
-        password="welcome@1",
-        account=account["_id"],
-        bot=bot["name"],
-        user="testAdmin",
-    )
+    AccountProcessor.account_setup({"email": "integration2@demo.ai",
+                                    "first_name": "Demo",
+                                    "last_name": "User",
+                                    "password": "welcome@1",
+                                    "account": "integration2",
+                                    "bot": "integration2"},
+                                   user="testAdmin")
 
 
 add_user()
-processor = MongoProcessor()
-processor.save_from_path("tests/testing_data/all", "1_integration", "testAdmin")
-
 
 def test_api_wrong_login():
     response = client.post(
@@ -64,7 +53,6 @@ def test_api_wrong_login():
     assert actual["message"] == "User does not exists!"
 
 
-# need to write test cases for inactive user ,bot and account
 def test_api_login():
     response = client.post(
         "/api/auth/login",

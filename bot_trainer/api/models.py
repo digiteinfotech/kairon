@@ -24,7 +24,7 @@ class User(BaseModel):
     is_integration_user: bool
 
     def get_bot(self):
-        return str(self.account) + "_" + self.bot
+        return self.bot
 
     def get_user(self):
         if self.is_integration_user:
