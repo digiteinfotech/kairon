@@ -39,6 +39,7 @@ services:
       - 81:80
     volumes:
       - trainer_models:/app/models
+      - trainer_tmp:/root/.cache/
     environment:
       mongo_url: "mongodb://mongo:27017"
       mongo_db: "bot-trainer"
@@ -72,5 +73,6 @@ networks:
 
 volumes:
   trainer_models:
+  trainer_tmp:
   augment_tmp:
   mongo_data:
