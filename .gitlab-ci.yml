@@ -1,7 +1,6 @@
 stages:
   - test
   - build
-  - release
   - cleanup
 
 before_script:
@@ -12,8 +11,6 @@ test:
   tags:
     - dspg_dev
   stage: test
-  only:
-    - master
   script:
     - python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
 
@@ -26,16 +23,6 @@ build:
   script:
     -  docker build -f ./docker/Dockerfile_api -t rasa-dx-trainer:0.1 .
     -  docker build -f ./docker/Dockerfile_augment -t rasa-dx-augment:0.1 .
-
-release:
-  tags:
-    - dspg
-  only:
-    - release
-  stage: release
-  script:
-    -  docker build -f ./docker/Dockerfile_api -t rasa-dx-trainer .
-    -  npm run semantic-release
 
 cleanup:
   stage: cleanup
