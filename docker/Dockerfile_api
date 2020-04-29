@@ -21,6 +21,7 @@ RUN python3 -m pip install validators
 RUN python3 -m pip install rasa[transformers]==1.9.5
 RUN python3 -m pip install rasa[spacy]==1.9.5
 RUN python3 -m pip install rasa[convert]==1.9.5
+RUN python3 -m pip install tensorflow_text
 RUN mkdir ssl
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
