@@ -155,6 +155,7 @@ async def chat(
 @router.post("/train", response_model=Response)
 async def train(current_user: User = Depends(auth.get_current_user)):
     model_file = await train_model_from_mongo(current_user.get_bot())
+    AgentProcessor.reload(current_user.get_bot())
     return {"data": {"file": model_file}, "message": "Model trained successfully"}
 
 
