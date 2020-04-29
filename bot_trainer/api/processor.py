@@ -1,6 +1,7 @@
 from bot_trainer.api.data_objects import *
 from bot_trainer.utils import Utility
 from mongoengine.errors import DoesNotExist
+from bot_trainer.data_processor.processor import MongoProcessor
 from typing import Dict, Text
 import logging
 
@@ -113,10 +114,11 @@ class AccountProcessor:
     def account_setup(account_setup: Dict, user: Text):
         account = None
         bot = None
+        user_details = None
         try:
             account = AccountProcessor.add_account(account_setup.get('account'), user)
             bot = AccountProcessor.add_bot(account_setup.get('bot'), account['_id'], user)
-            user = AccountProcessor.add_user(email=account_setup.get('email'),
+            user_details = AccountProcessor.add_user(email=account_setup.get('email'),
                                              first_name=account_setup.get('first_name'),
                                              last_name=account_setup.get('last_name'),
                                              password=account_setup.get('password'),
@@ -130,7 +132,7 @@ class AccountProcessor:
             if bot and "_id" in bot:
                 Bot.objects().get(id=bot['_id']).delete()
             raise e
-        return user
+        return user_details
 
     @staticmethod
     def default_account_setup():
@@ -141,7 +143,10 @@ class AccountProcessor:
                    "last_name": "Test_Last",
                    "password": "welcome@1"}
         try:
-            AccountProcessor.account_setup(account, user="sysadmin")
+            user = AccountProcessor.account_setup(account, user="sysadmin")
+            if user:
+                MongoProcessor().save_from_path('template/',user['bot'],user="sysadmin")
+            return user
         except Exception as e:
             logging.info(str(e))
 

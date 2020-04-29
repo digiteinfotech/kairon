@@ -390,3 +390,8 @@ class TestAccountProcessor:
         assert actual['_id']
         assert actual['account']
         assert actual['bot']
+
+    def test_default_account_setup(self):
+        actual = AccountProcessor.default_account_setup()
+        assert actual
+
