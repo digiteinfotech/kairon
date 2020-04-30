@@ -37,6 +37,7 @@ class MongoProcessor:
             )
             nlu = utils.training_data_from_paths(nlu_files, "en")
             domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
+            domain.check_missing_templates()
             loop = asyncio.new_event_loop()
             story_steps = loop.run_until_complete(
                 StoryFileReader.read_from_files(story_files, domain)
