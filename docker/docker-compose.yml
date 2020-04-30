@@ -27,7 +27,7 @@ services:
       mongo_url: "mongodb://192.168.101.148:27019"
 
   bot_trainer_api:
-    image: digite/bot-trainer-api:0.1
+    image: digite/bot-trainer-api:latest
     networks:
       - chatbotnetwork
     container_name: bot_trainer_api
