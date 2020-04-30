@@ -18,7 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
-from .routers import auth, bot, augment, history
+from .routers import auth, bot, augment, history, user
 from bot_trainer.api.models import Response
 from bot_trainer.api.processor import AccountProcessor
 from fastapi.middleware.cors import CORSMiddleware
@@ -155,6 +155,7 @@ async def app_exception_handler(request, exc):
 
 
 app.include_router(auth.router, prefix="/api/auth")
+app.include_router(user.router, prefix="/api/user", tags=["User"])
 app.include_router(bot.router, prefix="/api/bot", tags=["Bot"])
 app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history", tags=["History"])

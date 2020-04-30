@@ -89,6 +89,16 @@ class AccountProcessor:
         return user
 
     @staticmethod
+    def get_complete_user_details(email: str):
+        user = AccountProcessor.get_user(email)
+        bot = AccountProcessor.get_bot(user["bot"])
+        account = AccountProcessor.get_account(user["account"])
+        user['bot_name'] = bot['name']
+        user['account_name'] = account['name']
+        user["_id"] = user["_id"].__str__()
+        return user
+
+    @staticmethod
     def get_integration_user(bot: str, account: int):
         if not Utility.is_exist(
             User, query={"bot": bot, "is_integration_user": True}, raise_error=False

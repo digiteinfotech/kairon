@@ -206,8 +206,9 @@ class TestMongoProcessor:
 
     def test_get_all_training_examples(self):
         processor = MongoProcessor()
-        results = processor.get_all_training_examples("tests")
-        assert results
+        training_examples, ids = processor.get_all_training_examples("tests")
+        assert training_examples
+        assert ids
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()

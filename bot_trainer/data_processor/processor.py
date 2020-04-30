@@ -670,14 +670,14 @@ class MongoProcessor:
     def get_all_training_examples(self, bot: Text):
         training_examples = list(
             TrainingExamples.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "text": {"$push": "$text"}}}]
+                [{"$group": {"_id": "$bot", "text": {"$push": "$text"}, "id": {"$push": {"$toString": "$_id"}}}}]
             )
         )
 
         if training_examples:
-            return training_examples[0]["text"]
+            return training_examples[0]["text"], training_examples[0]["id"]
         else:
-            return []
+            return [], []
 
     def remove_document(self, document: Document, id: Text, bot: Text, user: Text):
         try:

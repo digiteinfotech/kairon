@@ -84,9 +84,8 @@ class TestHistory:
            assert len(users) == 0
 
     def test_fetch_chat_users_empty(self, mock_chat_history_empy):
-       with pytest.raises(Exception):
-           users = ChatHistory.fetch_chat_users(bot="tests")
-           assert len(users) == 0
+        users = ChatHistory.fetch_chat_users(bot="tests")
+        assert len(users) == 0
 
     def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):

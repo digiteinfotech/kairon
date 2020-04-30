@@ -38,7 +38,7 @@ class ChatHistory:
     @staticmethod
     def __prepare_data(bot: Text, events, show_session=False):
         bot_action = None
-        training_examples = ChatHistory.mongo_processor.get_all_training_examples(bot)
+        training_examples, ids = ChatHistory.mongo_processor.get_all_training_examples(bot)
         if events:
             for i in range(events.__len__()):
                 event = events[i]
@@ -53,6 +53,8 @@ class ChatHistory:
                     if event_data["event"] not in ["session_started", "rewind"]:
                         result["text"] = event_data["text"]
                         result["is_exists"] = event_data["text"] in training_examples
+                        if result["is_exists"]:
+                            result["_id"] = ids[training_examples.index(event_data["text"])]
 
                     if event_data["event"] == "user":
                         parse_data = event_data["parse_data"]
