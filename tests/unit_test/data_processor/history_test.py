@@ -1,11 +1,13 @@
+import json
+
 import pytest
 from mongoengine import connect
-from bot_trainer.utils import Utility
-from bot_trainer.data_processor.history import ChatHistory
-from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
-from bot_trainer.data_processor.processor import MongoProcessor
 from rasa.core.domain import Domain
-import json
+from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
+
+from bot_trainer.data_processor.history import ChatHistory
+from bot_trainer.data_processor.processor import MongoProcessor
+from bot_trainer.utils import Utility
 
 
 class TestHistory:
@@ -42,14 +44,14 @@ class TestHistory:
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
-        return domain, MongoTrackerStore(domain, host="mongodb://localhost:27019")
+        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019")
 
     @pytest.fixture
     def mock_get_tracker_and_domain(self, monkeypatch):
         monkeypatch.setattr(ChatHistory, "get_tracker_and_domain", self.get_tracker_and_domain_data)
 
     @pytest.fixture
-    def mock_chat_history_empy(self, monkeypatch):
+    def mock_chat_history_empty(self, monkeypatch):
 
         def fetch_user_history(*args, **kwargs):
             return []
@@ -83,16 +85,12 @@ class TestHistory:
            users = ChatHistory.fetch_chat_users(bot="tests")
            assert len(users) == 0
 
-    def test_fetch_chat_users_empty(self, mock_chat_history_empy):
-        users = ChatHistory.fetch_chat_users(bot="tests")
-        assert len(users) == 0
-
     def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
             history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
             assert len(history) == 0
 
-    def test_fetch_chat_history_empty(self, mock_chat_history_empy):
+    def test_fetch_chat_history_empty(self, mock_chat_history_empty):
         history = ChatHistory.fetch_chat_history(sender="123",bot="tests")
         assert len(history) == 0
 
@@ -115,7 +113,7 @@ class TestHistory:
             assert hit_fall_back['fallback_count'] == 0
             assert hit_fall_back['total_count'] == 0
 
-    def test_visitor_hit_fallback_empty(self, mock_chat_history_empy):
+    def test_visitor_hit_fallback_empty(self, mock_chat_history_empty):
         hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
         assert hit_fall_back['fallback_count'] == 0
         assert hit_fall_back['total_count'] == 0
@@ -130,7 +128,7 @@ class TestHistory:
             conversation_time = ChatHistory.conversation_time("tests")
             assert not conversation_time
 
-    def test_conversation_time_empty(self, mock_chat_history_empy):
+    def test_conversation_time_empty(self, mock_chat_history_empty):
         conversation_time = ChatHistory.conversation_time("tests")
         assert not conversation_time
 
@@ -143,7 +141,7 @@ class TestHistory:
             conversation_steps = ChatHistory.conversation_steps("tests")
             assert not conversation_steps
 
-    def test_conversation_steps_empty(self, mock_chat_history_empy):
+    def test_conversation_steps_empty(self, mock_chat_history_empty):
         conversation_steps = ChatHistory.conversation_steps("tests")
         assert not conversation_steps
 
