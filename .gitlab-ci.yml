@@ -21,8 +21,9 @@ build:
     - master
   stage: build
   script:
-    -  docker build -f ./docker/Dockerfile_api -t rasa-dx-trainer:0.1 .
-    -  docker build -f ./docker/Dockerfile_augment -t rasa-dx-augment:0.1 .
+    -  docker build -f ./docker/Dockerfile_api -t rasa-dx-trainer .
+    -  semantic-release
+#    -  docker build -f ./docker/Dockerfile_augment -t rasa-dx-augment:0.1 .
 
 cleanup:
   stage: cleanup
