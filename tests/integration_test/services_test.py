@@ -447,7 +447,7 @@ def test_train():
     actual = response.json()
     print(actual)
     assert actual["success"]
-    assert actual["error_code"] is 0
+    assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["message"] == "Model trained successfully"
 
