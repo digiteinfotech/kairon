@@ -3,6 +3,9 @@ torch
 torchvision
 tensorflow
 rasa==1.9.5
+rasa[transformers]==1.9.5
+rasa[spacy]==1.9.5
+rasa[convert]==1.9.5
 gensim
 sentence_transformers
 fastapi==0.54.1
