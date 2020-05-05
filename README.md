@@ -6,87 +6,118 @@ Adapting contextual AI assistants to specific domain is one of the bigger proble
 
 At this juncture it layers on top of [Rasa Open Source] (https://rasa.com/)
 
-## Getting Started
+# Deployment
+Rasa DX only requires a recent version of [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+Please do the below changes in **docker/docker-compose.yml**
 
-### Prerequisites
+1. set env variable **server** to public IP of the machine where trainer api docker container is running for example: http://localhost:8001/
+    
+2. set env variable **SECRET_KEY** to some random key.
+    
+3. use command **openssl rand -hex 32** for generating random secret key
 
-All depenadnt pacakges are listed in "requirements.txt" file
+4. run the command.
+ 
+```shell
+cd docker/
+docker-compose up -d
+```
 
-Use following command to install all depenancies.
+5. use username: **test@demo.in** and password: **welcome@1** to try with demo user
+
+
+# Development
+
+## Installation
+
+1. Rasa DX requires [python3.6](https://www.python.org/downloads/) and [mongo](https://www.mongodb.com/download-center/community)
+
+2. Then clone this repo
 
 ```shell
-pip install -r requirements.txt
+git clone https://github.com/digiteinfotech/rasa-dx.git
+cd rasa-dx/
 ```
 
-### Installing
-
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
+3. For installing dependencies on windows run
 ```
-Give the example
+setup.bat
 ```
 
-And repeat
-
+4. For installing dependencies on linux run
 ```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
-
-## Running the tests
-
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
+chmod 777 setup.sh
+setup.sh
 ```
 
-### And coding style tests
-
-Explain what these tests test and why
-
+5. For starting augment services run
 ```
-Give an example
+uvicorn augment.server:app --host 0.0.0.0
 ```
 
-## Deployment
+6. For starting trainer-api services run
 
-Add additional notes about how to deploy this on a live system
+```
+uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
+```
+
+# Contribute
+
+We ❤️ contributions of all size and sorts. If you find a typo, if you want to improve a section of the documentation or if you want to help with a bug or a feature, here are the steps:
+
+1. Fork the repo and create a new branch, say rasa-dx-issue1
+    
+2. Fix/improve the codebase
+
+3. write test cases and documentation for code'
+
+4. run test cases.
+
+```
+python -m pytest
+```
+
+5. reformat code using black
+```
+python -m black bot_trainer
+```
+    
+6. Commit the changes, with proper comments about the fix.
+    
+7. Make a pull request. It can simply be one of your commit messages.
+    
+8. Submit your pull request and wait for all checks passed.
+    
+9. Request reviews from one of the developers from our core team.
+    
+10. Get a 👍 and PR gets merged.
+
 
 ## Built With
 
 * [Rasa](https://rasa.com/docs/) - The bot framework used
 * [PiPy](https://pypi.org/) - Dependency Management
+* [Mongo](https://www.mongodb.com/) - DB
+* [MongoEngine](http://mongoengine.org/) - ORM
+* [FastApi](https://github.com/tiangolo/fastapi) - Rest Api
+* [Uvicorn](https://www.uvicorn.org/) - ASGI Server
+* [Spacy](https://spacy.io/) - NLP
+* [Gensim](https://radimrehurek.com/gensim/) - Embedding and Topic Modelling
+* [Sentence Transformer](https://github.com/UKPLab/sentence-transformers) - Semantic Similarity
+* [Pytest](https://docs.pytest.org/en/latest/) - Testing
+* [MongoMock](https://github.com/mongomock/mongomock) - Mocking DB
+* [Response](https://github.com/getsentry/responses) - Mocking HTTP requests
+* [Black](https://github.com/psf/black) - Code Reformatting
 
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/digiteinfotech/rasa-dx/tags). 
 
 ## Authors
 
 * **Digite, Inc.** - *Initial work* - [Digite](https://digite.com)
+* [sfahad1414](https://github.com/sfahad1414)
+* [deenaik](https://github.com/deenaik)
 
 See also the list of [contributors](https://github.com/digiteinfotech/rasa-dx/graphs/contributors) who participated in this project.
 
 ## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
+TODO
