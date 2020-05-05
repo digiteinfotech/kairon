@@ -1,6 +1,10 @@
-# Rasa DX
+# Rasa DX < Tentatively Named > 
 
-Handy trainer for a Rasa based bots.
+Rasa-Dx <Tentatively Named > is envisioned as a web based platform that helps train Rasa contextual AI assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants .
+
+Adapting contextual AI assistants to specific domain is one of the bigger problems adopting chatbots within organizations. We aim to productionize cutting edge NLP solutions to help users complete the process of conveying domain knowledge to contextual assistants
+
+At this juncture it layers on top of [Rasa Open Source] (https://rasa.com/)
 
 ## Getting Started
 
