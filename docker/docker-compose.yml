@@ -44,7 +44,7 @@ services:
       mongo_url: "mongodb://mongo:27017"
       mongo_db: "bot-trainer"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      augmentation_url: "http://bot-augment-api:8001/"
+      augmentation_url: "http://bot-augment-api:8001/questions"
 
   bot_trainer_ui:
     image: digite/bot-trainer-ui:0.1
