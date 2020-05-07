@@ -23,7 +23,7 @@ class AccountProcessor:
     @staticmethod
     def add_bot(name: str, account: int, user: str):
         Utility.is_exist(
-            Bot, query={"name": name}, exp_message="Account name already exists!"
+            Bot, query={"name": name, 'account': account}, exp_message="Bot already exists!"
         )
         return Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
 

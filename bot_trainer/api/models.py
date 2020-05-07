@@ -70,3 +70,19 @@ class StoryRequest(BaseModel):
 
     def get_events(self):
         return [event.dict() for event in self.events]
+
+
+class RegisterAccount(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    password: str
+    confirm_password: str
+    account: str
+    bot: str
+
+    @validator("confirm_password")
+    def validate_password(cls, v, values, **kwargs):
+        if 'password' in values and v != values['password']:
+            raise ValueError("Password and Confirm Password does not match")
+        return v

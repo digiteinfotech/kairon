@@ -19,29 +19,11 @@ client = TestClient(app)
 def pytest_namespace():
     return {"access_token": None, "token_type": None, "user_created": False}
 
-def add_user():
+def setup():
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
-    user = AccountProcessor.account_setup({"email": "integration@demo.ai",
-                                           "first_name": "Demo",
-                                           "last_name": "User",
-                                           "password": "welcome@1",
-                                           "account": "integration",
-                                           "bot": "integration"},
-                                          user="testAdmin")
-    processor = MongoProcessor()
-    processor.save_from_path("tests/testing_data/all", user['bot'], "testAdmin")
 
-    AccountProcessor.account_setup({"email": "integration2@demo.ai",
-                                    "first_name": "Demo",
-                                    "last_name": "User",
-                                    "password": "welcome@1",
-                                    "account": "integration2",
-                                    "bot": "integration2"},
-                                   user="testAdmin")
-
-
-add_user()
+setup()
 
 def test_api_wrong_login():
     response = client.post(
@@ -51,6 +33,35 @@ def test_api_wrong_login():
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exists!"
+
+def test_account_registration():
+    response = client.post(
+        "/api/account/registration",
+        json={"email": "integration@demo.ai",
+                                           "first_name": "Demo",
+                                           "last_name": "User",
+                                           "password": "welcome@1",
+                                           "confirm_password": "welcome@1",
+                                           "account": "integration",
+                                           "bot": "integration"}
+    )
+    actual = response.json()
+    assert actual['message'] == 'Account Registered!'
+    processor = MongoProcessor()
+    user = AccountProcessor.get_complete_user_details("integration@demo.ai")
+    processor.save_from_path("tests/testing_data/all", user['bot'], "testAdmin")
+    response = client.post(
+        "/api/account/registration",
+        json={"email": "integration2@demo.ai",
+              "first_name": "Demo",
+              "last_name": "User",
+              "password": "welcome@1",
+              "confirm_password": "welcome@1",
+              "account": "integration2",
+              "bot": "integration2"}
+    )
+    actual = response.json()
+    assert actual['message'] == 'Account Registered!'
 
 
 def test_api_login():
