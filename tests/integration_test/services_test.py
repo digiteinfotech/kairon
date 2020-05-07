@@ -16,14 +16,18 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)
 
+
 def pytest_namespace():
     return {"access_token": None, "token_type": None, "user_created": False}
+
 
 def setup():
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 
+
 setup()
+
 
 def test_api_wrong_login():
     response = client.post(
@@ -34,34 +38,36 @@ def test_api_wrong_login():
     assert not actual["success"]
     assert actual["message"] == "User does not exists!"
 
+
 def test_account_registration():
     response = client.post(
         "/api/account/registration",
-        json={"email": "integration@demo.ai",
-                                           "first_name": "Demo",
-                                           "last_name": "User",
-                                           "password": "welcome@1",
-                                           "confirm_password": "welcome@1",
-                                           "account": "integration",
-                                           "bot": "integration"}
+        json={
+            "email": "integration@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "welcome@1",
+            "confirm_password": "welcome@1",
+            "account": "integration",
+            "bot": "integration",
+        },
     )
     actual = response.json()
-    assert actual['message'] == 'Account Registered!'
-    processor = MongoProcessor()
-    user = AccountProcessor.get_complete_user_details("integration@demo.ai")
-    processor.save_from_path("tests/testing_data/all", user['bot'], "testAdmin")
+    assert actual["message"] == "Account Registered!"
     response = client.post(
         "/api/account/registration",
-        json={"email": "integration2@demo.ai",
-              "first_name": "Demo",
-              "last_name": "User",
-              "password": "welcome@1",
-              "confirm_password": "welcome@1",
-              "account": "integration2",
-              "bot": "integration2"}
+        json={
+            "email": "integration2@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "welcome@1",
+            "confirm_password": "welcome@1",
+            "account": "integration2",
+            "bot": "integration2",
+        },
     )
     actual = response.json()
-    assert actual['message'] == 'Account Registered!'
+    assert actual["message"] == "Account Registered!"
 
 
 def test_api_login():
@@ -80,6 +86,100 @@ def test_api_login():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
+
+
+def test_upload_missing_data():
+    files = {
+        "domain": (
+            "tests/testing_data/all/domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "tests/testing_data/all/data/stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "tests/testing_data/all/config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    print(actual)
+    assert (
+        actual["message"]
+        == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+    )
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
+def test_upload_error():
+    files = {
+        "nlu": ("tests/testing_data/all/data/nlu.md", None),
+        "domain": (
+            "tests/testing_data/all/domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "tests/testing_data/all/data/stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "tests/testing_data/all/config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    print(actual)
+    assert (
+        actual["message"]
+        == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+    )
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
+def test_upload():
+    files = {
+        "nlu": (
+            "tests/testing_data/all/data/nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "tests/testing_data/all/domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "tests/testing_data/all/data/stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "tests/testing_data/all/config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
 
 
 def test_get_intents():
@@ -184,13 +284,8 @@ def test_add_training_examples_duplicate():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert (
-            actual["data"][0]["message"]
-            == "Training Example already exists!"
-    )
-    assert (
-            actual["data"][0]["_id"] is None
-    )
+    assert actual["data"][0]["message"] == "Training Example already exists!"
+    assert actual["data"][0]["_id"] is None
 
 
 def test_add_empty_training_examples():
@@ -206,9 +301,7 @@ def test_add_empty_training_examples():
         actual["data"][0]["message"]
         == "Training Example name and text cannot be empty or blank spaces"
     )
-    assert (
-            actual["data"][0]["_id"] is None
-    )
+    assert actual["data"][0]["_id"] is None
 
 
 def test_remove_training_examples():
@@ -544,23 +637,35 @@ def test_deploy_missing_configuration():
     assert actual["data"] is None
     assert actual["message"] == "Please configure the bot endpoint for deployment!"
 
+
 def endpoint_response(*args, **kwargs):
     return {"bot_endpoint": {"url": "http://localhost:5000"}}
 
+
 @pytest.fixture
 def mock_endpoint(monkeypatch):
-    monkeypatch.setattr(MongoProcessor,"get_endpoints", endpoint_response)
+    monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_response)
+
 
 @pytest.fixture
 def mock_endpoint_with_token(monkeypatch):
     def _endpoint_response(*args, **kwargs):
-        return {"bot_endpoint": {"url": "http://localhost:5000", "token": "AGTSUDH!@#78JNKLD", "token_type": "Bearer"}}
-    monkeypatch.setattr(MongoProcessor,"get_endpoints", _endpoint_response)
+        return {
+            "bot_endpoint": {
+                "url": "http://localhost:5000",
+                "token": "AGTSUDH!@#78JNKLD",
+                "token_type": "Bearer",
+            }
+        }
+
+    monkeypatch.setattr(MongoProcessor, "get_endpoints", _endpoint_response)
+
 
 def test_deploy_connection_error(mock_endpoint):
-    response = client.post("/api/bot/deploy",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert not actual["success"]
@@ -568,12 +673,19 @@ def test_deploy_connection_error(mock_endpoint):
     assert actual["data"] is None
     assert actual["message"] == "Host is not reachable"
 
+
 @responses.activate
 def test_deploy(mock_endpoint):
-    responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
-    response = client.post("/api/bot/deploy",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    responses.add(
+        responses.PUT,
+        "http://localhost:5000/model",
+        json="Model was successfully replaced.",
+        status=200,
+    )
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
@@ -581,12 +693,19 @@ def test_deploy(mock_endpoint):
     assert actual["data"] is None
     assert actual["message"] == "Model was successfully replaced."
 
+
 @responses.activate
 def test_deploy_with_token(mock_endpoint_with_token):
-    responses.add(responses.PUT, "http://localhost:5000/model", json="Model was successfully replaced.",status=200)
-    response = client.post("/api/bot/deploy",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    responses.add(
+        responses.PUT,
+        "http://localhost:5000/model",
+        json="Model was successfully replaced.",
+        status=200,
+    )
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
@@ -597,17 +716,21 @@ def test_deploy_with_token(mock_endpoint_with_token):
 
 @responses.activate
 def test_deploy_bad_request(mock_endpoint):
-    responses.add(responses.PUT,
-                  "http://localhost:5000/model",
-                  json={"version": "1.0.0",
-                        "status": "failure",
-                        "reason": "BadRequest",
-                        "code": 400
-                        },
-                  status=200)
-    response = client.post("/api/bot/deploy",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    responses.add(
+        responses.PUT,
+        "http://localhost:5000/model",
+        json={
+            "version": "1.0.0",
+            "status": "failure",
+            "reason": "BadRequest",
+            "code": 400,
+        },
+        status=200,
+    )
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
@@ -618,18 +741,21 @@ def test_deploy_bad_request(mock_endpoint):
 
 @responses.activate
 def test_deploy_server_error(mock_endpoint):
-    responses.add(responses.PUT,
-                  "http://localhost:5000/model",
-                  json={
-                      "version": "1.0.0",
-                      "status": "ServerError",
-                      "message": "An unexpected error occurred.",
-                      "code": 500
-                  },
-                  status=200)
-    response = client.post("/api/bot/deploy",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    responses.add(
+        responses.PUT,
+        "http://localhost:5000/model",
+        json={
+            "version": "1.0.0",
+            "status": "ServerError",
+            "message": "An unexpected error occurred.",
+            "code": 500,
+        },
+        status=200,
+    )
+    response = client.post(
+        "/api/bot/deploy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
@@ -639,21 +765,29 @@ def test_deploy_server_error(mock_endpoint):
 
 
 def test_integration_token():
-    response = client.get("/api/auth/integration/token",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    response = client.get(
+        "/api/auth/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     token = response.json()
     assert token["success"]
     assert token["error_code"] == 0
-    assert token["data"]['access_token']
-    assert token["data"]['token_type']
-    assert token["message"] == '''It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system.'''
+    assert token["data"]["access_token"]
+    assert token["data"]["token_type"]
+    assert (
+        token["message"]
+        == """It is your responsibility to keep the token secret.
+        If leaked then other may have access to your system."""
+    )
     response = client.get(
         "/api/bot/intents",
-        headers={"Authorization": token["data"]['token_type'] + " " + token["data"]['access_token'],
-                 "X-USER": "integration"},
+        headers={
+            "Authorization": token["data"]["token_type"]
+            + " "
+            + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
     )
     actual = response.json()
     assert "data" in actual
@@ -663,49 +797,62 @@ def test_integration_token():
     assert Utility.check_empty_string(actual["message"])
     response = client.post(
         "/api/bot/intents",
-        headers={"Authorization": token["data"]['token_type'] + " " + token["data"]['access_token'],
-                 "X-USER": "integration"},
-        json={"data": "integration"}
+        headers={
+            "Authorization": token["data"]["token_type"]
+            + " "
+            + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
+        json={"data": "integration"},
     )
     actual = response.json()
-    assert actual["data"]['_id']
+    assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Intent added successfully!"
 
 
 def test_integration_token_missing_x_user():
-    response = client.get("/api/auth/integration/token",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    response = client.get(
+        "/api/auth/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]['access_token']
-    assert actual["data"]['token_type']
-    assert actual["message"] == '''It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system.'''
+    assert actual["data"]["access_token"]
+    assert actual["data"]["token_type"]
+    assert (
+        actual["message"]
+        == """It is your responsibility to keep the token secret.
+        If leaked then other may have access to your system."""
+    )
     response = client.get(
         "/api/bot/intents",
-        headers={"Authorization": actual["data"]['token_type'] + " " + actual["data"]['access_token']}
+        headers={
+            "Authorization": actual["data"]["token_type"]
+            + " "
+            + actual["data"]["access_token"]
+        },
     )
     actual = response.json()
     assert actual["data"] is None
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Alias user missing for integration'
+    assert actual["message"] == "Alias user missing for integration"
 
 
 def test_predict_intent():
-    response = client.post("/api/bot/intents/predict",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-                          json={"data": "Hi"},
-                          )
+    response = client.post(
+        "/api/bot/intents/predict",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi"},
+    )
 
     actual = response.json()
-    assert actual.get('data').get("intent")
-    assert actual.get('data').get("confidence")
+    assert actual.get("data").get("intent")
+    assert actual.get("data").get("confidence")
 
 
 def test_predict_intent_error():
@@ -719,8 +866,8 @@ def test_predict_intent_error():
         json={"data": "Hi"},
         headers={
             "Authorization": token["data"]["token_type"]
-                             + " "
-                             + token["data"]["access_token"]
+            + " "
+            + token["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -732,38 +879,46 @@ def test_predict_intent_error():
 
 @responses.activate
 def test_augment_questions():
-    responses.add(responses.POST,
-                  "http://localhost:8000/questions",
-                  json={
-                      "sucess": True,
-                      "data": {"questions":['where is digite centrally located?',
-                     'where is digite conveniently located?',
-                     'where is digite islocated?',
-                     'where is digite situated?',
-                     'where is digite strategically located?']},
-                      "message": None,
-                      "error_code": 0
-                  },
-                  status=200)
-    response = client.post("/api/augment/questions",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-                           json = {"data":["where is digite located?'"]}
-                           )
+    responses.add(
+        responses.POST,
+        "http://localhost:8000/questions",
+        json={
+            "sucess": True,
+            "data": {
+                "questions": [
+                    "where is digite centrally located?",
+                    "where is digite conveniently located?",
+                    "where is digite islocated?",
+                    "where is digite situated?",
+                    "where is digite strategically located?",
+                ]
+            },
+            "message": None,
+            "error_code": 0,
+        },
+        status=200,
+    )
+    response = client.post(
+        "/api/augment/questions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": ["where is digite located?'"]},
+    )
 
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
+
 
 def test_get_user_details():
-    response = client.get("/api/user/details",
-                           headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-                           )
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
 
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
-

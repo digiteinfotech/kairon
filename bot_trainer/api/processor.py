@@ -5,6 +5,7 @@ from bot_trainer.data_processor.processor import MongoProcessor
 from typing import Dict, Text
 import logging
 
+
 class AccountProcessor:
     @staticmethod
     def add_account(name: str, user: str):
@@ -23,7 +24,9 @@ class AccountProcessor:
     @staticmethod
     def add_bot(name: str, account: int, user: str):
         Utility.is_exist(
-            Bot, query={"name": name, 'account': account}, exp_message="Bot already exists!"
+            Bot,
+            query={"name": name, "account": account},
+            exp_message="Bot already exists!",
         )
         return Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
 
@@ -44,7 +47,7 @@ class AccountProcessor:
         bot: str,
         user: str,
         is_integration_user=False,
-        role="trainer"
+        role="trainer",
     ):
         Utility.is_exist(
             User,
@@ -61,7 +64,7 @@ class AccountProcessor:
                 bot=bot,
                 user=user,
                 is_integration_user=is_integration_user,
-                role=role
+                role=role,
             )
             .save()
             .to_mongo()
@@ -93,8 +96,8 @@ class AccountProcessor:
         user = AccountProcessor.get_user(email)
         bot = AccountProcessor.get_bot(user["bot"])
         account = AccountProcessor.get_account(user["account"])
-        user['bot_name'] = bot['name']
-        user['account_name'] = account['name']
+        user["bot_name"] = bot["name"]
+        user["account_name"] = account["name"]
         user["_id"] = user["_id"].__str__()
         return user
 
@@ -126,37 +129,44 @@ class AccountProcessor:
         bot = None
         user_details = None
         try:
-            account = AccountProcessor.add_account(account_setup.get('account'), user)
-            bot = AccountProcessor.add_bot(account_setup.get('bot'), account['_id'], user)
-            user_details = AccountProcessor.add_user(email=account_setup.get('email'),
-                                             first_name=account_setup.get('first_name'),
-                                             last_name=account_setup.get('last_name'),
-                                             password=account_setup.get('password'),
-                                             account=account["_id"],
-                                             bot=bot["_id"].__str__(),
-                                             user=user,
-                                             role="admin")
+            account = AccountProcessor.add_account(account_setup.get("account"), user)
+            bot = AccountProcessor.add_bot(
+                account_setup.get("bot"), account["_id"], user
+            )
+            user_details = AccountProcessor.add_user(
+                email=account_setup.get("email"),
+                first_name=account_setup.get("first_name"),
+                last_name=account_setup.get("last_name"),
+                password=account_setup.get("password"),
+                account=account["_id"],
+                bot=bot["_id"].__str__(),
+                user=user,
+                role="admin",
+            )
         except Exception as e:
             if account and "_id" in account:
-                Account.objects().get(id=account['_id']).delete()
+                Account.objects().get(id=account["_id"]).delete()
             if bot and "_id" in bot:
-                Bot.objects().get(id=bot['_id']).delete()
+                Bot.objects().get(id=bot["_id"]).delete()
             raise e
         return user_details
 
     @staticmethod
-    def default_account_setup():
-        account = {"account": "DemoAccount",
-                   "bot": "Demo",
-                   "email": "test@demo.in",
-                   "first_name": "Test_First",
-                   "last_name": "Test_Last",
-                   "password": "welcome@1"}
+    async def default_account_setup():
+        account = {
+            "account": "DemoAccount",
+            "bot": "Demo",
+            "email": "test@demo.in",
+            "first_name": "Test_First",
+            "last_name": "Test_Last",
+            "password": "welcome@1",
+        }
         try:
             user = AccountProcessor.account_setup(account, user="sysadmin")
             if user:
-                MongoProcessor().save_from_path('template/',user['bot'],user="sysadmin")
+                await MongoProcessor().save_from_path(
+                    "template/", user["bot"], user="sysadmin"
+                )
             return user
         except Exception as e:
             logging.info(str(e))
-

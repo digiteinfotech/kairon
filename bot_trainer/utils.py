@@ -12,6 +12,10 @@ import requests
 from rasa.constants import DEFAULT_MODELS_PATH
 import string
 import random
+from rasa.utils.common import TempDirectoryPath
+import tempfile
+from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+import shutil
 
 
 class Utility:
@@ -148,3 +152,31 @@ class Utility:
     @staticmethod
     def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
         return "".join(random.choice(chars) for _ in range(size))
+
+    @staticmethod
+    def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
+        '''save nlu, domain, stories and config data to files in temporary location.'''
+        temp_path = TempDirectoryPath(tempfile.mkdtemp())
+        data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
+        os.makedirs(data_path)
+        nlu_path = os.path.join(data_path, "nlu.md")
+        domain_path = os.path.join(temp_path, DEFAULT_DOMAIN_PATH)
+        stories_path = os.path.join(data_path, "stories.md")
+        config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
+        Utility.write_to_file(nlu_path, nlu)
+        Utility.write_to_file(domain_path, domain)
+        Utility.write_to_file(stories_path, stories)
+        Utility.write_to_file(config_path, config)
+        return temp_path
+
+    @staticmethod
+    def write_to_file(file: Text, data: bytes):
+        '''open the files in binary mode and write to it'''
+        with open(file, "wb") as w:
+            w.write(data)
+            w.close()
+
+    @staticmethod
+    def delete_directory(path: Text):
+        '''delete file directory'''
+        shutil.rmtree(path)

@@ -37,7 +37,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
-    AccountProcessor.default_account_setup()
+    await AccountProcessor.default_account_setup()
 
 
 @app.on_event("shutdown")

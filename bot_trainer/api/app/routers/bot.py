@@ -1,12 +1,11 @@
 from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import Depends, UploadFile, File
 
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
 from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 from bot_trainer.train import train_model_from_mongo
-import requests
 
 router = APIRouter()
 auth = Authentication()
@@ -165,3 +164,21 @@ async def deploy(current_user: User = Depends(auth.get_current_user)):
         current_user.get_bot(), raise_exception=False
     )
     return {"message": Utility.deploy_model(endpoint, current_user.get_bot())}
+
+
+@router.post("/upload", response_model=Response)
+async def upload_Files(
+    nlu: bytes = File(...),
+    domain: bytes = File(...),
+    stories: bytes = File(...),
+    config: bytes = File(...),
+    overwrite: bool = True,
+    current_user: User = Depends(auth.get_current_user),
+):
+    '''Upload training data nlu.md, domain.yml, stories,md and config.yml files'''
+    data_path = Utility.save_files(nlu, domain, stories, config)
+    await mongo_processor.save_from_path(
+        data_path, current_user.get_bot(), overwrite, current_user.get_user()
+    )
+    Utility.delete_directory(data_path)
+    return {"message": "Data uploaded successfully!"}

@@ -30,7 +30,9 @@ import logging
 
 
 class MongoProcessor:
-    def save_from_path(self, path: Text, bot: Text, user="default"):
+    async def save_from_path(
+        self, path: Text, bot: Text, overwrite: bool = True, user="default"
+    ):
         try:
             story_files, nlu_files = get_core_nlu_files(
                 os.path.join(path, DEFAULT_DATA_PATH)
@@ -38,10 +40,7 @@ class MongoProcessor:
             nlu = utils.training_data_from_paths(nlu_files, "en")
             domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
             domain.check_missing_templates()
-            loop = asyncio.new_event_loop()
-            story_steps = loop.run_until_complete(
-                StoryFileReader.read_from_files(story_files, domain)
-            )
+            story_steps = await StoryFileReader.read_from_files(story_files, domain)
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
@@ -670,7 +669,15 @@ class MongoProcessor:
     def get_all_training_examples(self, bot: Text):
         training_examples = list(
             TrainingExamples.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "text": {"$push": "$text"}, "id": {"$push": {"$toString": "$_id"}}}}]
+                [
+                    {
+                        "$group": {
+                            "_id": "$bot",
+                            "text": {"$push": "$text"},
+                            "id": {"$push": {"$toString": "$_id"}},
+                        }
+                    }
+                ]
             )
         )
 
@@ -950,9 +957,7 @@ class AgentProcessor:
                 if endpoint and endpoint.get("action_endpoint")
                 else None
             )
-            model_path = Utility.get_latest_file(
-                os.path.join(DEFAULT_MODELS_PATH, bot)
-            )
+            model_path = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
             agent = Agent.load(model_path, action_endpoint=action_endpoint)
             InMemoryAgentCache.set(bot, agent)
         except Exception as e:
