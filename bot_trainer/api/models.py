@@ -83,6 +83,6 @@ class RegisterAccount(BaseModel):
 
     @validator("confirm_password")
     def validate_password(cls, v, values, **kwargs):
-        if 'password' in values and v != values['password']:
+        if "password" in values and v != values["password"]:
             raise ValueError("Password and Confirm Password does not match")
         return v
