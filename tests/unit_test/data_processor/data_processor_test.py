@@ -761,16 +761,10 @@ class TestMongoProcessor:
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
         assert endpoint.get("bot")
 
-    def test_download_files(self):
+    def test_download_data_files(self):
         processor = MongoProcessor()
         file = processor.download_files("tests")
-        assert file.endswith(".tar")
-
-
-    def test_download_files_model_does_not_exists(self):
-        processor = MongoProcessor()
-        file = processor.download_files("test3")
-        assert file.endswith(".tar")
+        assert file.endswith(".zip")
 
 
 class TestAgentProcessor:

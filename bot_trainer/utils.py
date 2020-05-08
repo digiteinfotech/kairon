@@ -19,7 +19,7 @@ from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 import shutil
-import logging
+from io import BytesIO
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -159,7 +159,7 @@ class Utility:
     @staticmethod
     def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
         """save nlu, domain, stories and config data to files in temporary location."""
-        temp_path = TempDirectoryPath(tempfile.mkdtemp())
+        temp_path = tempfile.mkdtemp()
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
         os.makedirs(data_path)
         nlu_path = os.path.join(data_path, "nlu.md")
@@ -196,9 +196,16 @@ class Utility:
                            stories.as_story_string().encode(),
                            yaml.dump(config).encode()
                            )
-        try:
-            model_path = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
-            shutil.copy(model_path, directory)
-        except Exception as e:
-            logging.info(str(e))
-        return shutil.make_archive(directory, format="tar")
+        zip_path = os.path.join(tempfile.gettempdir(),bot)
+        zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
+        shutil.rmtree(directory)
+        return zip_file
+
+    @staticmethod
+    def load_file_in_memory(file: Text):
+        data = BytesIO()
+        with open(file, 'rb') as fo:
+            data.write(fo.read())
+        data.seek(0)
+        os.remove(file)
+        return data

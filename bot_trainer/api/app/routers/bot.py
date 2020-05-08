@@ -188,10 +188,21 @@ async def upload_Files(
     return {"message": "Data uploaded successfully!"}
 
 
-@router.get("/download")
+@router.get("/download_data")
 async def download_file(
     current_user: User = Depends(auth.get_current_user),
 ):
-    """Download training data nlu.md, domain.yml, stories.md, config.yml files with latest trained model file if available"""
+    """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
     file = mongo_processor.download_files(current_user.get_bot())
     return FileResponse(file)
+
+@router.get("/download_model")
+async def download_file(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Download latest trained model file"""
+    try:
+        model_path = AgentProcessor.get_latest_model(current_user.get_bot())
+        return FileResponse(model_path)
+    except Exception as e:
+        return AppException(str(e))

@@ -974,6 +974,10 @@ class AgentProcessor:
         return InMemoryAgentCache.get(bot)
 
     @staticmethod
+    def get_latest_model(bot: Text):
+        return Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+
+    @staticmethod
     def reload(bot: Text):
         try:
             endpoint = AgentProcessor.mongo_processor.get_endpoints(
@@ -984,7 +988,7 @@ class AgentProcessor:
                 if endpoint and endpoint.get("action_endpoint")
                 else None
             )
-            model_path = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+            model_path = AgentProcessor.get_latest_model(bot)
             agent = Agent.load(model_path, action_endpoint=action_endpoint)
             InMemoryAgentCache.set(bot, agent)
         except Exception as e:

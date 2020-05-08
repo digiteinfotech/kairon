@@ -12,6 +12,7 @@ from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 from io import BytesIO
 import tarfile
+from zipfile import ZipFile
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -926,9 +927,22 @@ def test_get_user_details():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_download_file():
+def test_download_data():
     response = client.get(
-        "/api/bot/download",
+        "/api/bot/download_data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    file_bytes = BytesIO(response.content)
+    zip_file = ZipFile(file_bytes, mode='r')
+    assert zip_file.filelist
+    zip_file.close()
+    file_bytes.close()
+
+
+def test_download_model():
+    response = client.get(
+        "/api/bot/download_model",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
