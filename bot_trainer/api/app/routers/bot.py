@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from fastapi import Depends, UploadFile, File
-
+from fastapi import Depends, File
+from fastapi.responses import FileResponse
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
 from bot_trainer.data_processor.data_objects import *
@@ -175,7 +175,7 @@ async def upload_Files(
     overwrite: bool = True,
     current_user: User = Depends(auth.get_current_user),
 ):
-    """Upload training data nlu.md, domain.yml, stories,md and config.yml files"""
+    """Upload training data nlu.md, domain.yml, stories.md and config.yml files"""
     await mongo_processor.upload_and_save(
         nlu,
         domain,
@@ -186,3 +186,12 @@ async def upload_Files(
         overwrite,
     )
     return {"message": "Data uploaded successfully!"}
+
+
+@router.get("/download")
+async def download_file(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Download training data nlu.md, domain.yml, stories.md, config.yml files with latest trained model file if available"""
+    file = mongo_processor.download_files(current_user.get_bot())
+    return FileResponse(file)

@@ -10,6 +10,8 @@ from bot_trainer.api.app.main import app
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
+from io import BytesIO
+import tarfile
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -922,3 +924,18 @@ def test_get_user_details():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_download_file():
+    response = client.get(
+        "/api/bot/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    file_bytes = BytesIO(response.content)
+    tar = tarfile.open(fileobj=file_bytes, mode='r')
+    assert tar
+    tar.close()
+    file_bytes.close()
+
+

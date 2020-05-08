@@ -45,6 +45,18 @@ class MongoProcessor:
         await self.save_from_path(data_path, bot, overwrite, user)
         Utility.delete_directory(data_path)
 
+    def download_files(self, bot: Text):
+        nlu = self.load_nlu(bot)
+        domain = self.load_domain(bot)
+        stories = self.load_stories(bot)
+        config = self.load_config(bot)
+        return Utility.create_zip_file(nlu,
+                                       domain,
+                                       stories,
+                                       config,
+                                       bot)
+
+
     async def save_from_path(
         self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):

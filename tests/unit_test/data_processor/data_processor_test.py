@@ -25,12 +25,12 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.new_event_loop()
         assert (
-            loop.run_until_complete(
-                processor.save_from_path(
-                    "tests/testing_data/initial", "tests", "testUser"
+                loop.run_until_complete(
+                    processor.save_from_path(
+                        "tests/testing_data/initial", "tests", "testUser"
+                    )
                 )
-            )
-            is None
+                is None
         )
 
     def test_load_from_path_error(self):
@@ -167,8 +167,8 @@ class TestMongoProcessor:
         assert results[0]["_id"] is None
         assert results[0]["text"] is None
         assert (
-            results[0]["message"]
-            == "Training Example name and text cannot be empty or blank spaces"
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
         )
 
     def test_add_training_example_empty_text(self):
@@ -179,8 +179,8 @@ class TestMongoProcessor:
         assert results[0]["_id"] is None
         assert results[0]["text"] == ""
         assert (
-            results[0]["message"]
-            == "Training Example name and text cannot be empty or blank spaces"
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
         )
 
     def test_add_training_example_blank_text(self):
@@ -191,8 +191,8 @@ class TestMongoProcessor:
         assert results[0]["_id"] is None
         assert results[0]["text"] == "  "
         assert (
-            results[0]["message"]
-            == "Training Example name and text cannot be empty or blank spaces"
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
         )
 
     def test_add_training_example_none_intent(self):
@@ -206,8 +206,8 @@ class TestMongoProcessor:
             assert results[0]["_id"] is None
             assert results[0]["text"] == "Hi! How are you"
             assert (
-                results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
             )
 
     def test_add_training_example_empty_intent(self):
@@ -221,8 +221,8 @@ class TestMongoProcessor:
             assert results[0]["_id"] is None
             assert results[0]["text"] == "Hi! How are you"
             assert (
-                results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
             )
 
     def test_add_training_example_blank_intent(self):
@@ -236,8 +236,8 @@ class TestMongoProcessor:
             assert results[0]["_id"] is None
             assert results[0]["text"] == "Hi! How are you"
             assert (
-                results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
             )
 
     def test_add_empty_training_example(self):
@@ -249,8 +249,8 @@ class TestMongoProcessor:
             assert results[0]["_id"] is None
             assert results[0]["text"] == "Hi! How are you"
             assert (
-                results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
             )
 
     def test_get_training_examples(self):
@@ -305,7 +305,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert (
-            results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+                results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
         )
         assert results[0]["message"] == "Training Example added successfully!"
         actual = list(processor.get_training_examples("get_priority", "tests"))
@@ -734,7 +734,7 @@ class TestMongoProcessor:
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
         assert (
-            endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
         )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
@@ -755,11 +755,22 @@ class TestMongoProcessor:
         assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
         assert (
-            endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
         )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
         assert endpoint.get("bot")
+
+    def test_download_files(self):
+        processor = MongoProcessor()
+        file = processor.download_files("tests")
+        assert file.endswith(".tar")
+
+
+    def test_download_files_model_does_not_exists(self):
+        processor = MongoProcessor()
+        file = processor.download_files("test3")
+        assert file.endswith(".tar")
 
 
 class TestAgentProcessor:

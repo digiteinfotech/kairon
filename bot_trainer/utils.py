@@ -15,8 +15,11 @@ import random
 from rasa.utils.common import TempDirectoryPath
 import tempfile
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.core.training.structures import StoryGraph
+from rasa.importers.rasa import Domain
+from rasa.nlu.training_data import TrainingData
 import shutil
-
+import logging
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -180,3 +183,22 @@ class Utility:
     def delete_directory(path: Text):
         """delete file directory"""
         shutil.rmtree(path)
+
+    @staticmethod
+    def create_zip_file(nlu: TrainingData,
+                        domain: Domain,
+                        stories: StoryGraph,
+                        config: Dict,
+                        bot: Text):
+
+        directory = Utility.save_files(nlu.nlu_as_markdown().encode(),
+                           domain.as_yaml().encode(),
+                           stories.as_story_string().encode(),
+                           yaml.dump(config).encode()
+                           )
+        try:
+            model_path = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+            shutil.copy(model_path, directory)
+        except Exception as e:
+            logging.info(str(e))
+        return shutil.make_archive(directory, format="tar")
