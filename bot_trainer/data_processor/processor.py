@@ -30,6 +30,21 @@ import logging
 
 
 class MongoProcessor:
+    async def upload_and_save(
+        self,
+        nlu: bytes,
+        domain: bytes,
+        stories: bytes,
+        config: bytes,
+        bot: Text,
+        user: Text,
+        overwrite: bool = True,
+    ):
+        '''upload the training data to temporary path and then save into mongo'''
+        data_path = Utility.save_files(nlu, domain, stories, config)
+        await self.save_from_path(data_path, bot, overwrite, user)
+        Utility.delete_directory(data_path)
+
     async def save_from_path(
         self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):

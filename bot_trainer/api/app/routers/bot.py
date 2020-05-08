@@ -175,10 +175,14 @@ async def upload_Files(
     overwrite: bool = True,
     current_user: User = Depends(auth.get_current_user),
 ):
-    '''Upload training data nlu.md, domain.yml, stories,md and config.yml files'''
-    data_path = Utility.save_files(nlu, domain, stories, config)
-    await mongo_processor.save_from_path(
-        data_path, current_user.get_bot(), overwrite, current_user.get_user()
+    """Upload training data nlu.md, domain.yml, stories,md and config.yml files"""
+    await mongo_processor.upload_and_save(
+        nlu,
+        domain,
+        stories,
+        config,
+        current_user.get_bot(),
+        current_user.get_user(),
+        overwrite,
     )
-    Utility.delete_directory(data_path)
     return {"message": "Data uploaded successfully!"}

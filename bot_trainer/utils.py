@@ -155,7 +155,7 @@ class Utility:
 
     @staticmethod
     def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
-        '''save nlu, domain, stories and config data to files in temporary location.'''
+        """save nlu, domain, stories and config data to files in temporary location."""
         temp_path = TempDirectoryPath(tempfile.mkdtemp())
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
         os.makedirs(data_path)
@@ -171,12 +171,12 @@ class Utility:
 
     @staticmethod
     def write_to_file(file: Text, data: bytes):
-        '''open the files in binary mode and write to it'''
+        """open the files in binary mode and write to it"""
         with open(file, "wb") as w:
             w.write(data)
             w.close()
 
     @staticmethod
     def delete_directory(path: Text):
-        '''delete file directory'''
+        """delete file directory"""
         shutil.rmtree(path)
