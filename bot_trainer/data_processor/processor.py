@@ -1054,3 +1054,41 @@ class AgentProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException("Please train the bot first")
+
+class ModelProcessor:
+
+    @staticmethod
+    def set_training_status(
+            bot: Text,
+            user: Text,
+            status: Text,
+            start_timestamp: datetime = None,
+            end_timestamp: datetime = None,
+            model_path: Text = None,
+            exception: Text = None
+    ):
+
+        doc = ModelTraining.objects(bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+
+        if doc.__len__() and start_timestamp is None:
+            start_timestamp = doc.first().start_timestamp
+
+        doc.update(upsert=True, bot=bot,
+                                user=user,
+                                status=status,
+                                start_timestamp=start_timestamp,
+                                end_timestamp=end_timestamp,
+                                model_path=model_path,
+                                exception=exception)
+
+    @staticmethod
+    def is_training_inprogress(
+        bot: Text,
+        raise_exception=True
+    ):
+        doc = ModelTraining.objects(bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+        if doc.__len__():
+            if raise_exception:
+                raise AppException("Previous model training in progress.")
+        else:
+            return False

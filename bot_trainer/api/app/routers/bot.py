@@ -16,6 +16,12 @@ from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import train_model_from_mongo
 from bot_trainer.utils import Utility
+from bot_trainer.api.models import *
+from bot_trainer.data_processor.data_objects import *
+from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from bot_trainer.train import start_training
+import requests
+import threading
 
 router = APIRouter()
 auth = Authentication()
@@ -163,10 +169,10 @@ async def chat(
 
 @router.post("/train", response_model=Response)
 async def train(current_user: User = Depends(auth.get_current_user)):
-    model_file = await train_model_from_mongo(current_user.get_bot())
-    AgentProcessor.reload(current_user.get_bot())
-    return {"data": {"file": model_file}, "message": "Model trained successfully"}
+    ModelProcessor.is_training_inprogress(current_user.get_bot())
+    threading.Thread(target=start_training, args=(current_user.get_bot(), current_user.get_user())).start()
 
+    return {"message": "Model training started."}
 
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):

@@ -559,29 +559,21 @@ def test_train():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["message"] == "Model trained successfully"
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
 
 
-def test_train_empty():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "welcome@1"},
-    )
-    token = response.json()
+def test_train_inprogress():
     response = client.post(
         "/api/bot/train",
-        headers={
-            "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"]
-        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
+    print(actual)
+    assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Training data does not exists!"
+    assert actual["message"] == "Previous model training in progress."
 
 
 def test_chat():
