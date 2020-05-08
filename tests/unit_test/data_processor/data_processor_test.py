@@ -5,10 +5,10 @@ from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 
 from bot_trainer.data_processor.data_objects import *
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
+from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
 import os
 from bot_trainer.utils import Utility
-from bot_trainer.train import train_model_from_mongo
+from bot_trainer.train import train_model_from_mongo, start_training
 import asyncio
 from rasa.core.agent import Agent
 
@@ -577,6 +577,24 @@ class TestMongoProcessor:
             model = loop.run_until_complete(train_model_from_mongo("test"))
             assert model
 
+    def test_start_training_done(self):
+        model_path = start_training("tests", "testUser")
+        assert model_path
+
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+        assert model_training.__len__() == 1
+        assert model_training.first().model_path == model_path
+
+    def test_start_training_fail(self):
+        with pytest.raises(AppException) as exp:
+            assert start_training("test", "testUser")
+
+        assert str(exp.value) == "Training data does not exists!"
+
+        model_training = ModelTraining.objects(bot="test", status="Fail")
+        assert model_training.__len__() == 1
+        assert model_training.first().exception in str(exp.value)
+
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -694,3 +712,79 @@ class TestAgentProcessor:
         with pytest.raises(AppException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
+
+class TestModelProcessor:
+    @pytest.fixture(autouse=True)
+    def init_connection(self):
+        Utility.load_evironment()
+        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+
+    @pytest.fixture
+    def test_set_training_status_inprogress(self):
+        ModelProcessor.set_training_status("tests", "testUser", "Inprogress", datetime.utcnow())
+        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
+
+        return model_training
+
+    def test_set_training_status_Done(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Done",
+                                           end_timestamp=datetime.utcnow(),
+                                           model_path="model_path"
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+
+        assert model_training.__len__() == 1
+        assert model_training.first().id == training_status_inprogress_id
+        assert model_training.first().bot == "tests"
+        assert model_training.first().user == "testUser"
+        assert model_training.first().status == "Done"
+        assert model_training.first().model_path == "model_path"
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Fail",
+                                           end_timestamp=datetime.utcnow(),
+                                           model_path=None,
+                                           exception="exception occurred while training model."
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Fail")
+
+        assert model_training.__len__() == 1
+        assert model_training.first().id == training_status_inprogress_id
+        assert model_training.first().bot == "tests"
+        assert model_training.first().user == "testUser"
+        assert model_training.first().status == "Fail"
+        assert model_training.first().model_path is None
+        assert model_training.first().exception == "exception occurred while training model."
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_is_training_inprogress_False(self):
+        actual_response = ModelProcessor.is_training_inprogress("tests")
+        assert actual_response is False
+
+    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_training_inprogress("tests")
+
+        assert str(exp.value) == "Previous model training in progress."

@@ -59,3 +59,9 @@ class SLOTS(Enum):
 class STORY_EVENT(Enum):
     NAME = "name"
     CONFIDENCE = "confidence"
+
+
+class MODEL_TRAINING_STATUS(Enum):
+    INPROGRESS = "Inprogress"
+    DONE = "Done"
+    FAIL = "Fail"

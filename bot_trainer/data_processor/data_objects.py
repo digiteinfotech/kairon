@@ -392,3 +392,12 @@ class Endpoints(Document):
 
         if self.action_endpoint:
             self.action_endpoint.validate()
+
+class ModelTraining(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    status = StringField(required=True)
+    start_timestamp = DateTimeField(default=None)
+    end_timestamp = DateTimeField(default=None)
+    model_path = StringField(default=None)
+    exception = StringField(default=None)

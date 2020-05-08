@@ -7,7 +7,13 @@ from rasa.train import DEFAULT_MODELS_PATH
 from rasa.train import _train_async_internal, handle_domain_if_not_exists
 from rasa.utils.common import TempDirectoryPath
 import os
+import logging
+import asyncio
 from bot_trainer.data_processor.importer import MongoDataImporter
+from bot_trainer.data_processor.processor import AgentProcessor, ModelProcessor
+from bot_trainer.data_processor.constant import MODEL_TRAINING_STATUS
+from bot_trainer.exceptions import AppException
+from datetime import datetime
 
 
 async def train_model(
@@ -56,3 +62,34 @@ async def train_model_from_mongo(
         persist_nlu_training_data,
         additional_arguments,
     )
+
+
+def start_training(bot: str, user: str):
+    exception = None
+    model_file = None
+    training_status = None
+
+    ModelProcessor.set_training_status( bot=bot,
+                                        user=user,
+                                        status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+                                        start_timestamp=datetime.utcnow)
+    try:
+        loop = asyncio.new_event_loop()
+        model_file = loop.run_until_complete(train_model_from_mongo(bot))
+        training_status = MODEL_TRAINING_STATUS.DONE.value
+    except Exception as e:
+        logging.exception(e)
+        training_status = MODEL_TRAINING_STATUS.FAIL.value
+        exception = str(e)
+        raise AppException(exception)
+    finally:
+        ModelProcessor.set_training_status( bot=bot,
+                                            user=user,
+                                            status=training_status,
+                                            end_timestamp=datetime.utcnow,
+                                            model_path=model_file,
+                                            exception=exception)
+
+    AgentProcessor.reload(bot)
+
+    return model_file
