@@ -47,7 +47,7 @@ services:
       augmentation_url: "http://bot-augment-api:8001/questions"
 
   bot_trainer_ui:
-    image: digite/bot-trainer-ui:0.1
+    image: digite/bot-trainer-ui:latest
     networks:
       - chatbotnetwork
     container_name: bot_trainer_ui
