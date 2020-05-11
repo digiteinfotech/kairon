@@ -38,3 +38,10 @@ jobs:
         python -m nltk.downloader averaged_perceptron_tagger
         python -m spacy download en_core_web_sm
         python -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
+        ls
+        pwd
+    - name: Archive pytest results
+      uses: actions/upload-artifact@v1
+      with:
+        name: pytest-report
+        path: report.html
