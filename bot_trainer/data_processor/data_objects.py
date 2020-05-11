@@ -326,7 +326,7 @@ class Stories(Document):
 
 class Configs(Document):
     language = StringField(required=True, default="en")
-    pipeline = ListField(DictField(), required=True)
+    pipeline = DynamicField(required=True)
     policies = ListField(DictField(), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)

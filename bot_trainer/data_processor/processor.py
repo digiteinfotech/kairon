@@ -31,14 +31,14 @@ import logging
 
 class MongoProcessor:
     async def upload_and_save(
-        self,
-        nlu: bytes,
-        domain: bytes,
-        stories: bytes,
-        config: bytes,
-        bot: Text,
-        user: Text,
-        overwrite: bool = True,
+            self,
+            nlu: bytes,
+            domain: bytes,
+            stories: bytes,
+            config: bytes,
+            bot: Text,
+            user: Text,
+            overwrite: bool = True,
     ):
         '''upload the training data to temporary path and then save into mongo'''
         data_path = Utility.save_files(nlu, domain, stories, config)
@@ -56,9 +56,8 @@ class MongoProcessor:
                                        config,
                                        bot)
 
-
     async def save_from_path(
-        self, path: Text, bot: Text, overwrite: bool = True, user="default"
+            self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
         try:
             story_files, nlu_files = get_core_nlu_files(
@@ -68,11 +67,12 @@ class MongoProcessor:
             domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
             domain.check_missing_templates()
             story_steps = await StoryFileReader.read_from_files(story_files, domain)
+            config = read_config_file(os.path.join(path, DEFAULT_CONFIG_PATH))
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
-            self.__save_config(
-                read_config_file(os.path.join(path, DEFAULT_CONFIG_PATH)), bot, user
+            self.save_config(
+                config, bot, user
             )
         except InvalidDomain as e:
             logging.info(e)
@@ -347,7 +347,7 @@ class MongoProcessor:
             return []
 
     def __extract_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -357,7 +357,7 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
@@ -602,10 +602,21 @@ class MongoProcessor:
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
-    def __save_config(self, config: dict, bot: Text, user: Text):
-        config["bot"] = bot
-        config["user"] = user
-        Configs.objects.insert(Configs._from_son(config))
+    def save_config(self,
+                    config: dict,
+                    bot: Text,
+                    user: Text):
+        print(config)
+        try:
+            config_obj = Configs.objects().get(bot=bot)
+            config_obj.pipeline = config['pipeline']
+            config_obj.language = config['language']
+            config_obj.policies = config['policies']
+        except:
+            config["bot"] = bot
+            config["user"] = user
+            config_obj = Configs._from_son(config)
+        config_obj.save()
 
     def fetch_configs(self, bot: Text):
         try:
@@ -638,15 +649,15 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-        self, examples: List[Text], intent: Text, bot: Text, user: Text
+            self, examples: List[Text], intent: Text, bot: Text, user: Text
     ):
         if not Utility.is_exist(
-            Intents, query={"name": intent, "bot": bot}, raise_error=False
+                Intents, query={"name": intent, "bot": bot}, raise_error=False
         ):
             self.add_intent(intent, bot, user)
         for example in examples:
             if Utility.is_exist(
-                TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
+                    TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
             ):
                 yield {
                     "text": example,
@@ -737,7 +748,7 @@ class MongoProcessor:
         )
         Entities(name=name, bot=bot, user=user).save()
         if not Utility.is_exist(
-            Slots, query={"name": name, "bot": bot}, raise_error=False
+                Slots, query={"name": name, "bot": bot}, raise_error=False
         ):
             Slots(name=name, type="text", bot=bot, user=user).save()
 
@@ -783,7 +794,7 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-            Actions, query={"name": name, "bot": bot}, raise_error=False
+                Actions, query={"name": name, "bot": bot}, raise_error=False
         ):
             Actions(name=name, bot=bot, user=user).save()
         return value["_id"].__str__()
@@ -801,7 +812,7 @@ class MongoProcessor:
             yield {"_id": value.id.__str__(), "value": val}
 
     def __check_response_existence(
-        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
@@ -847,14 +858,14 @@ class MongoProcessor:
                 user=user,
                 start_checkpoints=[STORY_START],
             )
-            .save()
-            .to_mongo()
-            .to_dict()["_id"]
-            .__str__()
+                .save()
+                .to_mongo()
+                .to_dict()["_id"]
+                .__str__()
         )
 
     def __check_event_existence(
-        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_events = list(
             Stories.objects(bot=bot, status=True).aggregate(
@@ -896,12 +907,12 @@ class MongoProcessor:
                     return event.name
 
     def add_session_config(
-        self,
-        bot: Text,
-        user: Text,
-        id: Text = None,
-        sesssionExpirationTime: int = 60,
-        carryOverSlots: bool = True,
+            self,
+            bot: Text,
+            user: Text,
+            id: Text = None,
+            sesssionExpirationTime: int = 60,
+            carryOverSlots: bool = True,
     ):
         if not Utility.check_empty_string(id):
 

@@ -227,3 +227,20 @@ async def set_endpoint(
                                   current_user.get_bot(),
                                   current_user.get_user())
     return {"message": "Endpoint saved successfully!"}
+
+
+@router.get("/config", response_model=Response)
+async def get_endpoint(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """get the model endpoint"""
+    endpoint = mongo_processor.load_config(current_user.get_bot())
+    return {"data":{"endpoint": endpoint}}
+
+@router.put("/config", response_model=Response)
+async def get_endpoint(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """get the model endpoint"""
+    endpoint = mongo_processor.save_config(current_user.get_bot())
+    return {"data":{"endpoint": endpoint}}

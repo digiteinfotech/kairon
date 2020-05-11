@@ -177,7 +177,7 @@ class Utility:
         """open the files in binary mode and write to it"""
         with open(file, "wb") as w:
             w.write(data)
-            w.close()
+            w.flush()
 
     @staticmethod
     def delete_directory(path: Text):
