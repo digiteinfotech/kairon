@@ -177,10 +177,10 @@ async def upload_Files(
 ):
     """Upload training data nlu.md, domain.yml, stories.md and config.yml files"""
     await mongo_processor.upload_and_save(
-        await nlu.read(),
-        await domain.read(),
-        await stories.read(),
-        await config.read(),
+        nlu.file.read().encode(),
+        domain.file.read().encode(),
+        stories.file.read().encode(),
+        config.file.read().encode(),
         current_user.get_bot(),
         current_user.get_user(),
         overwrite,
