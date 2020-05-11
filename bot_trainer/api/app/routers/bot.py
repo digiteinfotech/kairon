@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi import Depends, File
+from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 from bot_trainer.api.auth import Authentication
 from bot_trainer.api.models import *
@@ -168,19 +168,19 @@ async def deploy(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/upload", response_model=Response)
 async def upload_Files(
-    nlu: bytes = File(...),
-    domain: bytes = File(...),
-    stories: bytes = File(...),
-    config: bytes = File(...),
+    nlu: UploadFile = File(...),
+    domain: UploadFile = File(...),
+    stories: UploadFile = File(...),
+    config: UploadFile = File(...),
     overwrite: bool = True,
     current_user: User = Depends(auth.get_current_user),
 ):
     """Upload training data nlu.md, domain.yml, stories.md and config.yml files"""
     await mongo_processor.upload_and_save(
-        nlu,
-        domain,
-        stories,
-        config,
+        await nlu.read(),
+        await domain.read(),
+        await stories.read(),
+        await config.read(),
         current_user.get_bot(),
         current_user.get_user(),
         overwrite,
