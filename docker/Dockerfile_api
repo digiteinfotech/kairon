@@ -25,6 +25,7 @@ RUN python3 -m pip install tensorflow_text
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
 RUN mkdir ssl
+RUN chmod 777 -R /tmp
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
 COPY system.yaml ${RASA_NLU_HOME}/
