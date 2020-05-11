@@ -11,7 +11,7 @@ sentence_transformers
 fastapi==0.54.1
 spacy
 mongomock
-pytest
+pytest=5.4.1
 pytest-html
 pytest-cov
 pytest-xdist
