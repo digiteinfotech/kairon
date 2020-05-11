@@ -42,6 +42,7 @@ jobs:
         pwd
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
+      if: failure()
       with:
         name: pytest-report
         path: report.html
