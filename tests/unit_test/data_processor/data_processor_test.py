@@ -650,7 +650,6 @@ class TestMongoProcessor:
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_bot_endpoint_empty_url(self):
         processor = MongoProcessor()
@@ -661,7 +660,6 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_bot_endpoint(self):
         processor = MongoProcessor()
@@ -671,7 +669,6 @@ class TestMongoProcessor:
         assert endpoint["bot_endpoint"].get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint") is None
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_action_endpoint_empty_url(self):
         processor = MongoProcessor()
@@ -682,7 +679,6 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_action_endpoint(self):
         processor = MongoProcessor()
@@ -692,7 +688,6 @@ class TestMongoProcessor:
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_tracker_endpoint_missing_db(self):
         processor = MongoProcessor()
@@ -703,7 +698,6 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker_endpoint") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_tracker_endpoint_invalid_url(self):
         processor = MongoProcessor()
@@ -719,7 +713,6 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_tracker_endpoint(self):
         processor = MongoProcessor()
@@ -738,7 +731,6 @@ class TestMongoProcessor:
         )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
-        assert endpoint.get("bot")
 
     def test_update_endpoints(self):
         processor = MongoProcessor()
@@ -759,7 +751,6 @@ class TestMongoProcessor:
         )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
-        assert endpoint.get("bot")
 
     def test_download_data_files(self):
         processor = MongoProcessor()

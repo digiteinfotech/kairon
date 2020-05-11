@@ -953,3 +953,66 @@ def test_download_model():
     file_bytes.close()
 
 
+def test_get_endpoint():
+    response = client.get(
+        "/api/bot/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data']
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+def test_save_endpoint_error():
+    response = client.put(
+        "/api/bot/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == '1 validation error for Request\nbody -> endpoint\n  field required (type=value_error.missing)'
+    assert not actual['success']
+
+
+def test_save_empty_endpoint():
+    response = client.put(
+        "/api/bot/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == 'Endpoint saved successfully!'
+    assert actual['success']
+
+
+def test_save_endpoint():
+    response = client.put(
+        "/api/bot/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"bot_endpoint": {"url": "http://localhost:5005/"},
+              "action_endpoint": {"url": "http://localhost:5000/"},
+              "tracker_endpoint":{"url": "mongodb://localhost:27017", "db": "rasa"}}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == 'Endpoint saved successfully!'
+    assert actual['success']
+    response = client.get(
+        "/api/bot/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data']['endpoint'].get('bot_endpoint')
+    assert actual['data']['endpoint'].get('action_endpoint')
+    assert actual['data']['endpoint'].get('tracker_endpoint')

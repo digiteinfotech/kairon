@@ -957,11 +957,18 @@ class MongoProcessor:
 
     def get_endpoints(self, bot: Text, raise_exception=True):
         try:
-            return Endpoints.objects().get(bot=bot).to_mongo().to_dict()
+            endpoint = Endpoints.objects().get(bot=bot).to_mongo().to_dict()
+            endpoint.pop("bot")
+            endpoint.pop("user")
+            endpoint.pop("timestamp")
+            endpoint['_id'] = endpoint['_id'].__str__()
+            return endpoint
         except DoesNotExist as e:
             logging.info(e)
             if raise_exception:
                 raise AppException("Endpoint Configuration does not exists!")
+            else:
+                return {}
 
 
 class AgentProcessor:

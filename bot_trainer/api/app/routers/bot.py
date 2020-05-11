@@ -206,3 +206,24 @@ async def download_file(
         return FileResponse(model_path)
     except Exception as e:
         return AppException(str(e))
+
+
+@router.get("/endpoint", response_model=Response)
+async def get_endpoint(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """get the model endpoint"""
+    endpoint = mongo_processor.get_endpoints(current_user.get_bot(), raise_exception=False)
+    return {"data":{"endpoint": endpoint}}
+
+
+@router.put("/endpoint", response_model=Response)
+async def set_endpoint(
+    endpoint: Endpoint,
+    current_user: User = Depends(auth.get_current_user),
+):
+    """get the model endpoint"""
+    mongo_processor.add_endpoints(endpoint.dict(),
+                                  current_user.get_bot(),
+                                  current_user.get_user())
+    return {"message": "Endpoint saved successfully!"}

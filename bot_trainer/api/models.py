@@ -86,3 +86,28 @@ class RegisterAccount(BaseModel):
         if "password" in values and v != values["password"]:
             raise ValueError("Password and Confirm Password does not match")
         return v
+
+
+class EndPointBot(BaseModel):
+    url: str
+    token: str = None
+    token_type: str = None
+
+
+class EndPointAction(BaseModel):
+    url: str
+
+
+class EndPointTracker(BaseModel):
+    type: str = "mongo"
+    url: str
+    db: str
+    username: str = None
+    password: str = None
+    auth_source: str = None
+
+
+class Endpoint(BaseModel):
+    bot_endpoint: EndPointBot = None
+    action_endpoint: EndPointAction = None
+    tracker_endpoint: EndPointTracker = None
