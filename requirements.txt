@@ -1,7 +1,7 @@
 pyyaml
 torch
 torchvision
-tensorflow
+wheel
 rasa==1.9.5
 rasa[transformers]==1.9.5
 rasa[spacy]==1.9.5
