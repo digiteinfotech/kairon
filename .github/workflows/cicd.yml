@@ -34,8 +34,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python -m nltk.downloader punkt
-        python -m nltk.downloader wordnet
-        python -m nltk.downloader averaged_perceptron_tagger
-        python -m spacy download en_core_web_sm
-        python -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
+        python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
