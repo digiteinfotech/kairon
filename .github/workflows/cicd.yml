@@ -22,8 +22,9 @@ jobs:
         python-version: 3.6
     - name: Install dependencies
       run: |
-        virtualenv -p python3.6 rasaenv	  
         python3.6 -m pip install --upgrade pip
+        python3.6 -m pip install virtualenv
+        python3.6 -m venv rasaenv
         python3.6 -m pip install flake8
         chmod 777 ./setup.sh
         ./setup.sh
