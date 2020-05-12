@@ -1,3 +1,4 @@
+![Python application](https://github.com/digiteinfotech/rasa-dx/workflows/Python%20application/badge.svg)
 # Rasa DX < Tentatively Named > 
 
 Rasa-Dx <Tentatively Named > is envisioned as a web based platform that helps train Rasa contextual AI assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants .
