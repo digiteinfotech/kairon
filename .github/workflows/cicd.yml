@@ -23,6 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3.6 -m pip install flake8
+        python3.6 -m pip install wheel
         chmod 777 ./setup.sh
         ./setup.sh
     - name: Lint with flake8
