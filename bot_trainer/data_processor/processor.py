@@ -361,9 +361,15 @@ class MongoProcessor:
     ):
         try:
             if session_config:
-                SessionConfigs.objects.insert(
-                    self.__extract_session_config(session_config, bot, user)
-                )
+                try:
+                    session = SessionConfigs.objects().get(bot=bot)
+                    session.session_expiration_time = session_config.session_expiration_time,
+                    session.carryOverSlots=session_config.carry_over_slots,
+                    session.user = user
+                except:
+                    session = self.__extract_session_config(session_config, bot, user)
+                session.save()
+
         except NotUniqueError as e:
             logging.info(e)
             raise AppException("Session Config already exists for the bot")
