@@ -2,7 +2,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '30 8 * * *'
 
 jobs:
   scan:
@@ -15,4 +15,4 @@ jobs:
         name: Scanning augment image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ secrets.DOCKER_IMAGE_AUGMENT }}
+          image: digite/rasa-dx-augment
