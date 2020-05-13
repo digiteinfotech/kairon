@@ -1,0 +1,18 @@
+name: Vulnerability Scan
+
+on:
+  schedule:
+    - cron: '30 7 * * *'
+
+jobs:
+  scan:
+    name: Daily Vulnerability Scan
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Pull docker image
+        run: docker pull ${{ secrets.DOCKER_IMAGE_AUGMENT }}
+      - uses: homoluctus/gitrivy@v1.0.0
+        name: Scanning augment image
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ secrets.DOCKER_IMAGE_AUGMENT }}
