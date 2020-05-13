@@ -124,4 +124,4 @@ python -m black bot_trainer
 See also the list of [contributors](https://github.com/digiteinfotech/rasa-dx/graphs/contributors) who participated in this project.
 
 ## License
-TODO
+Licensed under the Apache License, Version 2.0. [Copy of the license](LICENSE.txt)
