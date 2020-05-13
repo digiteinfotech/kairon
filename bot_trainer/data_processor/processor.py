@@ -363,8 +363,8 @@ class MongoProcessor:
             if session_config:
                 try:
                     session = SessionConfigs.objects().get(bot=bot)
-                    session.session_expiration_time = session_config.session_expiration_time,
-                    session.carryOverSlots=session_config.carry_over_slots,
+                    session.session_expiration_time = session_config.session_expiration_time
+                    session.carryOverSlots = session_config.carry_over_slots if session_config.carry_over_slots else True
                     session.user = user
                 except:
                     session = self.__extract_session_config(session_config, bot, user)
