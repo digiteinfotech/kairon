@@ -1,6 +1,8 @@
 ![Python application](https://github.com/digiteinfotech/rasa-dx/workflows/Python%20application/badge.svg)
 # Rasa DX < Tentatively Named > 
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/036a621f7ae74cecb3db5f01441df65e)](https://app.codacy.com/gh/digiteinfotech/rasa-dx?utm_source=github.com&utm_medium=referral&utm_content=digiteinfotech/rasa-dx&utm_campaign=Badge_Grade_Dashboard)
+
 Rasa-Dx <Tentatively Named > is envisioned as a web based platform that helps train Rasa contextual AI assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants .
 
 Adapting contextual AI assistants to specific domain is one of the bigger problems adopting chatbots within organizations. We aim to productionize cutting edge NLP solutions to help users complete the process of conveying domain knowledge to contextual assistants
