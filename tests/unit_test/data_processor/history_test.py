@@ -1,6 +1,6 @@
 import json
 
-import pytest
+from pytest import raises, fixture
 from mongoengine import connect
 from rasa.core.domain import Domain
 from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
@@ -9,9 +9,9 @@ from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 
-
+# pylint: disable=R0201
 class TestHistory:
-    @pytest.fixture(autouse=True)
+    @fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
         connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
@@ -44,7 +44,7 @@ class TestHistory:
         )
         return json_data
 
-    @pytest.fixture
+    @fixture
     def mock_tracker(self, monkeypatch):
         monkeypatch.setattr(MongoTrackerStore, "keys", self.tracker_keys)
 
@@ -52,13 +52,13 @@ class TestHistory:
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
         return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019")
 
-    @pytest.fixture
+    @fixture
     def mock_get_tracker_and_domain(self, monkeypatch):
         monkeypatch.setattr(
             ChatHistory, "get_tracker_and_domain", self.get_tracker_and_domain_data
         )
 
-    @pytest.fixture
+    @fixture
     def mock_chat_history_empty(self, monkeypatch):
         def fetch_user_history(*args, **kwargs):
             return []
@@ -69,7 +69,7 @@ class TestHistory:
         monkeypatch.setattr(ChatHistory, "fetch_user_history", fetch_user_history)
         monkeypatch.setattr(ChatHistory, "get_conversations", get_conversations)
 
-    @pytest.fixture
+    @fixture
     def mock_chat_history(self, monkeypatch):
         monkeypatch.setattr(ChatHistory, "fetch_user_history", self.user_history)
         monkeypatch.setattr(
@@ -79,22 +79,22 @@ class TestHistory:
     def endpoint_details(self, *args, **kwargs):
         return {"tracker_endpoint": {"url": "mongodb://demo", "db": "conversation"}}
 
-    @pytest.fixture
+    @fixture
     def mock_mongo_processor(self, monkeypatch):
         monkeypatch.setattr(MongoProcessor, "get_endpoints", self.endpoint_details)
 
     def test_fetch_chat_users_db_error(self, mock_mongo_processor):
-        with pytest.raises(Exception):
+        with raises(Exception):
             users = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
 
     def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
-        with pytest.raises(Exception):
+        with raises(Exception):
             users = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
 
     def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
-        with pytest.raises(Exception):
+        with raises(Exception):
             history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
             assert len(history) == 0
 
@@ -117,7 +117,7 @@ class TestHistory:
         assert history[0]["confidence"]
 
     def test_visitor_hit_fallback_error(self, mock_get_tracker_and_domain):
-        with pytest.raises(Exception):
+        with raises(Exception):
             hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
             assert hit_fall_back["fallback_count"] == 0
             assert hit_fall_back["total_count"] == 0
@@ -133,7 +133,7 @@ class TestHistory:
         assert hit_fall_back["total_count"] == 31
 
     def test_conversation_time_error(self, mock_get_tracker_and_domain):
-        with pytest.raises(Exception):
+        with raises(Exception):
             conversation_time = ChatHistory.conversation_time("tests")
             assert not conversation_time
 
@@ -146,7 +146,7 @@ class TestHistory:
         assert conversation_time
 
     def test_conversation_steps_error(self, mock_get_tracker_and_domain):
-        with pytest.raises(Exception):
+        with raises(Exception):
             conversation_steps = ChatHistory.conversation_steps("tests")
             assert not conversation_steps
 

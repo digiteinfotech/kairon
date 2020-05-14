@@ -1,13 +1,14 @@
+# pylint: disable=R0201
 import logging
 import os
 import tarfile
 from io import BytesIO
 from zipfile import ZipFile
 
-import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
+from pytest import fixture
 
 from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor
@@ -17,16 +18,13 @@ logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)
-
-
-def pytest_namespace():
-    return {"access_token": None, "token_type": None, "user_created": False}
+access_token = None
+token_type = None
 
 
 def setup():
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
-
 
 setup()
 
@@ -86,8 +84,9 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    pytest.access_token = actual["data"]["access_token"]
-    pytest.token_type = actual["data"]["token_type"]
+    global access_token, token_type
+    access_token = actual["data"]["access_token"]
+    token_type = actual["data"]["token_type"]
 
 
 def test_upload_missing_data():
@@ -107,7 +106,7 @@ def test_upload_missing_data():
     }
     response = client.post(
         "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         files=files,
     )
     actual = response.json()
@@ -139,7 +138,7 @@ def test_upload_error():
     }
     response = client.post(
         "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         files=files,
     )
     actual = response.json()
@@ -174,7 +173,7 @@ def test_upload():
     }
     response = client.post(
         "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         files=files,
     )
     actual = response.json()
@@ -187,7 +186,7 @@ def test_upload():
 def test_get_intents():
     response = client.get(
         "/api/bot/intents",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert "data" in actual
@@ -201,7 +200,7 @@ def test_add_intents():
     response = client.post(
         "/api/bot/intents",
         json={"data": "happier"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["data"]["_id"]
@@ -214,7 +213,7 @@ def test_add_intents_duplicate():
     response = client.post(
         "/api/bot/intents",
         json={"data": "happier"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -226,7 +225,7 @@ def test_add_empty_intents():
     response = client.post(
         "/api/bot/intents",
         json={"data": ""},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -237,7 +236,7 @@ def test_add_empty_intents():
 def test_get_training_examples():
     response = client.get(
         "/api/bot/training_examples/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert len(actual["data"]) == 8
@@ -249,7 +248,7 @@ def test_get_training_examples():
 def test_get_training_examples_empty_intent():
     response = client.get(
         "/api/bot/training_examples/ ",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert len(actual["data"]) == 0
@@ -262,7 +261,7 @@ def test_add_training_examples():
     response = client.post(
         "/api/bot/training_examples/greet",
         json={"data": ["How do you do?"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["data"][0]["_id"]
@@ -271,7 +270,7 @@ def test_add_training_examples():
     assert actual["message"] is None
     response = client.get(
         "/api/bot/training_examples/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert len(actual["data"]) == 9
@@ -281,7 +280,7 @@ def test_add_training_examples_duplicate():
     response = client.post(
         "/api/bot/training_examples/greet",
         json={"data": ["How do you do?"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -294,7 +293,7 @@ def test_add_empty_training_examples():
     response = client.post(
         "/api/bot/training_examples/greet",
         json={"data": [""]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -309,14 +308,14 @@ def test_add_empty_training_examples():
 def test_remove_training_examples():
     training_examples = client.get(
         "/api/bot/training_examples/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 9
     response = client.delete(
         "/api/bot/training_examples",
         json={"data": training_examples["data"][0]["_id"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -324,7 +323,7 @@ def test_remove_training_examples():
     assert actual["message"] == "Training Example removed successfully!"
     training_examples = client.get(
         "/api/bot/training_examples/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 8
@@ -334,7 +333,7 @@ def test_remove_training_examples_empty_id():
     response = client.delete(
         "/api/bot/training_examples",
         json={"data": ""},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -345,7 +344,7 @@ def test_remove_training_examples_empty_id():
 def test_get_responses():
     response = client.get(
         "/api/bot/response/utter_greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -359,7 +358,7 @@ def test_add_response():
     response = client.post(
         "/api/bot/response/utter_greet",
         json={"data": "Wow! How are you?"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["data"]["_id"]
@@ -368,7 +367,7 @@ def test_add_response():
     assert actual["message"] == "Response added successfully!"
     response = client.get(
         "/api/bot/response/utter_greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert len(actual["data"]) == 2
@@ -378,7 +377,7 @@ def test_add_response_duplicate():
     response = client.post(
         "/api/bot/response/utter_greet",
         json={"data": "Wow! How are you?"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -390,7 +389,7 @@ def test_add_empty_response():
     response = client.post(
         "/api/bot/response/utter_greet",
         json={"data": ""},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -402,14 +401,14 @@ def test_add_empty_response():
 def test_remove_response():
     training_examples = client.get(
         "/api/bot/response/utter_greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/response",
         json={"data": training_examples["data"][0]["_id"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -418,7 +417,7 @@ def test_remove_response():
     assert actual["message"] == "Response removed successfully!"
     training_examples = client.get(
         "/api/bot/response/utter_greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 1
@@ -428,7 +427,7 @@ def test_remove_response_empty_id():
     response = client.delete(
         "/api/bot/response",
         json={"data": ""},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -446,7 +445,7 @@ def test_add_story():
                 {"name": "utter_greet", "type": "action"},
             ],
         },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -460,7 +459,7 @@ def test_add_story_empty_event():
     response = client.post(
         "/api/bot/stories",
         json={"name": "test_path", "events": []},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert not actual["success"]
@@ -475,7 +474,7 @@ def test_add_story_missing_event_type():
             "name": "test_path",
             "events": [{"name": "greet"}, {"name": "utter_greet", "type": "action"}],
         },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -497,7 +496,7 @@ def test_add_story_invalid_event_type():
                 {"name": "utter_greet", "type": "action"},
             ],
         },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -512,7 +511,7 @@ def test_add_story_invalid_event_type():
 def test_get_stories():
     response = client.get(
         "/api/bot/stories",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -524,7 +523,7 @@ def test_get_stories():
 def test_get_utterance_from_intent():
     response = client.get(
         "/api/bot/utterance_from_intent/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -536,7 +535,7 @@ def test_get_utterance_from_intent():
 def test_get_utterance_from_not_exist_intent():
     response = client.get(
         "/api/bot/utterance_from_intent/greeting",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -548,7 +547,7 @@ def test_get_utterance_from_not_exist_intent():
 def test_train():
     response = client.post(
         "/api/bot/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -583,7 +582,7 @@ def test_chat():
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -596,7 +595,7 @@ def test_chat_fetch_from_cache():
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     assert actual["success"]
@@ -630,7 +629,7 @@ def test_chat_model_not_trained():
 def test_deploy_missing_configuration():
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
     print(actual)
@@ -644,12 +643,12 @@ def endpoint_response(*args, **kwargs):
     return {"bot_endpoint": {"url": "http://localhost:5000"}}
 
 
-@pytest.fixture
+@fixture
 def mock_endpoint(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_response)
 
 
-@pytest.fixture
+@fixture
 def mock_endpoint_with_token(monkeypatch):
     def _endpoint_response(*args, **kwargs):
         return {
@@ -666,7 +665,7 @@ def mock_endpoint_with_token(monkeypatch):
 def test_deploy_connection_error(mock_endpoint):
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -686,7 +685,7 @@ def test_deploy(mock_endpoint):
     )
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -706,7 +705,7 @@ def test_deploy_with_token(mock_endpoint_with_token):
     )
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -731,7 +730,7 @@ def test_deploy_bad_request(mock_endpoint):
     )
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -756,7 +755,7 @@ def test_deploy_server_error(mock_endpoint):
     )
     response = client.post(
         "/api/bot/deploy",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -769,7 +768,7 @@ def test_deploy_server_error(mock_endpoint):
 def test_integration_token():
     response = client.get(
         "/api/auth/integration/token",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     token = response.json()
@@ -817,7 +816,7 @@ def test_integration_token():
 def test_integration_token_missing_x_user():
     response = client.get(
         "/api/auth/integration/token",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -848,7 +847,7 @@ def test_integration_token_missing_x_user():
 def test_predict_intent():
     response = client.post(
         "/api/bot/intents/predict",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         json={"data": "Hi"},
     )
 
@@ -902,7 +901,7 @@ def test_augment_questions():
     )
     response = client.post(
         "/api/augment/questions",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         json={"data": ["where is digite located?'"]},
     )
 
@@ -916,7 +915,7 @@ def test_augment_questions():
 def test_get_user_details():
     response = client.get(
         "/api/user/details",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -929,7 +928,7 @@ def test_get_user_details():
 def test_download_data():
     response = client.get(
         "/api/bot/download_data",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     file_bytes = BytesIO(response.content)
@@ -942,7 +941,7 @@ def test_download_data():
 def test_download_model():
     response = client.get(
         "/api/bot/download_model",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     file_bytes = BytesIO(response.content)
@@ -955,7 +954,7 @@ def test_download_model():
 def test_get_endpoint():
     response = client.get(
         "/api/bot/endpoint",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -967,7 +966,7 @@ def test_get_endpoint():
 def test_save_endpoint_error():
     response = client.put(
         "/api/bot/endpoint",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
@@ -980,7 +979,7 @@ def test_save_endpoint_error():
 def test_save_empty_endpoint():
     response = client.put(
         "/api/bot/endpoint",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         json={}
     )
 
@@ -994,7 +993,7 @@ def test_save_empty_endpoint():
 def test_save_endpoint():
     response = client.put(
         "/api/bot/endpoint",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
         json={"bot_endpoint": {"url": "http://localhost:5005/"},
               "action_endpoint": {"url": "http://localhost:5000/"},
               "tracker_endpoint":{"url": "mongodb://localhost:27017", "db": "rasa"}}
@@ -1007,7 +1006,7 @@ def test_save_endpoint():
     assert actual['success']
     response = client.get(
         "/api/bot/endpoint",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": token_type + " " + access_token},
     )
 
     actual = response.json()
