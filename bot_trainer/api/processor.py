@@ -1,9 +1,14 @@
-from bot_trainer.api.data_objects import *
-from bot_trainer.utils import Utility
-from mongoengine.errors import DoesNotExist
-from bot_trainer.data_processor.processor import MongoProcessor
-from typing import Dict, Text
 import logging
+from typing import Dict, Text
+
+from mongoengine.errors import DoesNotExist
+from mongoengine.errors import ValidationError
+
+from bot_trainer.api.data_objects import (Account,
+                                          User,
+                                          Bot)
+from bot_trainer.data_processor.processor import MongoProcessor
+from bot_trainer.utils import Utility
 
 
 class AccountProcessor:

@@ -1,10 +1,11 @@
 import itertools
+from string import punctuation
 
+import gensim.downloader as api
 import spacy
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
-import gensim.downloader as api
-from string import punctuation
+
 
 class QuestionGenerator:
     nlp = spacy.load("en_core_web_sm")
@@ -23,7 +24,7 @@ class QuestionGenerator:
                 synonyms = set([str(word).lower().replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
                 if synonyms.__len__() > 0:
                     token_list[token] = list(synonyms)
-            except:
+            except KeyError:
                 pass
         return token_list
 

@@ -1,7 +1,7 @@
-from pydantic import BaseModel, validator, ValidationError
-from typing import List, Any
 from enum import Enum
-from bot_trainer.utils import Utility
+from typing import List, Any, Dict
+
+from pydantic import BaseModel, validator
 
 
 class Token(BaseModel):
@@ -111,3 +111,9 @@ class Endpoint(BaseModel):
     bot_endpoint: EndPointBot = None
     action_endpoint: EndPointAction = None
     tracker_endpoint: EndPointTracker = None
+
+
+class Config(BaseModel):
+    language: str = "en"
+    pipeline: List[Dict]
+    policies: List[Dict]

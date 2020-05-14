@@ -1,25 +1,26 @@
-from typing import Text, List, Dict
-from mongoengine.document import BaseDocument, Document
-import os
-import yaml
-from mongoengine import StringField, ListField
-from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
-from bot_trainer.exceptions import AppException
 import glob
 import os
-import requests
-from rasa.constants import DEFAULT_MODELS_PATH
-import string
 import random
-from rasa.utils.common import TempDirectoryPath
+import shutil
+import string
 import tempfile
+from io import BytesIO
+from typing import Text, List, Dict
+
+import requests
+import yaml
+from fastapi.security import OAuth2PasswordBearer
+from mongoengine import StringField, ListField
+from mongoengine.document import BaseDocument, Document
+from passlib.context import CryptContext
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
-import shutil
-from io import BytesIO
+
+from bot_trainer.exceptions import AppException
+
 
 class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

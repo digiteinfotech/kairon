@@ -1,9 +1,8 @@
 from fastapi import APIRouter
 
 from bot_trainer.api.auth import Authentication
-from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.api.models import Response, RegisterAccount
-from fastapi import Depends
+from bot_trainer.api.processor import AccountProcessor
 
 router = APIRouter()
 auth = Authentication()

@@ -1,11 +1,21 @@
 from fastapi import APIRouter
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
+
 from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import *
-from bot_trainer.data_processor.data_objects import *
+from bot_trainer.api.models import (TextData,
+                                    User,
+                                    ListData,
+                                    Response,
+                                    StoryRequest,
+                                    Endpoint,
+                                    Config)
+from bot_trainer.data_processor.data_objects import (TrainingExamples,
+                                                     Responses)
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
+from bot_trainer.exceptions import AppException
 from bot_trainer.train import train_model_from_mongo
+from bot_trainer.utils import Utility
 
 router = APIRouter()
 auth = Authentication()
@@ -239,8 +249,11 @@ async def get_endpoint(
 
 @router.put("/config", response_model=Response)
 async def get_endpoint(
+    config: Config,
     current_user: User = Depends(auth.get_current_user),
 ):
     """get the model endpoint"""
-    endpoint = mongo_processor.save_config(current_user.get_bot())
+    endpoint = mongo_processor.save_config(config.dict(),
+                                           current_user.get_bot(),
+                                           current_user.get_user())
     return {"data":{"endpoint": endpoint}}

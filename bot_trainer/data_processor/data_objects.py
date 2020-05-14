@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
-from bot_trainer.exceptions import AppException
-from typing import Text, List, Dict
+
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -15,6 +14,8 @@ from mongoengine import (
     DictField,
     DynamicField,
 )
+from pymongo.errors import InvalidURI
+from pymongo.uri_parser import parse_uri
 from rasa.core.slots import (
     CategoricalSlot,
     FloatSlot,
@@ -23,11 +24,10 @@ from rasa.core.slots import (
     TextSlot,
     BooleanSlot,
 )
-
-from bot_trainer.utils import Utility
 from validators import url, ValidationFailure
-from pymongo.uri_parser import parse_uri
-from pymongo.errors import InvalidURI
+
+from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
 
 
 class Entity(EmbeddedDocument):

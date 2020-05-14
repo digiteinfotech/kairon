@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Text
 
-import jwt
 from fastapi import Depends, HTTPException, status, Request
-from jwt import PyJWTError
+from jwt import PyJWTError, decode, encode
 
 from bot_trainer.utils import Utility
-from .models import *
+from .models import (User,
+                     TokenData)
 from .processor import AccountProcessor
 
 Utility.load_evironment()
@@ -26,7 +26,7 @@ class Authentication:
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
+            payload = decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
             username: str = payload.get("sub")
             if username is None:
                 raise credentials_exception
@@ -58,7 +58,7 @@ class Authentication:
             else:
                 expire = datetime.utcnow() + timedelta(minutes=15)
             to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
+        encoded_jwt = encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
         return encoded_jwt
 
     def __authenticate_user(self, username: str, password: str):

@@ -1,15 +1,23 @@
-import asyncio
 import itertools
 import logging
 import os
+import re
 from collections import ChainMap
+from datetime import datetime
+from typing import Text, Dict, List
 
+from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.core.agent import Agent
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
 from rasa.core.events import Form, ActionExecuted, UserUttered
+from rasa.core.slots import (
+    CategoricalSlot,
+    FloatSlot
+)
 from rasa.core.training.structures import Checkpoint
 from rasa.core.training.structures import STORY_START
 from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
@@ -18,15 +26,44 @@ from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
-from rasa.utils.io import read_config_file
-from rasa.utils.endpoints import EndpointConfig
-
-from .constant import *
-from .data_objects import *
-from .cache import InMemoryAgentCache
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.core.agent import Agent
-import logging
+from rasa.utils.endpoints import EndpointConfig
+from rasa.utils.io import read_config_file
+
+from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
+from .cache import InMemoryAgentCache
+from .constant import (DOMAIN,
+                       SESSION_CONFIG,
+                       STORY_EVENT,
+                       REGEX_FEATURES,
+                       LOOKUP_TABLE,
+                       TRAINING_EXAMPLE,
+                       RESPONSE, ENTITY,
+                       SLOTS)
+from .data_objects import (Responses,
+                           SessionConfigs,
+                           Configs,
+                           Endpoints,
+                           Entities,
+                           EntitySynonyms,
+                           TrainingExamples,
+                           Stories,
+                           Actions,
+                           Intents,
+                           Forms,
+                           LookupTables,
+                           RegexFeatures,
+                           Entity,
+                           ResponseText,
+                           ResponseCustom,
+                           ResponseButton,
+                           EndPointBot,
+                           EndPointAction,
+                           EndPointTracker,
+                           Slots,
+                           StoryEvents
+                           )
 
 
 class MongoProcessor:
@@ -612,13 +649,12 @@ class MongoProcessor:
                     config: dict,
                     bot: Text,
                     user: Text):
-        print(config)
         try:
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = config['pipeline']
             config_obj.language = config['language']
             config_obj.policies = config['policies']
-        except:
+        except DoesNotExist:
             config["bot"] = bot
             config["user"] = user
             config_obj = Configs._from_son(config)

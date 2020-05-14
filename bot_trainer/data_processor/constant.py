@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class RESPONSE(Enum):
+class RESPONSE(str, Enum):
     Text = "text"
     CUSTOM = "custom"
     IMAGE = "image"
@@ -9,7 +9,7 @@ class RESPONSE(Enum):
     BUTTONS = "buttons"
 
 
-class DOMAIN(Enum):
+class DOMAIN(str, Enum):
     INTENTS = "intents"
     ACTIONS = "actions"
     SLOTS = "slots"
@@ -19,34 +19,34 @@ class DOMAIN(Enum):
     ENTITIES = "entities"
 
 
-class ENTITY(Enum):
+class ENTITY(str, Enum):
     START = "start"
     END = "end"
     VALUE = "value"
     ENTITY = "entity"
 
 
-class TRAINING_EXAMPLE(Enum):
+class TRAINING_EXAMPLE(str, Enum):
     INTENT = "intent"
     ENTITIES = "entities"
 
 
-class LOOKUP_TABLE(Enum):
+class LOOKUP_TABLE(str, Enum):
     NAME = "name"
     ELEMENTS = "elements"
 
 
-class REGEX_FEATURES(Enum):
+class REGEX_FEATURES(str, Enum):
     NAME = "name"
     PATTERN = "pattern"
 
 
-class SESSION_CONFIG(Enum):
+class SESSION_CONFIG(str, Enum):
     SESSION_EXPIRATION_TIME = "session_expiration_time"
     CARRY_OVER_SLOTS = "carry_over_slots"
 
 
-class SLOTS(Enum):
+class SLOTS(str, Enum):
     INITIAL_VALUE = "initial_value"
     VALUE_RESET_DELAY = "value_reset_delay"
     AUTO_FILL = "auto_fill"
@@ -56,6 +56,6 @@ class SLOTS(Enum):
     TYPE = "type"
 
 
-class STORY_EVENT(Enum):
+class STORY_EVENT(str, Enum):
     NAME = "name"
     CONFIDENCE = "confidence"
