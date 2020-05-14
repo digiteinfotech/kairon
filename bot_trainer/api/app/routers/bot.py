@@ -199,7 +199,7 @@ async def upload_Files(
 
 
 @router.get("/download_data")
-async def download_file(
+async def download_data(
     current_user: User = Depends(auth.get_current_user),
 ):
     """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
@@ -207,7 +207,7 @@ async def download_file(
     return FileResponse(file)
 
 @router.get("/download_model")
-async def download_file(
+async def download_model(
     current_user: User = Depends(auth.get_current_user),
 ):
     """Download latest trained model file"""
