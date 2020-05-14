@@ -1,5 +1,8 @@
 import logging
 import os
+import tarfile
+from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 import responses
@@ -7,12 +10,8 @@ from fastapi.testclient import TestClient
 from mongoengine import connect
 
 from bot_trainer.api.app.main import app
-from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
-from io import BytesIO
-import tarfile
-from zipfile import ZipFile
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -184,7 +183,7 @@ def test_upload():
     assert actual["data"] is None
     assert actual["success"]
 
-'''
+
 def test_get_intents():
     response = client.get(
         "/api/bot/intents",
@@ -1016,4 +1015,3 @@ def test_save_endpoint():
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('tracker_endpoint')
-'''

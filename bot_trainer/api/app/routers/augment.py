@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 
 from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import (Response, User)
+from bot_trainer.api.models import (Response, User, ListData)
 from bot_trainer.utils import Utility
 
 router = APIRouter()

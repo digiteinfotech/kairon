@@ -1,16 +1,18 @@
-import pytest
+import json
 import logging
-from fastapi.testclient import TestClient
-from bot_trainer.api.app.main import app
 import os
+
+import pytest
+from fastapi.testclient import TestClient
 from mongoengine import connect
-from bot_trainer.utils import Utility
+from rasa.core.domain import Domain
+from rasa.core.tracker_store import DialogueStateTracker
+
+from bot_trainer.api.app.main import app
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
-from rasa.core.domain import Domain
-from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
-import json
+from bot_trainer.utils import Utility
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
