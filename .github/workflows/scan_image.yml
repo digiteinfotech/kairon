@@ -1,0 +1,26 @@
+# This workflow will scan the created docker images at scheduled time and create issue if vulnerability is found
+name: Vulnerability Scan
+
+on:
+  schedule:
+    - cron: '30 5 * * 0'
+
+jobs:
+  scan:
+    name: Daily Vulnerability Scan
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Pull docker images
+        run: |
+          docker pull digite/rasa-dx-augment
+          docker pull digite/rasa-dx-api
+      - uses: homoluctus/gitrivy@v2
+        name: Scanning augment image
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image: digite/rasa-dx-augment
+      - uses: homoluctus/gitrivy@v2
+        name: Scanning api image
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image: digite/rasa-dx-api
