@@ -2,6 +2,8 @@
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/036a621f7ae74cecb3db5f01441df65e)](https://app.codacy.com/gh/digiteinfotech/rasa-dx?utm_source=github.com&utm_medium=referral&utm_content=digiteinfotech/rasa-dx&utm_campaign=Badge_Grade_Dashboard)
 
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/digiteinfotech/rasa-dx.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/digiteinfotech/rasa-dx/alerts/)
+
 # Rasa DX < Tentatively Named > 
 
 Rasa-Dx <Tentatively Named > is envisioned as a web based microservices driven suite that helps train Rasa contextual AI assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants .
