@@ -403,7 +403,7 @@ class MongoProcessor:
                     session.session_expiration_time = session_config.session_expiration_time
                     session.carryOverSlots = True
                     session.user = user
-                except:
+                except DoesNotExist:
                     session = self.__extract_session_config(session_config, bot, user)
                 session.save()
 
