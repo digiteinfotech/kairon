@@ -3,7 +3,7 @@ import os
 
 from mongoengine import connect
 from mongoengine.errors import ValidationError
-from pytest import raises, fixture
+import pytest
 
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.utils import Utility
@@ -11,11 +11,11 @@ from bot_trainer.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
-bot = None
+def pytest_configure():
+    return {'bot': None}
 
-# pylint: disable=R0201
 class TestAccountProcessor:
-    @fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
         connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
@@ -36,46 +36,45 @@ class TestAccountProcessor:
         assert account["name"] == "paypal"
 
     def test_add_duplicate_account(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_account("paypal", "testAdmin")
 
     def test_add_blank_account(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_account("", "testAdmin")
 
     def test_add_empty_account(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_account(" ", "testAdmin")
 
     def test_add_none_account(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_account(None, "testAdmin")
 
     def test_add_bot(self):
         bot_response = AccountProcessor.add_bot("test", 1, "testAdmin")
         assert bot_response
-        global bot
-        bot = bot_response["_id"].__str__()
+        pytest.bot = bot_response["_id"].__str__()
 
     def test_get_bot(self):
-        bot_response = AccountProcessor.get_bot(bot)
+        bot_response = AccountProcessor.get_bot(pytest.bot)
         assert bot_response
         assert bot_response["account"] == 1
 
     def test_add_duplicate_bot(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_bot("test", 1, "testAdmin")
 
     def test_add_blank_bot(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_bot(" ", 1, "testAdmin")
 
     def test_add_empty_bot(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_bot("", 1, "testAdmin")
 
     def test_add_none_bot(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_bot(None, 1, "testAdmin")
 
     def test_add_user(self):
@@ -85,7 +84,7 @@ class TestAccountProcessor:
             last_name="Shaikh",
             password="12345",
             account=1,
-            bot=bot,
+            bot=pytest.bot,
             user="testAdmin",
         )
         assert user
@@ -93,170 +92,170 @@ class TestAccountProcessor:
         assert user["status"]
 
     def test_add_user_duplicate(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_user(
                 email="fshaikh@digite.com",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_empty_email(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_blank_email(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_user(
                 email=" ",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_invalid_email(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_user(
                 email="demo",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_none_email(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_user(
                 email=None,
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_empty_firstname(self):
-        with raises(Exception):
+        with pytest.raises(Exception):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_blank_firstname(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name=" ",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_none_firstname(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
                 last_name="Shaikh",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_empty_lastname(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name="",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_none_lastname(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name=None,
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_blank_lastname(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name=" ",
                 password="12345",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_empty_password(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password="",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_blank_password(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password=" ",
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
     def test_add_user_None_password(self):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
                 password=None,
                 account=1,
-                bot=bot,
+                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -274,7 +273,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
 
-    @fixture
+    @pytest.fixture
     def mock_user_inactive(self, monkeypatch):
         def user_response(*args, **kwargs):
             return {
@@ -295,7 +294,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_account", account_response)
 
     def test_get_user_details_user_inactive(self, mock_user_inactive):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(
                 user_details[key] is False
@@ -304,7 +303,7 @@ class TestAccountProcessor:
                 for key in user_details.keys()
             )
 
-    @fixture
+    @pytest.fixture
     def mock_bot_inactive(self, monkeypatch):
         def user_response(*args, **kwargs):
             return {
@@ -325,7 +324,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_account", account_response)
 
     def test_get_user_details_bot_inactive(self, mock_bot_inactive):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(
                 user_details[key] is False
@@ -336,7 +335,7 @@ class TestAccountProcessor:
                 ).keys()
             )
 
-    @fixture
+    @pytest.fixture
     def mock_account_inactive(self, monkeypatch):
         def user_response(*args, **kwargs):
             return {
@@ -357,7 +356,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_account", account_response)
 
     def test_get_user_details_account_inactive(self, mock_account_inactive):
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             user_details = AccountProcessor.get_user_details("demo@demo.ai")
             assert all(
                 user_details[key] is False
@@ -377,7 +376,7 @@ class TestAccountProcessor:
 
     def test_account_setup_empty_values(self):
         account = {}
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
 
     def test_account_setup_missing_account(self):
@@ -388,7 +387,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "welcome@1",
         }
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
 
     def test_account_setup_missing_bot_name(self):
@@ -399,7 +398,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "welcome@1",
         }
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
 
     def test_account_setup_user_info(self):
@@ -410,7 +409,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "welcome@1",
         }
-        with raises(ValidationError):
+        with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
 
     def test_account_setup(self):

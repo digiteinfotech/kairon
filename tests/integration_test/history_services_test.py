@@ -1,11 +1,10 @@
-# pylint: disable=R0201
 import json
 import logging
 import os
 
 from fastapi.testclient import TestClient
 from mongoengine import connect
-from pytest import fixture
+import pytest
 from rasa.core.domain import Domain
 from rasa.core.tracker_store import DialogueStateTracker
 
@@ -19,12 +18,15 @@ logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)
-token_type = None
-access_token = None
-user_created = False
 
 
-@fixture(autouse=True)
+def pytest_configure():
+    return {'token_type': None,
+            'access_token': None
+            }
+
+
+@pytest.fixture(autouse=True)
 def init_connection():
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
@@ -43,7 +45,7 @@ def user_details(*args, **kwargs):
     }
 
 
-@fixture
+@pytest.fixture
 def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
 
@@ -52,7 +54,7 @@ def endpoint_details(*args, **kwargs):
     return {"tracker_endpoint": {"url": "mongodb://demo", "db": "conversation"}}
 
 
-@fixture
+@pytest.fixture
 def mock_mongo_processor(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_details)
 
@@ -86,7 +88,7 @@ def history_conversations(*args, **kwargs):
     return json_data
 
 
-@fixture
+@pytest.fixture
 def mock_chat_history(monkeypatch):
     monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
     monkeypatch.setattr(ChatHistory, "get_conversations", history_conversations)
@@ -99,13 +101,12 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
         data={"username": "integration@demo.com", "password": "welcome@1"},
     )
     token_response = response.json()
-    global access_token, token_type
-    access_token = token_response["data"]["access_token"]
-    token_type = token_response["data"]["token_type"]
+    pytest.access_token = token_response["data"]["access_token"]
+    pytest.token_type = token_response["data"]["token_type"]
 
     response = client.get(
         "/api/history/users",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -118,7 +119,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 def test_chat_history_users(mock_auth, mock_chat_history):
     response = client.get(
         "/api/history/users",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -131,7 +132,7 @@ def test_chat_history_users(mock_auth, mock_chat_history):
 def test_chat_history(mock_auth, mock_chat_history):
     response = client.get(
         "/api/history/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -144,7 +145,7 @@ def test_chat_history(mock_auth, mock_chat_history):
 def test_visitor_hit_fallback(mock_auth, mock_chat_history):
     response = client.get(
         "/api/history/metrics/visitor_hit_fallback",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -158,7 +159,7 @@ def test_visitor_hit_fallback(mock_auth, mock_chat_history):
 def test_conversation_steps(mock_auth, mock_chat_history):
     response = client.get(
         "/api/history/metrics/conversation_steps",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -171,7 +172,7 @@ def test_conversation_steps(mock_auth, mock_chat_history):
 def test_conversation_time(mock_auth, mock_chat_history):
     response = client.get(
         "/api/history/metrics/conversation_time",
-        headers={"Authorization": token_type + " " + access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()

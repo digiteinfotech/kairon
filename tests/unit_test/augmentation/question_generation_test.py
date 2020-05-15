@@ -1,4 +1,3 @@
-# pylint: disable=R0201
 import asyncio
 
 from augmentation.generator import QuestionGenerator
