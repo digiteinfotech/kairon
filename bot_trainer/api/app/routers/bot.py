@@ -12,15 +12,10 @@ from bot_trainer.api.models import (TextData,
                                     Config)
 from bot_trainer.data_processor.data_objects import (TrainingExamples,
                                                      Responses)
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
-from bot_trainer.exceptions import AppException
-from bot_trainer.train import train_model_from_mongo
-from bot_trainer.utils import Utility
-from bot_trainer.api.models import *
-from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from bot_trainer.exceptions import AppException
 from bot_trainer.train import start_training
-import requests
+from bot_trainer.utils import Utility
 import threading
 
 router = APIRouter()

@@ -4,6 +4,7 @@ import os
 from mongoengine import connect
 from mongoengine.errors import ValidationError
 import pytest
+import datetime
 from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
@@ -14,19 +15,13 @@ from bot_trainer.data_processor.data_objects import (TrainingExamples,
                                                      Entities,
                                                      Intents,
                                                      Actions,
-                                                     Responses
+                                                     Responses,
+                                                     ModelTraining
                                                      )
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
-from bot_trainer.exceptions import AppException
-from bot_trainer.train import train_model_from_mongo
-from bot_trainer.utils import Utility
-from bot_trainer.data_processor.data_objects import *
 from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
-import os
-from bot_trainer.utils import Utility
+from bot_trainer.exceptions import AppException
 from bot_trainer.train import train_model_from_mongo, start_training
-import asyncio
-from rasa.core.agent import Agent
+from bot_trainer.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
