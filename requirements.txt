@@ -27,4 +27,4 @@ py3dns
 black
 uvicorn
 validators
-escapejson
+secure
