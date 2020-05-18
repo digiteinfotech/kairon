@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from mongoengine import connect, disconnect
@@ -23,6 +23,9 @@ from bot_trainer.api.models import Response
 from bot_trainer.api.processor import AccountProcessor
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
+from secure import SecureHeaders
+
+secure_headers = SecureHeaders()
 
 app = FastAPI()
 app.add_middleware(
@@ -32,6 +35,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_secure_headers(request: Request, call_next):
+    response = await call_next(request)
+    secure_headers.starlette(response)
+    return response
 
 
 @app.on_event("startup")
