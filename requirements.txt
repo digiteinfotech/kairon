@@ -1,6 +1,8 @@
 pyyaml
 torch
 torchvision
+tensorflow-text==2.1.1
+tensorflow-addons==0.9.1
 rasa==1.9.5
 rasa[transformers]==1.9.5
 rasa[spacy]==1.9.5
@@ -25,3 +27,4 @@ py3dns
 black
 uvicorn
 validators
+escapejson
