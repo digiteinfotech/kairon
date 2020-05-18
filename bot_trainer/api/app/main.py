@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 from secure import SecureHeaders
 
-secure_headers = SecureHeaders()
+secure_headers = SecureHeaders(xfo=False)
 
 app = FastAPI()
 app.add_middleware(
