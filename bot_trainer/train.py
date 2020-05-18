@@ -73,7 +73,7 @@ def start_training(bot: str, user: str):
         bot=bot,
         user=user,
         status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-        start_timestamp=datetime.utcnow
+        start_timestamp=datetime.utcnow,
     )
     try:
         loop = asyncio.new_event_loop()
@@ -91,7 +91,7 @@ def start_training(bot: str, user: str):
             status=training_status,
             end_timestamp=datetime.utcnow,
             model_path=model_file,
-            exception=exception
+            exception=exception,
         )
 
     AgentProcessor.reload(bot)
