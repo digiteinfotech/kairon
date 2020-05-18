@@ -393,6 +393,7 @@ class Endpoints(Document):
         if self.action_endpoint:
             self.action_endpoint.validate()
 
+
 class ModelTraining(Document):
     bot = StringField(required=True)
     user = StringField(required=True)

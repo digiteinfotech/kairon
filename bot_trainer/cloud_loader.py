@@ -5,7 +5,6 @@ from boto.exception import S3ResponseError
 
 
 class FileUploader:
-
     @staticmethod
     def upload_file(file, bucket):
         session = boto3.Session()

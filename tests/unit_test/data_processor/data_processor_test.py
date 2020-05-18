@@ -4,7 +4,7 @@ import os
 from mongoengine import connect
 from mongoengine.errors import ValidationError
 import pytest
-import datetime
+from datetime import datetime
 from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
@@ -831,12 +831,12 @@ class TestModelProcessor:
                                            )
         model_training = ModelTraining.objects(bot="tests", status="Done")
 
-        assert model_training.__len__() == 1
-        assert model_training.first().id == training_status_inprogress_id
-        assert model_training.first().bot == "tests"
-        assert model_training.first().user == "testUser"
-        assert model_training.first().status == "Done"
-        assert model_training.first().model_path == "model_path"
+        assert model_training.count() == 2
+        assert model_training[1].id == training_status_inprogress_id
+        assert model_training[1].bot == "tests"
+        assert model_training[1].user == "testUser"
+        assert model_training[1].status == "Done"
+        assert model_training[1].model_path == "model_path"
         assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
 
     def test_set_training_status_Fail(self, test_set_training_status_inprogress):
@@ -868,13 +868,38 @@ class TestModelProcessor:
         actual_response = ModelProcessor.is_training_inprogress("tests")
         assert actual_response is False
 
-    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
+    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
         assert test_set_training_status_inprogress.__len__() == 1
         assert test_set_training_status_inprogress.first().bot == "tests"
         assert test_set_training_status_inprogress.first().user == "testUser"
         assert test_set_training_status_inprogress.first().status == "Inprogress"
 
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
+        assert actual_response is True
+
+    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_training_inprogress("tests")
 
         assert str(exp.value) == "Previous model training in progress."
+
+    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 5)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        assert actual_response is False
+
+    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 3)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        assert actual_response is True
+
+    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 3)
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+
+        assert str(exp.value) == "Daily model training limit exceeded."
+
+    def test_get_training_history(self):
+        actual_response = ModelProcessor.get_training_history("tests")
+        assert actual_response

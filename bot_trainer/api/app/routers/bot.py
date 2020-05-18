@@ -1,22 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
 from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import (TextData,
-                                    User,
-                                    ListData,
-                                    Response,
-                                    StoryRequest,
-                                    Endpoint,
-                                    Config)
-from bot_trainer.data_processor.data_objects import (TrainingExamples,
-                                                     Responses)
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from bot_trainer.api.models import (
+    TextData,
+    User,
+    ListData,
+    Response,
+    StoryRequest,
+    Endpoint,
+    Config,
+)
+from bot_trainer.data_processor.data_objects import TrainingExamples, Responses
+from bot_trainer.data_processor.processor import (
+    MongoProcessor,
+    AgentProcessor,
+    ModelProcessor,
+)
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import start_training
 from bot_trainer.utils import Utility
-import threading
 
 router = APIRouter()
 auth = Authentication()
@@ -163,11 +167,27 @@ async def chat(
 
 
 @router.post("/train", response_model=Response)
-async def train(current_user: User = Depends(auth.get_current_user)):
+async def train(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Train model"""
     ModelProcessor.is_training_inprogress(current_user.get_bot())
-    threading.Thread(target=start_training, args=(current_user.get_bot(), current_user.get_user())).start()
-
+    ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
+    background_tasks.add_task(
+        start_training, current_user.get_bot(), current_user.get_user()
+    )
     return {"message": "Model training started."}
+
+
+@router.get("/model_training_history", response_model=Response)
+async def get_model_training_history(
+    current_user: User = Depends(auth.get_current_user),
+):
+    """get the model training history"""
+    training_history = list(ModelProcessor.get_training_history(current_user.get_bot()))
+    return {"data": {"training_history": training_history}}
+
 
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):

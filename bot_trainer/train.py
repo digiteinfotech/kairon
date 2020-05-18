@@ -69,10 +69,12 @@ def start_training(bot: str, user: str):
     model_file = None
     training_status = None
 
-    ModelProcessor.set_training_status( bot=bot,
-                                        user=user,
-                                        status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-                                        start_timestamp=datetime.utcnow)
+    ModelProcessor.set_training_status(
+        bot=bot,
+        user=user,
+        status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+        start_timestamp=datetime.utcnow
+    )
     try:
         loop = asyncio.new_event_loop()
         model_file = loop.run_until_complete(train_model_from_mongo(bot))
@@ -83,12 +85,14 @@ def start_training(bot: str, user: str):
         exception = str(e)
         raise AppException(exception)
     finally:
-        ModelProcessor.set_training_status( bot=bot,
-                                            user=user,
-                                            status=training_status,
-                                            end_timestamp=datetime.utcnow,
-                                            model_path=model_file,
-                                            exception=exception)
+        ModelProcessor.set_training_status(
+            bot=bot,
+            user=user,
+            status=training_status,
+            end_timestamp=datetime.utcnow,
+            model_path=model_file,
+            exception=exception
+        )
 
     AgentProcessor.reload(bot)
 

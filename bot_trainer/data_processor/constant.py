@@ -61,7 +61,7 @@ class STORY_EVENT(str, Enum):
     CONFIDENCE = "confidence"
 
 
-class MODEL_TRAINING_STATUS(Enum):
+class MODEL_TRAINING_STATUS(str, Enum):
     INPROGRESS = "Inprogress"
     DONE = "Done"
     FAIL = "Fail"
