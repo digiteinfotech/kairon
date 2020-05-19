@@ -80,7 +80,7 @@ class MongoProcessor:
         user: Text,
         overwrite: bool = True,
     ):
-        """upload the training data to temporary path and then save into mongo"""
+        """Upload the training data to temporary path and then save into mongo"""
         data_path = Utility.save_files(nlu, domain, stories, config)
         await self.save_from_path(data_path, bot, overwrite, user)
         Utility.delete_directory(data_path)

@@ -171,7 +171,6 @@ async def train(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(auth.get_current_user),
 ):
-    """Train model"""
     ModelProcessor.is_training_inprogress(current_user.get_bot())
     ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
     background_tasks.add_task(
@@ -184,7 +183,6 @@ async def train(
 async def get_model_training_history(
     current_user: User = Depends(auth.get_current_user),
 ):
-    """get the model training history"""
     training_history = list(ModelProcessor.get_training_history(current_user.get_bot()))
     return {"data": {"training_history": training_history}}
 
@@ -257,7 +255,7 @@ async def set_endpoint(
 
 
 @router.get("/config", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
+async def get_config(current_user: User = Depends(auth.get_current_user),):
     """get the model endpoint"""
     endpoint = mongo_processor.load_config(current_user.get_bot())
     return {"data": {"endpoint": endpoint}}
