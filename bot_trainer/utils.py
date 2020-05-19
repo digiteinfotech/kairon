@@ -1,9 +1,10 @@
 import glob
 import os
-import random
+from secrets import choice
 import shutil
 import string
 import tempfile
+from html import escape
 from io import BytesIO
 from typing import Text, List, Dict
 
@@ -18,7 +19,6 @@ from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
-
 from bot_trainer.exceptions import AppException
 
 
@@ -143,19 +143,24 @@ class Utility:
                 headers=headers,
             )
             json_response = response.json()
-            if "message" in json_response:
-                result = json_response["message"]
-            elif "reason" in json_response:
-                result = json_response["reason"]
+            if isinstance(json_response, str):
+                result = escape(json_response)
+            elif isinstance(json_response, dict):
+                if "message" in json_response:
+                    result = escape(json_response["message"])
+                elif "reason" in json_response:
+                    result = escape(json_response["reason"])
+                else:
+                    result = None
             else:
-                result = json_response
+                result = None
         except requests.exceptions.ConnectionError as e:
             raise AppException("Host is not reachable")
         return result
 
     @staticmethod
     def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
-        return "".join(random.choice(chars) for _ in range(size))
+        return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
     def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
