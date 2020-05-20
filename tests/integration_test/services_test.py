@@ -10,8 +10,9 @@ from fastapi.testclient import TestClient
 from mongoengine import connect
 
 from bot_trainer.api.app.main import app
-from bot_trainer.data_processor.processor import MongoProcessor
+from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.utils import Utility
+from bot_trainer.exceptions import AppException
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -559,30 +560,62 @@ def test_train():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["message"] == "Model trained successfully"
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
 
 
-def test_train_empty():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "welcome@1"},
-    )
-    token = response.json()
+@pytest.fixture
+def mock_is_training_inprogress_exception(monkeypatch):
+    def _inprogress_execption_response(*args, **kwargs):
+        raise AppException("Previous model training in progress.")
+
+    monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_execption_response)
+
+
+def test_train_inprogress(mock_is_training_inprogress_exception):
     response = client.post(
         "/api/bot/train",
-        headers={
-            "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"]
-        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
+    print(actual)
+    assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Training data does not exists!"
+    assert actual["message"] == "Previous model training in progress."
 
+
+@pytest.fixture
+def mock_is_training_inprogress(monkeypatch):
+    def _inprogress_response(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_response)
+
+
+def test_train_daily_limit_exceed(mock_is_training_inprogress):
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"] is False
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Daily model training limit exceeded."
+
+def test_get_model_training_history():
+    response = client.get(
+        "/api/bot/model_training_history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert "training_history" in actual["data"]
 
 def test_chat():
     response = client.post(

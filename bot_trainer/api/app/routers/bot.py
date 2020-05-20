@@ -1,20 +1,25 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
 from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import (TextData,
-                                    User,
-                                    ListData,
-                                    Response,
-                                    StoryRequest,
-                                    Endpoint,
-                                    Config)
-from bot_trainer.data_processor.data_objects import (TrainingExamples,
-                                                     Responses)
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
+from bot_trainer.api.models import (
+    TextData,
+    User,
+    ListData,
+    Response,
+    StoryRequest,
+    Endpoint,
+    Config,
+)
+from bot_trainer.data_processor.data_objects import TrainingExamples, Responses
+from bot_trainer.data_processor.processor import (
+    MongoProcessor,
+    AgentProcessor,
+    ModelProcessor,
+)
 from bot_trainer.exceptions import AppException
-from bot_trainer.train import train_model_from_mongo
+from bot_trainer.train import start_training
 from bot_trainer.utils import Utility
 
 router = APIRouter()
@@ -162,10 +167,24 @@ async def chat(
 
 
 @router.post("/train", response_model=Response)
-async def train(current_user: User = Depends(auth.get_current_user)):
-    model_file = await train_model_from_mongo(current_user.get_bot())
-    AgentProcessor.reload(current_user.get_bot())
-    return {"data": {"file": model_file}, "message": "Model trained successfully"}
+async def train(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(auth.get_current_user),
+):
+    ModelProcessor.is_training_inprogress(current_user.get_bot())
+    ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
+    background_tasks.add_task(
+        start_training, current_user.get_bot(), current_user.get_user()
+    )
+    return {"message": "Model training started."}
+
+
+@router.get("/model_training_history", response_model=Response)
+async def get_model_training_history(
+    current_user: User = Depends(auth.get_current_user),
+):
+    training_history = list(ModelProcessor.get_training_history(current_user.get_bot()))
+    return {"data": {"training_history": training_history}}
 
 
 @router.post("/deploy", response_model=Response)
@@ -199,17 +218,14 @@ async def upload_Files(
 
 
 @router.get("/download_data")
-async def download_data(
-    current_user: User = Depends(auth.get_current_user),
-):
+async def download_data(current_user: User = Depends(auth.get_current_user),):
     """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
     file = mongo_processor.download_files(current_user.get_bot())
     return FileResponse(file)
 
+
 @router.get("/download_model")
-async def download_model(
-    current_user: User = Depends(auth.get_current_user),
-):
+async def download_model(current_user: User = Depends(auth.get_current_user),):
     """Download latest trained model file"""
     try:
         model_path = AgentProcessor.get_latest_model(current_user.get_bot())
@@ -219,41 +235,38 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(
-    current_user: User = Depends(auth.get_current_user),
-):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
     """get the model endpoint"""
-    endpoint = mongo_processor.get_endpoints(current_user.get_bot(), raise_exception=False)
-    return {"data":{"endpoint": endpoint}}
+    endpoint = mongo_processor.get_endpoints(
+        current_user.get_bot(), raise_exception=False
+    )
+    return {"data": {"endpoint": endpoint}}
 
 
 @router.put("/endpoint", response_model=Response)
 async def set_endpoint(
-    endpoint: Endpoint,
-    current_user: User = Depends(auth.get_current_user),
+    endpoint: Endpoint, current_user: User = Depends(auth.get_current_user),
 ):
     """get the model endpoint"""
-    mongo_processor.add_endpoints(endpoint.dict(),
-                                  current_user.get_bot(),
-                                  current_user.get_user())
+    mongo_processor.add_endpoints(
+        endpoint.dict(), current_user.get_bot(), current_user.get_user()
+    )
     return {"message": "Endpoint saved successfully!"}
 
 
 @router.get("/config", response_model=Response)
-async def get_endpoint(
-    current_user: User = Depends(auth.get_current_user),
-):
+async def get_config(current_user: User = Depends(auth.get_current_user),):
     """get the model endpoint"""
     endpoint = mongo_processor.load_config(current_user.get_bot())
-    return {"data":{"endpoint": endpoint}}
+    return {"data": {"endpoint": endpoint}}
+
 
 @router.put("/config", response_model=Response)
 async def set_endpoint(
-    config: Config,
-    current_user: User = Depends(auth.get_current_user),
+    config: Config, current_user: User = Depends(auth.get_current_user),
 ):
     """set the model endpoint"""
-    endpoint = mongo_processor.save_config(config.dict(),
-                                           current_user.get_bot(),
-                                           current_user.get_user())
-    return {"data":{"endpoint": endpoint}}
+    endpoint = mongo_processor.save_config(
+        config.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return {"data": {"endpoint": endpoint}}

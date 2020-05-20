@@ -191,18 +191,17 @@ class Utility:
         shutil.rmtree(path)
 
     @staticmethod
-    def create_zip_file(nlu: TrainingData,
-                        domain: Domain,
-                        stories: StoryGraph,
-                        config: Dict,
-                        bot: Text):
+    def create_zip_file(
+        nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+    ):
 
-        directory = Utility.save_files(nlu.nlu_as_markdown().encode(),
-                           domain.as_yaml().encode(),
-                           stories.as_story_string().encode(),
-                           yaml.dump(config).encode()
-                           )
-        zip_path = os.path.join(tempfile.gettempdir(),bot)
+        directory = Utility.save_files(
+            nlu.nlu_as_markdown().encode(),
+            domain.as_yaml().encode(),
+            stories.as_story_string().encode(),
+            yaml.dump(config).encode(),
+        )
+        zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
         shutil.rmtree(directory)
         return zip_file
@@ -210,7 +209,7 @@ class Utility:
     @staticmethod
     def load_file_in_memory(file: Text):
         data = BytesIO()
-        with open(file, 'rb') as fo:
+        with open(file, "rb") as fo:
             data.write(fo.read())
         data.seek(0)
         os.remove(file)

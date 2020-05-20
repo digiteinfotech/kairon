@@ -14,10 +14,7 @@ from rasa.core.agent import Agent
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
 from rasa.core.events import Form, ActionExecuted, UserUttered
-from rasa.core.slots import (
-    CategoricalSlot,
-    FloatSlot
-)
+from rasa.core.slots import CategoricalSlot, FloatSlot
 from rasa.core.training.structures import Checkpoint
 from rasa.core.training.structures import STORY_START
 from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
@@ -33,51 +30,57 @@ from rasa.utils.io import read_config_file
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .cache import InMemoryAgentCache
-from .constant import (DOMAIN,
-                       SESSION_CONFIG,
-                       STORY_EVENT,
-                       REGEX_FEATURES,
-                       LOOKUP_TABLE,
-                       TRAINING_EXAMPLE,
-                       RESPONSE, ENTITY,
-                       SLOTS)
-from .data_objects import (Responses,
-                           SessionConfigs,
-                           Configs,
-                           Endpoints,
-                           Entities,
-                           EntitySynonyms,
-                           TrainingExamples,
-                           Stories,
-                           Actions,
-                           Intents,
-                           Forms,
-                           LookupTables,
-                           RegexFeatures,
-                           Entity,
-                           ResponseText,
-                           ResponseCustom,
-                           ResponseButton,
-                           EndPointBot,
-                           EndPointAction,
-                           EndPointTracker,
-                           Slots,
-                           StoryEvents
-                           )
+from .constant import (
+    DOMAIN,
+    SESSION_CONFIG,
+    STORY_EVENT,
+    REGEX_FEATURES,
+    LOOKUP_TABLE,
+    TRAINING_EXAMPLE,
+    RESPONSE,
+    ENTITY,
+    SLOTS,
+    MODEL_TRAINING_STATUS,
+)
+from .data_objects import (
+    Responses,
+    SessionConfigs,
+    Configs,
+    Endpoints,
+    Entities,
+    EntitySynonyms,
+    TrainingExamples,
+    Stories,
+    Actions,
+    Intents,
+    Forms,
+    LookupTables,
+    RegexFeatures,
+    Entity,
+    ResponseText,
+    ResponseCustom,
+    ResponseButton,
+    EndPointBot,
+    EndPointAction,
+    EndPointTracker,
+    Slots,
+    StoryEvents,
+    ModelTraining,
+)
 
 
 class MongoProcessor:
     async def upload_and_save(
-            self,
-            nlu: bytes,
-            domain: bytes,
-            stories: bytes,
-            config: bytes,
-            bot: Text,
-            user: Text,
-            overwrite: bool = True,
+        self,
+        nlu: bytes,
+        domain: bytes,
+        stories: bytes,
+        config: bytes,
+        bot: Text,
+        user: Text,
+        overwrite: bool = True,
     ):
-        '''upload the training data to temporary path and then save into mongo'''
+        """Upload the training data to temporary path and then save into mongo."""
         data_path = Utility.save_files(nlu, domain, stories, config)
         await self.save_from_path(data_path, bot, overwrite, user)
         Utility.delete_directory(data_path)
@@ -87,14 +90,10 @@ class MongoProcessor:
         domain = self.load_domain(bot)
         stories = self.load_stories(bot)
         config = self.load_config(bot)
-        return Utility.create_zip_file(nlu,
-                                       domain,
-                                       stories,
-                                       config,
-                                       bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot)
 
     async def save_from_path(
-            self, path: Text, bot: Text, overwrite: bool = True, user="default"
+        self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
         try:
             story_files, nlu_files = get_core_nlu_files(
@@ -108,9 +107,7 @@ class MongoProcessor:
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
-            self.save_config(
-                config, bot, user
-            )
+            self.save_config(config, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -384,7 +381,7 @@ class MongoProcessor:
             return []
 
     def __extract_session_config(
-            self, session_config: SessionConfig, bot: Text, user: Text
+        self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -394,13 +391,15 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-            self, session_config: SessionConfig, bot: Text, user: Text
+        self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
                 try:
                     session = SessionConfigs.objects().get(bot=bot)
-                    session.session_expiration_time = session_config.session_expiration_time
+                    session.session_expiration_time = (
+                        session_config.session_expiration_time
+                    )
                     session.carryOverSlots = True
                     session.user = user
                 except DoesNotExist:
@@ -645,15 +644,12 @@ class MongoProcessor:
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
-    def save_config(self,
-                    config: dict,
-                    bot: Text,
-                    user: Text):
+    def save_config(self, config: dict, bot: Text, user: Text):
         try:
             config_obj = Configs.objects().get(bot=bot)
-            config_obj.pipeline = config['pipeline']
-            config_obj.language = config['language']
-            config_obj.policies = config['policies']
+            config_obj.pipeline = config["pipeline"]
+            config_obj.language = config["language"]
+            config_obj.policies = config["policies"]
         except DoesNotExist:
             config["bot"] = bot
             config["user"] = user
@@ -691,15 +687,15 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-            self, examples: List[Text], intent: Text, bot: Text, user: Text
+        self, examples: List[Text], intent: Text, bot: Text, user: Text
     ):
         if not Utility.is_exist(
-                Intents, query={"name": intent, "bot": bot}, raise_error=False
+            Intents, query={"name": intent, "bot": bot}, raise_error=False
         ):
             self.add_intent(intent, bot, user)
         for example in examples:
             if Utility.is_exist(
-                    TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
+                TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
             ):
                 yield {
                     "text": example,
@@ -790,7 +786,7 @@ class MongoProcessor:
         )
         Entities(name=name, bot=bot, user=user).save()
         if not Utility.is_exist(
-                Slots, query={"name": name, "bot": bot}, raise_error=False
+            Slots, query={"name": name, "bot": bot}, raise_error=False
         ):
             Slots(name=name, type="text", bot=bot, user=user).save()
 
@@ -836,7 +832,7 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-                Actions, query={"name": name, "bot": bot}, raise_error=False
+            Actions, query={"name": name, "bot": bot}, raise_error=False
         ):
             Actions(name=name, bot=bot, user=user).save()
         return value["_id"].__str__()
@@ -854,7 +850,7 @@ class MongoProcessor:
             yield {"_id": value.id.__str__(), "value": val}
 
     def __check_response_existence(
-            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
@@ -900,14 +896,14 @@ class MongoProcessor:
                 user=user,
                 start_checkpoints=[STORY_START],
             )
-                .save()
-                .to_mongo()
-                .to_dict()["_id"]
-                .__str__()
+            .save()
+            .to_mongo()
+            .to_dict()["_id"]
+            .__str__()
         )
 
     def __check_event_existence(
-            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_events = list(
             Stories.objects(bot=bot, status=True).aggregate(
@@ -949,12 +945,12 @@ class MongoProcessor:
                     return event.name
 
     def add_session_config(
-            self,
-            bot: Text,
-            user: Text,
-            id: Text = None,
-            sesssionExpirationTime: int = 60,
-            carryOverSlots: bool = True,
+        self,
+        bot: Text,
+        user: Text,
+        id: Text = None,
+        sesssionExpirationTime: int = 60,
+        carryOverSlots: bool = True,
     ):
         if not Utility.check_empty_string(id):
 
@@ -1014,7 +1010,7 @@ class MongoProcessor:
             endpoint.pop("bot")
             endpoint.pop("user")
             endpoint.pop("timestamp")
-            endpoint['_id'] = endpoint['_id'].__str__()
+            endpoint["_id"] = endpoint["_id"].__str__()
             return endpoint
         except DoesNotExist as e:
             logging.info(e)
@@ -1054,3 +1050,75 @@ class AgentProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException("Please train the bot first")
+
+
+class ModelProcessor:
+    @staticmethod
+    def set_training_status(
+        bot: Text,
+        user: Text,
+        status: Text,
+        start_timestamp: datetime = None,
+        end_timestamp: datetime = None,
+        model_path: Text = None,
+        exception: Text = None,
+    ):
+
+        doc = ModelTraining.objects(
+            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
+        )
+
+        if len(doc) and start_timestamp is None:
+            start_timestamp = doc.first().start_timestamp
+
+        doc.update(
+            upsert=True,
+            bot=bot,
+            user=user,
+            status=status,
+            start_timestamp=start_timestamp,
+            end_timestamp=end_timestamp,
+            model_path=model_path,
+            exception=exception,
+        )
+
+    @staticmethod
+    def is_training_inprogress(bot: Text, raise_exception=True):
+        if ModelTraining.objects(
+            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
+        ).count():
+            if raise_exception:
+                raise AppException("Previous model training in progress.")
+            else:
+                return True
+        else:
+            return False
+
+    @staticmethod
+    def is_daily_training_limit_exceeded(bot: Text, raise_exception=True):
+        today = datetime.today()
+        today_start = today.replace(hour=0, minute=0, second=0)
+        today_end = today.replace(hour=23, minute=59, second=59)
+        doc_count = ModelTraining.objects(
+            bot=bot,
+            start_timestamp__gte=today_start,
+            start_timestamp__lte=today_end,
+            end_timestamp__gte=today_start,
+            end_timestamp__lte=today_end,
+        ).count()
+
+        if doc_count >= Utility.environment["MODEL_TRAINING_LIMIT_PER_DAY"]:
+            if raise_exception:
+                raise AppException("Daily model training limit exceeded.")
+            else:
+                return True
+        else:
+            return False
+
+    @staticmethod
+    def get_training_history(bot: Text):
+        for value in ModelTraining.objects(bot=bot):
+            item = value.to_mongo().to_dict()
+            item.pop("bot")
+            item["_id"] = item["_id"].__str__()
+            yield item

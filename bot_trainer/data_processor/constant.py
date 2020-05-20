@@ -59,3 +59,9 @@ class SLOTS(str, Enum):
 class STORY_EVENT(str, Enum):
     NAME = "name"
     CONFIDENCE = "confidence"
+
+
+class MODEL_TRAINING_STATUS(str, Enum):
+    INPROGRESS = "Inprogress"
+    DONE = "Done"
+    FAIL = "Fail"
