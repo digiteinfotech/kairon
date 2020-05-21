@@ -1,11 +1,11 @@
 import glob
 import os
-from secrets import choice
 import shutil
 import string
 import tempfile
 from html import escape
 from io import BytesIO
+from secrets import choice
 from typing import Text, List, Dict
 
 import requests
@@ -14,11 +14,14 @@ from fastapi.security import OAuth2PasswordBearer
 from mongoengine import StringField, ListField
 from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
+from password_strength import PasswordPolicy
+from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
+
 from bot_trainer.exceptions import AppException
 
 
@@ -26,6 +29,12 @@ class Utility:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
     environment = None
+    password_policy = PasswordPolicy.from_names(
+        length=8,  # min length: 8
+        uppercase=1,  # need min. 2 uppercase letters
+        numbers=1,  # need min. 2 digits
+        special=1,  # need min. 2 special characters
+    )
 
     @staticmethod
     def check_empty_string(value: str):
@@ -81,7 +90,7 @@ class Utility:
 
     @staticmethod
     def is_exist(
-        document: Document, query: Dict, exp_message: Text = None, raise_error=True,
+            document: Document, query: Dict, exp_message: Text = None, raise_error=True,
     ):
         doc = document.objects(status=True, __raw__=query)
         if doc.__len__():
@@ -124,12 +133,12 @@ class Utility:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         url = endpoint["bot_endpoint"].get("url")
         if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get(
-            "token"
+                "token"
         ):
             headers["Authorization"] = (
-                endpoint["bot_endpoint"].get("token_type")
-                + " "
-                + endpoint["bot_endpoint"].get("token")
+                    endpoint["bot_endpoint"].get("token_type")
+                    + " "
+                    + endpoint["bot_endpoint"].get("token")
             )
 
         try:
@@ -192,7 +201,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-        nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
     ):
 
         directory = Utility.save_files(
@@ -214,3 +223,21 @@ class Utility:
         data.seek(0)
         os.remove(file)
         return data
+
+    @staticmethod
+    def valid_password(password: Text):
+        results = Utility.password_policy.test(password)
+        if results:
+            response = []
+            for result in results:
+                if isinstance(result, Length):
+                    response.append("Password length must be " + str(result.length))
+                elif isinstance(result, Special):
+                    response.append("Missing " + str(result.count) + " special letter")
+                elif isinstance(result, Uppercase):
+                    response.append("Missing " + str(result.count) + " uppercase letter")
+                elif isinstance(result, Numbers):
+                    response.append("Missing " + str(result.count) + "number")
+
+            if response:
+                raise AppException("\n".join(response))

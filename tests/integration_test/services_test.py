@@ -39,7 +39,7 @@ setup()
 
 def test_api_wrong_login():
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "welcome@1"}
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -47,7 +47,7 @@ def test_api_wrong_login():
     assert actual["message"] == "User does not exists!"
 
 
-def test_account_registration():
+def test_account_registration_error():
     response = client.post(
         "/api/account/registration",
         json={
@@ -61,6 +61,27 @@ def test_account_registration():
         },
     )
     actual = response.json()
+    print(actual)
+    assert actual["message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+def test_account_registration():
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "integration@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
     assert actual["message"] == "Account Registered!"
     response = client.post(
         "/api/account/registration",
@@ -68,8 +89,8 @@ def test_account_registration():
             "email": "integration2@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "welcome@1",
-            "confirm_password": "welcome@1",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
             "account": "integration2",
             "bot": "integration2",
         },
@@ -81,9 +102,10 @@ def test_account_registration():
 def test_api_login():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@1"},
     )
     actual = response.json()
+    print(actual)
     assert all(
         [
             True if actual["data"][key] else False
@@ -646,7 +668,7 @@ def test_chat_fetch_from_cache():
 def test_chat_model_not_trained():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "welcome@1"},
+        data={"username": "integration2@demo.ai", "password": "Welcome@1"},
     )
     token = response.json()
     response = client.post(
@@ -898,7 +920,7 @@ def test_predict_intent():
 def test_predict_intent_error():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "welcome@1"},
+        data={"username": "integration2@demo.ai", "password": "Welcome@1"},
     )
     token = response.json()
     response = client.post(
@@ -1049,7 +1071,6 @@ def test_save_endpoint():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('tracker_endpoint')

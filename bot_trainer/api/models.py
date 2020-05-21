@@ -1,7 +1,10 @@
 from enum import Enum
 from typing import List, Any, Dict
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, SecretStr
+
+from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
 
 
 class Token(BaseModel):
@@ -76,14 +79,22 @@ class RegisterAccount(BaseModel):
     email: str
     first_name: str
     last_name: str
-    password: str
-    confirm_password: str
+    password: SecretStr
+    confirm_password: SecretStr
     account: str
     bot: str
 
-    @validator("confirm_password")
+    @validator("password")
     def validate_password(cls, v, values, **kwargs):
-        if "password" in values and v != values["password"]:
+        try:
+            Utility.valid_password(v.get_secret_value());
+        except AppException as e:
+            raise ValueError(str(e))
+        return v
+
+    @validator("confirm_password")
+    def validate_confirm_password(cls, v, values, **kwargs):
+        if "password" in values and v.get_secret_value() != values["password"].get_secret_value():
             raise ValueError("Password and Confirm Password does not match")
         return v
 

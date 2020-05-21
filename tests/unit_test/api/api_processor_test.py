@@ -4,6 +4,7 @@ import os
 from mongoengine import connect
 from mongoengine.errors import ValidationError
 import pytest
+from pydantic import SecretStr
 
 from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.utils import Utility
@@ -82,7 +83,7 @@ class TestAccountProcessor:
             email="fshaikh@digite.com",
             first_name="Fahad Ali",
             last_name="Shaikh",
-            password="12345",
+            password="Welcome@1",
             account=1,
             bot=pytest.bot,
             user="testAdmin",
@@ -97,7 +98,7 @@ class TestAccountProcessor:
                 email="fshaikh@digite.com",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -109,7 +110,7 @@ class TestAccountProcessor:
                 email="",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -121,7 +122,7 @@ class TestAccountProcessor:
                 email=" ",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -133,7 +134,7 @@ class TestAccountProcessor:
                 email="demo",
                 first_name="Fahad Ali",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -145,7 +146,7 @@ class TestAccountProcessor:
                 email=None,
                 first_name="Fahad Ali",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -157,7 +158,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name="",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -169,7 +170,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name=" ",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -181,7 +182,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name="",
                 last_name="Shaikh",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -193,7 +194,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name="",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -205,7 +206,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name=None,
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -217,7 +218,7 @@ class TestAccountProcessor:
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
                 last_name=" ",
-                password="12345",
+                password="Welcome@1",
                 account=1,
                 bot=pytest.bot,
                 user="testAdmin",
@@ -396,7 +397,7 @@ class TestAccountProcessor:
             "email": "demo@ac.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": "welcome@1",
+            "password": "Welcome@1",
         }
         with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
@@ -407,7 +408,7 @@ class TestAccountProcessor:
             "bot": "Test",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": "welcome@1",
+            "password": SecretStr("Welcome@1"),
         }
         with pytest.raises(ValidationError):
             AccountProcessor.account_setup(account_setup=account, user="testAdmin")
@@ -419,7 +420,7 @@ class TestAccountProcessor:
             "email": "demo@ac.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": "welcome@1",
+            "password": SecretStr("Welcome@1"),
         }
         actual = AccountProcessor.account_setup(account_setup=account, user="testAdmin")
         assert actual["role"] == "admin"

@@ -28,3 +28,4 @@ black
 uvicorn
 validators
 secure
+password-strength

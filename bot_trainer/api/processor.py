@@ -3,7 +3,7 @@ from typing import Dict, Text
 
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
-
+from pydantic import SecretStr
 from bot_trainer.api.data_objects import Account, User, Bot
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
@@ -140,8 +140,8 @@ class AccountProcessor:
                 email=account_setup.get("email"),
                 first_name=account_setup.get("first_name"),
                 last_name=account_setup.get("last_name"),
-                password=account_setup.get("password"),
-                account=account["_id"],
+                password=account_setup.get("password").get_secret_value(),
+                account=account["_id"].__str__(),
                 bot=bot["_id"].__str__(),
                 user=user,
                 role="admin",
@@ -162,7 +162,7 @@ class AccountProcessor:
             "email": "test@demo.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": "welcome@1",
+            "password": SecretStr("Welcome@1"),
         }
         try:
             user = AccountProcessor.account_setup(account, user="sysadmin")
