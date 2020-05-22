@@ -247,7 +247,7 @@ async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
 async def set_endpoint(
     endpoint: Endpoint, current_user: User = Depends(auth.get_current_user),
 ):
-    """get the model endpoint"""
+    """get the bot config"""
     mongo_processor.add_endpoints(
         endpoint.dict(), current_user.get_bot(), current_user.get_user()
     )
@@ -262,10 +262,10 @@ async def get_config(current_user: User = Depends(auth.get_current_user),):
 
 
 @router.put("/config", response_model=Response)
-async def set_endpoint(
+async def set_config(
     config: Config, current_user: User = Depends(auth.get_current_user),
 ):
-    """set the model endpoint"""
+    """set the bot config"""
     endpoint = mongo_processor.save_config(
         config.dict(), current_user.get_bot(), current_user.get_user()
     )
