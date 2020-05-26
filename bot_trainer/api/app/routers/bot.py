@@ -269,4 +269,4 @@ async def set_config(
     endpoint = mongo_processor.save_config(
         config.dict(), current_user.get_bot(), current_user.get_user()
     )
-    return {"data": {"endpoint": endpoint}}
+    return {"data": {"config": endpoint}}
