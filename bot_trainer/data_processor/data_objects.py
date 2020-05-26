@@ -284,7 +284,7 @@ class Slots(Document):
                 self.max_value = 1.0
             if self.min_value < self.max_value:
                 error = "FloatSlot must have min_value < max_value"
-            if not isinstance(self.values, int):
+            if not isinstance(self.initial_value, int):
                 if error:
                     error += "\n"
                 error = "FloatSlot initial_value must be numeric value"

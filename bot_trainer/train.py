@@ -68,6 +68,7 @@ async def train_model_from_mongo(
 
 
 def start_training(bot: str, user: str):
+    """ Prevents training of the bot if the training session is in progress otherwise start training """
     exception = None
     model_file = None
     training_status = None
