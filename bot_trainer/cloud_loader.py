@@ -7,6 +7,7 @@ from boto.exception import S3ResponseError
 class FileUploader:
     @staticmethod
     def upload_file(file, bucket):
+        """ Uploads the selected file to a specific bucket in Amazon Simple Storage Service """
         session = boto3.Session()
         s3 = session.client("s3")
         if not FileUploader.__check_bucket_exist(s3, bucket):
@@ -15,6 +16,7 @@ class FileUploader:
 
     @staticmethod
     def __check_bucket_exist(s3, bucket_name):
+        """ Checks if the specified bucket is present in Amazon S3 """
         try:
             if type(bucket_name) == str:
                 s3.head_bucket(s3.Bucket(bucket_name))

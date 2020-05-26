@@ -12,6 +12,7 @@ from bot_trainer.utils import Utility
 class AccountProcessor:
     @staticmethod
     def add_account(name: str, user: str):
+        """ Adds a new account for the trainer app """
         Utility.is_exist(
             Account, query={"name": name}, exp_message="Account name already exists!"
         )
@@ -19,6 +20,7 @@ class AccountProcessor:
 
     @staticmethod
     def get_account(account: int):
+        """ Returns an account object based on user ID """
         try:
             return Account.objects().get(id=account).to_mongo().to_dict()
         except:
@@ -26,6 +28,7 @@ class AccountProcessor:
 
     @staticmethod
     def add_bot(name: str, account: int, user: str):
+        """ Adds a bot to the specified user account """
         Utility.is_exist(
             Bot,
             query={"name": name, "account": account},
@@ -35,6 +38,7 @@ class AccountProcessor:
 
     @staticmethod
     def get_bot(id: str):
+        """ Loads the bot based on user ID """
         try:
             return Bot.objects().get(id=id).to_mongo().to_dict()
         except:
@@ -52,6 +56,8 @@ class AccountProcessor:
         is_integration_user=False,
         role="trainer",
     ):
+        """ Adds a new user to the app based on the details
+            provided by the user """
         Utility.is_exist(
             User,
             query={"email": email},
@@ -76,6 +82,7 @@ class AccountProcessor:
 
     @staticmethod
     def get_user(email: str):
+        """ Returns the user object based on input email """
         try:
             return User.objects().get(email=email).to_mongo().to_dict()
         except:
@@ -83,6 +90,8 @@ class AccountProcessor:
 
     @staticmethod
     def get_user_details(email: str):
+        """ Get details of the user such as account name and the
+            chatbot he/she is training based on email input """
         user = AccountProcessor.get_user(email)
         if not user["status"]:
             raise ValidationError("Inactive User please contact admin!")
@@ -96,6 +105,8 @@ class AccountProcessor:
 
     @staticmethod
     def get_complete_user_details(email: str):
+        """ Get details of the user such as the account name, user ID,
+            and the chatbot he/she is training based on email input """
         user = AccountProcessor.get_user(email)
         bot = AccountProcessor.get_bot(user["bot"])
         account = AccountProcessor.get_account(user["account"])
@@ -106,6 +117,8 @@ class AccountProcessor:
 
     @staticmethod
     def get_integration_user(bot: str, account: int):
+        """ Getting the integration user. If it does'nt exist, a new integration user
+            is created """
         if not Utility.is_exist(
             User, query={"bot": bot, "is_integration_user": True}, raise_error=False
         ):
@@ -128,6 +141,7 @@ class AccountProcessor:
 
     @staticmethod
     def account_setup(account_setup: Dict, user: Text):
+        """ Creating a new account based on details provided by the user """
         account = None
         bot = None
         user_details = None
@@ -156,6 +170,7 @@ class AccountProcessor:
 
     @staticmethod
     async def default_account_setup():
+        """ Setting up an account for testing/demo purposes """
         account = {
             "account": "DemoAccount",
             "bot": "Demo",

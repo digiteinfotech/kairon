@@ -29,6 +29,7 @@ mongo_processor = MongoProcessor()
 
 @router.get("/intents", response_model=Response)
 async def get_intents(current_user: User = Depends(auth.get_current_user)):
+    """ This function returns the list of existing intents of the bot """
     return Response(data=mongo_processor.get_intents(current_user.get_bot())).dict()
 
 
@@ -36,6 +37,7 @@ async def get_intents(current_user: User = Depends(auth.get_current_user)):
 async def add_intents(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function is used to add a new intent to the bot """
     id = mongo_processor.add_intent(
         text=request_data.data, bot=current_user.get_bot(), user=current_user.get_user()
     )
@@ -46,6 +48,8 @@ async def add_intents(
 async def predict_intent(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function returns the predicted intent of the entered text by using the trained
+        rasa model of the chatbot """
     model = AgentProcessor.get_agent(current_user.get_bot())
     response = await model.parse_message_using_nlu_interpreter(request_data.data)
     intent = response.get("intent").get("name") if response else None
@@ -57,6 +61,8 @@ async def predict_intent(
 async def get_training_examples(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function is used to return the training examples (questions/sentences)
+        which are used to train the chatbot, for a particular intent """
     return {
         "data": list(
             mongo_processor.get_training_examples(intent, current_user.get_bot())
@@ -70,6 +76,8 @@ async def add_training_examples(
     request_data: ListData,
     current_user: User = Depends(auth.get_current_user),
 ):
+    """ This is used to add a new training example (sentence/question) for a
+        particular intent """
     results = list(
         mongo_processor.add_training_example(
             request_data.data, intent, current_user.get_bot(), current_user.get_user()
@@ -82,6 +90,8 @@ async def add_training_examples(
 async def remove_training_examples(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function is used to delete a particular training example (question/sentence) from a list
+        of examples for a particular intent """
     mongo_processor.remove_document(
         TrainingExamples,
         request_data.data,
@@ -95,6 +105,7 @@ async def remove_training_examples(
 async def get_responses(
     utterance: str, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function returns the list of responses for a particular utterance of the bot """
     return {
         "data": list(mongo_processor.get_response(utterance, current_user.get_bot()))
     }
@@ -106,6 +117,8 @@ async def add_responses(
     utterance: str,
     current_user: User = Depends(auth.get_current_user),
 ):
+    """ This function adds a response to the list of responses for a particular utterance
+        of the bot """
     id = mongo_processor.add_text_response(
         request_data.data, utterance, current_user.get_bot(), current_user.get_user()
     )
@@ -116,6 +129,8 @@ async def add_responses(
 async def remove_responses(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function removes the bot response from the response list for a particular
+        utterance """
     mongo_processor.remove_document(
         Responses, request_data.data, current_user.get_bot(), current_user.get_user()
     )
@@ -128,6 +143,7 @@ async def remove_responses(
 async def add_stories(
     story: StoryRequest, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function is used to add a story (conversational flow) to the chatbot """
     return {
         "message": "Story added successfully",
         "data": {
@@ -143,6 +159,7 @@ async def add_stories(
 
 @router.get("/stories", response_model=Response)
 async def get_stories(current_user: User = Depends(auth.get_current_user)):
+    """ This returns the existing list of stories (conversation flows) of the bot """
     return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
 
 
@@ -150,6 +167,7 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
 async def get_story_from_intent(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function returns the utterance or response that is mapped to a particular intent """
     return {
         "data": mongo_processor.get_utterance_from_intent(
             intent, current_user.get_bot()
@@ -161,6 +179,8 @@ async def get_story_from_intent(
 async def chat(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
+    """ This function returns a bot response for a given text/query. It is basically
+        used to test the chat functionality of the bot """
     model = AgentProcessor.get_agent(current_user.get_bot())
     response = await model.handle_text(request_data.data)
     return {"data": {"response": response[0]["text"] if response else None}}
@@ -171,6 +191,7 @@ async def train(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(auth.get_current_user),
 ):
+    """ This is used to train the chatbot """
     ModelProcessor.is_training_inprogress(current_user.get_bot())
     ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
     background_tasks.add_task(
@@ -189,6 +210,7 @@ async def get_model_training_history(
 
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):
+    """ This function is used to deploy the model of the currently trained chatbot """
     endpoint = mongo_processor.get_endpoints(
         current_user.get_bot(), raise_exception=False
     )

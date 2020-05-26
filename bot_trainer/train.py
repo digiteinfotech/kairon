@@ -24,6 +24,7 @@ async def train_model(
     persist_nlu_training_data: bool = False,
     additional_arguments: Optional[Dict] = None,
 ):
+    """ Trains the rasa model internally, using functions from the rasa modules """
 
     with ExitStack() as stack:
         train_path = stack.enter_context(TempDirectoryPath(tempfile.mkdtemp()))
@@ -52,6 +53,8 @@ async def train_model_from_mongo(
     persist_nlu_training_data: bool = False,
     additional_arguments: Optional[Dict] = None,
 ):
+    """ Trains the rasa model, using the data that is loaded onto
+        Mongo, through the bot files """
     data_importer = MongoDataImporter(bot)
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
     return await train_model(

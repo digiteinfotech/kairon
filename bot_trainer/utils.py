@@ -38,6 +38,8 @@ class Utility:
 
     @staticmethod
     def check_empty_string(value: str):
+        """ Checks for an empty string. Returns True if empty or not a string,
+            and returns False if it is a string """
         if not value:
             return True
         if not value.strip():
@@ -47,6 +49,8 @@ class Utility:
 
     @staticmethod
     def prepare_nlu_text(example: Text, entities: List[Dict]):
+        """ This function converts the entity data into the format required for the
+            nlu file of the bot """
         if not Utility.check_empty_string(example):
             if entities:
                 for entity in entities:
@@ -58,17 +62,22 @@ class Utility:
 
     @staticmethod
     def validate_document_list(documents: List[BaseDocument]):
+        """ Returns the validation results (if the document schema is valid or not)
+            of the input documents """
         if documents:
             for document in documents:
                 document.validate()
 
     @staticmethod
     def load_yaml(file: Text):
+        """ Loads content from the .yaml file """
         with open(file) as fp:
             return yaml.load(fp, yaml.FullLoader)
 
     @staticmethod
     def load_evironment():
+        """ Loads the environment variables and their values from the
+            system.yaml file for defining the working environment of the app """
         environment = Utility.load_yaml(os.getenv("system_file", "./system.yaml"))
         for key in environment:
             if key in os.environ:
@@ -77,6 +86,8 @@ class Utility:
 
     @staticmethod
     def validate_fields(fields: Dict, data: Dict):
+        """ Checks if the input fields of a dictionary
+            are valid (not empty) and returns an error if not """
         error = ""
         for key, value in fields.items():
             if isinstance(value, StringField):
@@ -106,21 +117,26 @@ class Utility:
 
     @staticmethod
     def verify_password(plain_password, hashed_password):
+        """ Verifies the password with the hashed version of the password """
         return Utility.pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
     def get_password_hash(password):
+        """ Returns the hashed version of the input password """
         if not Utility.check_empty_string(password):
             return Utility.pwd_context.hash(password)
 
     @staticmethod
     def get_latest_file(folder):
+        """ Gets the latest file in a folder """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(glob.iglob(folder + "/*"), key=os.path.getctime)
 
     @staticmethod
     def check_empty_list_elements(items: List[Text]):
+        """ Checks if the input strings are empty. Returns True if empty and False,
+            if not """
         for item in items:
             if Utility.check_empty_string(item):
                 return True
@@ -128,6 +144,7 @@ class Utility:
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
+        """ Deploys the chatbot to the specified endpoint """
         if not endpoint or not endpoint.get("bot_endpoint"):
             raise AppException("Please configure the bot endpoint for deployment!")
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
@@ -226,6 +243,7 @@ class Utility:
 
     @staticmethod
     def valid_password(password: Text):
+        """Used to validate password against the password policy"""
         results = Utility.password_policy.test(password)
         if results:
             response = []

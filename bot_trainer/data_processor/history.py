@@ -12,6 +12,7 @@ class ChatHistory:
 
     @staticmethod
     def get_tracker_and_domain(bot: Text):
+        """ Returns the Mongo Tracker and Domain of the bot """
         domain = ChatHistory.mongo_processor.load_domain(bot)
         endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
         tracker = MongoTrackerStore(
@@ -25,6 +26,7 @@ class ChatHistory:
 
     @staticmethod
     def fetch_chat_history(bot: Text, sender, latest_history=False):
+        """ Returns the chat history of the user with the specified bot """
         events = ChatHistory.fetch_user_history(
             bot, sender, latest_history=latest_history
         )
@@ -32,6 +34,7 @@ class ChatHistory:
 
     @staticmethod
     def fetch_chat_users(bot: Text):
+        """ Returns the chat user list of the specified bot """
         _, tracker = ChatHistory.get_tracker_and_domain(bot)
         return tracker.keys()
 
@@ -78,6 +81,7 @@ class ChatHistory:
 
     @staticmethod
     def fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
+        """ Returns the chat history of the bot with a particular user """
         domain, tracker = ChatHistory.get_tracker_and_domain(bot)
         if latest_history:
             return tracker.retrieve(sender_id).as_dialogue().events
@@ -94,6 +98,8 @@ class ChatHistory:
 
     @staticmethod
     def visitor_hit_fallback(bot: Text):
+        """ Counts the number of times, the bot was unable to provide a response
+            to users """
         data_frame = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
             fallback_count = 0
@@ -107,6 +113,7 @@ class ChatHistory:
 
     @staticmethod
     def conversation_steps(bot: Text):
+        """ Returns the number of conversation steps of the chat between the bot and its users """
         """
         data_frame = data_frame.groupby(['sender_id', data_frame.event.ne('session_started')])
         data_frame = data_frame.size().reset_index()
@@ -133,6 +140,7 @@ class ChatHistory:
 
     @staticmethod
     def conversation_time(bot: Text):
+        """ Returns the duration of the chat between a bot and its users """
         data_frame = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
             return {}
@@ -156,11 +164,14 @@ class ChatHistory:
 
     @staticmethod
     def get_conversations(bot: Text):
+        """ Returns all the conversations of a bot with its users """
         _, tracker = ChatHistory.get_tracker_and_domain(bot)
         return list(tracker.conversations.find())
 
     @staticmethod
     def __fetch_history_metrics(bot: Text, show_session=False, filter_columns=None):
+        """ returns the dataframe on which the chat metrics will be calculated
+            for the conversations between the bot and the users """
         filter_events = ["user", "bot"]
         if show_session:
             filter_events.append("session_started")
