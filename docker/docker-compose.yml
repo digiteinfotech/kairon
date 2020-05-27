@@ -11,8 +11,8 @@ services:
     volumes:
       - mongo_data:/data/db
 	  
-  bot_augment-api:
-    image: digite/bot-augment-api:0.1
+  bot-augment-api:
+    image: digite/rasa-dx-augment:0.1
     networks:
       - chatbotnetwork
     container_name: bot-augment-api
@@ -24,10 +24,10 @@ services:
     volumes:
       - augment_tmp:/root/.cache/
     environment:
-      mongo_url: "mongodb://192.168.101.148:27019"
+      mongo_url: "mongodb://mongo:27017"
 
   bot_trainer_api:
-    image: digite/bot-trainer-api:latest
+    image: digite/rasa-dx-trainer:latest
     networks:
       - chatbotnetwork
     container_name: bot_trainer_api
@@ -47,7 +47,7 @@ services:
       augmentation_url: "http://bot-augment-api:8001/questions"
 
   bot_trainer_ui:
-    image: digite/bot-trainer-ui:latest
+    image: digite/rasa-dx-ui:latest
     networks:
       - chatbotnetwork
     container_name: bot_trainer_ui
@@ -57,7 +57,7 @@ services:
     ports:
       - 80:8080
     environment:
-      server: "http://bot_trainer_api:8001/"
+      server: "http://bot_trainer_api:81/"
 	  
   duckling:
     image: rasa/duckling
