@@ -34,7 +34,11 @@ slots:
   category:
     type: unfeaturized
   priority:
-    type: unfeaturized
+    type: categorical
+    values:
+    - low
+    - medium
+    - high
   ticketID:
     type: float
     initial_value: 1.0
