@@ -71,14 +71,14 @@ from .data_objects import (
 
 class MongoProcessor:
     async def upload_and_save(
-        self,
-        nlu: bytes,
-        domain: bytes,
-        stories: bytes,
-        config: bytes,
-        bot: Text,
-        user: Text,
-        overwrite: bool = True,
+            self,
+            nlu: bytes,
+            domain: bytes,
+            stories: bytes,
+            config: bytes,
+            bot: Text,
+            user: Text,
+            overwrite: bool = True,
     ):
         """Upload the training data to temporary path and then save into mongo."""
         data_path = Utility.save_files(nlu, domain, stories, config)
@@ -93,7 +93,7 @@ class MongoProcessor:
         return Utility.create_zip_file(nlu, domain, stories, config, bot)
 
     async def save_from_path(
-        self, path: Text, bot: Text, overwrite: bool = True, user="default"
+            self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
         """ This function reads the bot files, using the file path (input)
             for a particular bot (input) and saves data into objects.
@@ -107,6 +107,10 @@ class MongoProcessor:
             domain.check_missing_templates()
             story_steps = await StoryFileReader.read_from_files(story_files, domain)
             config = read_config_file(os.path.join(path, DEFAULT_CONFIG_PATH))
+
+            if overwrite:
+                self.delete_bot_data(bot, user)
+
             self.save_domain(domain, bot, user)
             self.save_stories(story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
@@ -121,6 +125,12 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
+    def delete_bot_data(self, bot: Text, user: Text):
+        self.delete_domain(bot, user)
+        self.delete_stories(bot, user)
+        self.delete_nlu(bot, user)
+        self.delete_config(bot, user)
+
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """ saves the nlu data (input) of the bot (input) into respective objects.
             Eg. story_files, nlu_files = get_core_nlu_files(os.path.join(main_bot_path, DEFAULT_DATA_PATH))
@@ -130,6 +140,13 @@ class MongoProcessor:
         self.__save_entity_synonyms(nlu.entity_synonyms, bot, user)
         self.__save_lookup_tables(nlu.lookup_tables, bot, user)
         self.__save_regex_features(nlu.regex_features, bot, user)
+
+    def delete_nlu(self, bot: Text, user: Text):
+        '''perform soft delete of nlu data for particular bot'''
+        TrainingExamples.objects(bot=bot).update(set__status=False, set__user=user)
+        EntitySynonyms.objects(bot=bot).update(set__status=False, set__user=user)
+        LookupTables.objects(bot=bot).update(set__status=False, set__user=user)
+        RegexFeatures.objects(bot=bot).update(set__status=False, set__user=user)
 
     def load_nlu(self, bot: Text) -> TrainingData:
         """ loads nlu data of the bot (input) from respective objects.
@@ -157,6 +174,15 @@ class MongoProcessor:
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
 
+    def delete_domain(self, bot: Text, user: Text):
+        '''perform soft delete on domain data for particular bot'''
+        Intents.objects(bot=bot).update(set__status=False, set__user=user)
+        Entities.objects(bot=bot).update(set__status=False, set__user=user)
+        Forms.objects(bot=bot).update(set__status=False, set__user=user)
+        Actions.objects(bot=bot).update(set__status=False, set__user=user)
+        Responses.objects(bot=bot).update(set__status=False, set__user=user)
+        Slots.objects(bot=bot).update(set__status=False, set__user=user)
+
     def load_domain(self, bot: Text) -> Domain:
         """ loads domain data of the bot (input) from respective objects.
             Eg. MongoProcessor.load_domain(bot_name) """
@@ -171,7 +197,7 @@ class MongoProcessor:
         }
         return Domain.from_dict(domain_dict)
 
-    def save_stories(self, story_steps: Text, bot: Text, user: Text):
+    def save_stories(self, story_steps: List[StoryStep], bot: Text, user: Text):
         """ saves the stories data (input) of the bot (input) into respective objects.
             Eg. story_files, nlu_files = get_core_nlu_files(os.path.join(main_path, DEFAULT_DATA_PATH))
                 domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
@@ -179,6 +205,10 @@ class MongoProcessor:
                 story_steps = loop.run_until_complete(StoryFileReader.read_from_files(story_files, domain))
                 MongoProcessor.save_stories(story_steps,bot_name,user_name) """
         self.__save_stories(story_steps, bot, user)
+
+    def delete_stories(self, bot: Text, user: Text):
+        """perform soft delete on stories data for particular bot"""
+        Stories.objects(bot=bot).update(set__status=False, set__user=user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """ loads the stories data of the bot (input) from the respective objects.
@@ -419,7 +449,7 @@ class MongoProcessor:
             return []
 
     def __extract_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -429,7 +459,7 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
@@ -691,6 +721,7 @@ class MongoProcessor:
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
     def save_config(self, config: dict, bot: Text, user: Text):
+        '''save bot pipeline and policies'''
         try:
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = config["pipeline"]
@@ -701,6 +732,10 @@ class MongoProcessor:
             config["user"] = user
             config_obj = Configs._from_son(config)
         config_obj.save()
+
+    def delete_config(self, bot: Text, user: Text):
+        """perform soft delete on bot pipeline and policies configuration"""
+        Configs.objects(bot=bot).update(set__status=False, set__user=user)
 
     def fetch_configs(self, bot: Text):
         """ Returns the configuration details of the bot (input).
@@ -740,17 +775,17 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-        self, examples: List[Text], intent: Text, bot: Text, user: Text
+            self, examples: List[Text], intent: Text, bot: Text, user: Text
     ):
         """ Adds a sentence/question (training example) for an intent of the bot.
             Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
         if not Utility.is_exist(
-            Intents, query={"name": intent, "bot": bot}, raise_error=False
+                Intents, query={"name": intent, "bot": bot}, raise_error=False
         ):
             self.add_intent(intent, bot, user)
         for example in examples:
             if Utility.is_exist(
-                TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
+                    TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
             ):
                 yield {
                     "text": example,
@@ -848,7 +883,7 @@ class MongoProcessor:
         )
         Entities(name=name, bot=bot, user=user).save()
         if not Utility.is_exist(
-            Slots, query={"name": name, "bot": bot}, raise_error=False
+                Slots, query={"name": name, "bot": bot}, raise_error=False
         ):
             Slots(name=name, type="text", bot=bot, user=user).save()
 
@@ -902,7 +937,7 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-            Actions, query={"name": name, "bot": bot}, raise_error=False
+                Actions, query={"name": name, "bot": bot}, raise_error=False
         ):
             Actions(name=name, bot=bot, user=user).save()
         return value["_id"].__str__()
@@ -922,7 +957,7 @@ class MongoProcessor:
             yield {"_id": value.id.__str__(), "value": val}
 
     def __check_response_existence(
-        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
@@ -970,14 +1005,14 @@ class MongoProcessor:
                 user=user,
                 start_checkpoints=[STORY_START],
             )
-            .save()
-            .to_mongo()
-            .to_dict()["_id"]
-            .__str__()
+                .save()
+                .to_mongo()
+                .to_dict()["_id"]
+                .__str__()
         )
 
     def __check_event_existence(
-        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_events = list(
             Stories.objects(bot=bot, status=True).aggregate(
@@ -1022,12 +1057,12 @@ class MongoProcessor:
                     return event.name
 
     def add_session_config(
-        self,
-        bot: Text,
-        user: Text,
-        id: Text = None,
-        sesssionExpirationTime: int = 60,
-        carryOverSlots: bool = True,
+            self,
+            bot: Text,
+            user: Text,
+            id: Text = None,
+            sesssionExpirationTime: int = 60,
+            carryOverSlots: bool = True,
     ):
         """ Adds a session configuration to the bot.
             Eg. MongoProcessor.add_session_config(bot_name,user_name) """
@@ -1140,13 +1175,13 @@ class AgentProcessor:
 class ModelProcessor:
     @staticmethod
     def set_training_status(
-        bot: Text,
-        user: Text,
-        status: Text,
-        start_timestamp: datetime = None,
-        end_timestamp: datetime = None,
-        model_path: Text = None,
-        exception: Text = None,
+            bot: Text,
+            user: Text,
+            status: Text,
+            start_timestamp: datetime = None,
+            end_timestamp: datetime = None,
+            model_path: Text = None,
+            exception: Text = None,
     ):
 
         doc = ModelTraining.objects(
@@ -1170,7 +1205,7 @@ class ModelProcessor:
     @staticmethod
     def is_training_inprogress(bot: Text, raise_exception=True):
         if ModelTraining.objects(
-            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
+                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
         ).count():
             if raise_exception:
                 raise AppException("Previous model training in progress.")

@@ -38,7 +38,7 @@ class TestMongoProcessor:
         assert (
                 loop.run_until_complete(
                     processor.save_from_path(
-                        "tests/testing_data/initial", "tests", "testUser"
+                        "tests/testing_data/initial", bot="tests", user="testUser"
                     )
                 )
                 is None
@@ -50,7 +50,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             loop.run_until_complete(
                 processor.save_from_path(
-                    "tests/testing_data/error", "tests", "testUser"
+                    "tests/testing_data/error", bot="tests", user="testUser"
                 )
             )
 
@@ -58,7 +58,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.new_event_loop()
         loop.run_until_complete(
-            processor.save_from_path("tests/testing_data/all", "all", "testUser")
+            processor.save_from_path("tests/testing_data/all", "all", user="testUser")
         )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
