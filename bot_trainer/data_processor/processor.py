@@ -217,9 +217,11 @@ class MongoProcessor:
 
     def __save_training_examples(self, training_examples, bot: Text, user: Text):
         if training_examples:
-            TrainingExamples.objects.insert(
-                list(self.__extract_training_examples(training_examples, bot, user))
-            )
+            new_examples = list(self.__extract_training_examples(training_examples, bot, user))
+            if new_examples:
+                TrainingExamples.objects.insert(
+                    new_examples
+                )
 
     def __extract_entities(self, entities):
         for entity in entities:
@@ -232,29 +234,47 @@ class MongoProcessor:
             yield entity_data
 
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
+        saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            training_data = TrainingExamples()
-            training_data.intent = training_example.data[TRAINING_EXAMPLE.INTENT.value]
-            training_data.text = training_example.text
-            training_data.bot = bot
-            training_data.user = user
-            if "entities" in training_example.data:
-                training_data.entities = list(
-                    self.__extract_entities(
-                        training_example.data[TRAINING_EXAMPLE.ENTITIES.value]
+            if training_example not in saved_training_examples:
+                training_data = TrainingExamples()
+                training_data.intent = training_example.data[TRAINING_EXAMPLE.INTENT.value]
+                training_data.text = training_example.text
+                training_data.bot = bot
+                training_data.user = user
+                if "entities" in training_example.data:
+                    training_data.entities = list(
+                        self.__extract_entities(
+                            training_example.data[TRAINING_EXAMPLE.ENTITIES.value]
+                        )
                     )
-                )
-            yield training_data
+                yield training_data
+
+    def __fetch_all_synonyms_value(self, bot: Text):
+        synonyms = list(EntitySynonyms.objects(bot=bot, status=True).aggregate([{
+            "$group": {
+                "_id": "$bot",
+                "values": {"$push": "$value"},
+            }
+        }]))
+        if synonyms:
+            return synonyms[0]['values']
+        else:
+            return []
 
     def __extract_synonyms(self, synonyms, bot: Text, user: Text):
+        saved_synonyms = self.__fetch_all_synonyms_value(bot)
         for key, value in synonyms.items():
-            yield EntitySynonyms(bot=bot, synonym=value, value=key, user=user)
+            if key not in saved_synonyms:
+                yield EntitySynonyms(bot=bot, synonym=value, value=key, user=user)
 
     def __save_entity_synonyms(self, entity_synonyms, bot: Text, user: Text):
         if entity_synonyms:
-            EntitySynonyms.objects.insert(
-                list(self.__extract_synonyms(entity_synonyms, bot, user))
-            )
+            new_synonyms = list(self.__extract_synonyms(entity_synonyms, bot, user))
+            if new_synonyms:
+                EntitySynonyms.objects.insert(
+                    new_synonyms
+                )
 
     def fetch_synonyms(self, bot: Text, status=True):
         """ Loads the entity synonyms of the bot (input).
@@ -287,17 +307,34 @@ class MongoProcessor:
     def __prepare_training_examples(self, bot: Text):
         return list(self.fetch_training_examples(bot))
 
+    def __fetch_all_lookup_values(self, bot: Text):
+        lookup_tables = list(LookupTables.objects(bot=bot, status=True).aggregate([{
+            "$group": {
+                "_id": "$bot",
+                "values": {"$push": "$value"},
+            }
+        }]))
+
+        if lookup_tables:
+            return lookup_tables[0]['values']
+        else:
+            return []
+
     def __extract_lookup_tables(self, lookup_tables, bot: Text, user: Text):
+        saved_lookup = self.__fetch_all_lookup_values(bot)
         for lookup_table in lookup_tables:
             name = lookup_table[LOOKUP_TABLE.NAME.value]
             for element in lookup_table[LOOKUP_TABLE.ELEMENTS.value]:
-                yield LookupTables(name=name, value=element, bot=bot, user=user)
+                if element not in saved_lookup:
+                    yield LookupTables(name=name, value=element, bot=bot, user=user)
 
     def __save_lookup_tables(self, lookup_tables, bot: Text, user: Text):
         if lookup_tables:
-            LookupTables.objects.insert(
-                list(self.__extract_lookup_tables(lookup_tables, bot, user))
-            )
+            new_lookup = list(self.__extract_lookup_tables(lookup_tables, bot, user))
+            if new_lookup:
+                LookupTables.objects.insert(
+                    new_lookup
+                )
 
     def fetch_lookup_tables(self, bot: Text, status=True):
         """ Returns the lookup tables of the bot (input).
@@ -314,18 +351,35 @@ class MongoProcessor:
     def __prepare_training_lookup_tables(self, bot: Text):
         return list(self.fetch_lookup_tables(bot))
 
+    def __fetch_all_regex_patterns(self, bot: Text):
+        regex_patterns = list(RegexFeatures.objects(bot=bot, status=True).aggregate([{
+            "$group": {
+                "_id": "$bot",
+                "patterns": {"$push": "$pattern"},
+            }
+        }]))
+
+        if regex_patterns:
+            return regex_patterns[0]['patterns']
+        else:
+            return []
+
     def __extract_regex_features(self, regex_features, bot: Text, user: Text):
+        saved_regex_patterns = self.__fetch_all_regex_patterns(bot)
         for regex_feature in regex_features:
-            regex_data = RegexFeatures(**regex_feature)
-            regex_data.bot = bot
-            regex_data.user = user
-            yield regex_data
+            if regex_feature['pattern'] not in saved_regex_patterns:
+                regex_data = RegexFeatures(**regex_feature)
+                regex_data.bot = bot
+                regex_data.user = user
+                yield regex_data
 
     def __save_regex_features(self, regex_features, bot: Text, user: Text):
         if regex_features:
-            RegexFeatures.objects.insert(
-                list(self.__extract_regex_features(regex_features, bot, user))
-            )
+            new_regex_patterns = list(self.__extract_regex_features(regex_features, bot, user))
+            if new_regex_patterns:
+                RegexFeatures.objects.insert(
+                    new_regex_patterns
+                )
 
     def fetch_regex_features(self, bot: Text, status=True):
         """ Returns the regex features of the bot (input).
@@ -510,40 +564,43 @@ class MongoProcessor:
             yield ResponseButton._from_son(button)
 
     def __extract_response_value(self, values: List[Dict], key, bot: Text, user: Text):
+        saved_responses = self.__fetch_list_of_response(bot)
         for value in values:
-            response = Responses()
-            response.name = key
-            response.bot = bot
-            response.user = user
-            if RESPONSE.Text.value in value:
-                response_text = ResponseText()
-                response_text.text = value[RESPONSE.Text.value]
-                if RESPONSE.IMAGE.value in value:
-                    response_text.image = value[RESPONSE.IMAGE.value]
-                if RESPONSE.CHANNEL.value in value:
-                    response_text.channel = value["channel"]
-                if RESPONSE.BUTTONS.value in value:
-                    response_text.buttons = list(
-                        self.__extract_response_button(value[RESPONSE.BUTTONS.value])
+            if value not in saved_responses:
+                response = Responses()
+                response.name = key
+                response.bot = bot
+                response.user = user
+                if RESPONSE.Text.value in value:
+                    response_text = ResponseText()
+                    response_text.text = value[RESPONSE.Text.value]
+                    if RESPONSE.IMAGE.value in value:
+                        response_text.image = value[RESPONSE.IMAGE.value]
+                    if RESPONSE.CHANNEL.value in value:
+                        response_text.channel = value["channel"]
+                    if RESPONSE.BUTTONS.value in value:
+                        response_text.buttons = list(
+                            self.__extract_response_button(value[RESPONSE.BUTTONS.value])
+                        )
+                    response.text = response_text
+                elif RESPONSE.CUSTOM.value in value:
+                    response.custom = ResponseCustom._from_son(
+                        {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
                     )
-                response.text = response_text
-            elif RESPONSE.CUSTOM.value in value:
-                response.custom = ResponseCustom._from_son(
-                    {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
-                )
-            yield response
+                yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
         responses_result = []
         for key, values in responses.items():
-            responses_result.extend(
-                list(self.__extract_response_value(values, key, bot, user))
-            )
+            responses_to_saved = list(self.__extract_response_value(values, key, bot, user))
+            responses_result.extend(responses_to_saved)
         return responses_result
 
     def __save_responses(self, responses, bot: Text, user: Text):
         if responses:
-            Responses.objects.insert(self.__extract_response(responses, bot, user))
+            new_responses = self.__extract_response(responses, bot, user)
+            if new_responses:
+                Responses.objects.insert(new_responses)
 
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
@@ -576,7 +633,7 @@ class MongoProcessor:
 
     def __fetch_slot_names(self, bot: Text):
         saved_slots = list(
-            Slots.objects(bot=bot).aggregate(
+            Slots.objects(bot=bot, status=True).aggregate(
                 [{"$group": {"_id": "$bot", "slots": {"$push": "$name"}}}]
             )
         )
@@ -653,29 +710,47 @@ class MongoProcessor:
                     type=event.type_name, name=event.key, value=event.value
                 )
 
+    def __fetch_story_block_names(self, bot: Text):
+        saved_stories = list(Stories.objects(bot=bot, status=True).aggregate([
+            {
+                "$group": {
+                    "_id": "$bot",
+                    "block": {"$push": "$block_name"},
+                }
+            }
+        ]))
+        result = []
+        if saved_stories:
+            result = saved_stories[0]["block"]
+        return result
+
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
+        saved_stories = self.__fetch_story_block_names(bot)
         for story_step in story_steps:
-            story_events = list(self.__extract_story_events(story_step.events))
-            story = Stories(
-                block_name=story_step.block_name,
-                start_checkpoints=[
-                    start_checkpoint.name
-                    for start_checkpoint in story_step.start_checkpoints
-                ],
-                end_checkpoints=[
-                    end_checkpoint.name for end_checkpoint in story_step.end_checkpoints
-                ],
-                events=story_events,
-            )
-            story.bot = bot
-            story.user = user
-            yield story
+            if story_step.block_name not in saved_stories:
+                story_events = list(self.__extract_story_events(story_step.events))
+                story = Stories(
+                    block_name=story_step.block_name,
+                    start_checkpoints=[
+                        start_checkpoint.name
+                        for start_checkpoint in story_step.start_checkpoints
+                    ],
+                    end_checkpoints=[
+                        end_checkpoint.name for end_checkpoint in story_step.end_checkpoints
+                    ],
+                    events=story_events,
+                )
+                story.bot = bot
+                story.user = user
+                yield story
 
     def __save_stories(self, story_steps, bot: Text, user: Text):
         if story_steps:
-            Stories.objects.insert(
-                list(self.__extract_story_step(story_steps, bot, user))
-            )
+            new_stories = list(self.__extract_story_step(story_steps, bot, user))
+            if new_stories:
+                Stories.objects.insert(
+                    new_stories
+                )
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
@@ -955,10 +1030,9 @@ class MongoProcessor:
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
             yield {"_id": value.id.__str__(), "value": val}
-
-    def __check_response_existence(
-            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
-    ):
+            
+            
+    def __fetch_list_of_response(self, bot: Text):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
                 [
@@ -978,6 +1052,13 @@ class MongoProcessor:
                 [items["texts"] + items["customs"] for items in saved_responses]
             )
         )
+
+        return saved_items;
+
+    def __check_response_existence(
+            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+    ):
+        saved_items = self.__fetch_list_of_response(bot)
 
         if response in saved_items:
             if raise_error:
@@ -1011,9 +1092,7 @@ class MongoProcessor:
                 .__str__()
         )
 
-    def __check_event_existence(
-            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
-    ):
+    def __fetch_list_of_events(self, bot: Text):
         saved_events = list(
             Stories.objects(bot=bot, status=True).aggregate(
                 [{"$group": {"_id": "$name", "events": {"$push": "$events"}}}]
@@ -1023,6 +1102,13 @@ class MongoProcessor:
         saved_items = list(
             itertools.chain.from_iterable([items["events"] for items in saved_events])
         )
+
+        return saved_items
+
+    def __check_event_existence(
+            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+    ):
+        saved_items = self.__fetch_list_of_events(bot)
 
         if events in saved_items:
             if raise_error:

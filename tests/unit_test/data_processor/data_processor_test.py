@@ -84,6 +84,39 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "unfeaturized"
 
+    def test_load_from_path_all_sccenario_append(self):
+        processor = MongoProcessor()
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(
+            processor.save_from_path("tests/testing_data/all",
+                                     "all",
+                                     overwrite=False,
+                                     user="testUser")
+        )
+        training_data = processor.load_nlu("all")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 283
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("all")
+        assert isinstance(story_graph, StoryGraph) == True
+        assert story_graph.story_steps.__len__() == 13
+        domain = processor.load_domain("all")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 8
+        assert domain.templates.keys().__len__() == 21
+        assert domain.entities.__len__() == 7
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 32
+        assert domain.intents.__len__() == 22
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "unfeaturized"
+
     def test_load_nlu(self):
         processor = MongoProcessor()
         training_data = processor.load_nlu("tests")
