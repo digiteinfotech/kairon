@@ -56,12 +56,13 @@ class ChatHistory:
                     }
 
                     if event_data["event"] not in ["session_started", "rewind"]:
-                        result["text"] = event_data.get("text")
-                        result["is_exists"] = event_data.get("text") in training_examples
-                        if result["is_exists"]:
-                            result["_id"] = ids[
-                                training_examples.index(event_data.get("text"))
-                            ]
+                        if event_data.get("text") :
+                            result["text"] = event_data.get("text")
+                            result["is_exists"] = event_data.get("text") in training_examples
+                            if result["is_exists"]:
+                                result["_id"] = ids[
+                                    training_examples.index(event_data.get("text"))
+                                ]
 
                     if event_data["event"] == "user":
                         parse_data = event_data["parse_data"]
@@ -73,7 +74,9 @@ class ChatHistory:
 
                     if event_data["event"] == "session_started" and not show_session:
                         continue
-                    yield result
+
+                    if result:
+                        yield result
                 else:
                     bot_action = (
                         event_data["name"] if event_data["event"] == "action" else None
