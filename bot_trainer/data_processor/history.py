@@ -48,14 +48,14 @@ class ChatHistory:
             for i in range(events.__len__()):
                 event = events[i]
                 event_data = event.as_dict()
-                if event_data["event"] not in ["action", "rewind"]:
+                if event_data["event"] not in ["action", "rewind", "slot"]:
                     result = {
                         "event": event_data["event"],
                         "time": datetime.fromtimestamp(event_data["timestamp"]).time(),
                         "date": datetime.fromtimestamp(event_data["timestamp"]).date(),
                     }
 
-                    if event_data["event"] not in ["session_started", "rewind", "slot"]:
+                    if event_data["event"] not in ["session_started", "rewind"]:
                         if event_data.get("text") :
                             result["text"] = event_data.get("text")
                             result["is_exists"] = event_data.get("text") in training_examples
