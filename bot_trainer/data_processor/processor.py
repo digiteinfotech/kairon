@@ -1188,21 +1188,15 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration already exists!")
             endpoint = Endpoints()
 
-        endpoint.bot_endpoint = (
-            EndPointBot(**endpoint_config.get("bot_endpoint"))
-            if endpoint_config.get("bot_endpoint")
-            else None
-        )
-        endpoint.action_endpoint = (
-            EndPointAction(**endpoint_config.get("action_endpoint"))
-            if endpoint_config.get("action_endpoint")
-            else None
-        )
-        endpoint.tracker_endpoint = (
-            EndPointTracker(**endpoint_config.get("tracker_endpoint"))
-            if endpoint_config.get("tracker_endpoint")
-            else None
-        )
+        if endpoint_config.get("bot_endpoint"):
+            endpoint.bot_endpoint = EndPointBot(**endpoint_config.get("bot_endpoint"))
+
+        if endpoint_config.get("action_endpoint"):
+            endpoint.action_endpoint = EndPointAction(**endpoint_config.get("action_endpoint"))
+
+        if endpoint_config.get("tracker_endpoint"):
+            endpoint.tracker_endpoint = EndPointTracker(**endpoint_config.get("tracker_endpoint"))
+
         endpoint.bot = bot
         endpoint.user = user
         return endpoint.save().to_mongo().to_dict()["_id"].__str__()

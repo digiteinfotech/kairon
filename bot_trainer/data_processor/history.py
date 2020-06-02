@@ -56,11 +56,11 @@ class ChatHistory:
                     }
 
                     if event_data["event"] not in ["session_started", "rewind"]:
-                        result["text"] = event_data["text"]
-                        result["is_exists"] = event_data["text"] in training_examples
+                        result["text"] = event_data.get("text")
+                        result["is_exists"] = event_data.get("text") in training_examples
                         if result["is_exists"]:
                             result["_id"] = ids[
-                                training_examples.index(event_data["text"])
+                                training_examples.index(event_data.get("text"))
                             ]
 
                     if event_data["event"] == "user":
