@@ -45,7 +45,7 @@ class ChatHistory:
             bot
         )
         if events:
-            event_list = ["user", "bot", "action"]
+            event_list = ["user", "bot"]
             if show_session:
                 event_list.append("session_started")
             for i in range(events.__len__()):
