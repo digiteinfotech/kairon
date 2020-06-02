@@ -45,24 +45,26 @@ class ChatHistory:
             bot
         )
         if events:
+            event_list = ["user", "bot", "action"]
+            if show_session:
+                event_list.append("session_started")
             for i in range(events.__len__()):
                 event = events[i]
                 event_data = event.as_dict()
-                if event_data["event"] not in ["action", "rewind", "slot"]:
+                if event_data["event"] in event_list:
                     result = {
                         "event": event_data["event"],
                         "time": datetime.fromtimestamp(event_data["timestamp"]).time(),
                         "date": datetime.fromtimestamp(event_data["timestamp"]).date(),
                     }
 
-                    if event_data["event"] not in ["session_started", "rewind"]:
-                        if event_data.get("text") :
-                            result["text"] = event_data.get("text")
-                            result["is_exists"] = event_data.get("text") in training_examples
-                            if result["is_exists"]:
-                                result["_id"] = ids[
-                                    training_examples.index(event_data.get("text"))
-                                ]
+                    if event_data.get("text") :
+                        result["text"] = event_data.get("text")
+                        result["is_exists"] = event_data.get("text") in training_examples
+                        if result["is_exists"]:
+                            result["_id"] = ids[
+                                training_examples.index(event_data.get("text"))
+                            ]
 
                     if event_data["event"] == "user":
                         parse_data = event_data["parse_data"]
@@ -71,9 +73,6 @@ class ChatHistory:
                     elif event_data["event"] == "bot":
                         if bot_action:
                             result["action"] = bot_action
-
-                    if event_data["event"] == "session_started" and not show_session:
-                        continue
 
                     if result:
                         yield result
