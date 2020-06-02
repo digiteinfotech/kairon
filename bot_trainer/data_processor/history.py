@@ -55,7 +55,7 @@ class ChatHistory:
                         "date": datetime.fromtimestamp(event_data["timestamp"]).date(),
                     }
 
-                    if event_data["event"] not in ["session_started", "rewind"]:
+                    if event_data["event"] not in ["session_started", "rewind", "slot"]:
                         if event_data.get("text") :
                             result["text"] = event_data.get("text")
                             result["is_exists"] = event_data.get("text") in training_examples
