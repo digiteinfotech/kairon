@@ -26,15 +26,15 @@ services:
     environment:
       mongo_url: "mongodb://mongo:27017"
 
-  bot_trainer_api:
+  bot-trainer-api:
     image: digite/rasa-dx-trainer:latest
     networks:
       - chatbotnetwork
-    container_name: bot_trainer_api
-    hostname: bot_trainer_api
+    container_name: bot-trainer-api
+    hostname: bot-trainer-api
     depends_on:
       - mongo
-      - bot_augment-api
+      - bot-augment-api
     ports:
       - 81:80
     volumes:
@@ -46,18 +46,18 @@ services:
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
       augmentation_url: "http://bot-augment-api:8001/questions"
 
-  bot_trainer_ui:
+  bot-trainer-ui:
     image: digite/rasa-dx-ui:latest
     networks:
       - chatbotnetwork
-    container_name: bot_trainer_ui
-    hostname: bot_trainer_ui
+    container_name: bot-trainer-ui
+    hostname: bot-trainer-ui
     depends_on:
-      - bot_trainer_api
+      - bot-trainer-api
     ports:
       - 80:8080
     environment:
-      server: "http://bot_trainer_api:81/"
+      server: "http://bot-trainer-api:81/"
 	  
   duckling:
     image: rasa/duckling
