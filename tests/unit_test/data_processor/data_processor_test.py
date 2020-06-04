@@ -477,6 +477,11 @@ class TestMongoProcessor:
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
 
+    def test_add_text_response_duplicate(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_text_response("Great", "utter_happy", "tests", "testUser")
+
     def test_get_text_response(self):
         processor = MongoProcessor()
         expected = ["Great, carry on!", "Great"]
@@ -502,11 +507,6 @@ class TestMongoProcessor:
             for item in actual
             if "text" in item["value"]
         )
-
-    def test_add_text_response_duplicate(self):
-        processor = MongoProcessor()
-        with pytest.raises(Exception):
-            processor.add_text_response("Great", "utter_happy", "tests", "testUser")
 
     def test_add_none_text_response(self):
         processor = MongoProcessor()
