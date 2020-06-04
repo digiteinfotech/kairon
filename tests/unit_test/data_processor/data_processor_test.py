@@ -935,12 +935,12 @@ class TestModelProcessor:
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 3)
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 3)
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 

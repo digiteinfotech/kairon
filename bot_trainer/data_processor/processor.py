@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Text, Dict, List
 
 from mongoengine import Document
+from mongoengine.queryset.visitor import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
@@ -846,7 +847,7 @@ class MongoProcessor:
 
     def get_intents(self, bot: Text):
         """ Returns the list of intents of the bot (input) """
-        intents = Intents.objects(bot=bot, status=True)
+        intents = Intents.objects(bot=bot, status=True).order_by("-timestamp")
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
@@ -899,7 +900,9 @@ class MongoProcessor:
         """ Yields training examples for an intent of the bot.
             Eg. MongoProcessor.get_training_examples(intent_name,bot_name) """
         training_examples = list(
-            TrainingExamples.objects(bot=bot, intent=intent, status=True)
+            TrainingExamples
+                .objects(bot=bot, intent=intent, status=True)
+            .order_by("-timestamp")
         )
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
@@ -1022,7 +1025,7 @@ class MongoProcessor:
     def get_response(self, name: Text, bot: Text):
         """ Yields bot response based on utterance name.
             Eg. MongoProcessor.get_response(utterance_name,bot_name) """
-        values = Responses.objects(bot=bot, status=True, name=name)
+        values = Responses.objects(bot=bot, status=True, name=name).order_by("-timestamp")
         for value in values:
             val = None
             if value.text:
@@ -1295,16 +1298,13 @@ class ModelProcessor:
     @staticmethod
     def is_daily_training_limit_exceeded(bot: Text, raise_exception=True):
         today = datetime.today()
+
         today_start = today.replace(hour=0, minute=0, second=0)
-        today_end = today.replace(hour=23, minute=59, second=59)
         doc_count = ModelTraining.objects(
             bot=bot,
-            start_timestamp__gte=today_start,
-            start_timestamp__lte=today_end,
-            end_timestamp__gte=today_start,
-            end_timestamp__lte=today_end,
+            start_timestamp__gte=today_start
         ).count()
-
+        print(doc_count)
         if doc_count >= Utility.environment["MODEL_TRAINING_LIMIT_PER_DAY"]:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
@@ -1315,7 +1315,7 @@ class ModelProcessor:
 
     @staticmethod
     def get_training_history(bot: Text):
-        for value in ModelTraining.objects(bot=bot):
+        for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
             item.pop("bot")
             item["_id"] = item["_id"].__str__()
