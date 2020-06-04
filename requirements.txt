@@ -27,8 +27,5 @@ py3dns
 black
 uvicorn
 validators
-<<<<<<< HEAD
-=======
 secure
 password-strength
->>>>>>> c17898f0a8368a827890dad28b0ae08fad49cb01
