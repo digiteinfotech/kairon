@@ -2,7 +2,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '30 19 * * *'
+    - cron: '10 20 * * *'
 
 jobs:
   scan:
@@ -17,11 +17,13 @@ jobs:
         name: Scanning augment image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ secrets.DOCKER_IMAGE_AUGMENT }}
+          image: ${{ secrets.DOCKER_IMAGE_AUGMENT }}:latest
+          issue_title: Trivy Scan Vulnerability - Augment image
       - uses: homoluctus/gitrivy@v2.0.0
         name: Scanning api image
         if: failure() || success()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          image: digite/rasa-dx-api
+          image: digite/rasa-dx-api:latest
+          issue_title: Trivy Scan Vulnersbility - Api image
 

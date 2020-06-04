@@ -40,3 +40,14 @@ jobs:
       with:
         name: pytest-report
         path: report.html
+    - name: Create Sphinx html
+      run: |
+        pip install -U sphinx
+        pip install sphinx_rtd_theme
+        cd docs
+        sphinx-quickstart
+        set system_file=../system.yaml
+        make html
+        ls
+        cd ..
+        ls
