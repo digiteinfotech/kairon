@@ -32,15 +32,10 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
+      id: pytest
       run: |
         python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
-    - name: Archive pytest results
-      uses: actions/upload-artifact@v1
-      if: failure()
-      with:
-        name: pytest-report
-        path: report.html
-    - name: Create Sphinx html
+   - name: Create Sphinx html
       run: |
         pip install -U sphinx
         pip install sphinx_rtd_theme
@@ -51,3 +46,10 @@ jobs:
         ls
         cd ..
         ls
+        pwd 
+    - name: Archive pytest results
+      uses: actions/upload-artifact@v1
+      if: failure()
+      with:
+        name: pytest-report
+        path: report.html
