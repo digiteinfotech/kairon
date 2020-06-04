@@ -40,12 +40,11 @@ jobs:
         pip install -U sphinx
         pip install sphinx_rtd_theme
         cd docs
-        sphinx-quickstart
+        # sphinx-quickstart
         set system_file=../system.yaml
         make html
         ls
         cd ..
-        ls
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
       if: failure()
