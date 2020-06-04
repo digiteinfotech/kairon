@@ -1,0 +1,89 @@
+Steps for code documentation with Sphinx
+========================================
+
+1. Install Sphinx (pip install -U sphinx) and its RTD theme (pip install sphinx_rtd_theme).
+2. Open the Command Prompt and navigate to the docs folder.
+3. Run the 'sphinx-quickstart' command for creation of a new project.
+4. Make the following changes in the conf.py file ->
+
+	a. Uncomment the following code to set the parent path:
+		
+		import os
+		import sys
+		sys.path.insert(0, os.path.abspath('.'))
+
+	b. Change the html theme to "sphinx_rtd_theme":
+
+		html_theme = "sphinx_rtd_theme"
+		
+5. Create the individual .rst files for the various scripts to be documented, with the appropriate title and the respective Python script included in the file.
+
+(Eg ->
+
+Page Title
+==========
+.. automodule:: <Python script path>
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+)
+
+6. Add the names of the .rst files created, in the index.rst file.
+7. Once the changes are made, run the "set system_file=../system.yaml" command and then the 'make html' command to generate the html files (The html pages will be in _build\html).
+8. For subsequent changes in the project, we need to first run the 'make clean' command before the 'make html' command, to effect the changes made.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#5. Create the individual .rst files for the various scripts to be documented, with the appropriate title and the respective Python script included in the file.
+
+#(Eg ->
+
+#Page Title
+#==========
+#.. automodule:: <Python script path>
+#    :members:
+#    :undoc-members:
+#    :show-inheritance:
+
+#)
+
+#6. Add the names of the .rst files created, in the index.rst file.

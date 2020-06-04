@@ -1,6 +1,9 @@
-from pydantic import BaseModel, validator, ValidationError
-from typing import List, Any
 from enum import Enum
+from typing import List, Any, Dict
+
+from pydantic import BaseModel, validator, SecretStr
+
+from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 
 
@@ -70,3 +73,58 @@ class StoryRequest(BaseModel):
 
     def get_events(self):
         return [event.dict() for event in self.events]
+
+
+class RegisterAccount(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    password: SecretStr
+    confirm_password: SecretStr
+    account: str
+    bot: str
+
+    @validator("password")
+    def validate_password(cls, v, values, **kwargs):
+        try:
+            Utility.valid_password(v.get_secret_value());
+        except AppException as e:
+            raise ValueError(str(e))
+        return v
+
+    @validator("confirm_password")
+    def validate_confirm_password(cls, v, values, **kwargs):
+        if "password" in values and v.get_secret_value() != values["password"].get_secret_value():
+            raise ValueError("Password and Confirm Password does not match")
+        return v
+
+
+class EndPointBot(BaseModel):
+    url: str
+    token: str = None
+    token_type: str = None
+
+
+class EndPointAction(BaseModel):
+    url: str
+
+
+class EndPointTracker(BaseModel):
+    type: str = "mongo"
+    url: str
+    db: str
+    username: str = None
+    password: str = None
+    auth_source: str = None
+
+
+class Endpoint(BaseModel):
+    bot_endpoint: EndPointBot = None
+    action_endpoint: EndPointAction = None
+    tracker_endpoint: EndPointTracker = None
+
+
+class Config(BaseModel):
+    language: str = "en"
+    pipeline: List[Dict]
+    policies: List[Dict]

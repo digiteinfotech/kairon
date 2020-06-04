@@ -1,16 +1,27 @@
-import pytest
+import asyncio
+import os
+
 from mongoengine import connect
+from mongoengine.errors import ValidationError
+import pytest
+from datetime import datetime
+from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 
-from bot_trainer.data_processor.data_objects import *
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor
-import os
+from bot_trainer.data_processor.data_objects import (TrainingExamples,
+                                                     Slots,
+                                                     Entities,
+                                                     Intents,
+                                                     Actions,
+                                                     Responses,
+                                                     ModelTraining
+                                                     )
+from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from bot_trainer.exceptions import AppException
+from bot_trainer.train import train_model_from_mongo, start_training
 from bot_trainer.utils import Utility
-from bot_trainer.train import train_model_from_mongo
-import asyncio
-from rasa.core.agent import Agent
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -23,19 +34,65 @@ class TestMongoProcessor:
 
     def test_load_from_path(self):
         processor = MongoProcessor()
+        loop = asyncio.new_event_loop()
         assert (
-            processor.save_from_path("tests/testing_data/initial", "tests", "testUser")
-            is None
+                loop.run_until_complete(
+                    processor.save_from_path(
+                        "tests/testing_data/initial", bot="tests", user="testUser"
+                    )
+                )
+                is None
         )
 
     def test_load_from_path_error(self):
         processor = MongoProcessor()
+        loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            processor.save_from_path("tests/testing_data/error", "tests", "testUser")
+            loop.run_until_complete(
+                processor.save_from_path(
+                    "tests/testing_data/error", bot="tests", user="testUser"
+                )
+            )
 
     def test_load_from_path_all_sccenario(self):
         processor = MongoProcessor()
-        processor.save_from_path("tests/testing_data/all", "all", "testUser")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(
+            processor.save_from_path("tests/testing_data/all", "all", user="testUser")
+        )
+        training_data = processor.load_nlu("all")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 283
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("all")
+        assert isinstance(story_graph, StoryGraph) == True
+        assert story_graph.story_steps.__len__() == 13
+        domain = processor.load_domain("all")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 8
+        assert domain.templates.keys().__len__() == 21
+        assert domain.entities.__len__() == 7
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 32
+        assert domain.intents.__len__() == 22
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "unfeaturized"
+
+    def test_load_from_path_all_sccenario_append(self):
+        processor = MongoProcessor()
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(
+            processor.save_from_path("tests/testing_data/all",
+                                     "all",
+                                     overwrite=False,
+                                     user="testUser")
+        )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
         assert training_data.training_examples.__len__() == 283
@@ -130,71 +187,115 @@ class TestMongoProcessor:
 
     def test_add_training_example(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example(["Hi"], "greeting", "tests", "testUser"))
-        assert results[0]['_id']
-        assert results[0]['text'] == "Hi"
-        assert results[0]['message'] == "Training Example added successfully!"
+        results = list(
+            processor.add_training_example(["Hi"], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"]
+        assert results[0]["text"] == "Hi"
+        assert results[0]["message"] == "Training Example added successfully!"
 
     def test_add_same_training_example(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example(["Hi"], "greeting", "tests", "testUser"))
-        assert results[0]['_id'] is None
-        assert results[0]['text'] == "Hi"
-        assert results[0]['message'] == "Training Example already exists!"
+        results = list(
+            processor.add_training_example(["Hi"], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"] is None
+        assert results[0]["text"] == "Hi"
+        assert results[0]["message"] == "Training Example already exists!"
 
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example([None], "greeting", "tests", "testUser"))
-        assert results[0]['_id'] is None
-        assert results[0]['text'] is None
-        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+        results = list(
+            processor.add_training_example([None], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"] is None
+        assert results[0]["text"] is None
+        assert (
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
+        )
 
     def test_add_training_example_empty_text(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example([""], "greeting", "tests", "testUser"))
-        assert results[0]['_id'] is None
-        assert results[0]['text'] == ""
-        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+        results = list(
+            processor.add_training_example([""], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"] is None
+        assert results[0]["text"] == ""
+        assert (
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
+        )
 
     def test_add_training_example_blank_text(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example(["  "], "greeting", "tests", "testUser"))
-        assert results[0]['_id'] is None
-        assert results[0]['text'] == "  "
-        assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+        results = list(
+            processor.add_training_example(["  "], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"] is None
+        assert results[0]["text"] == "  "
+        assert (
+                results[0]["message"]
+                == "Training Example name and text cannot be empty or blank spaces"
+        )
 
     def test_add_training_example_none_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            results = list(processor.add_training_example(["Hi! How are you"], None, "tests", "testUser"))
-            assert results[0]['_id'] is None
-            assert results[0]['text'] == "Hi! How are you"
-            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
-
+            results = list(
+                processor.add_training_example(
+                    ["Hi! How are you"], None, "tests", "testUser"
+                )
+            )
+            assert results[0]["_id"] is None
+            assert results[0]["text"] == "Hi! How are you"
+            assert (
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
+            )
 
     def test_add_training_example_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            results = list(processor.add_training_example(["Hi! How are you"], "", "tests", "testUser"))
-            assert results[0]['_id'] is None
-            assert results[0]['text'] == "Hi! How are you"
-            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+            results = list(
+                processor.add_training_example(
+                    ["Hi! How are you"], "", "tests", "testUser"
+                )
+            )
+            assert results[0]["_id"] is None
+            assert results[0]["text"] == "Hi! How are you"
+            assert (
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
+            )
 
     def test_add_training_example_blank_intent(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            results = list(processor.add_training_example(["Hi! How are you"], "  ", "tests", "testUser"))
-            assert results[0]['_id'] is None
-            assert results[0]['text'] == "Hi! How are you"
-            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+            results = list(
+                processor.add_training_example(
+                    ["Hi! How are you"], "  ", "tests", "testUser"
+                )
+            )
+            assert results[0]["_id"] is None
+            assert results[0]["text"] == "Hi! How are you"
+            assert (
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
+            )
 
     def test_add_empty_training_example(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            results = list(processor.add_training_example([""], None, "tests", "testUser"))
-            assert results[0]['_id'] is None
-            assert results[0]['text'] == "Hi! How are you"
-            assert results[0]['message'] == "Training Example name and text cannot be empty or blank spaces"
+            results = list(
+                processor.add_training_example([""], None, "tests", "testUser")
+            )
+            assert results[0]["_id"] is None
+            assert results[0]["text"] == "Hi! How are you"
+            assert (
+                    results[0]["message"]
+                    == "Training Example name and text cannot be empty or blank spaces"
+            )
 
     def test_get_training_examples(self):
         processor = MongoProcessor()
@@ -202,7 +303,6 @@ class TestMongoProcessor:
         actual = list(processor.get_training_examples("greet", "tests"))
         assert actual.__len__() == expected.__len__()
         assert all(a_val["text"] in expected for a_val in actual)
-
 
     def test_get_all_training_examples(self):
         processor = MongoProcessor()
@@ -212,16 +312,21 @@ class TestMongoProcessor:
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example(
-            ["Log a [critical issue](priority)"], "get_priority", "tests", "testUser"
-        ))
-        assert results[0]['_id']
-        assert results[0]['text'] == "Log a [critical issue](priority)"
-        assert results[0]['message'] == "Training Example added successfully!"
+        results = list(
+            processor.add_training_example(
+                ["Log a [critical issue](priority)"],
+                "get_priority",
+                "tests",
+                "testUser",
+            )
+        )
+        assert results[0]["_id"]
+        assert results[0]["text"] == "Log a [critical issue](priority)"
+        assert results[0]["message"] == "Training Example added successfully!"
         intents = processor.get_intents("tests")
-        assert any("get_priority" == intent['name'] for intent in intents)
+        assert any("get_priority" == intent["name"] for intent in intents)
         entities = processor.get_entities("tests")
-        assert any("priority" == entity['name'] for entity in entities)
+        assert any("priority" == entity["name"] for entity in entities)
         new_training_example = TrainingExamples.objects(bot="tests").get(
             text="Log a critical issue"
         )
@@ -234,15 +339,19 @@ class TestMongoProcessor:
 
     def test_get_training_examples_with_entities(self):
         processor = MongoProcessor()
-        results = list(processor.add_training_example(
-            ["Make [TKT456](ticketID) a [critical issue](priority)"],
-            "get_priority",
-            "tests",
-            "testUser",
-        ))
-        assert results[0]['_id']
-        assert results[0]['text'] == "Make [TKT456](ticketID) a [critical issue](priority)"
-        assert results[0]['message'] == "Training Example added successfully!"
+        results = list(
+            processor.add_training_example(
+                ["Make [TKT456](ticketID) a [critical issue](priority)"],
+                "get_priority",
+                "tests",
+                "testUser",
+            )
+        )
+        assert results[0]["_id"]
+        assert (
+                results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+        )
+        assert results[0]["message"] == "Training Example added successfully!"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="ticketID")
@@ -265,14 +374,12 @@ class TestMongoProcessor:
 
     def test_delete_training_example(self):
         processor = MongoProcessor()
-        training_examples = TrainingExamples.objects(
-            bot="tests", intent="get_priority", status=True
-        )
+        training_examples = list(processor.get_training_examples(intent="get_priority", bot="tests"))
         expected_length = training_examples.__len__() - 1
         training_example = training_examples[0]
-        expected_text = training_example.text
+        expected_text = training_example['text']
         processor.remove_document(
-            TrainingExamples, training_example.id, "tests", "testUser"
+            TrainingExamples, training_example['_id'], "tests", "testUser"
         )
         new_training_examples = list(
             processor.get_training_examples(intent="get_priority", bot="tests")
@@ -370,6 +477,11 @@ class TestMongoProcessor:
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
 
+    def test_add_text_response_duplicate(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_text_response("Great", "utter_happy", "tests", "testUser")
+
     def test_get_text_response(self):
         processor = MongoProcessor()
         expected = ["Great, carry on!", "Great"]
@@ -383,11 +495,11 @@ class TestMongoProcessor:
 
     def test_delete_text_response(self):
         processor = MongoProcessor()
-        responses = Responses.objects(bot="tests", name="utter_happy")
+        responses = list(processor.get_response(name="utter_happy", bot="tests"))
         expected_length = responses.__len__() - 1
         response = responses[0]
-        expected_text = response.text.text
-        processor.remove_document(Responses, response.id, "tests", "testUser")
+        expected_text = response['value']['text']
+        processor.remove_document(Responses, response['_id'], "tests", "testUser")
         actual = list(processor.get_response("utter_happy", "tests"))
         assert actual.__len__() == expected_length
         assert all(
@@ -395,11 +507,6 @@ class TestMongoProcessor:
             for item in actual
             if "text" in item["value"]
         )
-
-    def test_add_text_response_duplicate(self):
-        processor = MongoProcessor()
-        with pytest.raises(Exception):
-            processor.add_text_response("Great", "utter_happy", "tests", "testUser")
 
     def test_add_none_text_response(self):
         processor = MongoProcessor()
@@ -577,6 +684,24 @@ class TestMongoProcessor:
             model = loop.run_until_complete(train_model_from_mongo("test"))
             assert model
 
+    def test_start_training_done(self):
+        model_path = start_training("tests", "testUser")
+        assert model_path
+
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+        assert model_training.__len__() == 1
+        assert model_training.first().model_path == model_path
+
+    def test_start_training_fail(self):
+        with pytest.raises(AppException) as exp:
+            assert start_training("test", "testUser")
+
+        assert str(exp.value) == "Training data does not exists!"
+
+        model_training = ModelTraining.objects(bot="test", status="Fail")
+        assert model_training.__len__() == 1
+        assert model_training.first().exception in str(exp.value)
+
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -586,7 +711,6 @@ class TestMongoProcessor:
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_bot_endpoint_empty_url(self):
         processor = MongoProcessor()
@@ -597,17 +721,15 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_bot_endpoint(self):
         processor = MongoProcessor()
         config = {"bot_endpoint": {"url": "http://localhost:5000/"}}
         processor.add_endpoints(config, bot="tests1", user="testUser")
         endpoint = processor.get_endpoints("tests1")
-        assert endpoint["bot_endpoint"].get('url') == "http://localhost:5000/"
+        assert endpoint["bot_endpoint"].get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint") is None
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_action_endpoint_empty_url(self):
         processor = MongoProcessor()
@@ -618,7 +740,6 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_action_endpoint(self):
         processor = MongoProcessor()
@@ -626,9 +747,8 @@ class TestMongoProcessor:
         processor.add_endpoints(config, bot="tests2", user="testUser")
         endpoint = processor.get_endpoints("tests2")
         assert endpoint.get("bot_endpoint") is None
-        assert endpoint.get("action_endpoint").get('url') == "http://localhost:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("tracker") is None
-        assert endpoint.get("bot")
 
     def test_add_endpoints_add_tracker_endpoint_missing_db(self):
         processor = MongoProcessor()
@@ -639,48 +759,84 @@ class TestMongoProcessor:
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker_endpoint") is None
-            assert endpoint.get("bot")
-
 
     def test_add_endpoints_add_tracker_endpoint_invalid_url(self):
         processor = MongoProcessor()
-        config = {"tracker_endpoint": {"url": "mongo://localhost:27017", "db": "conversations"}}
+        config = {
+            "tracker_endpoint": {
+                "url": "mongo://localhost:27017",
+                "db": "conversations",
+            }
+        }
         with pytest.raises(AppException):
             processor.add_endpoints(config, bot="tests3", user="testUser")
             endpoint = processor.get_endpoints("tests3")
             assert endpoint.get("bot_endpoint") is None
             assert endpoint.get("action_endpoint") is None
             assert endpoint.get("tracker") is None
-            assert endpoint.get("bot")
 
     def test_add_endpoints_add_tracker_endpoint(self):
         processor = MongoProcessor()
-        config = {"tracker_endpoint": {"url": "mongodb://localhost:27017/", "db": "conversations"}}
+        config = {
+            "tracker_endpoint": {
+                "url": "mongodb://localhost:27017/",
+                "db": "conversations",
+            }
+        }
         processor.add_endpoints(config, bot="tests3", user="testUser")
         endpoint = processor.get_endpoints("tests3")
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
-        assert endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        assert (
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
-        assert endpoint.get("bot")
-
 
     def test_update_endpoints(self):
         processor = MongoProcessor()
-        config = {"action_endpoint": {"url": "http://localhost:8000/"},
-                  "bot_endpoint": {"url": "http://localhost:5000/"},
-                  "tracker_endpoint": {"url": "mongodb://localhost:27017/", "db": "conversations"}}
+        config = {
+            "action_endpoint": {"url": "http://localhost:8000/"},
+            "bot_endpoint": {"url": "http://localhost:5000/"},
+            "tracker_endpoint": {
+                "url": "mongodb://localhost:27017/",
+                "db": "conversations",
+            },
+        }
         processor.add_endpoints(config, bot="tests", user="testUser")
         endpoint = processor.get_endpoints("tests")
         assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
-        assert endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        assert (
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        )
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
-        assert endpoint.get("bot")
 
 
+    def test_update_endpoints_any(self):
+        processor = MongoProcessor()
+        config = {
+            "action_endpoint": {"url": "http://127.0.0.1:8000/"},
+            "bot_endpoint": {"url": "http://127.0.0.1:5000/"},
+        }
+        processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint").get("url") == "http://127.0.0.1:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://127.0.0.1:8000/"
+        assert (
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        )
+        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
+        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+
+    def test_download_data_files(self):
+        processor = MongoProcessor()
+        file = processor.download_files("tests")
+        assert file.endswith(".zip")
+
+
+# pylint: disable=R0201
 class TestAgentProcessor:
     def test_get_agent(self):
         agent = AgentProcessor.get_agent("tests")
@@ -694,3 +850,102 @@ class TestAgentProcessor:
         with pytest.raises(AppException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
+
+class TestModelProcessor:
+    @pytest.fixture(autouse=True)
+    def init_connection(self):
+        Utility.load_evironment()
+        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+
+    @pytest.fixture
+    def test_set_training_status_inprogress(self):
+        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
+        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
+
+        return model_training
+
+    def test_set_training_status_Done(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Done",
+                                           model_path="model_path"
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+
+        assert model_training.count() == 2
+        assert model_training[1].id == training_status_inprogress_id
+        assert model_training[1].bot == "tests"
+        assert model_training[1].user == "testUser"
+        assert model_training[1].status == "Done"
+        assert model_training[1].model_path == "model_path"
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Fail",
+                                           model_path=None,
+                                           exception="exception occurred while training model."
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Fail")
+
+        assert model_training.__len__() == 1
+        assert model_training.first().id == training_status_inprogress_id
+        assert model_training.first().bot == "tests"
+        assert model_training.first().user == "testUser"
+        assert model_training.first().status == "Fail"
+        assert model_training.first().model_path is None
+        assert model_training.first().exception == "exception occurred while training model."
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_is_training_inprogress_False(self):
+        actual_response = ModelProcessor.is_training_inprogress("tests")
+        assert actual_response is False
+
+    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
+        assert actual_response is True
+
+    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_training_inprogress("tests")
+
+        assert str(exp.value) == "Previous model training in progress."
+
+    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 5)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        assert actual_response is False
+
+    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        assert actual_response is True
+
+    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+
+        assert str(exp.value) == "Daily model training limit exceeded."
+
+    def test_get_training_history(self):
+        actual_response = ModelProcessor.get_training_history("tests")
+        assert actual_response

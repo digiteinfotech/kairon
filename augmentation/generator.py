@@ -1,12 +1,15 @@
 import itertools
+from string import punctuation
 
+import gensim.downloader as api
 import spacy
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
-import gensim.downloader as api
-from string import punctuation
+
 
 class QuestionGenerator:
+    """ This class defines the functions and models required to generate variations
+        for a given sentence/question """
     nlp = spacy.load("en_core_web_sm")
     sentence_transformer = SentenceTransformer('bert-large-nli-stsb-mean-tokens')
     model = api.load('word2vec-google-news-300')
@@ -14,6 +17,8 @@ class QuestionGenerator:
 
     @staticmethod
     def get_synonyms_from_embedding(text: str):
+        """ This function uses the google word2vec model to generate synonyms
+            for a given word """
         tokens = [doc.text for doc in QuestionGenerator.nlp(text)
                   if not doc.is_punct and not doc.is_stop and not doc.is_quote]
         token_list = {}
@@ -23,16 +28,21 @@ class QuestionGenerator:
                 synonyms = set([str(word).lower().replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
                 if synonyms.__len__() > 0:
                     token_list[token] = list(synonyms)
-            except:
+            except KeyError:
                 pass
         return token_list
 
     @staticmethod
     def checkDistance(source, target):
+        """ This function checks how contextually similar two sentences/questions are
+            and returns a value between 0 and 1 (0 being the least similar and 1 being the most) """
         return 1 - cosine(source, target)
 
     @staticmethod
     async def generateQuestions(texts):
+        """ This function generates a list of variations for a given sentence/question.
+            E.g. QuestionGenerator.generateQuestions('your question') will return the list
+            of variations for that particular question """
         result = []
         if type(texts) == str:
             texts = [texts]

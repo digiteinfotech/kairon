@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
-from bot_trainer.exceptions import AppException
-from typing import Text, List, Dict
+from .constant import MODEL_TRAINING_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -15,6 +14,8 @@ from mongoengine import (
     DictField,
     DynamicField,
 )
+from pymongo.errors import InvalidURI
+from pymongo.uri_parser import parse_uri
 from rasa.core.slots import (
     CategoricalSlot,
     FloatSlot,
@@ -23,11 +24,10 @@ from rasa.core.slots import (
     TextSlot,
     BooleanSlot,
 )
-
-from bot_trainer.utils import Utility
 from validators import url, ValidationFailure
-from pymongo.uri_parser import parse_uri
-from pymongo.errors import InvalidURI
+
+from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
 
 
 class Entity(EmbeddedDocument):
@@ -284,7 +284,7 @@ class Slots(Document):
                 self.max_value = 1.0
             if self.min_value < self.max_value:
                 error = "FloatSlot must have min_value < max_value"
-            if not isinstance(self.value, int):
+            if not isinstance(self.initial_value, int):
                 if error:
                     error += "\n"
                 error = "FloatSlot initial_value must be numeric value"
@@ -326,7 +326,7 @@ class Stories(Document):
 
 class Configs(Document):
     language = StringField(required=True, default="en")
-    pipeline = ListField(DictField(), required=True)
+    pipeline = DynamicField(required=True)
     policies = ListField(DictField(), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -392,3 +392,22 @@ class Endpoints(Document):
 
         if self.action_endpoint:
             self.action_endpoint.validate()
+
+
+class ModelTraining(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    status = StringField(default=MODEL_TRAINING_STATUS.INPROGRESS.value)
+    start_timestamp = DateTimeField(default=None)
+    end_timestamp = DateTimeField(default=None)
+    model_path = StringField(default=None)
+    exception = StringField(default=None)
+
+
+class ModelDeployment(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    model_name = StringField(required=True)
+    server = StringField(required=True)
+    status = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
