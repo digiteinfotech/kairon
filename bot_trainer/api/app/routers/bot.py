@@ -21,6 +21,7 @@ from bot_trainer.data_processor.processor import (
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import start_training
 from bot_trainer.utils import Utility
+import os
 
 router = APIRouter()
 auth = Authentication()
@@ -243,7 +244,7 @@ async def upload_Files(
 async def download_data(current_user: User = Depends(auth.get_current_user),):
     """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
     file = mongo_processor.download_files(current_user.get_bot())
-    return FileResponse(file)
+    return FileResponse(file, filename=os.path.basename(file))
 
 
 @router.get("/download_model")
@@ -251,7 +252,7 @@ async def download_model(current_user: User = Depends(auth.get_current_user),):
     """Download latest trained model file"""
     try:
         model_path = AgentProcessor.get_latest_model(current_user.get_bot())
-        return FileResponse(model_path)
+        return FileResponse(model_path, filename=os.path.basename(model_path))
     except Exception as e:
         return AppException(str(e))
 

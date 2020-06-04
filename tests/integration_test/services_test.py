@@ -206,6 +206,7 @@ def test_upload():
         files=files,
     )
     actual = response.json()
+    print(actual)
     assert actual["message"] == "Data uploaded successfully!"
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -341,6 +342,7 @@ def test_remove_training_examples():
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 9
+    print(training_examples)
     response = client.delete(
         "/api/bot/training_examples",
         json={"data": training_examples["data"][0]["_id"]},
@@ -433,6 +435,7 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
+    print(training_examples)
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/response",

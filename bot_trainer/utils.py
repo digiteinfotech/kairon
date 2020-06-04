@@ -259,3 +259,10 @@ class Utility:
 
             if response:
                 raise AppException("\n".join(response))
+
+    @staticmethod
+    def delete_document(documents : List[Document], bot: Text, user: Text):
+        for document in documents:
+            doc_list = document.objects(bot=bot)
+            if doc_list:
+                doc_list.update(set__status=False, set__user=user)

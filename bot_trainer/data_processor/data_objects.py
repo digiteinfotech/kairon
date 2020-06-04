@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-
+from .constant import MODEL_TRAINING_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -397,8 +397,17 @@ class Endpoints(Document):
 class ModelTraining(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    status = StringField(required=True)
+    status = StringField(default=MODEL_TRAINING_STATUS.INPROGRESS.value)
     start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     model_path = StringField(default=None)
     exception = StringField(default=None)
+
+
+class ModelDeployment(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    model_name = StringField(required=True)
+    server = StringField(required=True)
+    status = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

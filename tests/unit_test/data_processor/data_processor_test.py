@@ -374,14 +374,12 @@ class TestMongoProcessor:
 
     def test_delete_training_example(self):
         processor = MongoProcessor()
-        training_examples = TrainingExamples.objects(
-            bot="tests", intent="get_priority", status=True
-        )
+        training_examples = list(processor.get_training_examples(intent="get_priority", bot="tests"))
         expected_length = training_examples.__len__() - 1
         training_example = training_examples[0]
-        expected_text = training_example.text
+        expected_text = training_example['text']
         processor.remove_document(
-            TrainingExamples, training_example.id, "tests", "testUser"
+            TrainingExamples, training_example['_id'], "tests", "testUser"
         )
         new_training_examples = list(
             processor.get_training_examples(intent="get_priority", bot="tests")
@@ -492,11 +490,11 @@ class TestMongoProcessor:
 
     def test_delete_text_response(self):
         processor = MongoProcessor()
-        responses = Responses.objects(bot="tests", name="utter_happy")
+        responses = list(processor.get_response(name="utter_happy", bot="tests"))
         expected_length = responses.__len__() - 1
         response = responses[0]
-        expected_text = response.text.text
-        processor.remove_document(Responses, response.id, "tests", "testUser")
+        expected_text = response['value']['text']
+        processor.remove_document(Responses, response['_id'], "tests", "testUser")
         actual = list(processor.get_response("utter_happy", "tests"))
         assert actual.__len__() == expected_length
         assert all(
@@ -815,6 +813,23 @@ class TestMongoProcessor:
         assert endpoint.get("tracker_endpoint").get("db") == "conversations"
         assert endpoint.get("tracker_endpoint").get("type") == "mongo"
 
+
+    def test_update_endpoints_any(self):
+        processor = MongoProcessor()
+        config = {
+            "action_endpoint": {"url": "http://127.0.0.1:8000/"},
+            "bot_endpoint": {"url": "http://127.0.0.1:5000/"},
+        }
+        processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint").get("url") == "http://127.0.0.1:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://127.0.0.1:8000/"
+        assert (
+                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
+        )
+        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
+        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+
     def test_download_data_files(self):
         processor = MongoProcessor()
         file = processor.download_files("tests")
@@ -844,7 +859,7 @@ class TestModelProcessor:
 
     @pytest.fixture
     def test_set_training_status_inprogress(self):
-        ModelProcessor.set_training_status("tests", "testUser", "Inprogress", datetime.utcnow())
+        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
         model_training = ModelTraining.objects(bot="tests", status="Inprogress")
 
         return model_training
@@ -859,7 +874,6 @@ class TestModelProcessor:
         ModelProcessor.set_training_status(bot="tests",
                                            user="testUser",
                                            status="Done",
-                                           end_timestamp=datetime.utcnow(),
                                            model_path="model_path"
                                            )
         model_training = ModelTraining.objects(bot="tests", status="Done")
@@ -882,7 +896,6 @@ class TestModelProcessor:
         ModelProcessor.set_training_status(bot="tests",
                                            user="testUser",
                                            status="Fail",
-                                           end_timestamp=datetime.utcnow(),
                                            model_path=None,
                                            exception="exception occurred while training model."
                                            )

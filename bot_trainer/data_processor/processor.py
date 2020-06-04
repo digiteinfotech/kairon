@@ -143,10 +143,10 @@ class MongoProcessor:
 
     def delete_nlu(self, bot: Text, user: Text):
         '''perform soft delete of nlu data for particular bot'''
-        TrainingExamples.objects(bot=bot).update(set__status=False, set__user=user)
-        EntitySynonyms.objects(bot=bot).update(set__status=False, set__user=user)
-        LookupTables.objects(bot=bot).update(set__status=False, set__user=user)
-        RegexFeatures.objects(bot=bot).update(set__status=False, set__user=user)
+        Utility.delete_document([TrainingExamples,
+                                 EntitySynonyms,
+                                 LookupTables,
+                                 RegexFeatures], user, bot)
 
     def load_nlu(self, bot: Text) -> TrainingData:
         """ loads nlu data of the bot (input) from respective objects.
@@ -176,12 +176,12 @@ class MongoProcessor:
 
     def delete_domain(self, bot: Text, user: Text):
         '''perform soft delete on domain data for particular bot'''
-        Intents.objects(bot=bot).update(set__status=False, set__user=user)
-        Entities.objects(bot=bot).update(set__status=False, set__user=user)
-        Forms.objects(bot=bot).update(set__status=False, set__user=user)
-        Actions.objects(bot=bot).update(set__status=False, set__user=user)
-        Responses.objects(bot=bot).update(set__status=False, set__user=user)
-        Slots.objects(bot=bot).update(set__status=False, set__user=user)
+        Utility.delete_document([Intents,
+                                 Entities,
+                                 Forms,
+                                 Actions,
+                                 Responses,
+                                 Slots], bot, user)
 
     def load_domain(self, bot: Text) -> Domain:
         """ loads domain data of the bot (input) from respective objects.
@@ -208,7 +208,7 @@ class MongoProcessor:
 
     def delete_stories(self, bot: Text, user: Text):
         """perform soft delete on stories data for particular bot"""
-        Stories.objects(bot=bot).update(set__status=False, set__user=user)
+        Utility.delete_document([Stories], bot, user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """ loads the stories data of the bot (input) from the respective objects.
@@ -810,7 +810,7 @@ class MongoProcessor:
 
     def delete_config(self, bot: Text, user: Text):
         """perform soft delete on bot pipeline and policies configuration"""
-        Configs.objects(bot=bot).update(set__status=False, set__user=user)
+        Utility.delete_document([Configs], bot, user)
 
     def fetch_configs(self, bot: Text):
         """ Returns the configuration details of the bot (input).
@@ -937,9 +937,11 @@ class MongoProcessor:
             doc = document.objects(bot=bot).get(id=id)
             doc.update(status=False, user=user)
         except DoesNotExist as e:
+            print(e)
             logging.info(e)
             raise AppException("Unable to remove document")
         except Exception as e:
+            print(e)
             logging.info(e)
             raise AppException("Unable to remove document")
 
@@ -1030,8 +1032,7 @@ class MongoProcessor:
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
             yield {"_id": value.id.__str__(), "value": val}
-            
-            
+
     def __fetch_list_of_response(self, bot: Text):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
@@ -1258,29 +1259,26 @@ class ModelProcessor:
             bot: Text,
             user: Text,
             status: Text,
-            start_timestamp: datetime = None,
-            end_timestamp: datetime = None,
             model_path: Text = None,
             exception: Text = None,
     ):
 
-        doc = ModelTraining.objects(
-            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
-        )
+        try:
+            doc = ModelTraining.objects().get(bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+        except DoesNotExist:
+            doc = ModelTraining()
+            doc.bot = bot
+            doc.user = user
 
-        if len(doc) and start_timestamp is None:
-            start_timestamp = doc.first().start_timestamp
+        if MODEL_TRAINING_STATUS.INPROGRESS.value == doc.status:
+            doc.start_timestamp = datetime.utcnow()
+        else:
+            doc.end_timestamp = datetime.utcnow()
 
-        doc.update(
-            upsert=True,
-            bot=bot,
-            user=user,
-            status=status,
-            start_timestamp=start_timestamp,
-            end_timestamp=end_timestamp,
-            model_path=model_path,
-            exception=exception,
-        )
+        doc.model_path = model_path
+        doc.status = status
+        doc.exception = exception
+        doc.save()
 
     @staticmethod
     def is_training_inprogress(bot: Text, raise_exception=True):
