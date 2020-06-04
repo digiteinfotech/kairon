@@ -2,7 +2,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '30 19 * * *'
 
 jobs:
   scan:
@@ -10,9 +10,18 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Pull docker image
-        run: docker pull ${{ secrets.DOCKER_IMAGE_AUGMENT }}
-      - uses: homoluctus/gitrivy@v2
+        run: |
+          docker pull digite/rasa-dx-augment
+          docker pull digite/rasa-dx-api
+      - uses: homoluctus/gitrivy@v2.0.0
         name: Scanning augment image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ secrets.DOCKER_IMAGE_AUGMENT }}
+      - uses: homoluctus/gitrivy@v2.0.0
+        name: Scanning api image
+        if: failure() || success()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image: digite/rasa-dx-api
+
