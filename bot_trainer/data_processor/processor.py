@@ -67,6 +67,7 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
+    ModelDeployment
 )
 
 
@@ -1220,6 +1221,46 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
                 return {}
+
+    def add_model_deployment_history(self, bot: Text, user: Text, model: Text, url: Text, status: Text):
+        return (ModelDeployment(bot=bot,
+                        user=user,
+                        model=model,
+                        url=url,
+                        status=status)
+                .save()
+                .to_mongo()
+                .to_dict().get("_id").__str__())
+
+
+    def get_model_deployment_history(self, bot: Text):
+        model_deployments = (ModelDeployment
+                .objects(bot=bot)
+                .order_by("-timestamp"))
+
+        for deployment in model_deployments:
+            value = deployment.to_mongo().to_dict()
+            value.pop("bot")
+            value.pop("_id")
+            yield value
+
+    def deploy_model(self, bot: Text, user: Text):
+        endpoint = {}
+        model = None
+        try:
+            endpoint = self.get_endpoints(bot, raise_exception=False)
+            response, model = Utility.deploy_model(endpoint, bot)
+        except Exception as e:
+            response = str(e)
+
+        self.add_model_deployment_history(bot=bot,
+                                          user=user,
+                                          model=model,
+                                          url=(endpoint.get("bot_endpoint").get("url")
+                                                if endpoint.get("bot_endpoint")
+                                                else None),
+                                          status=response)
+        return response
 
 
 class AgentProcessor:

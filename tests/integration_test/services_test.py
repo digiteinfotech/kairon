@@ -61,7 +61,6 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -105,7 +104,6 @@ def test_api_login():
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
     )
     actual = response.json()
-    print(actual)
     assert all(
         [
             True if actual["data"][key] else False
@@ -139,7 +137,6 @@ def test_upload_missing_data():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert (
         actual["message"]
         == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
@@ -171,7 +168,6 @@ def test_upload_error():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert (
         actual["message"]
         == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
@@ -206,7 +202,6 @@ def test_upload():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Data uploaded successfully!"
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -342,7 +337,6 @@ def test_remove_training_examples():
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 9
-    print(training_examples)
     response = client.delete(
         "/api/bot/training_examples",
         json={"data": training_examples["data"][0]["_id"]},
@@ -378,7 +372,6 @@ def test_get_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert len(actual["data"]) == 1
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -423,7 +416,6 @@ def test_add_empty_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Response text cannot be empty or blank spaces"
@@ -435,7 +427,6 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    print(training_examples)
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/response",
@@ -443,7 +434,6 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Response removed successfully!"
@@ -480,7 +470,6 @@ def test_add_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Story added successfully"
@@ -509,7 +498,6 @@ def test_add_story_missing_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
@@ -531,7 +519,6 @@ def test_add_story_invalid_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
@@ -582,7 +569,6 @@ def test_train():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -603,7 +589,6 @@ def test_train_inprogress(mock_is_training_inprogress_exception):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -624,7 +609,6 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -636,7 +620,6 @@ def test_get_model_training_history():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is True
     assert actual["error_code"] == 0
     assert actual["data"]
@@ -696,9 +679,8 @@ def test_deploy_missing_configuration():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Please configure the bot endpoint for deployment!"
 
@@ -733,8 +715,8 @@ def test_deploy_connection_error(mock_endpoint):
     )
 
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Host is not reachable"
 
@@ -760,11 +742,29 @@ def test_deploy(mock_endpoint):
 
 
 @responses.activate
+def test_deployment_history():
+    response = client.get(
+        "/api/bot/deployment_history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['deployment_history']) == 3
+    assert actual["message"] is None
+
+
+@responses.activate
 def test_deploy_with_token(mock_endpoint_with_token):
     responses.add(
         responses.PUT,
         "http://localhost:5000/model",
         json="Model was successfully replaced.",
+        headers={"Content-type": "application/json",
+                 "Accept": "text/plain",
+                 "Authorization": "Bearer AGTSUDH!@#78JNKLD"},
         status=200,
     )
     response = client.post(

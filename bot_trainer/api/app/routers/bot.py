@@ -212,10 +212,15 @@ async def get_model_training_history(
 @router.post("/deploy", response_model=Response)
 async def deploy(current_user: User = Depends(auth.get_current_user)):
     """ This function is used to deploy the model of the currently trained chatbot """
-    endpoint = mongo_processor.get_endpoints(
-        current_user.get_bot(), raise_exception=False
-    )
-    return {"message": Utility.deploy_model(endpoint, current_user.get_bot())}
+    response = mongo_processor.deploy_model(bot=current_user.get_bot(), user=current_user.get_user())
+    return {"message": response}
+
+
+@router.get("/deployment_history", response_model=Response)
+async def deployment_history(current_user: User = Depends(auth.get_current_user)):
+    """ This function is used to deploy the model of the currently trained chatbot """
+    return {"data": {"deployment_history": list(mongo_processor
+                                            .get_model_deployment_history(bot=current_user.get_bot()))}}
 
 
 @router.post("/upload", response_model=Response)

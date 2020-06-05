@@ -407,7 +407,7 @@ class ModelTraining(Document):
 class ModelDeployment(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    model_name = StringField(required=True)
-    server = StringField(required=True)
+    model = StringField()
+    url = StringField()
     status = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

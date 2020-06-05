@@ -304,6 +304,11 @@ class TestMongoProcessor:
         assert actual.__len__() == expected.__len__()
         assert all(a_val["text"] in expected for a_val in actual)
 
+    def test_get_training_examples_empty(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_training_examples("greets", "tests"))
+        assert actual.__len__() == 0
+
     def test_get_all_training_examples(self):
         processor = MongoProcessor()
         training_examples, ids = processor.get_all_training_examples("tests")

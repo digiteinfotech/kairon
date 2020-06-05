@@ -157,14 +157,13 @@ class Utility:
                     + " "
                     + endpoint["bot_endpoint"].get("token")
             )
-
         try:
+            model_file = Utility.get_latest_file(
+                        os.path.join(DEFAULT_MODELS_PATH, bot))
             response = requests.put(
                 url + "/model",
                 json={
-                    "model_file": Utility.get_latest_file(
-                        os.path.join(DEFAULT_MODELS_PATH, bot)
-                    )
+                    "model_file": model_file
                 },
                 headers=headers,
             )
@@ -182,7 +181,9 @@ class Utility:
                 result = None
         except requests.exceptions.ConnectionError as e:
             raise AppException("Host is not reachable")
-        return result
+        except Exception as e:
+            raise AppException(e)
+        return result, model_file
 
     @staticmethod
     def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
