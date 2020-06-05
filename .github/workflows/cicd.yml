@@ -35,6 +35,12 @@ jobs:
       id: pytest
       run: |
         python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
+    - name: Archive pytest results
+      uses: actions/upload-artifact@v1
+      if: failure()
+      with:
+        name: pytest-report
+        path: report.html
     - name: Create Sphinx html
       run: |
         pip install -U sphinx
@@ -43,11 +49,9 @@ jobs:
         # sphinx-quickstart
         set system_file=../system.yaml
         make html
-        ls
-        cd ..
-    - name: Archive pytest results
+    - name: Archive Sphinx html files
       uses: actions/upload-artifact@v1
-      if: failure()
       with:
-        name: pytest-report
-        path: report.html
+        name: sphinx-html
+        path: docs/_build/html
+      
