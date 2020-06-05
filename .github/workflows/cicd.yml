@@ -48,7 +48,7 @@ jobs:
         cd docs
         # sphinx-quickstart
         set system_file=../system.yaml
-        echo ::set-env name=system_file::../system.yaml'
+        echo '::set-env name=system_file::../system.yaml'
         make html
     - name: Archive Sphinx html files
       uses: actions/upload-artifact@v1
