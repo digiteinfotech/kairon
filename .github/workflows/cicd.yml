@@ -47,7 +47,8 @@ jobs:
         pip install sphinx_rtd_theme
         cd docs
         # sphinx-quickstart
-        set system_file=../system.yaml
+        #set system_file=../system.yaml
+        export system_file=../system.yaml
         echo '::set-env name=system_file::../system.yaml'
         make html
     - name: Archive Sphinx html files
