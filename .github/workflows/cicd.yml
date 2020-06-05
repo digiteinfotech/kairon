@@ -47,7 +47,7 @@ jobs:
         pip install sphinx_rtd_theme
         cd docs
         # sphinx-quickstart
-        set system_file=../system.yaml
+        set system_file=$GITHUB_WORKSPACE/system.yaml
         make html
     - name: Archive Sphinx html files
       uses: actions/upload-artifact@v1
