@@ -1308,19 +1308,17 @@ class ModelProcessor:
     ):
 
         try:
-            doc = ModelTraining.objects().get(bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+            doc = ModelTraining.objects(bot=bot).get(status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+            doc.status = status
+            doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
-            doc.bot = bot
-            doc.user = user
-
-        if MODEL_TRAINING_STATUS.INPROGRESS.value == doc.status:
+            doc.status = MODEL_TRAINING_STATUS.INPROGRESS.value
             doc.start_timestamp = datetime.utcnow()
-        else:
-            doc.end_timestamp = datetime.utcnow()
 
+        doc.bot = bot
+        doc.user = user
         doc.model_path = model_path
-        doc.status = status
         doc.exception = exception
         doc.save()
 
