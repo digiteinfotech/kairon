@@ -13,6 +13,7 @@ from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -44,7 +45,7 @@ def test_api_wrong_login():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == "User does not exists!"
+    assert actual["message"] == "User does not exist!"
 
 
 def test_account_registration_error():
@@ -994,10 +995,9 @@ def test_download_data():
         "/api/bot/download_data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist
+    assert zip_file.filelist.__len__()
     zip_file.close()
     file_bytes.close()
 
@@ -1007,10 +1007,11 @@ def test_download_model():
         "/api/bot/download_model",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
+    d = response.headers['content-disposition']
+    fname = re.findall("filename=(.+)", d)[0]
     file_bytes = BytesIO(response.content)
-    tar = tarfile.open(fileobj=file_bytes, mode='r')
-    assert tar
+    tar = tarfile.open(fileobj=file_bytes, mode='r', name=fname)
+    assert tar.members.__len__()
     tar.close()
     file_bytes.close()
 
