@@ -40,7 +40,7 @@ async def add_intents(
 ):
     """ This function is used to add a new intent to the bot """
     id = mongo_processor.add_intent(
-        text=request_data.data, bot=current_user.get_bot(), user=current_user.get_user()
+        text=request_data.data.strip(), bot=current_user.get_bot(), user=current_user.get_user()
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
 
@@ -225,6 +225,7 @@ async def deployment_history(current_user: User = Depends(auth.get_current_user)
 
 @router.post("/upload", response_model=Response)
 async def upload_Files(
+    background_tasks: BackgroundTasks,
     nlu: UploadFile = File(...),
     domain: UploadFile = File(...),
     stories: UploadFile = File(...),
@@ -242,22 +243,29 @@ async def upload_Files(
         current_user.get_user(),
         overwrite,
     )
+    background_tasks.add_task(
+        start_training, current_user.get_bot(), current_user.get_user()
+    )
     return {"message": "Data uploaded successfully!"}
 
 
 @router.get("/download_data")
-async def download_data(current_user: User = Depends(auth.get_current_user),):
+async def download_data(
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),):
     """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
     file = mongo_processor.download_files(current_user.get_bot())
-    return FileResponse(file, filename=os.path.basename(file))
+    return FileResponse(file, filename=os.path.basename(file), background=background_tasks)
 
 
 @router.get("/download_model")
-async def download_model(current_user: User = Depends(auth.get_current_user),):
+async def download_model(
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),):
     """Download latest trained model file"""
     try:
         model_path = AgentProcessor.get_latest_model(current_user.get_bot())
-        return FileResponse(model_path, filename=os.path.basename(model_path))
+        return FileResponse(model_path, filename=os.path.basename(model_path), background=background_tasks)
     except Exception as e:
         return AppException(str(e))
 

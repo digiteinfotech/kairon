@@ -86,7 +86,7 @@ class AccountProcessor:
         try:
             return User.objects().get(email=email).to_mongo().to_dict()
         except:
-            raise DoesNotExist("User does not exists!")
+            raise DoesNotExist("User does not exist!")
 
     @staticmethod
     def get_user_details(email: str):
