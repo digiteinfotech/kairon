@@ -32,6 +32,7 @@ RUN chmod 777 -R /tmp
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
 COPY system.yaml ${RASA_NLU_HOME}/
+COPY template ${RASA_NLU_HOME}/template
 
 EXPOSE 80
 
