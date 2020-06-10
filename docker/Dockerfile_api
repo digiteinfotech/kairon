@@ -35,4 +35,4 @@ COPY system.yaml ${RASA_NLU_HOME}/
 
 EXPOSE 80
 
-CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80","--log-level","debug"]
+CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80"]

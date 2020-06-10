@@ -18,4 +18,4 @@ COPY augmentation ${RASA_NLU_HOME}/augmentation
 
 EXPOSE 8000
 
-CMD ["uvicorn", "augmentation.server:app","--host","0.0.0.0","--log-level","debug"]
+CMD ["uvicorn", "augmentation.server:app","--host","0.0.0.0"]
