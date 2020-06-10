@@ -1,10 +1,9 @@
 import asyncio
 import os
 
+import pytest
 from mongoengine import connect
 from mongoengine.errors import ValidationError
-import pytest
-from datetime import datetime
 from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
@@ -876,6 +875,22 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         file = processor.download_files("tests")
         assert file.endswith(".zip")
+
+    def test_get_utterance_from_intent(self):
+        processor = MongoProcessor()
+        response = processor.get_utterance_from_intent("deny", "tests")
+        print(response)
+        assert response == "utter_goodbye"
+
+    def test_get_utterance_from_empty_intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            response = processor.get_utterance_from_intent("", "tests")
+
+    def test_get_stories(self):
+        processor = MongoProcessor()
+        stories = list(processor.get_stories("tests"))
+        assert stories.__len__() == 6
 
 
 # pylint: disable=R0201

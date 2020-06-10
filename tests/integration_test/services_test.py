@@ -546,9 +546,10 @@ def test_get_utterance_from_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
+    assert actual["data"] == "utter_offer_help"
     assert Utility.check_empty_string(actual["message"])
 
 

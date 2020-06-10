@@ -907,7 +907,7 @@ class MongoProcessor:
             Eg. MongoProcessor.get_training_examples(intent_name,bot_name) """
         training_examples = list(
             TrainingExamples
-                .objects(bot=bot, intent=intent, status=True)
+                .objects(bot=bot, intent__iexact=intent, status=True)
             .order_by("-timestamp")
         )
         for training_example in training_examples:
@@ -1039,7 +1039,7 @@ class MongoProcessor:
     def get_response(self, name: Text, bot: Text):
         """ Yields bot response based on utterance name.
             Eg. MongoProcessor.get_response(utterance_name,bot_name) """
-        values = Responses.objects(bot=bot, status=True, name=name).order_by("-timestamp")
+        values = Responses.objects(bot=bot, status=True, name__iexact=name).order_by("-timestamp")
         for value in values:
             val = None
             if value.text:
@@ -1153,11 +1153,20 @@ class MongoProcessor:
     def get_utterance_from_intent(self, intent: Text, bot: Text):
         """ Returns the bot response for a particular intent.
             Eg. MongoProcessor.get_utterance_from_intent(intent_name,bot_name) """
+        assert not Utility.check_empty_string(intent), "Intent cannot be empty or blank spaces"
         responses = Responses.objects(bot=bot, status=True).distinct(field="name")
-        story = Stories.objects(bot=bot, status=True,events__name=intent)
+        story = Stories.objects(bot=bot, status=True, events__name=intent)
         if story:
-            for event in story[0].events:
-                if event.type == "action" and event.name in responses:
+            events = story[0].events
+            search = False
+            for i in range(len(events)):
+                event = events[i]
+                if event.type == "user":
+                    if str(event.name).lower() == intent.lower():
+                        search = True
+                    else:
+                        search = False
+                if search and event.type == "action" and event.name in responses:
                     return event.name
 
     def add_session_config(
