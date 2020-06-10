@@ -70,6 +70,18 @@ async def startlette_exception_handler(request, exc):
     )
 
 
+@app.exception_handler(AssertionError)
+async def http_exception_handler(request, exc):
+    """ This function logs the Assertion error detected and returns the
+        appropriate message and details of the error """
+    logging.exception(exc)
+    return JSONResponse(
+        Response(
+            success=False, error_code=422, message=str(exc)
+        ).dict()
+    )
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """ This function logs the HTTP error detected and returns the

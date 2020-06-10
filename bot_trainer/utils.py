@@ -101,9 +101,9 @@ class Utility:
 
     @staticmethod
     def is_exist(
-            document: Document, query: Dict, exp_message: Text = None, raise_error=True,
+            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
-        doc = document.objects(status=True, __raw__=query)
+        doc = document.objects(**kwargs)
         if doc.__len__():
             if raise_error:
                 if Utility.check_empty_string(exp_message):

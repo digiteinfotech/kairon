@@ -48,7 +48,7 @@ class Bot(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
-            raise ValidationError("Bot Name cannot be empty or blank space")
+            raise ValidationError("Bot Name cannot be empty or blank spaces")
 
 
 class Account(Document):
@@ -60,4 +60,4 @@ class Account(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
-            raise ValidationError("Account Name cannot be empty or blank space")
+            raise ValidationError("Account Name cannot be empty or blank spaces")

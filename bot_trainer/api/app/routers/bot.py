@@ -267,7 +267,7 @@ async def download_model(
         model_path = AgentProcessor.get_latest_model(current_user.get_bot())
         return FileResponse(model_path, filename=os.path.basename(model_path), background=background_tasks)
     except Exception as e:
-        return AppException(str(e))
+        raise AppException(str(e))
 
 
 @router.get("/endpoint", response_model=Response)

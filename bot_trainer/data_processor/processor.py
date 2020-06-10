@@ -570,7 +570,7 @@ class MongoProcessor:
         for value in values:
             if value not in saved_responses:
                 response = Responses()
-                response.name = key
+                response.name = key.strip()
                 response.bot = bot
                 response.user = user
                 if RESPONSE.Text.value in value:
@@ -838,10 +838,13 @@ class MongoProcessor:
     def add_intent(self, text: Text, bot: Text, user: Text):
         """ Adds a new intent (input) to the bot (input).
             Eg. MongoProcessor.add_intent(intent_name,bot_name,user_name) """
+        assert not Utility.check_empty_string(text), "Intent Name cannot be empty or blank spaces"
         Utility.is_exist(
             Intents,
-            query={"name": text, "bot": bot},
             exp_message="Intent already exists!",
+            name__iexact=text,
+            bot=bot,
+            status=True
         )
         saved = Intents(name=text, bot=bot, user=user).save().to_mongo().to_dict()
         return saved["_id"].__str__()
@@ -856,46 +859,48 @@ class MongoProcessor:
     ):
         """ Adds a sentence/question (training example) for an intent of the bot.
             Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
+        assert not Utility.check_empty_string(intent), "Training Example name and text cannot be empty or blank spaces"
         if not Utility.is_exist(
-                Intents, query={"name": intent, "bot": bot}, raise_error=False
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             self.add_intent(intent, bot, user)
         for example in examples:
-            if Utility.is_exist(
-                    TrainingExamples, query={"text": example, "bot": bot}, raise_error=False
-            ):
-                yield {
-                    "text": example,
-                    "message": "Training Example already exists!",
-                    "_id": None,
-                }
-            else:
-                training_example = TrainingExamples(
-                    intent=intent, text=example, bot=bot, user=user
-                )
-                if not Utility.check_empty_string(example):
-                    entities = MarkdownReader._find_entities_in_training_example(
-                        example
-                    )
-                    if entities:
-                        ext_entity = [ent["entity"] for ent in entities]
-                        self.__save_domain_entities(ext_entity, bot=bot, user=user)
-                        self.__add_slots_from_entities(ext_entity, bot, user)
-                        training_example.text = re.sub(
-                            ent_regex, lambda m: m.groupdict()["entity_text"], example
-                        )
-                        training_example.entities = list(
-                            self.__extract_entities(entities)
-                        )
-                try:
-                    saved = training_example.save().to_mongo().to_dict()
+            try:
+                assert not Utility.check_empty_string(example), "Training Example name and text cannot be empty or blank spaces"
+                if Utility.is_exist(
+                        TrainingExamples, raise_error=False, text__iexact=example, bot=bot, status=True
+                ):
                     yield {
                         "text": example,
-                        "_id": saved["_id"].__str__(),
-                        "message": "Training Example added successfully!",
+                        "message": "Training Example already exists!",
+                        "_id": None,
                     }
-                except Exception as e:
-                    yield {"text": example, "_id": None, "message": str(e)}
+                else:
+                    training_example = TrainingExamples(
+                        intent=intent.strip(), text=example.strip(), bot=bot, user=user
+                    )
+                    if not Utility.check_empty_string(example):
+                        entities = MarkdownReader._find_entities_in_training_example(
+                            example
+                        )
+                        if entities:
+                            ext_entity = [ent["entity"] for ent in entities]
+                            self.__save_domain_entities(ext_entity, bot=bot, user=user)
+                            self.__add_slots_from_entities(ext_entity, bot, user)
+                            training_example.text = re.sub(
+                                ent_regex, lambda m: m.groupdict()["entity_text"], example
+                            )
+                            training_example.entities = list(
+                                self.__extract_entities(entities)
+                            )
+                        saved = training_example.save().to_mongo().to_dict()
+                        yield {
+                            "text": example,
+                            "_id": saved["_id"].__str__(),
+                            "message": "Training Example added successfully!",
+                        }
+            except Exception as e:
+                yield {"text": example, "_id": None, "message": str(e)}
 
     def get_training_examples(self, intent: Text, bot: Text):
         """ Yields training examples for an intent of the bot.
@@ -957,16 +962,19 @@ class MongoProcessor:
     def add_entity(self, name: Text, bot: Text, user: Text):
         """ Adds an entity for a bot of a user.
             Eg. MongoProcessor.add_entity(entity_name,bot_name,user_name) """
+        assert not Utility.check_empty_string(name), "Entity Name cannot be empty or blank spaces"
         Utility.is_exist(
             Entities,
-            query={"name": name, "bot": bot},
             exp_message="Entity already exists!",
+            name__iexact=name,
+            bot=bot,
+            status=True
         )
-        Entities(name=name, bot=bot, user=user).save()
+        Entities(name=name.strip(), bot=bot, user=user).save()
         if not Utility.is_exist(
-                Slots, query={"name": name, "bot": bot}, raise_error=False
+                Slots, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Slots(name=name, type="text", bot=bot, user=user).save()
+            Slots(name=name.strip(), type="text", bot=bot, user=user).save()
 
     def get_entities(self, bot: Text):
         """ Returns the list of entities of a bot (input) """
@@ -976,12 +984,15 @@ class MongoProcessor:
     def add_action(self, name: Text, bot: Text, user: Text):
         """ Adds an action to the bot.
             Eg. MongoProcessor.add_action(action_name,bot_name,user_name) """
+        assert not Utility.check_empty_string(name), "Action name cannot be empty or blank spaces"
         Utility.is_exist(
             Actions,
-            query={"name": name, "bot": bot},
             exp_message="Entity already exists!",
+            name__iexact=name,
+            bot=bot,
+            status=True
         )
-        Actions(name=name, bot=bot, user=user).save()
+        Actions(name=name.strip(), bot=bot, user=user).save()
 
     def get_actions(self, bot: Text):
         """ Returns the list of actions of a bot (input) """
@@ -1001,8 +1012,10 @@ class MongoProcessor:
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
         """ Adds a text response to an utterance of the bot.
             Eg. MongoProcessor.add_text_response(response,utterance_name,bot_name,user_name) """
+        assert not Utility.check_empty_string(utterance), "Response text cannot be empty or blank spaces"
+        assert not Utility.check_empty_string(name), "Response name cannot be empty or blank spaces"
         return self.add_response(
-            utterances={"text": utterance}, name=name, bot=bot, user=user
+            utterances={"text": utterance.strip()}, name=name, bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
@@ -1018,9 +1031,9 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-                Actions, query={"name": name, "bot": bot}, raise_error=False
+                Actions, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Actions(name=name, bot=bot, user=user).save()
+            Actions(name=name.strip(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def get_response(self, name: Text, bot: Text):
