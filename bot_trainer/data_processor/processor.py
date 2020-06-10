@@ -1154,7 +1154,7 @@ class MongoProcessor:
         """ Returns the bot response for a particular intent.
             Eg. MongoProcessor.get_utterance_from_intent(intent_name,bot_name) """
         responses = Responses.objects(bot=bot, status=True).distinct(field="name")
-        story = Stories.objects(bot=bot, events__name=intent)
+        story = Stories.objects(bot=bot, status=True,events__name=intent)
         if story:
             for event in story[0].events:
                 if event.type == "action" and event.name in responses:
