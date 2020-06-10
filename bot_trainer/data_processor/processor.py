@@ -575,7 +575,7 @@ class MongoProcessor:
                 response.user = user
                 if RESPONSE.Text.value in value:
                     response_text = ResponseText()
-                    response_text.text = value[RESPONSE.Text.value]
+                    response_text.text = str(value[RESPONSE.Text.value]).strip()
                     if RESPONSE.IMAGE.value in value:
                         response_text.image = value[RESPONSE.IMAGE.value]
                     if RESPONSE.CHANNEL.value in value:
@@ -842,7 +842,7 @@ class MongoProcessor:
         Utility.is_exist(
             Intents,
             exp_message="Intent already exists!",
-            name__iexact=text,
+            name__iexact=text.strip(),
             bot=bot,
             status=True
         )
@@ -966,7 +966,7 @@ class MongoProcessor:
         Utility.is_exist(
             Entities,
             exp_message="Entity already exists!",
-            name__iexact=name,
+            name__iexact=name.strip(),
             bot=bot,
             status=True
         )
@@ -988,7 +988,7 @@ class MongoProcessor:
         Utility.is_exist(
             Actions,
             exp_message="Entity already exists!",
-            name__iexact=name,
+            name__iexact=name.strip(),
             bot=bot,
             status=True
         )
