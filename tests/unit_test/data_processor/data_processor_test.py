@@ -608,7 +608,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story(None, events, "tests", "testUser")
 
     def test_add_empty_story_name(self):
@@ -619,7 +619,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story("", events, "tests", "testUser")
 
     def test_add_blank_story_name(self):
@@ -630,7 +630,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story("  ", events, "tests", "testUser")
 
     def test_add_empty_story_event(self):

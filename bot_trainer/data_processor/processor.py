@@ -11,6 +11,7 @@ from mongoengine.queryset.visitor import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.core.constants import INTENT_MESSAGE_PREFIX
 from rasa.core.agent import Agent
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
@@ -541,7 +542,7 @@ class MongoProcessor:
         """ Returns the session configurations of the bot (input).
             Eg. MongoProcessor.fetch_session_config(bot_name) """
         try:
-            session_config = SessionConfigs.objects.get(bot=bot)
+            session_config = SessionConfigs.objects().get(bot=bot)
         except DoesNotExist as e:
             logging.info(e)
             session_config = None
@@ -761,7 +762,11 @@ class MongoProcessor:
                     STORY_EVENT.NAME.value: event.name,
                     STORY_EVENT.CONFIDENCE.value: 1.0,
                 }
-                yield UserUttered(text=event.name, intent=intent, timestamp=timestamp)
+                parse_data = {"text": INTENT_MESSAGE_PREFIX + event.name,
+                              "intent": intent,
+                              "intent_ranking": [intent],
+                              "entities": []}
+                yield UserUttered(text=event.name, intent=intent, parse_data=parse_data, timestamp=timestamp)
             elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
             elif event.type == Form.type_name:
@@ -818,7 +823,7 @@ class MongoProcessor:
         """ Returns the configuration details of the bot (input).
             Eg. MongoProcessor.fetch_configs(bot_name) """
         try:
-            configs = Configs.objects.get(bot=bot)
+            configs = Configs.objects().get(bot=bot)
         except DoesNotExist as e:
             logging.info(e)
             configs = Configs._from_son(read_config_file("./template/config.yml"))
@@ -1093,12 +1098,13 @@ class MongoProcessor:
     def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
         """ Adds a new story to the bot.
             Eg. MongoProcessor.add_story(story_name,[Dictionaries of conversation flow],bot_name,user_name) """
+        assert not Utility.check_empty_string(name), "Story path name cannot be empty or blank spaces"
         self.__check_event_existence(
             events, bot=bot, exp_message="Story already exists!"
         )
         return (
             Stories(
-                block_name=name,
+                block_name=name.strip(),
                 events=events,
                 bot=bot,
                 user=user,
