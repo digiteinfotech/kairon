@@ -1322,7 +1322,7 @@ class AgentProcessor:
             InMemoryAgentCache.set(bot, agent)
         except Exception as e:
             logging.info(e)
-            raise AppException("Please train the bot first")
+            raise AppException("Bot has not been trained yet !")
 
 
 class ModelProcessor:
