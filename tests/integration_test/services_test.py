@@ -8,12 +8,14 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-
+import mongomock
 from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
 import re
+import pymongo
+from unittest import mock
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -177,8 +179,11 @@ def test_upload_error():
     assert actual["data"] is None
     assert not actual["success"]
 
+def test_upload(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
 
-def test_upload():
+    monkeypatch.setattr(Utility,"get_local_mongo_store", mongo_store)
     files = {
         "nlu": (
             "tests/testing_data/all/data/nlu.md",
@@ -564,8 +569,11 @@ def test_get_utterance_from_not_exist_intent():
     assert actual["data"] is None
     assert Utility.check_empty_string(actual["message"])
 
+def test_train(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
 
-def test_train():
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -627,7 +635,12 @@ def test_get_model_training_history():
     assert actual["data"]
     assert "training_history" in actual["data"]
 
-def test_chat():
+
+def test_chat(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -640,7 +653,10 @@ def test_chat():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_chat_fetch_from_cache():
+def test_chat_fetch_from_cache(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -672,7 +688,7 @@ def test_chat_model_not_trained():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Please train the bot first"
+    assert actual["message"] == "Bot has not been trained yet !"
 
 
 def test_deploy_missing_configuration():
@@ -909,8 +925,9 @@ def test_integration_token_missing_x_user():
     assert actual["error_code"] == 422
     assert actual["message"] == "Alias user missing for integration"
 
-
+@mongomock.patch(servers=(('localhost', 27019),))
 def test_predict_intent():
+    Utility.environment["mongo_url"] = "mongodb://localhost:27019"
     response = client.post(
         "/api/bot/intents/predict",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -941,7 +958,7 @@ def test_predict_intent_error():
     assert actual["data"] is None
     assert actual["success"] is False
     assert actual["error_code"] == 422
-    assert actual["message"] == "Please train the bot first"
+    assert actual["message"] == "Bot has not been trained yet !"
 
 
 @responses.activate

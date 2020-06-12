@@ -3,7 +3,7 @@ from typing import Text
 
 import pandas as pd
 from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
-
+from bot_trainer.utils import Utility
 from .processor import MongoProcessor
 
 
@@ -14,14 +14,17 @@ class ChatHistory:
     def get_tracker_and_domain(bot: Text):
         """ Returns the Mongo Tracker and Domain of the bot """
         domain = ChatHistory.mongo_processor.load_domain(bot)
-        endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
-        tracker = MongoTrackerStore(
-            domain=domain,
-            host=endpoint["tracker_endpoint"]["url"],
-            db=endpoint["tracker_endpoint"]["db"],
-            username=endpoint["tracker_endpoint"].get("username"),
-            password=endpoint["tracker_endpoint"].get("password"),
-        )
+        try:
+            endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
+            tracker = MongoTrackerStore(
+                domain=domain,
+                host=endpoint["tracker_endpoint"]["url"],
+                db=endpoint["tracker_endpoint"]["db"],
+                username=endpoint["tracker_endpoint"].get("username"),
+                password=endpoint["tracker_endpoint"].get("password"),
+            )
+        except Exception:
+            tracker = Utility.get_local_mongo_store(bot, domain)
         return (domain, tracker)
 
     @staticmethod

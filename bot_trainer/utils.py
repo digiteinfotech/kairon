@@ -21,7 +21,7 @@ from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
-
+from rasa.core.tracker_store import MongoTrackerStore
 from bot_trainer.exceptions import AppException
 
 
@@ -267,3 +267,14 @@ class Utility:
             doc_list = document.objects(bot=bot)
             if doc_list:
                 doc_list.update(set__status=False, set__user=user)
+
+
+    @staticmethod
+    def get_local_mongo_store(bot: Text, domain:  Domain):
+        db_url = Utility.environment['mongo_url']
+        db_name = Utility.environment['test_conversation_db']
+        print(db_url)
+        return MongoTrackerStore(domain=domain,
+                          host=db_url,
+                          db=db_name,
+                          collection=bot)

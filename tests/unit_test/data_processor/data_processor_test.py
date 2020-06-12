@@ -21,6 +21,7 @@ from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor,
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import train_model_from_mongo, start_training
 from bot_trainer.utils import Utility
+import mongomock
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -725,10 +726,13 @@ class TestMongoProcessor:
             model = loop.run_until_complete(train_model_from_mongo("test"))
             assert model
 
-    def test_start_training_done(self):
+    def test_start_training_done(self, monkeypatch):
+        def mongo_store(*arge, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
         model_path = start_training("tests", "testUser")
         assert model_path
-
         model_training = ModelTraining.objects(bot="tests", status="Done")
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
@@ -895,7 +899,12 @@ class TestMongoProcessor:
 
 # pylint: disable=R0201
 class TestAgentProcessor:
-    def test_get_agent(self):
+
+    def test_get_agent(self, monkeypatch):
+        def mongo_store(*arge, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
         agent = AgentProcessor.get_agent("tests")
         assert isinstance(agent, Agent)
 

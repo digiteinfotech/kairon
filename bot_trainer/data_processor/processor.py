@@ -1318,7 +1318,9 @@ class AgentProcessor:
                 else None
             )
             model_path = AgentProcessor.get_latest_model(bot)
-            agent = Agent.load(model_path, action_endpoint=action_endpoint)
+            domain = AgentProcessor.mongo_processor.load_domain(bot)
+            mongo_store = Utility.get_local_mongo_store(bot, domain)
+            agent = Agent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store)
             InMemoryAgentCache.set(bot, agent)
         except Exception as e:
             logging.info(e)
