@@ -1,21 +1,20 @@
 import logging
 import os
+import re
 import tarfile
 from io import BytesIO
 from zipfile import ZipFile
 
+import mongomock
 import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-import mongomock
+
 from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
-from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
-import re
-import pymongo
-from unittest import mock
+from bot_trainer.utils import Utility
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"

@@ -21,7 +21,6 @@ from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor,
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import train_model_from_mongo, start_training
 from bot_trainer.utils import Utility
-import mongomock
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -166,11 +165,22 @@ class TestMongoProcessor:
         assert all(item["name"] in expected for item in actual)
 
 
+    def test_add_intent_with_underscore(self):
+        processor = MongoProcessor()
+        assert processor.add_intent("greeting_examples", "tests", "testUser")
+        intent = Intents.objects(bot="tests").get(name="greeting_examples")
+        assert intent.name == "greeting_examples"
+
+    def test_add_intent_with_hypen(self):
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError):
+            assert processor.add_intent("greeting-examples", "tests", "testUser")
+
+
     def test_add_intent_special_character(self):
         processor = MongoProcessor()
-        assert processor.add_intent("// ** Wootness * //", "tests", "testUser")
-        intent = Intents.objects(bot="tests").get(name="greeting")
-        assert intent.name == "greeting"
+        with pytest.raises(ValidationError):
+            assert processor.add_intent("// ** Wootness * //", "tests", "testUser")
 
 
     def test_add_intent_duplicate(self):

@@ -2,6 +2,7 @@ import glob
 import os
 import shutil
 import string
+import re
 import tempfile
 from html import escape
 from io import BytesIO
@@ -278,3 +279,7 @@ class Utility:
                           host=db_url,
                           db=db_name,
                           collection=bot)
+
+    @staticmethod
+    def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
+        return not bool(search(strg))
