@@ -18,6 +18,7 @@ from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
+from pymongo.errors import InvalidURI
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.tracker_store import MongoTrackerStore
@@ -281,6 +282,12 @@ class Utility:
         elif uri.startswith(SRV_SCHEME):
             scheme_free = uri[SRV_SCHEME_LEN:]
             scheme = uri[:SRV_SCHEME_LEN]
+        else:
+            raise InvalidURI("Invalid URI scheme: URI must "
+                             "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME))
+
+        if not scheme_free:
+            raise InvalidURI("Must provide at least one hostname or IP.")
 
         host_part, _, path_part = scheme_free.partition('/')
         if '@' in host_part:
