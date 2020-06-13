@@ -10,19 +10,19 @@ WORKDIR ${RASA_NLU_HOME}
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
-RUN python3 -m pip install mongoengine==0.19.1
-RUN python3 -m pip install rasa==1.9.5
+RUN python3 -m pip install mongoengine==0.20.0
+RUN python3 -m pip install rasa==1.10.3
 RUN python3 -m pip install cython
 RUN python3 -m pip install pandas
 RUN python3 -m pip install pyjwt
 RUN python3 -m pip install passlib[bcrypt]
 RUN python3 -m pip install python-multipart
 RUN python3 -m pip install validators
-RUN python3 -m pip install rasa[transformers]==1.9.5
-RUN python3 -m pip install rasa[spacy]==1.9.5
-RUN python3 -m pip install rasa[convert]==1.9.5
-RUN python3 -m pip install tensorflow_text==2.1.1
-RUN python3 -m pip install tensorflow-addons==0.9.1
+RUN python3 -m pip install rasa[transformers]==1.10.3
+RUN python3 -m pip install rasa[spacy]==1.10.3
+RUN python3 -m pip install rasa[convert]==1.10.3
+RUN python3 -m pip install tensorflow_text==2.2.1
+RUN python3 -m pip install tensorflow-addons==0.10.0
 RUN python3 -m pip install secure
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
