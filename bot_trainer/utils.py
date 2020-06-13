@@ -1,8 +1,8 @@
 import glob
 import os
+import re
 import shutil
 import string
-import re
 import tempfile
 from html import escape
 from io import BytesIO
@@ -17,13 +17,15 @@ from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
+from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
+from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
-from rasa.core.tracker_store import MongoTrackerStore
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
+
 from bot_trainer.exceptions import AppException
 
 
@@ -271,16 +273,34 @@ class Utility:
             if doc_list:
                 doc_list.update(set__status=False, set__user=user)
 
+    @staticmethod
+    def extract_user_password(uri: str):
+        if uri.startswith(SCHEME):
+            scheme_free = uri[SCHEME_LEN:]
+            scheme = uri[:SCHEME_LEN]
+        elif uri.startswith(SRV_SCHEME):
+            scheme_free = uri[SRV_SCHEME_LEN:]
+            scheme = uri[:SRV_SCHEME_LEN]
+
+        host_part, _, path_part = scheme_free.partition('/')
+        if '@' in host_part:
+            userinfo, _, hosts = host_part.rpartition('@')
+            user, passwd = parse_userinfo(userinfo)
+            return user, passwd, scheme + hosts
+        else:
+            return None, None, scheme + host_part
 
     @staticmethod
     def get_local_mongo_store(bot: Text, domain:  Domain):
         db_url = Utility.environment['mongo_url']
         db_name = Utility.environment['test_conversation_db']
-        print(db_url)
+        username, password, url = Utility.extract_user_password(db_url)
         return MongoTrackerStore(domain=domain,
-                          host=db_url,
+                          host=url,
                           db=db_name,
-                          collection=bot)
+                          collection=bot,
+                          username=username,
+                          password=password)
 
     @staticmethod
     def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
