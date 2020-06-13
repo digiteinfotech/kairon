@@ -1,7 +1,7 @@
 pyyaml
 torch
 torchvision
-tensorflow-text==2.2.1
+tensorflow-text==2.1.1
 tensorflow-addons==0.9.1
 rasa==1.10.3
 rasa[transformers]==1.10.3
