@@ -255,7 +255,9 @@ async def download_data(
         current_user: User = Depends(auth.get_current_user),):
     """Download training data nlu.md, domain.yml, stories.md, config.yml files"""
     file = mongo_processor.download_files(current_user.get_bot())
-    return FileResponse(file, filename=os.path.basename(file), background=background_tasks)
+    response = FileResponse(file, filename=os.path.basename(file), background=background_tasks)
+    response.headers["Content-Disposition"] = "attachment; filename="+os.path.basename(file)
+    return response
 
 
 @router.get("/download_model")
@@ -265,7 +267,9 @@ async def download_model(
     """Download latest trained model file"""
     try:
         model_path = AgentProcessor.get_latest_model(current_user.get_bot())
-        return FileResponse(model_path, filename=os.path.basename(model_path), background=background_tasks)
+        response = FileResponse(model_path, filename=os.path.basename(model_path), background=background_tasks)
+        response.headers["Content-Disposition"] = "attachment; filename=" + os.path.basename(model_path)
+        return response
     except Exception as e:
         raise AppException(str(e))
 

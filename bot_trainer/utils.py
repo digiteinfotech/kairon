@@ -23,6 +23,7 @@ from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 from rasa.core.tracker_store import MongoTrackerStore
+from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from bot_trainer.exceptions import AppException
 
 
@@ -36,6 +37,7 @@ class Utility:
         numbers=1,  # need min. 1 digits
         special=1,  # need min. 1 special characters
     )
+    markdown_reader = MarkdownReader()
 
     @staticmethod
     def check_empty_string(value: str):

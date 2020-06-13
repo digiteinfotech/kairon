@@ -7,12 +7,11 @@ from datetime import datetime
 from typing import Text, Dict, List
 
 from mongoengine import Document
-from mongoengine.queryset.visitor import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-from rasa.core.constants import INTENT_MESSAGE_PREFIX
 from rasa.core.agent import Agent
+from rasa.core.constants import INTENT_MESSAGE_PREFIX
 from rasa.core.domain import InvalidDomain
 from rasa.core.domain import SessionConfig
 from rasa.core.events import Form, ActionExecuted, UserUttered
@@ -24,7 +23,7 @@ from rasa.data import get_core_nlu_files
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
-from rasa.nlu.training_data.formats.markdown import MarkdownReader, ent_regex
+from rasa.nlu.training_data.formats.markdown import entity_regex
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.io import read_config_file
@@ -869,9 +868,11 @@ class MongoProcessor:
                 Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             self.add_intent(intent, bot, user)
+
         for example in examples:
             try:
                 assert not Utility.check_empty_string(example), "Training Example name and text cannot be empty or blank spaces"
+                example = example.strip()
                 if Utility.is_exist(
                         TrainingExamples, raise_error=False, text__iexact=example, bot=bot, status=True
                 ):
@@ -881,29 +882,33 @@ class MongoProcessor:
                         "_id": None,
                     }
                 else:
-                    training_example = TrainingExamples(
-                        intent=intent.strip(), text=example.strip(), bot=bot, user=user
+                    entities = Utility.markdown_reader._find_entities_in_training_example(
+                        example
                     )
-                    if not Utility.check_empty_string(example):
-                        entities = MarkdownReader._find_entities_in_training_example(
-                            example
+                    if entities:
+                        ext_entity = [ent["entity"] for ent in entities]
+                        self.__save_domain_entities(ext_entity, bot=bot, user=user)
+                        self.__add_slots_from_entities(ext_entity, bot, user)
+                        text = re.sub(
+                            entity_regex, lambda m: m.groupdict()["entity_text"], example
                         )
-                        if entities:
-                            ext_entity = [ent["entity"] for ent in entities]
-                            self.__save_domain_entities(ext_entity, bot=bot, user=user)
-                            self.__add_slots_from_entities(ext_entity, bot, user)
-                            training_example.text = re.sub(
-                                ent_regex, lambda m: m.groupdict()["entity_text"], example
-                            )
-                            training_example.entities = list(
-                                self.__extract_entities(entities)
-                            )
-                        saved = training_example.save().to_mongo().to_dict()
-                        yield {
-                            "text": example,
-                            "_id": saved["_id"].__str__(),
-                            "message": "Training Example added successfully!",
-                        }
+                        new_entities = list(
+                            self.__extract_entities(entities)
+                        )
+                    else:
+                        new_entities = None
+                        text = example
+
+                    training_example = TrainingExamples(
+                        intent=intent.strip(), text=text, entities=new_entities, bot=bot, user=user
+                    )
+
+                    saved = training_example.save().to_mongo().to_dict()
+                    yield {
+                        "text": example,
+                        "_id": saved["_id"].__str__(),
+                        "message": "Training Example added successfully!",
+                    }
             except Exception as e:
                 yield {"text": example, "_id": None, "message": str(e)}
 
