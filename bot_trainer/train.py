@@ -1,22 +1,22 @@
+import logging
+import os
 import tempfile
 from contextlib import ExitStack
 from typing import Text, Optional, Dict
 
+import yaml
+from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.importers.importer import TrainingDataImporter
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.train import _train_async_internal, handle_domain_if_not_exists, train
 from rasa.utils.common import TempDirectoryPath
-from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-import os
-import logging
-import asyncio
+
+from bot_trainer.data_processor.constant import MODEL_TRAINING_STATUS
 from bot_trainer.data_processor.importer import MongoDataImporter
 from bot_trainer.data_processor.processor import AgentProcessor, ModelProcessor
-from bot_trainer.data_processor.constant import MODEL_TRAINING_STATUS
+from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
-from bot_trainer.data_processor.processor import MongoProcessor
-import yaml
 
 
 async def train_model(

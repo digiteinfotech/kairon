@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, BackgroundTasks
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
@@ -20,8 +22,6 @@ from bot_trainer.data_processor.processor import (
 )
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import start_training
-from bot_trainer.utils import Utility
-import os
 
 router = APIRouter()
 auth = Authentication()
