@@ -15,8 +15,5 @@ class QuestionGenerator:
         if type(texts) == str:
             texts = [texts]
 
-        for text in texts:
-            augmented_text = QuestionGenerator.aug.augment(text, n=10, num_thread=4)
-            result += augmented_text
-
-        return result
+        result = [QuestionGenerator.aug.augment(text, n=10, num_thread=4) for text in texts]
+        return sum(result, [])

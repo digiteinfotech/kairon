@@ -183,7 +183,7 @@ async def chat(
     """ This function returns a bot response for a given text/query. It is basically
         used to test the chat functionality of the bot """
     model = AgentProcessor.get_agent(current_user.get_bot())
-    response = await model.handle_text(request_data.data)
+    response = await model.handle_text(request_data.data, sender_id=current_user.get_user())
     return {"data": {"response": response[0]["text"] if response else None}}
 
 

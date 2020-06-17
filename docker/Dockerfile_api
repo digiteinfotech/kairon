@@ -27,6 +27,7 @@ RUN python3 -m pip install secure
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
 RUN python3 -m pip install password-strength
+RUN python3 -m pip install loguru
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
 

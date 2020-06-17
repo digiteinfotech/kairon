@@ -8,11 +8,7 @@ ENV RASA_NLU_DOCKER="YES" \
 WORKDIR ${RASA_NLU_HOME}
 
 RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install sentence_transformers
-RUN python3 -m pip install spacy
-RUN python3 -m spacy download en_core_web_sm
-RUN python3 -m pip install gensim
-RUN python3 -m gensim.downloader --download word2vec-google-news-300
+RUN python3 -m pip install nlpaug
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 
