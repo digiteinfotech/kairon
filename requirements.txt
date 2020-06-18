@@ -28,5 +28,3 @@ secure
 password-strength
 nlpaug
 loguru
-nltk
-re

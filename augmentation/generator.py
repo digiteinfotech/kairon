@@ -1,13 +1,21 @@
 # pip install nlpaug numpy matplotlib python-dotenv
 # should have torch (>=1.2.0) and transformers (>=2.5.0) installed as well
 import nlpaug.augmenter.word as naw
-from nltk.tokenize import word_tokenize
+import spacy
 import re
 
 
 class QuestionGenerator:
-    aug = naw.ContextualWordEmbsAug(model_path='bert-base-uncased', action="substitute", stopwords=['digite'])
+    aug = naw.ContextualWordEmbsAug(model_path='bert-base-uncased', action="substitute")
     aug_single = naw.SynonymAug(aug_src='wordnet')
+    sentence = spacy.load('en_core_web_sm')
+
+    @staticmethod
+    def augment(text):
+        if len(QuestionGenerator.sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))) > 1:
+            return QuestionGenerator.aug.augment(text, n=10, num_thread=4)
+        else:
+            return QuestionGenerator.aug_single.augment(re.sub('[^a-zA-Z0-9]+', '', text), n=10)
 
     @staticmethod
     async def generateQuestions(texts):
@@ -18,9 +26,6 @@ class QuestionGenerator:
         if type(texts) == str:
             texts = [texts]
 
-        result = [QuestionGenerator.aug.augment(text, n=10, num_thread=4)
-                  if len(word_tokenize(re.sub('[^a-zA-Z0-9 ]+', '', text))) > 1
-                  else QuestionGenerator.aug_single.augment(text, n=10)
-                  for text in texts]
+        result = [QuestionGenerator.augment(text) for text in texts]
 
         return sum(result, [])
