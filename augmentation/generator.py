@@ -11,10 +11,11 @@ class QuestionGenerator:
 
     @staticmethod
     def augment(text):
-        if len(split_sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))) > 1:
+        tokens = split_sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))
+        if len(tokens) > 1:
             return QuestionGenerator.aug.augment(text, n=10, num_thread=4)
         else:
-            return QuestionGenerator.aug_single.augment(re.sub('[^a-zA-Z0-9]+', '', text), n=10)
+            return QuestionGenerator.aug_single.augment(tokens[0], n=10)
 
     @staticmethod
     async def generateQuestions(texts):
