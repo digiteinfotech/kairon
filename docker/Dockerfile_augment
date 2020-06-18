@@ -14,6 +14,7 @@ RUN python3 -m pip install requests
 RUN python3 -m pip install torch
 RUN python3 -m pip install transformers
 RUN python3 -m pip install nlpaug
+RUN python3 -m pip install nltk
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 
