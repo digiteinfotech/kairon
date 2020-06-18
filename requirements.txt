@@ -7,7 +7,6 @@ rasa[transformers]==1.10.3
 rasa[spacy]==1.10.3
 rasa[convert]==1.10.3
 fastapi==0.56.1
-spacy
 mongomock
 pytest
 pytest-html

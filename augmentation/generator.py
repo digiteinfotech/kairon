@@ -1,18 +1,17 @@
 # pip install nlpaug numpy matplotlib python-dotenv
 # should have torch (>=1.2.0) and transformers (>=2.5.0) installed as well
 import nlpaug.augmenter.word as naw
-import spacy
+from nlpaug.util.text.tokenizer import split_sentence
 import re
 
 
 class QuestionGenerator:
     aug = naw.ContextualWordEmbsAug(model_path='bert-base-uncased', action="substitute")
     aug_single = naw.SynonymAug(aug_src='wordnet')
-    sentence = spacy.load('en_core_web_sm')
 
     @staticmethod
     def augment(text):
-        if len(QuestionGenerator.sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))) > 1:
+        if len(split_sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))) > 1:
             return QuestionGenerator.aug.augment(text, n=10, num_thread=4)
         else:
             return QuestionGenerator.aug_single.augment(re.sub('[^a-zA-Z0-9]+', '', text), n=10)
