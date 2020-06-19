@@ -1,4 +1,4 @@
-Rasa Functions (MongoProcessor)
+MongoProcessor
 ===============================
 
 .. automodule:: bot_trainer.data_processor.processor

@@ -71,6 +71,8 @@ async def train_model_from_mongo(
 
 
 def train_model_for_bot(bot: str):
+    """ Trains the rasa model, using the data that is loaded onto
+            Mongo, through the bot files """
     processor = MongoProcessor()
     nlu = processor.load_nlu(bot)
     if not nlu.training_examples:

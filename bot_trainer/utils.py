@@ -269,6 +269,7 @@ class Utility:
 
     @staticmethod
     def delete_document(documents : List[Document], bot: Text, user: Text):
+        "used to delete list of documents from mongo"
         for document in documents:
             doc_list = document.objects(bot=bot)
             if doc_list:
@@ -276,6 +277,7 @@ class Utility:
 
     @staticmethod
     def extract_user_password(uri: str):
+        "extract username, password and host with port from mongo uri"
         if uri.startswith(SCHEME):
             scheme_free = uri[SCHEME_LEN:]
             scheme = uri[:SCHEME_LEN]
@@ -299,6 +301,7 @@ class Utility:
 
     @staticmethod
     def get_local_mongo_store(bot: Text, domain:  Domain):
+        "create local mongo tracker"
         db_url = Utility.environment['mongo_url']
         db_name = Utility.environment['test_conversation_db']
         username, password, url = Utility.extract_user_password(db_url)
@@ -311,4 +314,5 @@ class Utility:
 
     @staticmethod
     def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
+        "used to check of string contains special character other than allowed ones"
         return not bool(search(strg))
