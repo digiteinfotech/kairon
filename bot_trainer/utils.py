@@ -271,7 +271,7 @@ class Utility:
     def delete_document(documents : List[Document], bot: Text, user: Text):
         "used to delete list of documents from mongo"
         for document in documents:
-            doc_list = document.objects(bot=bot)
+            doc_list = document.objects(bot=bot, status=True)
             if doc_list:
                 doc_list.update(set__status=False, set__user=user)
 
