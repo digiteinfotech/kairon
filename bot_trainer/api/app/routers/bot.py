@@ -63,7 +63,7 @@ async def search_intent(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """ This function returns the search intent of the entered text by using mongo text search"""
-    search_items = mongo_processor.search_training_examples(request_data.data, current_user.get_bot())
+    search_items = list(mongo_processor.search_training_examples(request_data.data, current_user.get_bot()))
     return {"data": {"searched_items": search_items}}
 
 
