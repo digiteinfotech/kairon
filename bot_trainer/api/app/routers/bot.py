@@ -58,6 +58,15 @@ async def predict_intent(
     return {"data": {"intent": intent, "confidence": confidence}}
 
 
+@router.post("/intents/search", response_model=Response)
+async def search_intent(
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+):
+    """ This function returns the search intent of the entered text by using mongo text search"""
+    search_items = mongo_processor.search_training_examples(request_data.data, current_user.get_bot())
+    return {"data": {"searched_items": search_items}}
+
+
 @router.get("/training_examples/{intent}", response_model=Response)
 async def get_training_examples(
     intent: str, current_user: User = Depends(auth.get_current_user)
@@ -69,6 +78,8 @@ async def get_training_examples(
             mongo_processor.get_training_examples(intent, current_user.get_bot())
         )
     }
+
+
 
 
 @router.post("/training_examples/{intent}", response_model=Response)

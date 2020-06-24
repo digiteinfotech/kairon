@@ -912,6 +912,20 @@ class MongoProcessor:
             except Exception as e:
                 yield {"text": example, "_id": None, "message": str(e)}
 
+
+    def search_training_examples(self,search: Text, bot: Text):
+        """search the training example for particular bot
+        Args:
+            search: search text
+            bot: bot to search
+
+        Returns:
+            List of match training examples.
+        """
+        results = TrainingExamples.objects(bot=bot, status=True).search_text(search).order_by('$text_score')
+        for result in results:
+            yield {"intent", result.intent, "text", result.text}
+
     def get_training_examples(self, intent: Text, bot: Text):
         """ Yields training examples for an intent of the bot.
             Eg. MongoProcessor.get_training_examples(intent_name,bot_name) """
