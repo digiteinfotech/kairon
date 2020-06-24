@@ -23,18 +23,15 @@ class TestAccountProcessor:
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
+        account = AccountProcessor.get_account(account_response["_id"])
         assert account_response
-        assert account_response["_id"] == 3
-        assert account_response["name"] == "paypal"
+        assert account_response["_id"] == account["_id"]
+        assert account_response["name"] == account["name"]
         account_response = AccountProcessor.add_account("ebay", "testAdmin")
+        account = AccountProcessor.get_account(account_response["_id"])
         assert account_response
-        assert account_response["_id"] == 4
-        assert account_response["name"] == "ebay"
-
-    def test_get_account(self):
-        account = AccountProcessor.get_account(3)
-        assert account
-        assert account["name"] == "paypal"
+        assert account_response["_id"] == account["_id"]
+        assert account_response["name"] == account["name"]
 
     def test_add_duplicate_account(self):
         with pytest.raises(Exception):

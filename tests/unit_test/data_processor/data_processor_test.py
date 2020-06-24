@@ -247,7 +247,7 @@ class TestMongoProcessor:
         assert results[0]["text"] is None
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_empty_text(self):
@@ -259,7 +259,7 @@ class TestMongoProcessor:
         assert results[0]["text"] == ""
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_blank_text(self):
@@ -271,7 +271,7 @@ class TestMongoProcessor:
         assert results[0]["text"] == "  "
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_none_intent(self):
@@ -286,7 +286,7 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_training_example_empty_intent(self):
@@ -301,7 +301,7 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_training_example_blank_intent(self):
@@ -316,7 +316,7 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_empty_training_example(self):
@@ -329,7 +329,7 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Training Example cannot be empty or blank spaces"
             )
 
     def test_get_training_examples(self):
@@ -428,6 +428,15 @@ class TestMongoProcessor:
         assert any(
             expected_text != example["text"] for example in new_training_examples
         )
+
+    def test_add_training_example_multiple(self):
+        processor = MongoProcessor()
+        actual = list(processor.add_training_example(["Log a [critical issue](priority)",
+                                        "Make [TKT456](ticketID) a [high issue](priority)"],
+                                        intent="get_priority",
+                                       bot="tests", user="testUser"))
+        assert actual[0]['message'] == "Training Example already exists!"
+        assert actual[1]['message'] == "Training Example added successfully!"
 
     def test_add_entity(self):
         processor = MongoProcessor()
@@ -906,6 +915,18 @@ class TestMongoProcessor:
         stories = list(processor.get_stories("tests"))
         assert stories.__len__() == 6
 
+    def test_edit_training_example_duplicate(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_training_example(examples[0]["_id"], example="hey there", intent="greet", bot="tests", user="testUser")
+
+    def test_edit_training_example(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="hey, there", intent="greet", bot="tests", user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "hey, there" for example in examples)
 
 # pylint: disable=R0201
 class TestAgentProcessor:

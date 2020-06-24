@@ -23,7 +23,8 @@ class AccountProcessor:
     def get_account(account: int):
         """ Returns an account object based on user ID """
         try:
-            return Account.objects().get(id=account).to_mongo().to_dict()
+            account = Account.objects().get(id=account).to_mongo().to_dict()
+            return account
         except:
             raise DoesNotExist("Account does not exists")
 
@@ -186,7 +187,7 @@ class AccountProcessor:
             user = AccountProcessor.account_setup(account, user="sysadmin")
             if user:
                 await MongoProcessor().save_from_path(
-                    "template/", user["bot"], user="sysadmin"
+                    "template/use-cases/Hi-Hello", user["bot"], user="sysadmin"
                 )
             return user
         except Exception as e:

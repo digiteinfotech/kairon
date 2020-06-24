@@ -98,6 +98,21 @@ async def add_training_examples(
     return {"data": results}
 
 
+@router.put("/training_examples/{intent}/{id}", response_model=Response)
+async def edit_training_examples(
+    intent: str,
+    id: str,
+    request_data: TextData,
+    current_user: User = Depends(auth.get_current_user),
+):
+    """ This is used to add a new training example (sentence/question) for a
+        particular intent """
+    mongo_processor.edit_training_example(
+        id, request_data.data, intent, current_user.get_bot(), current_user.get_user()
+    )
+    return {"message": "Training Example updated!"}
+
+
 @router.delete("/training_examples", response_model=Response)
 async def remove_training_examples(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)

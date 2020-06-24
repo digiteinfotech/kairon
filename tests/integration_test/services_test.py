@@ -330,7 +330,7 @@ def test_add_empty_training_examples():
     assert actual["error_code"] == 0
     assert (
         actual["data"][0]["message"]
-        == "Training Example name and text cannot be empty or blank spaces"
+        == "Training Example cannot be empty or blank spaces"
     )
     assert actual["data"][0]["_id"] is None
 
@@ -370,6 +370,24 @@ def test_remove_training_examples_empty_id():
     assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
+
+def test_edit_training_examples():
+    training_examples = client.get(
+        "/api/bot/training_examples/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    print(training_examples)
+    response = client.put(
+        "/api/bot/training_examples/greet/"+training_examples["data"][0]["_id"],
+        json={"data": "hey, there"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Training Example updated!"
 
 def test_get_responses():
     response = client.get(

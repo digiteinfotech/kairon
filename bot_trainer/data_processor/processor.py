@@ -1,7 +1,6 @@
 import itertools
 import logging
 import os
-import re
 from collections import ChainMap
 from datetime import datetime
 from typing import Text, Dict, List
@@ -23,7 +22,6 @@ from rasa.data import get_core_nlu_files
 from rasa.importers import utils
 from rasa.importers.rasa import Domain, StoryFileReader
 from rasa.nlu.training_data import Message, TrainingData
-from rasa.nlu.training_data.formats.markdown import entity_regex
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.io import read_config_file
@@ -238,7 +236,7 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if training_example not in saved_training_examples:
+            if str(training_example.text).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[TRAINING_EXAMPLE.INTENT.value]
                 training_data.text = training_example.text
@@ -825,7 +823,7 @@ class MongoProcessor:
             configs = Configs.objects().get(bot=bot)
         except DoesNotExist as e:
             logging.info(e)
-            configs = Configs._from_son(read_config_file("./template/config.yml"))
+            configs = Configs._from_son(read_config_file("./template/config/default.yml"))
         return configs
 
     def load_config(self, bot: Text):
@@ -863,7 +861,7 @@ class MongoProcessor:
     ):
         """ Adds a sentence/question (training example) for an intent of the bot.
             Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(intent), "Training Example name and text cannot be empty or blank spaces"
+        assert not Utility.check_empty_string(intent), "Intent cannot be empty or blank spaces"
         if not Utility.is_exist(
                 Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
@@ -871,10 +869,11 @@ class MongoProcessor:
 
         for example in examples:
             try:
-                assert not Utility.check_empty_string(example), "Training Example name and text cannot be empty or blank spaces"
-                example = example.strip()
+                assert not Utility.check_empty_string(example), "Training Example cannot be empty or blank spaces"
+                text, entities = Utility.extract_text_and_entities(example.strip())
+                print(text)
                 if Utility.is_exist(
-                        TrainingExamples, raise_error=False, text__iexact=example, bot=bot, status=True
+                        TrainingExamples, raise_error=False, text__iexact=text, bot=bot, status=True
                 ):
                     yield {
                         "text": example,
@@ -882,22 +881,15 @@ class MongoProcessor:
                         "_id": None,
                     }
                 else:
-                    entities = Utility.markdown_reader._find_entities_in_training_example(
-                        example
-                    )
                     if entities:
                         ext_entity = [ent["entity"] for ent in entities]
                         self.__save_domain_entities(ext_entity, bot=bot, user=user)
                         self.__add_slots_from_entities(ext_entity, bot, user)
-                        text = re.sub(
-                            entity_regex, lambda m: m.groupdict()["entity_text"], example
-                        )
                         new_entities = list(
                             self.__extract_entities(entities)
                         )
                     else:
                         new_entities = None
-                        text = example
 
                     training_example = TrainingExamples(
                         intent=intent.strip(), text=text, entities=new_entities, bot=bot, user=user
@@ -913,6 +905,30 @@ class MongoProcessor:
                 yield {"text": example, "_id": None, "message": str(e)}
 
 
+    def edit_training_example(
+            self, id: Text, example: Text, intent: Text, bot: Text, user: Text
+    ):
+        """ Adds a sentence/question (training example) for an intent of the bot.
+            Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
+        try:
+            assert not Utility.check_empty_string(
+                example), "Training Example cannot be empty or blank spaces"
+            text, entities = Utility.extract_text_and_entities(example.strip())
+            if Utility.is_exist(
+                    TrainingExamples, raise_error=False, text__iexact=text, bot=bot, status=True
+            ):
+                raise AppException("Training Example already exists!")
+            training_example = TrainingExamples.objects(bot=bot, intent=intent).get(id=id)
+            training_example.user=user
+            training_example.text=text
+            if entities:
+                training_example.entities=entities
+            training_example.timestamp = datetime.utcnow()
+            training_example.save()
+        except DoesNotExist as e:
+            raise AppException("Invalid trianing example!")
+
+
     def search_training_examples(self,search: Text, bot: Text):
         """search the training example for particular bot
         Args:
@@ -922,14 +938,14 @@ class MongoProcessor:
         Returns:
             List of match training examples.
         """
-        results = TrainingExamples.objects(bot=bot, status=True).search_text(search).order_by('$text_score')
+        results = TrainingExamples.objects(bot=bot, status=True).search_text(search).order_by('$text_score').limit(5)
         for result in results:
-            yield {"intent", result.intent, "text", result.text}
+            yield {"intent": result.intent, "text": result.text}
 
     def get_training_examples(self, intent: Text, bot: Text):
         """ Yields training examples for an intent of the bot.
             Eg. MongoProcessor.get_training_examples(intent_name,bot_name) """
-        training_examples = list(
+        training_examples = (
             TrainingExamples
                 .objects(bot=bot, intent__iexact=intent, status=True)
             .order_by("-timestamp")
@@ -950,7 +966,7 @@ class MongoProcessor:
                     {
                         "$group": {
                             "_id": "$bot",
-                            "text": {"$push": "$text"},
+                            "text": {"$push": {"$toLower": "$text"}},
                             "id": {"$push": {"$toString": "$_id"}},
                         }
                     }

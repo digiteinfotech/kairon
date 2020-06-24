@@ -26,7 +26,7 @@ from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
-
+from rasa.nlu.training_data.formats.markdown import entity_regex
 from bot_trainer.exceptions import AppException
 
 
@@ -314,5 +314,16 @@ class Utility:
 
     @staticmethod
     def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
-        "used to check of string contains special character other than allowed ones"
+        """used to check of string contains special character other than allowed ones"""
         return not bool(search(strg))
+
+    @staticmethod
+    def extract_text_and_entities(text: Text):
+        """used to extract entities and plain text from the training example"""
+        example = re.sub(
+            entity_regex, lambda m: m.groupdict()["entity_text"], text
+        )
+        entities = Utility.markdown_reader._find_entities_in_training_example(
+            text
+        )
+        return example, entities
