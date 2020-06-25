@@ -350,7 +350,7 @@ def test_remove_training_examples():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Training Example removed successfully!"
+    assert actual["message"] == "Training Example removed!"
     training_examples = client.get(
         "/api/bot/training_examples/greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -411,7 +411,7 @@ def test_add_response():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Response added successfully!"
+    assert actual["message"] == "Utterance added!"
     response = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -429,7 +429,7 @@ def test_add_response_duplicate():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Response already exists!"
+    assert actual["message"] == "Utterance already exists!"
 
 
 def test_add_empty_response():
@@ -441,7 +441,7 @@ def test_add_empty_response():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Response text cannot be empty or blank spaces"
+    assert actual["message"] == "Utterance text cannot be empty or blank spaces"
 
 
 def test_remove_response():
@@ -459,7 +459,7 @@ def test_remove_response():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Response removed successfully!"
+    assert actual["message"] == "Utterance removed!"
     training_examples = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -478,6 +478,22 @@ def test_remove_response_empty_id():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
+
+def test_remove_response():
+    training_examples = client.get(
+        "/api/bot/response/utter_greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    response = client.put(
+        "/api/bot/response/utter_greet/"+training_examples["data"][0]["_id"],
+        json={"data": "Hello, How are you!"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance updated!"
 
 
 def test_add_story():

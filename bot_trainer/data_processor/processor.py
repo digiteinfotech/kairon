@@ -56,9 +56,6 @@ from .data_objects import (
     LookupTables,
     RegexFeatures,
     Entity,
-    ResponseText,
-    ResponseCustom,
-    ResponseButton,
     EndPointBot,
     EndPointAction,
     EndPointTracker,
@@ -559,10 +556,6 @@ class MongoProcessor:
                 SESSION_CONFIG.CARRY_OVER_SLOTS.value: default_session.carry_over_slots,
             }
 
-    def __extract_response_button(self, buttons):
-        for button in buttons:
-            yield ResponseButton._from_son(button)
-
     def __extract_response_value(self, values: List[Dict], key, bot: Text, user: Text):
         saved_responses = self.__fetch_list_of_response(bot)
         for value in values:
@@ -571,22 +564,11 @@ class MongoProcessor:
                 response.name = key.strip()
                 response.bot = bot
                 response.user = user
-                if RESPONSE.Text.value in value:
-                    response_text = ResponseText()
-                    response_text.text = str(value[RESPONSE.Text.value]).strip()
-                    if RESPONSE.IMAGE.value in value:
-                        response_text.image = value[RESPONSE.IMAGE.value]
-                    if RESPONSE.CHANNEL.value in value:
-                        response_text.channel = value["channel"]
-                    if RESPONSE.BUTTONS.value in value:
-                        response_text.buttons = list(
-                            self.__extract_response_button(value[RESPONSE.BUTTONS.value])
-                        )
-                    response.text = response_text
-                elif RESPONSE.CUSTOM.value in value:
-                    response.custom = ResponseCustom._from_son(
-                        {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
-                    )
+                r_type, r_object = Utility.prepare_response(value)
+                if RESPONSE.Text.value == r_type:
+                    response.text = r_object
+                elif RESPONSE.CUSTOM.value == r_type:
+                    response.custom = r_object
                 yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
@@ -1050,19 +1032,31 @@ class MongoProcessor:
             Slots.objects.insert(slots)
 
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
-        """ Adds a text response to an utterance of the bot.
-            Eg. MongoProcessor.add_text_response(response,utterance_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(utterance), "Response text cannot be empty or blank spaces"
-        assert not Utility.check_empty_string(name), "Response name cannot be empty or blank spaces"
+        """
+        save bot text utterance in mongodb
+        :param utterance: text utterance
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: bot utterance id
+        """
+        assert not Utility.check_empty_string(utterance), "Utterance text cannot be empty or blank spaces"
+        assert not Utility.check_empty_string(name), "Utterance name cannot be empty or blank spaces"
         return self.add_response(
             utterances={"text": utterance.strip()}, name=name, bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
-        """ Adds an utterance to the bot.
-            Eg. MongoProcessor.add_response({utterance_dict},utterance_name,bot_name,user_name) """
+        """
+        save bot utterance in mongodb
+        :param utterances: utterance value
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: bot utterance id
+        """
         self.__check_response_existence(
-            response=utterances, bot=bot, exp_message="Response already exists!"
+            response=utterances, bot=bot, exp_message="Utterance already exists!"
         )
         response = list(
             self.__extract_response_value(
@@ -1076,9 +1070,55 @@ class MongoProcessor:
             Actions(name=name.strip(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
+    def edit_text_response(self, id: Text, utterance: Text, name: Text, bot: Text, user: Text):
+        """
+        update the text bot uuterance in mongodb
+        :param id: utterance id against which the utterance is updated
+        :param utterance: text utterance value
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: DoesNotExist: if utterance does not exist
+        """
+        self.edit_response(id, {"text": utterance}, name, bot, user)
+
+    def edit_response(self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text):
+        """
+        update the bot utterance in mongodb
+        :param id: utterance id against which the utterance is updated
+        :param utterances: utterance value
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :exception: DoesNotExist: if utterance does not exist
+        """
+        try:
+            self.__check_response_existence(
+                response=utterances, bot=bot, exp_message="Utterance already exists!"
+            )
+            response = Responses.objects(bot=bot, name=name).get(id=id)
+            r_type, r_object = Utility.prepare_response(utterances)
+            if RESPONSE.Text.value == r_type:
+                response.text = r_object
+                response.custom = None
+            elif RESPONSE.CUSTOM.value == r_type:
+                response.custom = r_object
+                response.text = None
+            response.user = user
+            response.timestamp = datetime.utcnow()
+            response.save()
+        except DoesNotExist as e:
+            raise AppException("Utterance does not exist!")
+
     def get_response(self, name: Text, bot: Text):
-        """ Yields bot response based on utterance name.
-            Eg. MongoProcessor.get_response(utterance_name,bot_name) """
+        """
+        fetch all the utterances
+        :param name: utterance name
+        :param bot: bot id
+        :return: yields the utterances
+        """
         values = Responses.objects(bot=bot, status=True, name__iexact=name).order_by("-timestamp")
         for value in values:
             val = None
@@ -1129,13 +1169,21 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    ## need to add the logic to add action, slots and forms if it does not exist
     def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
-        """ Adds a new story to the bot.
-            Eg. MongoProcessor.add_story(story_name,[Dictionaries of conversation flow],bot_name,user_name) """
+        """
+        save story in mongodb
+        :param name: story name
+        :param events: story events list
+        :param bot: bot id
+        :param user: user id
+        :return: story id
+        :raises AppException: Story already exist!
+
+        :todo need to add the logic to add action, slots and forms if it does not exist
+        """
         assert not Utility.check_empty_string(name), "Story path name cannot be empty or blank spaces"
         self.__check_event_existence(
-            events, bot=bot, exp_message="Story already exists!"
+            events, bot=bot, exp_message="Story already exist!"
         )
         return (
             Stories(

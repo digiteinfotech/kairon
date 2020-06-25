@@ -27,7 +27,7 @@ from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
-from bot_trainer.exceptions import AppException
+from .exceptions import AppException
 
 
 class Utility:
@@ -319,7 +319,11 @@ class Utility:
 
     @staticmethod
     def extract_text_and_entities(text: Text):
-        """used to extract entities and plain text from the training example"""
+        """
+        extract entities and plain text from markdown intent example
+        :param text: markdown intent example
+        :return: plain intent, list of extracted entities
+        """
         example = re.sub(
             entity_regex, lambda m: m.groupdict()["entity_text"], text
         )
@@ -327,3 +331,46 @@ class Utility:
             text
         )
         return example, entities
+
+    @staticmethod
+    def __extract_response_button(buttons: Dict):
+        """
+        used to prepare ResponseButton by extracting buttons configuration from bot utterance
+        :param buttons: button configuration in bot response
+        :return: yields ResponseButton
+        """
+        from .data_processor.data_objects import ResponseButton
+
+        for button in buttons:
+            yield ResponseButton._from_son(button)
+
+    @staticmethod
+    def prepare_response(value: Dict):
+        """
+        used to prepare bot utterance either Text or Custom for saving in Mongo
+        :param value: utterance value
+        :return: response type, response object
+        """
+        from .data_processor.constant import RESPONSE
+        from .data_processor.data_objects import ResponseText, ResponseCustom
+
+        if RESPONSE.Text.value in value:
+            response_text = ResponseText()
+            response_text.text = str(value[RESPONSE.Text.value]).strip()
+            if RESPONSE.IMAGE.value in value:
+                response_text.image = value[RESPONSE.IMAGE.value]
+            if RESPONSE.CHANNEL.value in value:
+                response_text.channel = value["channel"]
+            if RESPONSE.BUTTONS.value in value:
+                response_text.buttons = list(
+                    Utility.__extract_response_button(value[RESPONSE.BUTTONS.value])
+                )
+            data = response_text
+            type = "text"
+        elif RESPONSE.CUSTOM.value in value:
+            data = ResponseCustom._from_son(
+                {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
+            )
+            type = "custom"
+
+        return type, data

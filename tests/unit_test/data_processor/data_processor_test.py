@@ -921,6 +921,12 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.edit_training_example(examples[0]["_id"], example="hey there", intent="greet", bot="tests", user="testUser")
 
+    def test_edit_training_example_does_not_exists(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_training_example(examples[0]["_id"], example="hey there", intent="happy", bot="tests", user="testUser")
+
     def test_edit_training_example(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
@@ -928,6 +934,25 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hey, there" for example in examples)
 
+    def test_edit_responses_duplicate(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_happy", bot="tests", user="testUser")
+
+
+    def test_edit_responses_does_not_exist(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_greet", bot="tests", user="testUser")
+
+    def test_edit_responses(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_happy", "tests"))
+        assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
 # pylint: disable=R0201
 class TestAgentProcessor:
 
