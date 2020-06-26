@@ -171,17 +171,6 @@ class TestMongoProcessor:
         intent = Intents.objects(bot="tests").get(name="greeting_examples")
         assert intent.name == "greeting_examples"
 
-    def test_add_intent_with_hypen(self):
-        processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            assert processor.add_intent("greeting-examples", "tests", "testUser")
-
-
-    def test_add_intent_special_character(self):
-        processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            assert processor.add_intent("// ** Wootness * //", "tests", "testUser")
-
 
     def test_add_intent_duplicate(self):
         processor = MongoProcessor()
