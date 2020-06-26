@@ -1,0 +1,27 @@
+# Configuration for Rasa NLU.
+# https://rasa.com/docs/rasa/nlu/components/
+language: "en"
+
+pipeline:
+- name: "WhitespaceTokenizer"
+- name: "RegexFeaturizer"
+- name: "CRFEntityExtractor"
+- name: "EntitySynonymMapper"
+- name: "CountVectorsFeaturizer"
+- name: "DIETClassifier"
+
+# Configuration for Rasa Core.
+# https://rasa.com/docs/rasa/core/policies/
+policies:
+  - name: MemoizationPolicy
+    max_history: 3
+    priority: 3
+  - name: TEDPolicy
+    max_history: 3
+    epochs: 200
+  - name: FallbackPolicy
+    nlu_threshold: 0.3
+    core_threshold: 0.3
+    fallback_action_name: 'action_default_fallback'
+  - name: MappingPolicy
+  - name: FormPolicy

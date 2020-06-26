@@ -144,7 +144,7 @@ class AccountProcessor:
             )
 
     @staticmethod
-    def account_setup(account_setup: Dict, user: Text):
+    async def account_setup(account_setup: Dict, user: Text):
         """ Creating a new account based on details provided by the user """
         account = None
         bot = None
@@ -164,17 +164,25 @@ class AccountProcessor:
                 user=user,
                 role="admin",
             )
+            await MongoProcessor().save_from_path(
+                "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
+            )
         except Exception as e:
             if account and "_id" in account:
                 Account.objects().get(id=account["_id"]).delete()
             if bot and "_id" in bot:
                 Bot.objects().get(id=bot["_id"]).delete()
             raise e
+
         return user_details
 
     @staticmethod
     async def default_account_setup():
-        """ Setting up an account for testing/demo purposes """
+        """
+        default account for testing/demo purposes
+        :return: user details
+        :exception if account already exist
+        """
         account = {
             "account": "DemoAccount",
             "bot": "Demo",
@@ -184,11 +192,7 @@ class AccountProcessor:
             "password": SecretStr("Welcome@1"),
         }
         try:
-            user = AccountProcessor.account_setup(account, user="sysadmin")
-            if user:
-                await MongoProcessor().save_from_path(
-                    "template/use-cases/Hi-Hello", user["bot"], user="sysadmin"
-                )
+            user = await AccountProcessor.account_setup(account, user="sysadmin")
             return user
         except Exception as e:
             logging.info(str(e))

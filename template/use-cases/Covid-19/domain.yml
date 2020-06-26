@@ -1,0 +1,182 @@
+session_config:
+  session_expiration_time: 0
+  carry_over_slots_to_new_session: true
+intents:
+- greet
+- goodbye
+- out_of_scope
+- smalltalk_human
+- faq_distancing
+- faq_symptoms
+- faq_vaccine
+- faq_vulnerable
+- faq_testing
+- faq_supplies
+- faq_whatisit
+- affirm
+- deny
+- mood_great
+- mood_unhappy
+- inform
+- search_provider
+- thanks
+- get_name
+
+entities:
+- location
+- facility_type
+- emailid
+- mobilenumber
+- username
+- name
+
+slots:
+  address:
+    type: unfeaturized
+  facility_type:
+    type: text
+  location:
+    type: text
+  username:
+    type: unfeaturized
+  emailid:
+    type: unfeaturized
+  mobilenumber:
+    type: unfeaturized
+
+responses:
+  utter_address:
+  - text: The address is {address}.
+  utter_ask_location:
+  - text: Please Provide your location?
+  utter_ask_username:
+  - text: Please enter your name (Enter) and email id (Enter)?
+  utter_ask_email:
+  - text: Please enter your Email Id?
+  utter_ask_mobilenumber:
+  - text: Please enter your Mobile Number?
+  utter_cheer_up:
+  - image: https://i.imgur.com/nGF1K8f.jpg
+    text: Here is something to cheer you up
+  - text: "Let's hear a joke: I got another letter from this lawyer today. It said\
+      \ “Final Notice”. Good that he will not bother me anymore."
+  - text: "Let's hear a joke: What is the worst combination of illnesses? -Alzheimer’s\
+      \ and diarrhea. You’re running, but can’t remember where."
+  utter_did_that_help:
+  - text: Did that help you?
+  utter_faq_distancing:
+  - text: Social distancing, also called “physical distancing,” means keeping space
+      between yourself and other people outside of your home. To practice social or
+      physical distancing Stay at least 6 feet (2 meters) from other people Do not
+      gather in groups Stay out of crowded places and avoid mass gatherings
+  - text: Social distancing, or physical distancing, is a set of non-pharmaceutical
+      interventions or measures taken to prevent the spread of a contagious disease
+      by maintaining a physical distance between people and reducing the number of
+      times people come into close contact with each other.
+  - text: The new coronavirus is a respiratory virus which spreads primarily through
+      droplets generated when an infected person coughs or sneezes, or through droplets
+      of saliva or discharge from the nose. To protect yourself, clean your hands
+      frequently with an alcohol-based hand rub or wash them with soap and water.
+  utter_faq_supplies:
+  - text: India is adapting the world’s largest portfolio of food distribution and
+      safety net programs to provide food to its poorest citizens
+  - text: All the necessary and essential supplies will be available. Online Food,
+      grocery Delivery companies will be operational.
+  utter_faq_symptoms:
+  - text: COVID-19 affects different people in different ways. Most infected people
+      will develop mild to moderate symptoms.Common symptoms:fever, tiredness, dry
+      coughSome people may experience:aches and pains, nasal congestion, runny nose,
+      sore throat, diarrhoea. On average it takes 5–6 days from when someone is infected
+      with the virus for symptoms to show, however it can take up to 14 days
+  - text: The virus can cause a range of symptoms, from ranging from mild illness
+      to pneumonia. Symptoms of the disease are fever, cough, sore throat and headaches.
+  - text: Most people infected with the COVID-19 virus will experience mild to moderate
+      respiratory illness and recover without requiring special treatment. Older people,
+      and those with underlying medical problems like cardiovascular disease, diabetes,
+      chronic respiratory disease, and cancer are more likely to develop serious illness.
+  - text: People with COVID-19 generally develop signs and symptoms, including mild
+      respiratory symptoms and fever, on an average of 5-6 days after infection (mean
+      incubation period 5-6 days, range 1-14 days). Most people infected with COVID-19
+      virus have mild disease and recover.
+  utter_faq_testing:
+  - text: Covid-19 testing can identify the SARS-CoV-2 virus (virus responsible for
+      COVID-19) and includes methods that detect the presence of virus itself (RT-PCR
+      and isothermal nucleic acid amplification) and those that detect antibodies
+      produced in response to infection
+  - text: COVID-19 testing differs by location. If you have symptoms of COVID-19 and
+      want to get tested, call your medical provider first. You can also visit your
+      state or health department’s website to look for the latest local information
+      on testing. While supplies of these tests are increasing, it may still be difficult
+      to find a place to get tested.
+  utter_faq_vaccine:
+  - text: When a disease is new, there is no vaccine until one is developed. It can
+      take a few months to number of years for a new vaccine to be developed.
+  - text: There is no specific treatment for disease caused by a novel coronavirus.
+      However, many of the symptoms can be treated and therefore treatment based on
+      the patient's clinical condition.
+  - text: Currently hydroxychloroquine is being used to treat patients in case of
+      severe illness."
+  - text: No, antibiotics do not work against viruses. The 2019-nCOV is a virus and,
+      therefore, antibiotics should not be used as a means of prevention or treatment.
+  utter_faq_vulnerable:
+  - text: People of all ages can be infected by the new coronavirus (2019-nCoV). Older
+      people, and people with pre-existing medical conditions (such as asthma, diabetes,
+      heart disease) appear to be more vulnerable to becoming severely ill with the
+      virus.
+  - text: Current evidence on other coronavirus strains shows that while coronaviruses
+      appear to be stable at low and freezing temperatures for a certain period, food
+      hygiene and good food safety practices can prevent their transmission through
+      food.
+  utter_faq_whatisit:
+  - text: Coronaviruses are a family of viruses that range from the common cold to
+      MERS coronavirus, which is Middle East Respiratory Syndrome coronavirus and
+      SARs, Severe acute respiratory syndrome coronavirus.
+  - text: The new coronavirus is a respiratory virus which spreads primarily through
+      droplets generated when an infected person coughs or sneezes, or through droplets
+      of saliva or discharge from the nose. To protect yourself, clean your hands
+      frequently with an alcohol-based hand rub or wash them with soap and water.
+  utter_goodbye:
+  - text: See you soon!
+  utter_greet:
+  - text: Hey! How are you?
+  utter_happy:
+  - text: Great carry on!
+  utter_how_can_i_help:
+  - text: Hi! I am Covid-19 assistant. I can give you basic information on COVID-19,
+      test centers, hospital and statistics.
+  utter_out_of_scope:
+  - text: I wish I could answer your question, Please ask some other question please.
+  - text: Sorry I don't know the answer, can you please ask questions related to COVID-19?
+  utter_smalltalk_human:
+  - text: Yes, I am a COVID-19 Assistant here to help you find answers.
+  - text: Yes I am a Robot to assist you in COVID-19 realated questions.
+  utter_submit:
+  - text: Hello {username} from {location}. How may I help you?
+  utter_thanks:
+  - text: You are wellcome!
+  utter_form_thanks:
+  - text: Thank you for the details! How may I help you?
+actions:
+- utter_greet
+- utter_cheer_up
+- utter_did_that_help
+- utter_happy
+- utter_thanks
+- utter_goodbye
+- utter_how_can_i_help
+- utter_ask_location
+- utter_address
+- utter_ask_username
+- utter_submit
+- utter_out_of_scope
+- utter_smalltalk_human
+- utter_faq_distancing
+- utter_faq_symptoms
+- utter_faq_vaccine
+- utter_faq_vulnerable
+- utter_faq_testing
+- utter_faq_supplies
+- utter_faq_whatisit
+- utter_ask_email
+- utter_ask_mobilenumber
+- action_set_username

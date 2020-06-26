@@ -268,12 +268,21 @@ class Utility:
                 raise AppException("\n".join(response))
 
     @staticmethod
-    def delete_document(documents : List[Document], bot: Text, user: Text):
-        "used to delete list of documents from mongo"
+    def delete_document(documents: List[Document], bot: Text, user: Text):
+        """
+        perform soft delete on list of mongo collections
+        :param documents: list of mongo collections
+        :param bot: bot id
+        :param user: user id
+        :return: NONE
+        """
         for document in documents:
             doc_list = document.objects(bot=bot, status=True)
             if doc_list:
-                doc_list.update(set__status=False, set__user=user)
+                for doc in doc_list:
+                    doc.status = False
+                    doc.user = user
+                    doc.save()
 
     @staticmethod
     def extract_user_password(uri: str):
@@ -374,3 +383,12 @@ class Utility:
             type = "custom"
 
         return type, data
+
+    @staticmethod
+    def list_directories(path: Text):
+        """
+        list all the directories in given path
+        :param path: directory path
+        :return: list of directories
+        """
+        return list(os.listdir(path))

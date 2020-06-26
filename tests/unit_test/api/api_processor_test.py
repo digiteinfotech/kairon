@@ -395,7 +395,8 @@ class TestAccountProcessor:
     def test_account_setup_empty_values(self):
         account = {}
         with pytest.raises(AssertionError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_missing_account(self):
         account = {
@@ -406,7 +407,8 @@ class TestAccountProcessor:
             "password": "welcome@1",
         }
         with pytest.raises(AssertionError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_missing_bot_name(self):
         account = {
@@ -417,7 +419,8 @@ class TestAccountProcessor:
             "password": "Welcome@1",
         }
         with pytest.raises(AssertionError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_user_info(self):
         account = {
@@ -428,7 +431,8 @@ class TestAccountProcessor:
             "password": SecretStr("Welcome@1"),
         }
         with pytest.raises(AssertionError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup(self):
         account = {
@@ -439,7 +443,8 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
         }
-        actual = AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        loop = asyncio.new_event_loop()
+        actual = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
         assert actual["role"] == "admin"
         assert actual["_id"]
         assert actual["account"]

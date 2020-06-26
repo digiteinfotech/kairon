@@ -1129,3 +1129,30 @@ def test_save_endpoint():
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('tracker_endpoint')
+
+def test_get_templates():
+    response = client.get(
+        "/api/bot/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "Hi-Hello" in actual['data']['use-cases']
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_set_templates():
+    response = client.post(
+        "/api/bot/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello"}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Data applied!"
+    assert actual['success']

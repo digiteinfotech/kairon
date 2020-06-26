@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'Bot Trainer'
-copyright = '2020, Fahad'
-author = 'Fahad'
+copyright = '2020, Digite'
+author = 'Fahad Shaikh <shaikhfahad2526@gmail.com>'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'

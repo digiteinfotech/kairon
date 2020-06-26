@@ -658,26 +658,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError):
             processor.add_story("happy path", [], "tests", "testUser")
 
-    def test_add_story_start_with_action(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "utter_greet", "type": "action"},
-            {"name": "greeting", "type": "user"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(ValidationError):
-            processor.add_story("greeting", events, "tests", "testUser")
-
-    def test_add_story_end_with_user(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-        ]
-        with pytest.raises(ValidationError):
-            processor.add_story("greeting", events, "tests", "testUser")
 
     def test_get_session_config(self):
         processor = MongoProcessor()

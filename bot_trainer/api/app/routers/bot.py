@@ -22,6 +22,7 @@ from bot_trainer.data_processor.processor import (
 )
 from bot_trainer.exceptions import AppException
 from bot_trainer.train import start_training
+from bot_trainer.utils import Utility
 
 router = APIRouter()
 auth = Authentication()
@@ -202,6 +203,7 @@ async def remove_responses(
         "message": "Utterance removed!",
     }
 
+
 @router.put("/response/{utterance}/{id}", response_model=Response)
 async def edit_responses(
         utterance: str,
@@ -218,11 +220,12 @@ async def edit_responses(
     :return: Utterance updated!
     """
     mongo_processor.edit_text_response(
-        id, request_data.data, utterance,current_user.get_bot(), current_user.get_user()
+        id, request_data.data, utterance, current_user.get_bot(), current_user.get_user()
     )
     return {
         "message": "Utterance updated!",
     }
+
 
 @router.post("/stories", response_model=Response)
 async def add_stories(
@@ -394,3 +397,34 @@ async def set_config(
         config.dict(), current_user.get_bot(), current_user.get_user()
     )
     return {"data": {"config": endpoint}}
+
+
+@router.get("/templates", response_model=Response)
+async def get_templates(current_user: User = Depends(auth.get_current_user)):
+    """
+    fetch use-case templates name
+    :param current_user:
+    :return: list of use-case name
+    """
+    return {"data": {"use-cases": Utility.list_directories("./template/use-cases")}}
+
+
+@router.post("/templates", response_model=Response)
+async def get_templates(
+        request_data: TextData,
+        current_user: User = Depends(auth.get_current_user)):
+    """
+    apply the use-case template
+    :param request_data: use-case name
+    :param current_user: user id
+    :return: Data applied!
+    :exception: Invalid template
+    """
+    use_case_path = os.path.join("./template/use-cases", request_data.data)
+    if os.path.exists(use_case_path):
+        await mongo_processor.save_from_path(path=use_case_path,
+                                       bot=current_user.get_bot(),
+                                       user=current_user.get_user())
+    else:
+        raise AppException("Invalid template!")
+    return {"message": "Data applied!"}
