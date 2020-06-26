@@ -126,7 +126,7 @@ python -m black bot_trainer
 
 
 ## Authors
-The repository is actively being maintained and supported by Digite Inc.
+The repository is being maintained and supported by **Digite Inc.**
 * **Digite,Inc.** - [Digite](https://digite.com)
 * [Fahad Ali Shaikh](https://github.com/sfahad1414)
 * [Deepak Naik](https://github.com/deenaik)
