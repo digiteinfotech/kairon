@@ -67,6 +67,14 @@ uvicorn augment.server:app --host 0.0.0.0
 uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
 ```
 
+# Documentation
+
+Documentation for all APIs for Chiron are still being fleshed out. A intermediary version of the documentation is available here.
+[Chiron Documentation] (http://bot-trainer-website.s3-website-us-east-1.amazonaws.com/)
+
+
+
+
 # Contribute
 
 We ❤️ contributions of all size and sorts. If you find a typo, if you want to improve a section of the documentation or if you want to help with a bug or a feature, here are the steps:
