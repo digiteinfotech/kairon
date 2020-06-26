@@ -150,9 +150,6 @@ class Intents(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Intent Name cannot be empty or blank spaces")
-        else:
-            if Utility.special_match(self.name):
-                raise ValidationError("Intent Name must contains alphabets, number and underscore")
 
 
 class Entities(Document):
