@@ -151,7 +151,7 @@ class Intents(Document):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Intent Name cannot be empty or blank spaces")
         else:
-            if not Utility.special_match(self.name):
+            if Utility.special_match(self.name):
                 raise ValidationError("Intent Name must contains alphabets, number and underscore")
 
 

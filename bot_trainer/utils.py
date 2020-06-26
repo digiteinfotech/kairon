@@ -324,7 +324,7 @@ class Utility:
     @staticmethod
     def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
         """used to check of string contains special character other than allowed ones"""
-        return not bool(search(strg))
+        return bool(search(strg))
 
     @staticmethod
     def extract_text_and_entities(text: Text):
