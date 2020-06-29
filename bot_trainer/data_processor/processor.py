@@ -966,9 +966,10 @@ class MongoProcessor:
             Eg. MongoProcessor.remove_document(document_name,doc_ID,bot_name,user_name) """
         try:
             doc = document.objects(bot=bot).get(id=id)
-            doc.status=False
-            doc.user=user
-            doc.save()
+            doc.status = False
+            doc.user = user
+            doc.timestamp = datetime.utcnow()
+            doc.save(validate=False)
         except DoesNotExist as e:
             logging.info(e)
             raise AppException("Unable to remove document")
