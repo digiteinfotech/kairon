@@ -282,7 +282,7 @@ class Utility:
                 for doc in doc_list:
                     doc.status = False
                     doc.user = user
-                    doc.save()
+                    doc.save(validate=False)
 
     @staticmethod
     def extract_user_password(uri: str):
