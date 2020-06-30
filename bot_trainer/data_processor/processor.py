@@ -4,7 +4,7 @@ import os
 from collections import ChainMap
 from datetime import datetime
 from typing import Text, Dict, List
-
+from pathlib import Path
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -25,7 +25,7 @@ from rasa.nlu.training_data import Message, TrainingData
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.io import read_config_file
-
+from rasa.nlu.model import Trainer
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .cache import InMemoryAgentCache
@@ -122,14 +122,25 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
-    async def appy_template(self, template: Text, bot: Text, user: Text):
+    async def apply_template(self, template: Text, bot: Text, user: Text):
         use_case_path = os.path.join("./template/use-cases", template)
         if os.path.exists(use_case_path):
             await self.save_from_path(path=use_case_path,
-                                                 bot=bot,
-                                                 user=user)
+                                      bot=bot,
+                                      user=user)
         else:
             raise AppException("Invalid template!")
+
+    def apply_config(self, template: Text, bot: Text, user: Text):
+        config_path = os.path.join("./template/config", template+".yml")
+        if os.path.exists(config_path):
+            self.save_config(read_config_file(config_path), bot=bot, user=user)
+        else:
+            raise AppException("Invalid config!")
+
+    def get_config_templates(self):
+        files = Utility.list_files("./template/config")
+        return [{"name": Path(file).stem, "config": read_config_file(file)} for file in files]
 
     def delete_bot_data(self, bot: Text, user: Text):
         self.delete_domain(bot, user)
@@ -790,18 +801,27 @@ class MongoProcessor:
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
-    def save_config(self, config: dict, bot: Text, user: Text):
-        '''save bot pipeline and policies'''
+    def save_config(self, configs: dict, bot: Text, user: Text):
+        """
+        save bot configuration
+        :param configs: configuration
+        :param bot: bot id
+        :param user: user id
+        :return: config unique id
+        """
         try:
+            Utility.validate_rasa_config(configs)
             config_obj = Configs.objects().get(bot=bot)
-            config_obj.pipeline = config["pipeline"]
-            config_obj.language = config["language"]
-            config_obj.policies = config["policies"]
+            config_obj.pipeline = configs["pipeline"]
+            config_obj.language = configs["language"]
+            config_obj.policies = configs["policies"]
         except DoesNotExist:
-            config["bot"] = bot
-            config["user"] = user
-            config_obj = Configs._from_son(config)
-        config_obj.save()
+            configs["bot"] = bot
+            configs["user"] = user
+            config_obj = Configs._from_son(configs)
+        except Exception as e:
+            raise AppException(e)
+        return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def delete_config(self, bot: Text, user: Text):
         """perform soft delete on bot pipeline and policies configuration"""
@@ -895,7 +915,6 @@ class MongoProcessor:
             except Exception as e:
                 yield {"text": example, "_id": None, "message": str(e)}
 
-
     def edit_training_example(
             self, id: Text, example: Text, intent: Text, bot: Text, user: Text
     ):
@@ -910,17 +929,16 @@ class MongoProcessor:
             ):
                 raise AppException("Training Example already exists!")
             training_example = TrainingExamples.objects(bot=bot, intent=intent).get(id=id)
-            training_example.user=user
-            training_example.text=text
+            training_example.user = user
+            training_example.text = text
             if entities:
-                training_example.entities=entities
+                training_example.entities = entities
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist as e:
             raise AppException("Invalid trianing example!")
 
-
-    def search_training_examples(self,search: Text, bot: Text):
+    def search_training_examples(self, search: Text, bot: Text):
         """search the training example for particular bot
         Args:
             search: search text
@@ -939,7 +957,7 @@ class MongoProcessor:
         training_examples = (
             TrainingExamples
                 .objects(bot=bot, intent__iexact=intent, status=True)
-            .order_by("-timestamp")
+                .order_by("-timestamp")
         )
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
@@ -1345,19 +1363,18 @@ class MongoProcessor:
 
     def add_model_deployment_history(self, bot: Text, user: Text, model: Text, url: Text, status: Text):
         return (ModelDeployment(bot=bot,
-                        user=user,
-                        model=model,
-                        url=url,
-                        status=status)
+                                user=user,
+                                model=model,
+                                url=url,
+                                status=status)
                 .save()
                 .to_mongo()
                 .to_dict().get("_id").__str__())
 
-
     def get_model_deployment_history(self, bot: Text):
         model_deployments = (ModelDeployment
-                .objects(bot=bot)
-                .order_by("-timestamp"))
+                             .objects(bot=bot)
+                             .order_by("-timestamp"))
 
         for deployment in model_deployments:
             value = deployment.to_mongo().to_dict()
@@ -1378,8 +1395,8 @@ class MongoProcessor:
                                           user=user,
                                           model=model,
                                           url=(endpoint.get("bot_endpoint").get("url")
-                                                if endpoint.get("bot_endpoint")
-                                                else None),
+                                               if endpoint.get("bot_endpoint")
+                                               else None),
                                           status=response)
         return response
 

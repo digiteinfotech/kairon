@@ -390,20 +390,29 @@ async def set_endpoint(
 
 @router.get("/config", response_model=Response)
 async def get_config(current_user: User = Depends(auth.get_current_user), ):
-    """get the model endpoint"""
-    endpoint = mongo_processor.load_config(current_user.get_bot())
-    return {"data": {"endpoint": endpoint}}
+    """
+    fetch bot pipeline and polcies configurations
+    :param current_user: user id
+    :return: dict of configurations
+    """
+    config = mongo_processor.load_config(current_user.get_bot())
+    return {"data": {"config": config}}
 
 
 @router.put("/config", response_model=Response)
 async def set_config(
         config: Config, current_user: User = Depends(auth.get_current_user),
 ):
-    """set the bot config"""
-    endpoint = mongo_processor.save_config(
+    """
+    save the bot pipeline and policies configurations
+    :param config: configuration
+    :param current_user: user id
+    :return: Config saved!
+    """
+    mongo_processor.save_config(
         config.dict(), current_user.get_bot(), current_user.get_user()
     )
-    return {"data": {"config": endpoint}}
+    return {"message": "Config saved!"}
 
 
 @router.get("/templates", response_model=Response)
@@ -427,7 +436,7 @@ async def get_templates(
     :return: Data applied!
     :exception: Invalid template
     """
-    await mongo_processor.appy_template(request_data.data,
+    await mongo_processor.apply_template(request_data.data,
                                         bot=current_user.get_bot(),
                                         user=current_user.get_user())
     return {"message": "Data applied!"}
@@ -446,3 +455,28 @@ async def reload_model(
         AgentProcessor.reload, current_user.get_bot()
     )
     return {"message": "Reloading Model!"}
+
+
+@router.get("/config/templates", response_model=Response)
+async def get_config_template(
+        current_user: User = Depends(auth.get_current_user)):
+    """
+    fetch config templates
+    :param current_user: user id
+    :return: list of config templates with name
+    """
+    return {"data": {"config-templates": mongo_processor.get_config_templates()}}
+
+
+@router.post("/config/templates", response_model=Response)
+async def set_config_template(
+        request_data: TextData,
+        current_user: User = Depends(auth.get_current_user)):
+    """
+    apply the config template
+    :param request_data: config template name
+    :param current_user: user id
+    :return: Config Applied!
+    """
+    mongo_processor.apply_config(request_data.data, current_user.get_bot(), current_user.get_user())
+    return {"message": "Config applied!"}

@@ -4,6 +4,7 @@ import re
 import shutil
 import string
 import tempfile
+from glob import glob, iglob
 from html import escape
 from io import BytesIO
 from secrets import choice
@@ -17,8 +18,8 @@ from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
-from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
 from pymongo.errors import InvalidURI
+from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
 from rasa.core.tracker_store import MongoTrackerStore
@@ -27,6 +28,9 @@ from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
+from rasa.nlu.config import RasaNLUModelConfig
+from rasa.nlu.components import ComponentBuilder
+from rasa.core import config as configuration
 from .exceptions import AppException
 
 
@@ -137,7 +141,7 @@ class Utility:
         """ Gets the latest file in a folder """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        return max(glob.iglob(folder + "/*"), key=os.path.getctime)
+        return max(iglob(folder + "/*"), key=os.path.getctime)
 
     @staticmethod
     def check_empty_list_elements(items: List[Text]):
@@ -392,3 +396,23 @@ class Utility:
         :return: list of directories
         """
         return list(os.listdir(path))
+
+    @staticmethod
+    def list_files(path: Text, extensions=["yml", "yaml"]):
+        files = [glob(os.path.join(path, "*."+extension)) for extension in extensions]
+        return sum(files, [])
+
+    @staticmethod
+    def validate_rasa_config(config: Dict):
+        """
+        validates bot config.yml content for invalid entries
+        :param config: configuration
+        :return: None
+        """
+        rasa_config = RasaNLUModelConfig(config)
+        component_builder = ComponentBuilder()
+        for i in range(len(rasa_config.pipeline)):
+            component_cfg = rasa_config.for_component(i)
+            component_builder.create_component(component_cfg, rasa_config)
+
+        configuration.load(config)

@@ -15,6 +15,7 @@ from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
+from rasa.utils.io import read_config_file
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -377,14 +378,12 @@ def test_edit_training_examples():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    print(training_examples)
     response = client.put(
         "/api/bot/training_examples/greet/"+training_examples["data"][0]["_id"],
         json={"data": "hey, there"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Training Example updated!"
@@ -584,7 +583,6 @@ def test_get_utterance_from_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == "utter_offer_help"
@@ -800,7 +798,6 @@ def test_deployment_history():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]['deployment_history']) == 3
@@ -1156,11 +1153,25 @@ def test_set_templates():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['data'] is None
     assert actual['error_code'] == 0
     assert actual['message'] == "Data applied!"
     assert actual['success']
+
+
+def test_set_templates_invalid():
+    response = client.post(
+        "/api/bot/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi"}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Invalid template!"
+    assert not actual['success']
 
 
 def test_reload_model(monkeypatch):
@@ -1179,3 +1190,104 @@ def test_reload_model(monkeypatch):
     assert actual['error_code'] == 0
     assert actual['message'] == "Reloading Model!"
     assert actual['success']
+
+
+def test_get_config_templates():
+    response = client.get(
+        "/api/bot/config/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert any( "default" == template['name'] for template in actual['data']['config-templates'])
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_set_config_templates():
+    response = client.post(
+        "/api/bot/config/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "default"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Config applied!"
+    assert actual['success']
+
+
+def test_set_config_templates_invalid():
+    response = client.post(
+        "/api/bot/config/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "test"}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Invalid config!"
+    assert not actual['success']
+
+
+def test_get_config():
+    response = client.get(
+        "/api/bot/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert all( key in ["language","pipeline", "policies"]  for key in actual['data']['config'].keys())
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_set_config():
+    response = client.put(
+        "/api/bot/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=read_config_file('./template/config/default.yml')
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Config saved!"
+    assert actual['success']
+
+def test_set_config_policy_error():
+    data = read_config_file('./template/config/default.yml')
+    data['policies'].append({"name":"TestPolicy"})
+    response = client.put(
+        "/api/bot/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json= data
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Module for policy 'TestPolicy' could not be loaded. Please make sure the name is a valid policy."
+    assert not actual['success']
+
+
+def test_set_config_pipeline_error():
+    data = read_config_file('./template/config/default.yml')
+    data['pipeline'].append({"name":"TestFeaturizer"})
+    response = client.put(
+        "/api/bot/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json= data
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
+    assert not actual['success']
