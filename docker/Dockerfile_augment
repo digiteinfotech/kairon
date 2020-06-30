@@ -8,14 +8,18 @@ ENV RASA_NLU_DOCKER="YES" \
 WORKDIR ${RASA_NLU_HOME}
 
 RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install sentence_transformers
-RUN python3 -m pip install spacy
-RUN python3 -m spacy download en_core_web_sm
-RUN python3 -m pip install gensim
-RUN python3 -m gensim.downloader --download word2vec-google-news-300
+RUN python3 -m pip install numpy
+RUN python3 -m pip install matplotlib
+RUN python3 -m pip install requests
+RUN python3 -m pip install torch
+RUN python3 -m pip install transformers
+RUN python3 -m pip install nlpaug
+RUN python3 -m pip install nltk
+RUN python3 -m nltk.downloader wordnet
+RUN python3 -m nltk.downloader averaged_perceptron_tagger
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 
 EXPOSE 8000
 
-CMD ["uvicorn", "augmentation.server:app","--host","0.0.0.0","--log-level","debug"]
+CMD ["uvicorn", "augmentation.server:app","--host","0.0.0.0"]

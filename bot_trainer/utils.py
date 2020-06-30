@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import shutil
 import string
 import tempfile
@@ -16,13 +17,17 @@ from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
+from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
+from pymongo.errors import InvalidURI
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
+from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
-
-from bot_trainer.exceptions import AppException
+from rasa.nlu.training_data.formats.markdown import MarkdownReader
+from rasa.nlu.training_data.formats.markdown import entity_regex
+from .exceptions import AppException
 
 
 class Utility:
@@ -31,10 +36,11 @@ class Utility:
     environment = None
     password_policy = PasswordPolicy.from_names(
         length=8,  # min length: 8
-        uppercase=1,  # need min. 2 uppercase letters
-        numbers=1,  # need min. 2 digits
-        special=1,  # need min. 2 special characters
+        uppercase=1,  # need min. 1 uppercase letters
+        numbers=1,  # need min. 1 digits
+        special=1,  # need min. 1 special characters
     )
+    markdown_reader = MarkdownReader()
 
     @staticmethod
     def check_empty_string(value: str):
@@ -101,9 +107,9 @@ class Utility:
 
     @staticmethod
     def is_exist(
-            document: Document, query: Dict, exp_message: Text = None, raise_error=True,
+            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
-        doc = document.objects(status=True, __raw__=query)
+        doc = document.objects(**kwargs)
         if doc.__len__():
             if raise_error:
                 if Utility.check_empty_string(exp_message):
@@ -157,14 +163,13 @@ class Utility:
                     + " "
                     + endpoint["bot_endpoint"].get("token")
             )
-
         try:
+            model_file = Utility.get_latest_file(
+                        os.path.join(DEFAULT_MODELS_PATH, bot))
             response = requests.put(
                 url + "/model",
                 json={
-                    "model_file": Utility.get_latest_file(
-                        os.path.join(DEFAULT_MODELS_PATH, bot)
-                    )
+                    "model_file": model_file
                 },
                 headers=headers,
             )
@@ -182,7 +187,9 @@ class Utility:
                 result = None
         except requests.exceptions.ConnectionError as e:
             raise AppException("Host is not reachable")
-        return result
+        except Exception as e:
+            raise AppException(e)
+        return result, model_file
 
     @staticmethod
     def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
@@ -261,8 +268,127 @@ class Utility:
                 raise AppException("\n".join(response))
 
     @staticmethod
-    def delete_document(documents : List[Document], bot: Text, user: Text):
+    def delete_document(documents: List[Document], bot: Text, user: Text):
+        """
+        perform soft delete on list of mongo collections
+        :param documents: list of mongo collections
+        :param bot: bot id
+        :param user: user id
+        :return: NONE
+        """
         for document in documents:
-            doc_list = document.objects(bot=bot)
+            doc_list = document.objects(bot=bot, status=True)
             if doc_list:
-                doc_list.update(set__status=False, set__user=user)
+                for doc in doc_list:
+                    doc.status = False
+                    doc.user = user
+                    doc.save(validate=False)
+
+    @staticmethod
+    def extract_user_password(uri: str):
+        "extract username, password and host with port from mongo uri"
+        if uri.startswith(SCHEME):
+            scheme_free = uri[SCHEME_LEN:]
+            scheme = uri[:SCHEME_LEN]
+        elif uri.startswith(SRV_SCHEME):
+            scheme_free = uri[SRV_SCHEME_LEN:]
+            scheme = uri[:SRV_SCHEME_LEN]
+        else:
+            raise InvalidURI("Invalid URI scheme: URI must "
+                             "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME))
+
+        if not scheme_free:
+            raise InvalidURI("Must provide at least one hostname or IP.")
+
+        host_part, _, path_part = scheme_free.partition('/')
+        if '@' in host_part:
+            userinfo, _, hosts = host_part.rpartition('@')
+            user, passwd = parse_userinfo(userinfo)
+            return user, passwd, scheme + hosts
+        else:
+            return None, None, scheme + host_part
+
+    @staticmethod
+    def get_local_mongo_store(bot: Text, domain:  Domain):
+        "create local mongo tracker"
+        db_url = Utility.environment['mongo_url']
+        db_name = Utility.environment['test_conversation_db']
+        username, password, url = Utility.extract_user_password(db_url)
+        return MongoTrackerStore(domain=domain,
+                          host=url,
+                          db=db_name,
+                          collection=bot,
+                          username=username,
+                          password=password)
+
+    @staticmethod
+    def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
+        """used to check of string contains special character other than allowed ones"""
+        return bool(search(strg))
+
+    @staticmethod
+    def extract_text_and_entities(text: Text):
+        """
+        extract entities and plain text from markdown intent example
+        :param text: markdown intent example
+        :return: plain intent, list of extracted entities
+        """
+        example = re.sub(
+            entity_regex, lambda m: m.groupdict()["entity_text"], text
+        )
+        entities = Utility.markdown_reader._find_entities_in_training_example(
+            text
+        )
+        return example, entities
+
+    @staticmethod
+    def __extract_response_button(buttons: Dict):
+        """
+        used to prepare ResponseButton by extracting buttons configuration from bot utterance
+        :param buttons: button configuration in bot response
+        :return: yields ResponseButton
+        """
+        from .data_processor.data_objects import ResponseButton
+
+        for button in buttons:
+            yield ResponseButton._from_son(button)
+
+    @staticmethod
+    def prepare_response(value: Dict):
+        """
+        used to prepare bot utterance either Text or Custom for saving in Mongo
+        :param value: utterance value
+        :return: response type, response object
+        """
+        from .data_processor.constant import RESPONSE
+        from .data_processor.data_objects import ResponseText, ResponseCustom
+
+        if RESPONSE.Text.value in value:
+            response_text = ResponseText()
+            response_text.text = str(value[RESPONSE.Text.value]).strip()
+            if RESPONSE.IMAGE.value in value:
+                response_text.image = value[RESPONSE.IMAGE.value]
+            if RESPONSE.CHANNEL.value in value:
+                response_text.channel = value["channel"]
+            if RESPONSE.BUTTONS.value in value:
+                response_text.buttons = list(
+                    Utility.__extract_response_button(value[RESPONSE.BUTTONS.value])
+                )
+            data = response_text
+            type = "text"
+        elif RESPONSE.CUSTOM.value in value:
+            data = ResponseCustom._from_son(
+                {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
+            )
+            type = "custom"
+
+        return type, data
+
+    @staticmethod
+    def list_directories(path: Text):
+        """
+        list all the directories in given path
+        :param path: directory path
+        :return: list of directories
+        """
+        return list(os.listdir(path))

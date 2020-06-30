@@ -1,7 +1,8 @@
 mongo_url: "mongomock://localhost"
 mongo_db: "test"
+test_conversation_db: "test_conversations"
 SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
 ALGORITHM: "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES: 60
 augmentation_url: "http://localhost:8000/questions"
-MODEL_TRAINING_LIMIT_PER_DAY: 1
+MODEL_TRAINING_LIMIT_PER_DAY: 2

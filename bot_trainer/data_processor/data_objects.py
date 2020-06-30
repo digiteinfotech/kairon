@@ -297,7 +297,7 @@ class Slots(Document):
 
 
 class StoryEvents(EmbeddedDocument):
-    name = StringField(required=True)
+    name = StringField()
     type = StringField(required=True, choices=["user", "action", "form", "slot"])
     value = StringField()
 
@@ -318,10 +318,6 @@ class Stories(Document):
             raise ValidationError("Story path name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("Stories cannot be empty")
-        elif self.events[0].type != "user":
-            raise ValidationError("Stories must start with intent")
-        elif self.events[-1].type != "action":
-            raise ValidationError("Stories must end with action")
 
 
 class Configs(Document):
@@ -407,7 +403,7 @@ class ModelTraining(Document):
 class ModelDeployment(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    model_name = StringField(required=True)
-    server = StringField(required=True)
+    model = StringField(default=None)
+    url = StringField(default=None)
     status = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

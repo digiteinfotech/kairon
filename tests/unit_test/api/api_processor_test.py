@@ -23,33 +23,34 @@ class TestAccountProcessor:
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
+        account = AccountProcessor.get_account(account_response["_id"])
         assert account_response
-        assert account_response["_id"] == 3
-        assert account_response["name"] == "paypal"
+        assert account_response["_id"] == account["_id"]
+        assert account_response["name"] == account["name"]
         account_response = AccountProcessor.add_account("ebay", "testAdmin")
+        account = AccountProcessor.get_account(account_response["_id"])
         assert account_response
-        assert account_response["_id"] == 4
-        assert account_response["name"] == "ebay"
-
-    def test_get_account(self):
-        account = AccountProcessor.get_account(3)
-        assert account
-        assert account["name"] == "paypal"
+        assert account_response["_id"] == account["_id"]
+        assert account_response["name"] == account["name"]
 
     def test_add_duplicate_account(self):
         with pytest.raises(Exception):
             AccountProcessor.add_account("paypal", "testAdmin")
 
+    def test_add_duplicate_account_case_insentive(self):
+        with pytest.raises(Exception):
+            AccountProcessor.add_account("PayPal", "testAdmin")
+
     def test_add_blank_account(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_account("", "testAdmin")
 
     def test_add_empty_account(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_account(" ", "testAdmin")
 
     def test_add_none_account(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_account(None, "testAdmin")
 
     def test_add_bot(self):
@@ -66,16 +67,20 @@ class TestAccountProcessor:
         with pytest.raises(Exception):
             AccountProcessor.add_bot("test", 1, "testAdmin")
 
+    def test_add_duplicate_bot_case_insensitive(self):
+        with pytest.raises(Exception):
+            AccountProcessor.add_bot("TEST", 1, "testAdmin")
+
     def test_add_blank_bot(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_bot(" ", 1, "testAdmin")
 
     def test_add_empty_bot(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_bot("", 1, "testAdmin")
 
     def test_add_none_bot(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_bot(None, 1, "testAdmin")
 
     def test_add_user(self):
@@ -104,8 +109,20 @@ class TestAccountProcessor:
                 user="testAdmin",
             )
 
+    def test_add_user_duplicate_case_insensitive(self):
+        with pytest.raises(Exception):
+            AccountProcessor.add_user(
+                email="FShaikh@digite.com",
+                first_name="Fahad Ali",
+                last_name="Shaikh",
+                password="Welcome@1",
+                account=1,
+                bot=pytest.bot,
+                user="testAdmin",
+            )
+
     def test_add_user_empty_email(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="",
                 first_name="Fahad Ali",
@@ -117,7 +134,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_email(self):
-        with pytest.raises(Exception):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email=" ",
                 first_name="Fahad Ali",
@@ -129,7 +146,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_invalid_email(self):
-        with pytest.raises(Exception):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo",
                 first_name="Fahad Ali",
@@ -141,7 +158,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_email(self):
-        with pytest.raises(Exception):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email=None,
                 first_name="Fahad Ali",
@@ -153,7 +170,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_firstname(self):
-        with pytest.raises(Exception):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
@@ -165,7 +182,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_firstname(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name=" ",
@@ -177,7 +194,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_firstname(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
@@ -189,7 +206,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_lastname(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -201,7 +218,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_lastname(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -213,7 +230,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_lastname(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -225,7 +242,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_password(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -237,7 +254,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_password(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -249,7 +266,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_None_password(self):
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -377,8 +394,9 @@ class TestAccountProcessor:
 
     def test_account_setup_empty_values(self):
         account = {}
-        with pytest.raises(ValidationError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        with pytest.raises(AssertionError):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_missing_account(self):
         account = {
@@ -388,8 +406,9 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "welcome@1",
         }
-        with pytest.raises(ValidationError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        with pytest.raises(AssertionError):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_missing_bot_name(self):
         account = {
@@ -399,8 +418,9 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "Welcome@1",
         }
-        with pytest.raises(ValidationError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        with pytest.raises(AssertionError):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup_user_info(self):
         account = {
@@ -410,8 +430,9 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
         }
-        with pytest.raises(ValidationError):
-            AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        with pytest.raises(AssertionError):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
     def test_account_setup(self):
         account = {
@@ -422,7 +443,8 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
         }
-        actual = AccountProcessor.account_setup(account_setup=account, user="testAdmin")
+        loop = asyncio.new_event_loop()
+        actual = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
         assert actual["role"] == "admin"
         assert actual["_id"]
         assert actual["account"]

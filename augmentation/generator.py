@@ -1,62 +1,31 @@
-import itertools
-from string import punctuation
-
-import gensim.downloader as api
-import spacy
-from scipy.spatial.distance import cosine
-from sentence_transformers import SentenceTransformer
+# pip install nlpaug numpy matplotlib python-dotenv
+# should have torch (>=1.2.0) and transformers (>=2.5.0) installed as well
+import nlpaug.augmenter.word as naw
+from nlpaug.util.text.tokenizer import split_sentence
+import re
 
 
 class QuestionGenerator:
-    """ This class defines the functions and models required to generate variations
-        for a given sentence/question """
-    nlp = spacy.load("en_core_web_sm")
-    sentence_transformer = SentenceTransformer('bert-large-nli-stsb-mean-tokens')
-    model = api.load('word2vec-google-news-300')
-    punct_token = set(punctuation)
+    aug = naw.ContextualWordEmbsAug(model_path='bert-base-uncased', action="substitute")
+    aug_single = naw.SynonymAug(aug_src='wordnet')
 
     @staticmethod
-    def get_synonyms_from_embedding(text: str):
-        """ This function uses the google word2vec model to generate synonyms
-            for a given word """
-        tokens = [doc.text for doc in QuestionGenerator.nlp(text)
-                  if not doc.is_punct and not doc.is_stop and not doc.is_quote]
-        token_list = {}
-        for token in tokens:
-            try:
-                similar_words = QuestionGenerator.model.most_similar(token, topn=10)
-                synonyms = set([str(word).lower().replace("_", " ") for word, similarity in similar_words if similarity >= 0.60])
-                if synonyms.__len__() > 0:
-                    token_list[token] = list(synonyms)
-            except KeyError:
-                pass
-        return token_list
-
-    @staticmethod
-    def checkDistance(source, target):
-        """ This function checks how contextually similar two sentences/questions are
-            and returns a value between 0 and 1 (0 being the least similar and 1 being the most) """
-        return 1 - cosine(source, target)
+    def augment(text):
+        tokens = split_sentence(re.sub('[^a-zA-Z0-9 ]+', '', text))
+        if len(tokens) > 1:
+            return QuestionGenerator.aug.augment(text, n=10, num_thread=4)
+        else:
+            return QuestionGenerator.aug_single.augment(tokens[0], n=10)
 
     @staticmethod
     async def generateQuestions(texts):
         """ This function generates a list of variations for a given sentence/question.
-            E.g. QuestionGenerator.generateQuestions('your question') will return the list
+            E.g. await QuestionGenerator.generateQuestions('your question') will return the list
             of variations for that particular question """
-        result = []
+
         if type(texts) == str:
             texts = [texts]
-        text_encodings = QuestionGenerator.sentence_transformer.encode(texts)
-        for i in range(len(texts)):
-            text = texts[i]
-            text_encoding = text_encodings[i]
-            synonyms = QuestionGenerator.get_synonyms_from_embedding(text)
-            tokens = [synonyms[doc.text] if doc.text in synonyms.keys() else [doc.text] for doc in QuestionGenerator.nlp(text)]
-            questions = [''.join(w if set(w) <= QuestionGenerator.punct_token else ' '+w for w in question).strip() for question in list(itertools.product(*tokens))]
-            questions_encodings = QuestionGenerator.sentence_transformer.encode(questions)
-            questions = [ questions[i] for i in range(len(questions)) if QuestionGenerator.checkDistance(text_encoding, questions_encodings[i]) > 0.70 ]
-            if len(questions):
-                if len(questions) == 1 and text[i] == questions[0]:
-                    continue
-                result.extend(list(questions))
-        return list(set(result) - set(texts))
+
+        result = [QuestionGenerator.augment(text) for text in texts]
+
+        return sum(result, [])

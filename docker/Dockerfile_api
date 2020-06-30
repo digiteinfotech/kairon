@@ -10,29 +10,31 @@ WORKDIR ${RASA_NLU_HOME}
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
-RUN python3 -m pip install mongoengine==0.19.1
-RUN python3 -m pip install rasa==1.9.5
+RUN python3 -m pip install mongoengine==0.20.0
+RUN python3 -m pip install rasa==1.10.3
 RUN python3 -m pip install cython
 RUN python3 -m pip install pandas
 RUN python3 -m pip install pyjwt
 RUN python3 -m pip install passlib[bcrypt]
 RUN python3 -m pip install python-multipart
 RUN python3 -m pip install validators
-RUN python3 -m pip install rasa[transformers]==1.9.5
-RUN python3 -m pip install rasa[spacy]==1.9.5
-RUN python3 -m pip install rasa[convert]==1.9.5
+RUN python3 -m pip install rasa[transformers]==1.10.3
+RUN python3 -m pip install rasa[spacy]==1.10.3
+RUN python3 -m pip install rasa[convert]==1.10.3
 RUN python3 -m pip install tensorflow_text==2.1.1
 RUN python3 -m pip install tensorflow-addons==0.9.1
 RUN python3 -m pip install secure
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
 RUN python3 -m pip install password-strength
+RUN python3 -m pip install loguru
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
 
 COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
 COPY system.yaml ${RASA_NLU_HOME}/
+COPY template ${RASA_NLU_HOME}/template
 
 EXPOSE 80
 
-CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80","--log-level","debug"]
+CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80"]

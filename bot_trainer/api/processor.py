@@ -13,26 +13,29 @@ class AccountProcessor:
     @staticmethod
     def add_account(name: str, user: str):
         """ Adds a new account for the trainer app """
+        assert not Utility.check_empty_string(name), "Account Name cannot be empty or blank spaces"
         Utility.is_exist(
-            Account, query={"name": name}, exp_message="Account name already exists!"
+            Account, exp_message="Account name already exists!", name__iexact=name, status=True
         )
-        return Account(name=name, user=user).save().to_mongo().to_dict()
+        return Account(name=name.strip(), user=user).save().to_mongo().to_dict()
 
     @staticmethod
     def get_account(account: int):
         """ Returns an account object based on user ID """
         try:
-            return Account.objects().get(id=account).to_mongo().to_dict()
+            account = Account.objects().get(id=account).to_mongo().to_dict()
+            return account
         except:
             raise DoesNotExist("Account does not exists")
 
     @staticmethod
     def add_bot(name: str, account: int, user: str):
         """ Adds a bot to the specified user account """
+        assert not Utility.check_empty_string(name), "Bot Name cannot be empty or blank spaces"
         Utility.is_exist(
             Bot,
-            query={"name": name, "account": account},
             exp_message="Bot already exists!",
+            name__iexact=name, account=account, status=True
         )
         return Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
 
@@ -58,22 +61,23 @@ class AccountProcessor:
     ):
         """ Adds a new user to the app based on the details
             provided by the user """
+        assert not Utility.check_empty_string(email) and not Utility.check_empty_string(last_name) and not Utility.check_empty_string(first_name) and not Utility.check_empty_string(password),"Email, FirstName, LastName and password cannot be empty or blank spaces "
         Utility.is_exist(
             User,
-            query={"email": email},
             exp_message="User already exists! try with different email address.",
+            email__iexact=email.strip(), status=True
         )
         return (
             User(
-                email=email,
-                password=Utility.get_password_hash(password),
-                first_name=first_name,
-                last_name=last_name,
+                email=email.strip(),
+                password=Utility.get_password_hash(password.strip()),
+                first_name=first_name.strip(),
+                last_name=last_name.strip(),
                 account=account,
-                bot=bot,
-                user=user,
+                bot=bot.strip(),
+                user=user.strip(),
                 is_integration_user=is_integration_user,
-                role=role,
+                role=role.strip(),
             )
             .save()
             .to_mongo()
@@ -86,7 +90,7 @@ class AccountProcessor:
         try:
             return User.objects().get(email=email).to_mongo().to_dict()
         except:
-            raise DoesNotExist("User does not exists!")
+            raise DoesNotExist("User does not exist!")
 
     @staticmethod
     def get_user_details(email: str):
@@ -120,7 +124,7 @@ class AccountProcessor:
         """ Getting the integration user. If it does'nt exist, a new integration user
             is created """
         if not Utility.is_exist(
-            User, query={"bot": bot, "is_integration_user": True}, raise_error=False
+            User, raise_error=False, bot=bot, is_integration_user=True, status=True
         ):
             email = bot + "@integration.com"
             password = Utility.generate_password()
@@ -140,7 +144,7 @@ class AccountProcessor:
             )
 
     @staticmethod
-    def account_setup(account_setup: Dict, user: Text):
+    async def account_setup(account_setup: Dict, user: Text):
         """ Creating a new account based on details provided by the user """
         account = None
         bot = None
@@ -160,17 +164,25 @@ class AccountProcessor:
                 user=user,
                 role="admin",
             )
+            await MongoProcessor().save_from_path(
+                "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
+            )
         except Exception as e:
             if account and "_id" in account:
                 Account.objects().get(id=account["_id"]).delete()
             if bot and "_id" in bot:
                 Bot.objects().get(id=bot["_id"]).delete()
             raise e
+
         return user_details
 
     @staticmethod
     async def default_account_setup():
-        """ Setting up an account for testing/demo purposes """
+        """
+        default account for testing/demo purposes
+        :return: user details
+        :exception if account already exist
+        """
         account = {
             "account": "DemoAccount",
             "bot": "Demo",
@@ -180,11 +192,7 @@ class AccountProcessor:
             "password": SecretStr("Welcome@1"),
         }
         try:
-            user = AccountProcessor.account_setup(account, user="sysadmin")
-            if user:
-                await MongoProcessor().save_from_path(
-                    "template/", user["bot"], user="sysadmin"
-                )
+            user = await AccountProcessor.account_setup(account, user="sysadmin")
             return user
         except Exception as e:
             logging.info(str(e))

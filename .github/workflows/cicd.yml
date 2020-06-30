@@ -41,7 +41,7 @@ jobs:
       with:
         name: pytest-report
         path: report.html
-    - name: Create Sphinx html
+    - name: Generate Sphinx files
       run: |
         pip install -U sphinx
         pip install sphinx_rtd_theme
@@ -49,11 +49,9 @@ jobs:
         # sphinx-quickstart
         #set system_file=../system.yaml
         export system_file=../system.yaml
-        echo '::set-env name=system_file::../system.yaml'
         make html
-    - name: Archive Sphinx html files
+    - name: Archive Sphinx html folder
       uses: actions/upload-artifact@v1
       with:
         name: sphinx-html
         path: docs/_build/html
-      

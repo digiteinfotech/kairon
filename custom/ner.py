@@ -1,14 +1,13 @@
-from rasa.nlu.components import Component
-import typing
-from typing import Any, Optional, Text, Dict
 import os
-import spacy
 import pickle
-from spacy.matcher import Matcher
+from typing import Any, Optional, Text, Dict, TYPE_CHECKING
+
+import spacy
+from rasa.nlu.components import Component
 from rasa.nlu.extractors.extractor import EntityExtractor
+from spacy.matcher import Matcher
 
-
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from rasa.nlu.model import Metadata
 
 PATTERN_NER_FILE = 'pattern_ner.pkl'

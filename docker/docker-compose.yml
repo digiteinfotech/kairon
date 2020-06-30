@@ -11,53 +11,54 @@ services:
     volumes:
       - mongo_data:/data/db
 	  
-  bot-augment-api:
-    image: digite/rasa-dx-augment:0.1
+  chiron-augment:
+    image: digite/chiron-augment:latest
     networks:
       - chatbotnetwork
-    container_name: bot-augment-api
-    hostname: bot-augment-api
+    container_name: chiron-augment
+    hostname: chiron-augment
     depends_on:
       - mongo
     ports:
       - 8001:8000
     volumes:
-      - augment_tmp:/root/.cache/
+      - chiron_augment_tmp:/root/.cache/
     environment:
       mongo_url: "mongodb://mongo:27017"
 
-  bot-trainer-api:
-    image: digite/rasa-dx-trainer:latest
+  chiron-api:
+    image: digite/chiron-api:latest
     networks:
       - chatbotnetwork
-    container_name: bot-trainer-api
-    hostname: bot-trainer-api
+    container_name: chiron-api
+    hostname:chiron-api
     depends_on:
       - mongo
-      - bot-augment-api
+      - chiron-augment
     ports:
       - 81:80
     volumes:
-      - trainer_models:/app/models
-      - trainer_tmp:/root/.cache/
+      - chiron_models:/app/models
+      - chiron_tmp:/root/.cache/
     environment:
       mongo_url: "mongodb://mongo:27017"
-      mongo_db: "bot-trainer"
+      mongo_db: "chiron"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      augmentation_url: "http://bot-augment-api:8001/questions"
+      augmentation_url: "http://chiron-augment:8001/questions"
+      test_conversation_db: "chiron_conversations"
 
-  bot-trainer-ui:
-    image: digite/rasa-dx-ui:latest
+  chiron-ui:
+    image: digite/chiron-ui:latest
     networks:
       - chatbotnetwork
-    container_name: bot-trainer-ui
-    hostname: bot-trainer-ui
+    container_name: chiron-ui
+    hostname: chiron-ui
     depends_on:
-      - bot-trainer-api
+      - chiron-api
     ports:
       - 80:8080
     environment:
-      server: "http://bot-trainer-api:81/"
+      server: "http://chiron-api:81/"
 	  
   duckling:
     image: rasa/duckling
@@ -72,7 +73,7 @@ networks:
   chatbotnetwork:
 
 volumes:
-  trainer_models:
-  trainer_tmp:
-  augment_tmp:
+  chiron_models:
+  chiron_tmp:
+  chiron_augment_tmp:
   mongo_data:

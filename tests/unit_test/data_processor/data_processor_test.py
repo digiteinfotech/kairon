@@ -1,10 +1,9 @@
 import asyncio
 import os
 
+import pytest
 from mongoengine import connect
 from mongoengine.errors import ValidationError
-import pytest
-from datetime import datetime
 from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
@@ -165,33 +164,48 @@ class TestMongoProcessor:
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
 
+
+    def test_add_intent_with_underscore(self):
+        processor = MongoProcessor()
+        assert processor.add_intent("greeting_examples", "tests", "testUser")
+        intent = Intents.objects(bot="tests").get(name="greeting_examples")
+        assert intent.name == "greeting_examples"
+
+
     def test_add_intent_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.add_intent("greeting", "tests", "testUser")
 
+
+    def test_add_intent_duplicate_case_insensitive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_intent("Greeting", "tests", "testUser")
+
     def test_add_none_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_intent(None, "tests", "testUser")
 
     def test_add_empty_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_intent("", "tests", "testUser")
 
     def test_add_blank_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_intent("  ", "tests", "testUser")
 
     def test_add_training_example(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example(["Hi"], "greeting", "tests", "testUser")
+            processor.add_training_example(["Hi, How are you?"], "greeting", "tests", "testUser")
         )
+        print(results)
         assert results[0]["_id"]
-        assert results[0]["text"] == "Hi"
+        assert results[0]["text"] == "Hi, How are you?"
         assert results[0]["message"] == "Training Example added successfully!"
 
     def test_add_same_training_example(self):
@@ -203,6 +217,16 @@ class TestMongoProcessor:
         assert results[0]["text"] == "Hi"
         assert results[0]["message"] == "Training Example already exists!"
 
+
+    def test_add_training_example_duplicate_case_insensitive(self):
+        processor = MongoProcessor()
+        results = list(
+            processor.add_training_example(["hi"], "greeting", "tests", "testUser")
+        )
+        assert results[0]["_id"] is None
+        assert results[0]["text"] == "hi"
+        assert results[0]["message"] == "Training Example already exists!"
+
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
         results = list(
@@ -212,7 +236,7 @@ class TestMongoProcessor:
         assert results[0]["text"] is None
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_empty_text(self):
@@ -224,7 +248,7 @@ class TestMongoProcessor:
         assert results[0]["text"] == ""
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_blank_text(self):
@@ -236,12 +260,12 @@ class TestMongoProcessor:
         assert results[0]["text"] == "  "
         assert (
                 results[0]["message"]
-                == "Training Example name and text cannot be empty or blank spaces"
+                == "Training Example cannot be empty or blank spaces"
         )
 
     def test_add_training_example_none_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             results = list(
                 processor.add_training_example(
                     ["Hi! How are you"], None, "tests", "testUser"
@@ -251,12 +275,12 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_training_example_empty_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             results = list(
                 processor.add_training_example(
                     ["Hi! How are you"], "", "tests", "testUser"
@@ -266,12 +290,12 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_training_example_blank_intent(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             results = list(
                 processor.add_training_example(
                     ["Hi! How are you"], "  ", "tests", "testUser"
@@ -281,12 +305,12 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Intent cannot be empty or blank spaces"
             )
 
     def test_add_empty_training_example(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             results = list(
                 processor.add_training_example([""], None, "tests", "testUser")
             )
@@ -294,7 +318,7 @@ class TestMongoProcessor:
             assert results[0]["text"] == "Hi! How are you"
             assert (
                     results[0]["message"]
-                    == "Training Example name and text cannot be empty or blank spaces"
+                    == "Training Example cannot be empty or blank spaces"
             )
 
     def test_get_training_examples(self):
@@ -303,6 +327,11 @@ class TestMongoProcessor:
         actual = list(processor.get_training_examples("greet", "tests"))
         assert actual.__len__() == expected.__len__()
         assert all(a_val["text"] in expected for a_val in actual)
+
+    def test_get_training_examples_empty(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_training_examples("greets", "tests"))
+        assert actual.__len__() == 0
 
     def test_get_all_training_examples(self):
         processor = MongoProcessor()
@@ -389,6 +418,15 @@ class TestMongoProcessor:
             expected_text != example["text"] for example in new_training_examples
         )
 
+    def test_add_training_example_multiple(self):
+        processor = MongoProcessor()
+        actual = list(processor.add_training_example(["Log a [critical issue](priority)",
+                                        "Make [TKT456](ticketID) a [high issue](priority)"],
+                                        intent="get_priority",
+                                       bot="tests", user="testUser"))
+        assert actual[0]['message'] == "Training Example already exists!"
+        assert actual[1]['message'] == "Training Example added successfully!"
+
     def test_add_entity(self):
         processor = MongoProcessor()
         assert processor.add_entity("file_text", "tests", "testUser") == None
@@ -412,19 +450,25 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_entity("file_text", "tests", "testUser")
 
+
+    def test_add_entity_duplicate_caseinsentive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            assert processor.add_entity("File_Text", "tests", "testUser")
+
     def test_add_none_entity(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_entity(None, "tests", "testUser")
 
     def test_add_empty_entity(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_entity("", "tests", "testUser")
 
     def test_add_blank_entity(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_entity("  ", "tests", "testUser")
 
     def test_add_action(self):
@@ -453,19 +497,25 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_action("utter_priority", "tests", "testUser") == None
 
+
+    def test_add_action_duplicate_caseinsentive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            assert processor.add_action("Utter_Priority", "tests", "testUser") == None
+
     def test_add_none_action(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_action(None, "tests", "testUser")
 
     def test_add_empty_action(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_action("", "tests", "testUser")
 
     def test_add_blank_action(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_action("  ", "tests", "testUser")
 
     def test_add_text_response(self):
@@ -510,32 +560,32 @@ class TestMongoProcessor:
 
     def test_add_none_text_response(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response(None, "utter_happy", "tests", "testUser")
 
     def test_add_empty_text_Response(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response("", "utter_happy", "tests", "testUser")
 
     def test_add_blank_text_response(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response("", "utter_happy", "tests", "testUser")
 
     def test_add_none_response_name(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response("Greet", None, "tests", "testUser")
 
     def test_add_empty_response_name(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response("Welcome", "", "tests", "testUser")
 
     def test_add_blank_response_name(self):
         processor = MongoProcessor()
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_text_response("Welcome", " ", "tests", "testUser")
 
     def test_add_story(self):
@@ -567,7 +617,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story(None, events, "tests", "testUser")
 
     def test_add_empty_story_name(self):
@@ -578,7 +628,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story("", events, "tests", "testUser")
 
     def test_add_blank_story_name(self):
@@ -589,7 +639,7 @@ class TestMongoProcessor:
             {"name": "mood_great", "type": "user"},
             {"name": "utter_greet", "type": "action"},
         ]
-        with pytest.raises(ValidationError):
+        with pytest.raises(AssertionError):
             processor.add_story("  ", events, "tests", "testUser")
 
     def test_add_empty_story_event(self):
@@ -597,26 +647,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError):
             processor.add_story("happy path", [], "tests", "testUser")
 
-    def test_add_story_start_with_action(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "utter_greet", "type": "action"},
-            {"name": "greeting", "type": "user"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(ValidationError):
-            processor.add_story("greeting", events, "tests", "testUser")
-
-    def test_add_story_end_with_user(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-        ]
-        with pytest.raises(ValidationError):
-            processor.add_story("greeting", events, "tests", "testUser")
 
     def test_get_session_config(self):
         processor = MongoProcessor()
@@ -684,10 +714,13 @@ class TestMongoProcessor:
             model = loop.run_until_complete(train_model_from_mongo("test"))
             assert model
 
-    def test_start_training_done(self):
+    def test_start_training_done(self, monkeypatch):
+        def mongo_store(*arge, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
         model_path = start_training("tests", "testUser")
         assert model_path
-
         model_training = ModelTraining.objects(bot="tests", status="Done")
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
@@ -835,10 +868,68 @@ class TestMongoProcessor:
         file = processor.download_files("tests")
         assert file.endswith(".zip")
 
+    def test_get_utterance_from_intent(self):
+        processor = MongoProcessor()
+        response = processor.get_utterance_from_intent("deny", "tests")
+        print(response)
+        assert response == "utter_goodbye"
 
+    def test_get_utterance_from_empty_intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            response = processor.get_utterance_from_intent("", "tests")
+
+    def test_get_stories(self):
+        processor = MongoProcessor()
+        stories = list(processor.get_stories("tests"))
+        assert stories.__len__() == 6
+
+    def test_edit_training_example_duplicate(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_training_example(examples[0]["_id"], example="hey there", intent="greet", bot="tests", user="testUser")
+
+    def test_edit_training_example_does_not_exists(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_training_example(examples[0]["_id"], example="hey there", intent="happy", bot="tests", user="testUser")
+
+    def test_edit_training_example(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="hey, there", intent="greet", bot="tests", user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "hey, there" for example in examples)
+
+    def test_edit_responses_duplicate(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_happy", bot="tests", user="testUser")
+
+
+    def test_edit_responses_does_not_exist(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(AppException):
+            processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_greet", bot="tests", user="testUser")
+
+    def test_edit_responses(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_happy", "tests"))
+        assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
 # pylint: disable=R0201
 class TestAgentProcessor:
-    def test_get_agent(self):
+
+    def test_get_agent(self, monkeypatch):
+        def mongo_store(*arge, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
         agent = AgentProcessor.get_agent("tests")
         assert isinstance(agent, Agent)
 

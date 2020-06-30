@@ -34,6 +34,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["content-disposition"]
 )
 
 
@@ -66,6 +67,18 @@ async def startlette_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
+        ).dict()
+    )
+
+
+@app.exception_handler(AssertionError)
+async def http_exception_handler(request, exc):
+    """ This function logs the Assertion error detected and returns the
+        appropriate message and details of the error """
+    logging.exception(exc)
+    return JSONResponse(
+        Response(
+            success=False, error_code=422, message=str(exc)
         ).dict()
     )
 

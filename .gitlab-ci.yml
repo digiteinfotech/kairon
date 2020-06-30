@@ -17,15 +17,10 @@ test:
 
 build:
   tags:
-    - dspg
+    - chiron
   only:
     - master
   stage: build
   script:
-    -  docker build -f ./docker/Dockerfile_api -t rasa-dx-trainer .
-    -  docker build -f ./docker/Dockerfile_augment -t rasa-dx-augment:0.1 .
-
-cleanup:
-  stage: cleanup
-  script:
-    - docker image prune -a --force --filter "until=60h"
+    -  docker build -f ./docker/Dockerfile_api -t chiron-api:latest .
+    -  docker build -f ./docker/Dockerfile_augment -t chiron-augment:latest .

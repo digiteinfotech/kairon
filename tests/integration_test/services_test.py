@@ -1,9 +1,11 @@
 import logging
 import os
+import re
 import tarfile
 from io import BytesIO
 from zipfile import ZipFile
 
+import mongomock
 import pytest
 import responses
 from fastapi.testclient import TestClient
@@ -11,8 +13,8 @@ from mongoengine import connect
 
 from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
-from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
+from bot_trainer.utils import Utility
 
 logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -44,7 +46,7 @@ def test_api_wrong_login():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == "User does not exists!"
+    assert actual["message"] == "User does not exist!"
 
 
 def test_account_registration_error():
@@ -61,7 +63,6 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -105,7 +106,6 @@ def test_api_login():
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
     )
     actual = response.json()
-    print(actual)
     assert all(
         [
             True if actual["data"][key] else False
@@ -139,7 +139,6 @@ def test_upload_missing_data():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert (
         actual["message"]
         == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
@@ -171,7 +170,6 @@ def test_upload_error():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert (
         actual["message"]
         == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
@@ -180,8 +178,11 @@ def test_upload_error():
     assert actual["data"] is None
     assert not actual["success"]
 
+def test_upload(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
 
-def test_upload():
+    monkeypatch.setattr(Utility,"get_local_mongo_store", mongo_store)
     files = {
         "nlu": (
             "tests/testing_data/all/data/nlu.md",
@@ -206,7 +207,6 @@ def test_upload():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Data uploaded successfully!"
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -330,7 +330,7 @@ def test_add_empty_training_examples():
     assert actual["error_code"] == 0
     assert (
         actual["data"][0]["message"]
-        == "Training Example name and text cannot be empty or blank spaces"
+        == "Training Example cannot be empty or blank spaces"
     )
     assert actual["data"][0]["_id"] is None
 
@@ -342,7 +342,6 @@ def test_remove_training_examples():
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 9
-    print(training_examples)
     response = client.delete(
         "/api/bot/training_examples",
         json={"data": training_examples["data"][0]["_id"]},
@@ -351,7 +350,7 @@ def test_remove_training_examples():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Training Example removed successfully!"
+    assert actual["message"] == "Training Example removed!"
     training_examples = client.get(
         "/api/bot/training_examples/greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -372,13 +371,30 @@ def test_remove_training_examples_empty_id():
     assert actual["message"] == "Unable to remove document"
 
 
+def test_edit_training_examples():
+    training_examples = client.get(
+        "/api/bot/training_examples/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    print(training_examples)
+    response = client.put(
+        "/api/bot/training_examples/greet/"+training_examples["data"][0]["_id"],
+        json={"data": "hey, there"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Training Example updated!"
+
 def test_get_responses():
     response = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert len(actual["data"]) == 1
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -395,7 +411,7 @@ def test_add_response():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Response added successfully!"
+    assert actual["message"] == "Utterance added!"
     response = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -413,7 +429,7 @@ def test_add_response_duplicate():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Response already exists!"
+    assert actual["message"] == "Utterance already exists!"
 
 
 def test_add_empty_response():
@@ -423,10 +439,9 @@ def test_add_empty_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Response text cannot be empty or blank spaces"
+    assert actual["message"] == "Utterance text cannot be empty or blank spaces"
 
 
 def test_remove_response():
@@ -435,7 +450,6 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    print(training_examples)
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/response",
@@ -443,10 +457,9 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Response removed successfully!"
+    assert actual["message"] == "Utterance removed!"
     training_examples = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -466,6 +479,22 @@ def test_remove_response_empty_id():
     assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
+def test_remove_response():
+    training_examples = client.get(
+        "/api/bot/response/utter_greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    response = client.put(
+        "/api/bot/response/utter_greet/"+training_examples["data"][0]["_id"],
+        json={"data": "Hello, How are you!"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance updated!"
+
 
 def test_add_story():
     response = client.post(
@@ -480,7 +509,6 @@ def test_add_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Story added successfully"
@@ -509,7 +537,6 @@ def test_add_story_missing_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
@@ -531,7 +558,6 @@ def test_add_story_invalid_event_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
@@ -558,9 +584,10 @@ def test_get_utterance_from_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
+    assert actual["data"] == "utter_offer_help"
     assert Utility.check_empty_string(actual["message"])
 
 
@@ -575,14 +602,16 @@ def test_get_utterance_from_not_exist_intent():
     assert actual["data"] is None
     assert Utility.check_empty_string(actual["message"])
 
+def test_train(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
 
-def test_train():
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -603,7 +632,6 @@ def test_train_inprogress(mock_is_training_inprogress_exception):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -624,7 +652,6 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -636,13 +663,17 @@ def test_get_model_training_history():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"] is True
     assert actual["error_code"] == 0
     assert actual["data"]
     assert "training_history" in actual["data"]
 
-def test_chat():
+
+def test_chat(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -655,7 +686,10 @@ def test_chat():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_chat_fetch_from_cache():
+def test_chat_fetch_from_cache(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -687,7 +721,7 @@ def test_chat_model_not_trained():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Please train the bot first"
+    assert actual["message"] == "Bot has not been trained yet !"
 
 
 def test_deploy_missing_configuration():
@@ -696,9 +730,8 @@ def test_deploy_missing_configuration():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Please configure the bot endpoint for deployment!"
 
@@ -733,8 +766,8 @@ def test_deploy_connection_error(mock_endpoint):
     )
 
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Host is not reachable"
 
@@ -760,11 +793,29 @@ def test_deploy(mock_endpoint):
 
 
 @responses.activate
+def test_deployment_history():
+    response = client.get(
+        "/api/bot/deployment_history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['deployment_history']) == 3
+    assert actual["message"] is None
+
+
+@responses.activate
 def test_deploy_with_token(mock_endpoint_with_token):
     responses.add(
         responses.PUT,
         "http://localhost:5000/model",
         json="Model was successfully replaced.",
+        headers={"Content-type": "application/json",
+                 "Accept": "text/plain",
+                 "Authorization": "Bearer AGTSUDH!@#78JNKLD"},
         status=200,
     )
     response = client.post(
@@ -907,8 +958,9 @@ def test_integration_token_missing_x_user():
     assert actual["error_code"] == 422
     assert actual["message"] == "Alias user missing for integration"
 
-
+@mongomock.patch(servers=(('localhost', 27019),))
 def test_predict_intent():
+    Utility.environment["mongo_url"] = "mongodb://localhost:27019"
     response = client.post(
         "/api/bot/intents/predict",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -939,7 +991,7 @@ def test_predict_intent_error():
     assert actual["data"] is None
     assert actual["success"] is False
     assert actual["error_code"] == 422
-    assert actual["message"] == "Please train the bot first"
+    assert actual["message"] == "Bot has not been trained yet !"
 
 
 @responses.activate
@@ -994,10 +1046,9 @@ def test_download_data():
         "/api/bot/download_data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist
+    assert zip_file.filelist.__len__()
     zip_file.close()
     file_bytes.close()
 
@@ -1007,10 +1058,11 @@ def test_download_model():
         "/api/bot/download_model",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
+    d = response.headers['content-disposition']
+    fname = re.findall("filename=(.+)", d)[0]
     file_bytes = BytesIO(response.content)
-    tar = tarfile.open(fileobj=file_bytes, mode='r')
-    assert tar
+    tar = tarfile.open(fileobj=file_bytes, mode='r', name=fname)
+    assert tar.members.__len__()
     tar.close()
     file_bytes.close()
 
@@ -1077,3 +1129,30 @@ def test_save_endpoint():
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('tracker_endpoint')
+
+def test_get_templates():
+    response = client.get(
+        "/api/bot/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "Hi-Hello" in actual['data']['use-cases']
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_set_templates():
+    response = client.post(
+        "/api/bot/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello"}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Data applied!"
+    assert actual['success']

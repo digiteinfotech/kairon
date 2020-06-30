@@ -1,4 +1,4 @@
-Upload file to S3 bucket
+Cloud Loader
 ========================
 
 .. automodule:: bot_trainer.cloud_loader
