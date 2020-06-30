@@ -122,6 +122,15 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
+    async def appy_template(self, template: Text, bot: Text, user: Text):
+        use_case_path = os.path.join("./template/use-cases", template)
+        if os.path.exists(use_case_path):
+            await self.save_from_path(path=use_case_path,
+                                                 bot=bot,
+                                                 user=user)
+        else:
+            raise AppException("Invalid template!")
+
     def delete_bot_data(self, bot: Text, user: Text):
         self.delete_domain(bot, user)
         self.delete_stories(bot, user)

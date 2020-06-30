@@ -372,12 +372,19 @@ async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
 
 @router.put("/endpoint", response_model=Response)
 async def set_endpoint(
-        endpoint: Endpoint, current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        endpoint: Endpoint,
+        current_user: User = Depends(auth.get_current_user)
 ):
     """get the bot config"""
     mongo_processor.add_endpoints(
         endpoint.dict(), current_user.get_bot(), current_user.get_user()
     )
+
+    if endpoint.action_endpoint:
+        background_tasks.add_task(
+            AgentProcessor.reload, current_user.get_bot()
+        )
     return {"message": "Endpoint saved successfully!"}
 
 
@@ -420,11 +427,22 @@ async def get_templates(
     :return: Data applied!
     :exception: Invalid template
     """
-    use_case_path = os.path.join("./template/use-cases", request_data.data)
-    if os.path.exists(use_case_path):
-        await mongo_processor.save_from_path(path=use_case_path,
-                                       bot=current_user.get_bot(),
-                                       user=current_user.get_user())
-    else:
-        raise AppException("Invalid template!")
+    await mongo_processor.appy_template(request_data.data,
+                                        bot=current_user.get_bot(),
+                                        user=current_user.get_user())
     return {"message": "Data applied!"}
+
+
+@router.get("/reload_model", response_model=Response)
+async def reload_model(
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user)):
+    """
+    reload model with configuration in cache
+    :param current_user: user id
+    :return: Model reloaded!
+    """
+    background_tasks.add_task(
+        AgentProcessor.reload, current_user.get_bot()
+    )
+    return {"message": "Reloading Model!"}

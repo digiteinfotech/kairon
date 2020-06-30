@@ -1106,7 +1106,12 @@ def test_save_empty_endpoint():
     assert actual['success']
 
 
-def test_save_endpoint():
+def test_save_endpoint(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+
     response = client.put(
         "/api/bot/endpoint",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1155,4 +1160,22 @@ def test_set_templates():
     assert actual['data'] is None
     assert actual['error_code'] == 0
     assert actual['message'] == "Data applied!"
+    assert actual['success']
+
+
+def test_reload_model(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+
+    response = client.get(
+        "/api/bot/reload_model",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Reloading Model!"
     assert actual['success']
