@@ -23,7 +23,7 @@ These are the features in the 0.1 version with many more features incoming!
 -	Question augmentation to auto generate questions and enrich training data
 -	Model Training and Deployment from Interface.
 -	Metrics for model performance.
-This website can be found at chiron.digite.com and is hosted by Digite Inc. 
+This website can be found at [Chiron Website] (https://chiron.digite.com/) and is hosted by Digite Inc. 
 
 **Who uses it ?**
 
