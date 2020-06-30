@@ -58,7 +58,7 @@ setup.sh
 
 5. For starting augment services run
 ```
-uvicorn augment.server:app --host 0.0.0.0
+uvicorn augmentation.server:app --host 0.0.0.0
 ```
 
 6. For starting trainer-api services run

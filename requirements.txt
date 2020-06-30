@@ -28,3 +28,4 @@ password-strength
 nlpaug
 loguru
 nltk
+transformers
