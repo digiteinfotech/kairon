@@ -23,7 +23,7 @@ These are the features in the 0.1 version with many more features incoming!
 -	Question augmentation to auto generate questions and enrich training data
 -	Model Training and Deployment from Interface.
 -	Metrics for model performance.
-This website can be found at [Chiron Website] (https://chiron.digite.com/) and is hosted by Digite Inc. 
+This website can be found at [Chiron](https://chiron.digite.com/) and is hosted by Digite Inc. 
 
 **Who uses it ?**
 
@@ -33,7 +33,7 @@ Teams who want to host the chatbot trainer in-house. They can build it using doc
 Our teams current focus within NLP is Knowledge Graphs – Do let us know if you are interested. 
 
 
-At this juncture it layers on top of [Rasa Open Source] (https://rasa.com/)
+At this juncture it layers on top of [Rasa Open Source](https://rasa.com/)
 
 # Deployment
 Chiron only requires a recent version of [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
@@ -46,16 +46,19 @@ Please do the below changes in **docker/docker-compose.yml**
 and set google analytics tracking id
     
 3. set env variable **SECRET_KEY** to some random key.
-   use command **openssl rand -hex 32** for generating random secret key 
 
+   use below command for generating random secret key 
+   ```shell
+   openssl rand -hex 32
+   ```
 4. run the command.
  
-```shell
-cd docker/
-docker-compose up -d
-```
+   ```shell
+   cd chiron/
+   docker-compose up -d
+   ```
 
-5. use username: **test@demo.in** and password: **welcome@1** to try with demo user
+5. To Test use username: **test@demo.in** and password: **welcome@1** to try with demo user
 
 
 # Development
@@ -66,40 +69,41 @@ docker-compose up -d
 
 2. Then clone this repo
 
-```shell
-git clone https://github.com/digiteinfotech/chiron.git
-cd chiron/
-```
+   ```shell
+   git clone https://github.com/digiteinfotech/chiron.git
+   cd chiron/
+   ```
 
 3. For creating Virtual environment, please follow the [link](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) 
 
-4. For installing dependencies
-Windows
-```
-setup.bat
-```
+4. For installing dependencies 
 
-Linux
-```
-chmod 777 setup.sh
-setup.sh
-```
+   Windows
+   ```
+   setup.bat
+   ```
+
+   Linux
+   ```
+   chmod 777 setup.sh
+   setup.sh
+   ```
 
 5. For starting augmentation services run
-```
-uvicorn augmentation.server:app --host 0.0.0.0
-```
+   ```
+   uvicorn augmentation.server:app --host 0.0.0.0
+   ```
 
 6. For starting trainer-api services run
 
-```
-uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
-```
+   ```
+   uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
+   ```
 
 # Documentation
 
 Documentation for all APIs for Chiron are still being fleshed out. A intermediary version of the documentation is available here.
-[Chiron Documentation] (http://chiron-docs.digite.com/)
+[Documentation](http://chiron-docs.digite.com/)
 
 
 
