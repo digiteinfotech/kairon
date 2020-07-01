@@ -1,4 +1,4 @@
-import logging
+from loguru import logger as logging
 import os
 import tempfile
 from contextlib import ExitStack

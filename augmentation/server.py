@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from .generator import QuestionGenerator
 from pydantic import BaseModel
 from typing import Any, List, Text
-import logging
+from loguru import logger as logging
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware

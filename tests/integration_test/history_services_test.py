@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 
 from fastapi.testclient import TestClient
@@ -14,11 +13,9 @@ from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 
-logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)
-
 
 def pytest_configure():
     return {'token_type': None,

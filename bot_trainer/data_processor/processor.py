@@ -1,5 +1,5 @@
 import itertools
-import logging
+from loguru import logger as logging
 import os
 from collections import ChainMap
 from datetime import datetime

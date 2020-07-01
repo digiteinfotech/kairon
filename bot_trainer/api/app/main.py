@@ -1,8 +1,9 @@
-import logging
-
+from loguru import logger as logging
+from time import time
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security.utils import get_authorization_scheme_param
 from mongoengine import connect, disconnect
 from mongoengine.errors import (
     DoesNotExist,
@@ -40,8 +41,25 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_secure_headers(request: Request, call_next):
+    """add security headers"""
     response = await call_next(request)
     secure_headers.starlette(response)
+    return response
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """logging request calls"""
+    authorization: str = request.headers.get("Authorization")
+    _, param = get_authorization_scheme_param(authorization)
+    start_time = time()
+
+    response = await call_next(request)
+
+    process_time = (time() - start_time) * 1000
+    formatted_process_time = '{0:.2f}'.format(process_time)
+    logging.info(f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}")
+
     return response
 
 

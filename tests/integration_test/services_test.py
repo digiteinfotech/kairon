@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import tarfile
@@ -17,7 +16,6 @@ from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from rasa.utils.io import read_config_file
 
-logging.basicConfig(level=logging.DEBUG)
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 client = TestClient(app)

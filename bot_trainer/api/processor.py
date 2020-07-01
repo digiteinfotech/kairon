@@ -1,4 +1,4 @@
-import logging
+from loguru import logger as logging
 from typing import Dict, Text
 
 from mongoengine.errors import DoesNotExist

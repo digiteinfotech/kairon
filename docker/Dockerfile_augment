@@ -17,6 +17,7 @@ RUN python3 -m pip install nlpaug
 RUN python3 -m pip install nltk
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
+RUN python3 -m pip install loguru
 
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 
