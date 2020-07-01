@@ -65,8 +65,8 @@ docker-compose up -d
 2. Then clone this repo
 
 ```shell
-git clone https://github.com/digiteinfotech/rasa-dx.git
-cd rasa-dx/
+git clone https://github.com/digiteinfotech/chiron.git
+cd chiron/
 ```
 
 3. For installing dependencies on windows run
