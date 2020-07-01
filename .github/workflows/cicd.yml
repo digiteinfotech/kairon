@@ -50,8 +50,12 @@ jobs:
         # set system_file=../system.yaml
         export system_file=../system.yaml
         make html
-    - name: Archive Sphinx html folder
-      uses: actions/upload-artifact@v1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
       with:
-        name: sphinx-html
-        path: docs/_build/html
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: Copy files to the website
+      run: |
+        aws s3 sync docs/_build/html s3://${{ secrets.S3_PATH }}
