@@ -85,7 +85,7 @@ and set google analytics tracking id
 
    Linux
    ```
-   chmod 777 setup.sh
+   chmod 777 ./setup.sh
    setup.sh
    ```
 
