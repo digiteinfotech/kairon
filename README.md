@@ -41,10 +41,12 @@ Chiron only requires a recent version of [Docker](https://docs.docker.com/get-do
 Please do the below changes in **docker/docker-compose.yml**
 
 1. set env variable **server** to public IP of the machine where trainer api docker container is running for example: http://localhost:8001/
+
+2. Optional, if you want to have google analytics enabled then uncomment trackingid
+and set google analytics tracking id
     
-2. set env variable **SECRET_KEY** to some random key.
-    
-3. use command **openssl rand -hex 32** for generating random secret key
+3. set env variable **SECRET_KEY** to some random key.
+   use command **openssl rand -hex 32** for generating random secret key 
 
 4. run the command.
  
@@ -69,18 +71,21 @@ git clone https://github.com/digiteinfotech/chiron.git
 cd chiron/
 ```
 
-3. For installing dependencies on windows run
+3. For creating Virtual environment, please follow the [link](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) 
+
+4. For installing dependencies
+Windows
 ```
 setup.bat
 ```
 
-4. For installing dependencies on linux run
+Linux
 ```
 chmod 777 setup.sh
 setup.sh
 ```
 
-5. For starting augment services run
+5. For starting augmentation services run
 ```
 uvicorn augmentation.server:app --host 0.0.0.0
 ```

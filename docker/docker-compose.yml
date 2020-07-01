@@ -59,6 +59,9 @@ services:
       - 80:8080
     environment:
       server: "http://chiron-api:81/"
+## if you want to use google analytics then uncomment trackingid
+## and set you google analytics code
+#      trackingid: ""
 	  
   duckling:
     image: rasa/duckling
