@@ -40,7 +40,7 @@ Chiron only requires a recent version of [Docker](https://docs.docker.com/get-do
 
 Please do the below changes in **docker/docker-compose.yml**
 
-1. set env variable **server** to public IP of the machine where trainer api docker container is running for example: http://localhost:8001/
+1. set env variable **server** to public IP of the machine where trainer api docker container is running for example: http://localhost:81/
 
 2. Optional, if you want to have google analytics enabled then uncomment trackingid
 and set google analytics tracking id
