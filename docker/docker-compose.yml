@@ -10,7 +10,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-	  
+
   chiron-augment:
     image: digite/chiron-augment:latest
     networks:
@@ -31,7 +31,7 @@ services:
     networks:
       - chatbotnetwork
     container_name: chiron-api
-    hostname:chiron-api
+    hostname: chiron-api
     depends_on:
       - mongo
       - chiron-augment
@@ -62,7 +62,7 @@ services:
 ## if you want to use google analytics then uncomment trackingid
 ## and set you google analytics code
 #      trackingid: ""
-	  
+
   duckling:
     image: rasa/duckling
     networks:
