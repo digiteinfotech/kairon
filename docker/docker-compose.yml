@@ -9,7 +9,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
+      - ./mongo_data:/data/db
 
   chiron-augment:
     image: digite/chiron-augment:latest
@@ -22,7 +22,7 @@ services:
     ports:
       - 8001:8000
     volumes:
-      - chiron_augment_tmp:/root/.cache/
+      - ./augment_tmp:/root/.cache/
     environment:
       mongo_url: "mongodb://mongo:27017"
 
@@ -38,8 +38,8 @@ services:
     ports:
       - 81:80
     volumes:
-      - chiron_models:/app/models
-      - chiron_tmp:/root/.cache/
+      - ./models:/app/models
+      - ./api_tmp:/root/.cache/
     environment:
       mongo_url: "mongodb://mongo:27017"
       mongo_db: "chiron"
@@ -74,9 +74,3 @@ services:
 
 networks:
   chatbotnetwork:
-
-volumes:
-  chiron_models:
-  chiron_tmp:
-  chiron_augment_tmp:
-  mongo_data:
