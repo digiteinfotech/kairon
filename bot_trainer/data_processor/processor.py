@@ -932,7 +932,7 @@ class MongoProcessor:
             training_example.user = user
             training_example.text = text
             if entities:
-                training_example.entities = entities
+                training_example.entities = self.__extract_entities(entities)
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist as e:

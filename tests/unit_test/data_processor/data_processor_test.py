@@ -903,6 +903,14 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hey, there" for example in examples)
 
+
+    def test_edit_training_example_with_entities(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](Location) India", intent="greet", bot="tests", user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "Meghalaya India" for example in examples)
+
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))

@@ -86,18 +86,18 @@ and set google analytics tracking id
    Linux
    ```
    chmod 777 ./setup.sh
-   setup.sh
+   sh ./setup.sh
    ```
 
 5. For starting augmentation services run
    ```
-   uvicorn augmentation.server:app --host 0.0.0.0
+   python -m uvicorn augmentation.server:app --host 0.0.0.0
    ```
 
 6. For starting trainer-api services run
 
    ```
-   uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
+   python -m uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
    ```
 
 # Documentation
