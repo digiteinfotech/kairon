@@ -54,7 +54,7 @@ and set google analytics tracking id
 4. run the command.
  
    ```shell
-   cd chiron/
+   cd chiron/docker
    docker-compose up -d
    ```
 
