@@ -74,7 +74,7 @@ and set google analytics tracking id
    cd chiron/
    ```
 
-3. For creating Virtual environment, please follow the [link](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) 
+3. For creating Virtual environment, please follow the [link](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/) 
 
 4. For installing dependencies 
 
