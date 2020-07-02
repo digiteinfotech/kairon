@@ -65,7 +65,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Chiron requires [python3.6.9+ or 3.7](https://www.python.org/downloads/) and [mongo](https://www.mongodb.com/download-center/community)
+1. Chiron requires [python3.6.9+ or 3.7](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
 
 2. Then clone this repo
 
