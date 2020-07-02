@@ -80,12 +80,14 @@ and set google analytics tracking id
 
 4. For installing dependencies 
 
-   Windows
+   **Windows**
    ```
    setup.bat
    ```
 
-   Linux
+   **No Matching distribution found tensorflow-text** - remove the dependency from requirements.txt file, as **window version is not available** [#44](https://github.com/tensorflow/text/issues/44)
+
+   **Linux**
    ```
    chmod 777 ./setup.sh
    sh ./setup.sh
