@@ -189,7 +189,7 @@ class AccountProcessor:
             "email": "test@demo.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Changeit@123"),
         }
         try:
             user = await AccountProcessor.account_setup(account, user="sysadmin")

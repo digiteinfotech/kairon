@@ -58,7 +58,9 @@ and set google analytics tracking id
    docker-compose up -d
    ```
 
-5. To Test use username: **test@demo.in** and password: **welcome@1** to try with demo user
+5. Open http://localhost/ in browser.
+
+6. To Test use username: **test@demo.in** and password: **Changeit@123** to try with demo user
 
 
 # Development
