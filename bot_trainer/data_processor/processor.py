@@ -1400,8 +1400,13 @@ class MongoProcessor:
                                           status=response)
         return response
 
-    """This api takes IntentName and deletes from Intent COllection"""
     def delete_Intent(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete single intent from Intent collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
         assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
         try:
             # status to be filtered as Invalid Intent should not be fetched
@@ -1418,8 +1423,13 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    """ This api will be utilized to delete all the trainingExamples linked with specified intentName"""
     def delete_TrainingExamplesForIntent(self, intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from TrainingExamples collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
         assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
         try:
             # if intent not matches no error
@@ -1431,8 +1441,13 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    """deleteStoriesForIntent will delete all the stories for speficified intentname i.e block_name"""
     def delete_StoriesForIntent(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from Stories collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
         assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
         try:
             # if intent not matches no error
@@ -1444,8 +1459,14 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document: " + str(ex))
 
-    """Sync deletion of IntentName from Intent, TraingExamples and Stories Collection"""
     def syncDeletionOfIntent(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from Intent, TrainingExamples and Stories collection
+        for the stated IntentName
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
         try:
             self.delete_Intent(intentName,botName,userName)
             self.delete_TrainingExamplesForIntent(intentName,botName,userName)
