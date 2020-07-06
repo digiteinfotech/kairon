@@ -1096,15 +1096,32 @@ class TestModelProcessor:
     def test_syncDeletionOf_Valid_Intent_No_Stories(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser")
-        processor.add_training_example("Hows You Doing!", "TestingDelGreeting", "tests", "testUser")
+        result = processor.add_training_example(["Hows You Doing!"], "TestingDelGreeting", "tests", "testUser")
+        print(list(result))
         processor.syncDeletionOfIntent("TestingDelGreeting", "tests", "testUser")
-        with pytest.raises(Exception):
-            intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
+        intentRes = processor.get_intents("tests")
+        isIntentExist = False
+        for intent in intentRes:
+            if intent["name"]=="TestingDelGreeting":
+                isIntentExist=True
+        trainingRes = len(list(processor.get_training_examples("TestingDelGreeting","tests")))
+        assert isIntentExist is False
+        assert trainingRes==0
 
     def test_syncDeletionOf_Valid_Intent_No_TrainingExamples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser")
         processor.add_story("TestingDelGreeting", [{"name": "greet", "type": "user"}], "tests", "testUser")
         processor.syncDeletionOfIntent("TestingDelGreeting", "tests", "testUser")
-        with pytest.raises(Exception):
-            intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
+        intentRes = processor.get_intents("tests")
+        isIntentExist = False
+        for intent in intentRes:
+            if intent["name"] == "TestingDelGreeting":
+                isIntentExist = True
+        storiesRes = list(processor.get_stories("tests"))
+        isStoryExists = False
+        for story in storiesRes:
+            if story["block_name"]=="TestingDelGreeting":
+                isStoryExists=True
+        assert isIntentExist is False
+        assert isStoryExists is False

@@ -1472,6 +1472,9 @@ class MongoProcessor:
             self.delete_TrainingExamplesForIntent(intentName,botName,userName)
             self.delete_StoriesForIntent(intentName,botName,userName)
             return intentName
+        except AssertionError as ex:
+            logging.info(ex)
+            raise AssertionError("Error while synching deleting of Intent: " + str(ex))
         except AppException as ex:
             logging.info(ex)
             raise AppException("Error while synching deleting of Intent: "+str(ex))
