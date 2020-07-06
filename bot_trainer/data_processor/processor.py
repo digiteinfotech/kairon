@@ -1414,7 +1414,6 @@ class MongoProcessor:
             intentObj.user = userName
             intentObj.status = False
             intentObj.timestamp = datetime.utcnow()
-            print("Saving Item")
             intentObj.save(validate=False)
         except DoesNotExist as custEx:
             logging.info(custEx)
