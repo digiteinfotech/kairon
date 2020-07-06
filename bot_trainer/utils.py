@@ -32,6 +32,7 @@ from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.components import ComponentBuilder
 from rasa.core import config as configuration
 from .exceptions import AppException
+from datetime import datetime
 
 
 class Utility:
@@ -272,7 +273,7 @@ class Utility:
                 raise AppException("\n".join(response))
 
     @staticmethod
-    def delete_document(documents: List[Document], bot: Text, user: Text):
+    def delete_document(documents: List[Document], bot: Text, user: Text, **kwargs):
         """
         perform soft delete on list of mongo collections
         :param documents: list of mongo collections
@@ -281,11 +282,12 @@ class Utility:
         :return: NONE
         """
         for document in documents:
-            doc_list = document.objects(bot=bot, status=True)
+            doc_list = document.objects(bot=bot, status=True, **kwargs)
             if doc_list:
                 for doc in doc_list:
                     doc.status = False
                     doc.user = user
+                    doc.timestamp = datetime.utcnow()
                     doc.save(validate=False)
 
     @staticmethod

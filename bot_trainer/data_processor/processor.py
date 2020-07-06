@@ -1400,6 +1400,64 @@ class MongoProcessor:
                                           status=response)
         return response
 
+    """This api takes IntentName and deletes from Intent COllection"""
+    def delete_Intent(self,intentName: Text, botName: Text, userName: Text):
+        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        try:
+            # status to be filtered as Invalid Intent should not be fetched
+            intentObj = Intents.objects(bot=botName, status=True).get(name__iexact=intentName)
+            intentObj.user = userName
+            intentObj.status = False
+            intentObj.timestamp = datetime.utcnow()
+            print("Saving Item")
+            intentObj.save(validate=False)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document" + str(ex))
+
+    """ This api will be utilized to delete all the trainingExamples linked with specified intentName"""
+    def delete_TrainingExamplesForIntent(self, intentName: Text, botName: Text, userName: Text):
+        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        try:
+            # if intent not matches no error
+            Utility.delete_document([TrainingExamples], bot=botName, user=userName, intent__iexact=intentName)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document" + str(ex))
+
+    """deleteStoriesForIntent will delete all the stories for speficified intentname i.e block_name"""
+    def delete_StoriesForIntent(self,intentName: Text, botName: Text, userName: Text):
+        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        try:
+            # if intent not matches no error
+            Utility.delete_document([Stories], bot=botName, user=userName, block_name__iexact=intentName)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document: " + str(ex))
+
+    """Sync deletion of IntentName from Intent, TraingExamples and Stories Collection"""
+    def syncDeletionOfIntent(self,intentName: Text, botName: Text, userName: Text):
+        try:
+            self.delete_Intent(intentName,botName,userName)
+            self.delete_TrainingExamplesForIntent(intentName,botName,userName)
+            self.delete_StoriesForIntent(intentName,botName,userName)
+            return intentName
+        except AppException as ex:
+            logging.info(ex)
+            raise AppException("Error while synching deleting of Intent: "+str(ex))
+        except Exception as ex:
+            logging.info(ex)
+            raise Exception("Error while synching deleting of Intent: " + str(ex))
+
 
 class AgentProcessor:
     mongo_processor = MongoProcessor()
