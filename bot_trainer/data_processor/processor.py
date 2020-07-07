@@ -1407,7 +1407,8 @@ class MongoProcessor:
         botname: bot name,
         userName: name of User
         """
-        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
         try:
             # status to be filtered as Invalid Intent should not be fetched
             intentObj = Intents.objects(bot=botName, status=True).get(name__iexact=intentName)
@@ -1429,7 +1430,8 @@ class MongoProcessor:
         botname: bot name,
         userName: name of User
         """
-        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
         try:
             # if intent not matches no error
             Utility.delete_document([TrainingExamples], bot=botName, user=userName, intent__iexact=intentName)
@@ -1447,7 +1449,8 @@ class MongoProcessor:
         botname: bot name,
         userName: name of User
         """
-        assert not Utility.check_empty_string(intentName), "Intent Name cannot be empty or blank spaces"
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
         try:
             # if intent not matches no error
             Utility.delete_document([Stories], bot=botName, user=userName, block_name__iexact=intentName)
@@ -1458,7 +1461,7 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document: " + str(ex))
 
-    def syncDeletionOfIntent(self,intentName: Text, botName: Text, userName: Text):
+    def deleteIntentWithDependencies(self,intentName: Text, botName: Text, userName: Text):
         """
         This api will help to delete intents from Intent, TrainingExamples and Stories collection
         for the stated IntentName
@@ -1479,7 +1482,7 @@ class MongoProcessor:
             raise AppException("Error while synching deleting of Intent: "+str(ex))
         except Exception as ex:
             logging.info(ex)
-            raise Exception("Error while synching deleting of Intent: " + str(ex))
+            raise AppException("Error while synching deleting of Intent: " + str(ex))
 
 
 class AgentProcessor:

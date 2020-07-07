@@ -1297,9 +1297,8 @@ def test_delete_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actualAdd = response.json()
-    response = client.post(
-        "/api/bot/delete_intent",
-        json={"data": "happier"},
+    response = client.delete(
+        "/api/bot/Intent/happier",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actualDel = response.json()

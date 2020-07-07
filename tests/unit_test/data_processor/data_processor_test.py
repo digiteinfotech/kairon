@@ -1079,26 +1079,26 @@ class TestModelProcessor:
     def test_syncDeletionOf_Invalid_Intent(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.syncDeletionOfIntent("Invalidgreeting", "tests", "testUser")
+            processor.deleteIntentWithDependencies("Invalidgreeting", "tests", "testUser")
 
     def test_syncDeletionOf_Valid_Intent(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser")
-        processor.syncDeletionOfIntent("TestingDelGreeting", "tests", "testUser")
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
         with pytest.raises(Exception):
             intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
 
     def test_syncDeletionOf_Empty_Intent(self):
         processor = MongoProcessor()
         with pytest.raises(AssertionError):
-            processor.syncDeletionOfIntent("", "tests", "testUser")
+            processor.deleteIntentWithDependencies("", "tests", "testUser")
 
     def test_syncDeletionOf_Valid_Intent_No_Stories(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser")
         result = processor.add_training_example(["Hows You Doing!"], "TestingDelGreeting", "tests", "testUser")
         print(list(result))
-        processor.syncDeletionOfIntent("TestingDelGreeting", "tests", "testUser")
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
         intentRes = processor.get_intents("tests")
         isIntentExist = False
         for intent in intentRes:
@@ -1112,7 +1112,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser")
         processor.add_story("TestingDelGreeting", [{"name": "greet", "type": "user"}], "tests", "testUser")
-        processor.syncDeletionOfIntent("TestingDelGreeting", "tests", "testUser")
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
         intentRes = processor.get_intents("tests")
         isIntentExist = False
         for intent in intentRes:

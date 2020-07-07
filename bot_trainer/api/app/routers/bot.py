@@ -481,12 +481,12 @@ async def set_config_template(
     mongo_processor.apply_config(request_data.data, current_user.get_bot(), current_user.get_user())
     return {"message": "Config applied!"}
 
-@router.post("/delete_intent", response_model=Response)
+@router.delete("/Intent/{intent}", response_model=Response)
 async def delete_intent(
-        request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        intent: str, current_user: User = Depends(auth.get_current_user)
 ):
-    """ This function is used to add a new intent to the bot """
-    intentName = mongo_processor.syncDeletionOfIntent(
-        request_data.data.strip(), current_user.get_bot(), current_user.get_user()
+    """ This function will be utilized to delete an intent and its dependencies with TrainingExamples and Stories"""
+    intentName = mongo_processor.deleteIntentWithDependencies(
+        intent, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Intent successfully deleted!", "data": {"IntentName": intentName}}
