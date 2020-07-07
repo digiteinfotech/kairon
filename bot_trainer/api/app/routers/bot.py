@@ -485,7 +485,7 @@ async def set_config_template(
 async def delete_intent(
         intent: str, current_user: User = Depends(auth.get_current_user)
 ):
-    """ This function will be utilized to delete an intent and its dependencies with TrainingExamples and Stories"""
+    """This function will be utilized to delete an intent and its dependencies with TrainingExamples and Stories"""
     intentName = mongo_processor.deleteIntentWithDependencies(
         intent, current_user.get_bot(), current_user.get_user()
     )
