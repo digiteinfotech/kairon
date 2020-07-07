@@ -1289,3 +1289,17 @@ def test_set_config_pipeline_error():
     assert actual['error_code'] == 422
     assert actual['message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
     assert not actual['success']
+
+def test_delete_intent():
+    response = client.post(
+        "/api/bot/intents",
+        json={"data": "happier"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actualAdd = response.json()
+    response = client.delete(
+        "/api/bot/Intent/happier",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actualDel = response.json()
+    assert actualDel["data"]["IntentName"]=="happier"

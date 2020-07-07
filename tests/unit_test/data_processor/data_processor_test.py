@@ -1048,3 +1048,80 @@ class TestModelProcessor:
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
+
+    def test_delete_valid_Intent(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.delete_Intent("TestingDelGreeting", "tests", "testUser")
+        with pytest.raises(Exception):
+            intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
+
+    def test_delete_Invalid_Intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.delete_Intent("TestingDelGreetingInvalid", "tests", "testUser")
+
+    def test_delete_Empty_Intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            processor.delete_Intent("", "tests", "testUser")
+
+    def test_delete_Empty_TrainingExamples(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            processor.delete_TrainingExamplesForIntent("", "tests", "testUser")
+
+    def test_delete_Empty_Stories(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            processor.delete_StoriesForIntent("", "tests", "testUser")
+
+    def test_syncDeletionOf_Invalid_Intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.deleteIntentWithDependencies("Invalidgreeting", "tests", "testUser")
+
+    def test_syncDeletionOf_Valid_Intent(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
+        with pytest.raises(Exception):
+            intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
+
+    def test_syncDeletionOf_Empty_Intent(self):
+        processor = MongoProcessor()
+        with pytest.raises(AssertionError):
+            processor.deleteIntentWithDependencies("", "tests", "testUser")
+
+    def test_syncDeletionOf_Valid_Intent_No_Stories(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        result = processor.add_training_example(["Hows You Doing!"], "TestingDelGreeting", "tests", "testUser")
+        print(list(result))
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
+        intentRes = processor.get_intents("tests")
+        isIntentExist = False
+        for intent in intentRes:
+            if intent["name"]=="TestingDelGreeting":
+                isIntentExist=True
+        trainingRes = len(list(processor.get_training_examples("TestingDelGreeting","tests")))
+        assert isIntentExist is False
+        assert trainingRes==0
+
+    def test_syncDeletionOf_Valid_Intent_No_TrainingExamples(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_story("TestingDelGreeting", [{"name": "greet", "type": "user"}], "tests", "testUser")
+        processor.deleteIntentWithDependencies("TestingDelGreeting", "tests", "testUser")
+        intentRes = processor.get_intents("tests")
+        isIntentExist = False
+        for intent in intentRes:
+            if intent["name"] == "TestingDelGreeting":
+                isIntentExist = True
+        storiesRes = list(processor.get_stories("tests"))
+        isStoryExists = False
+        for story in storiesRes:
+            if story["block_name"]=="TestingDelGreeting":
+                isStoryExists=True
+        assert isIntentExist is False
+        assert isStoryExists is False

@@ -1400,6 +1400,90 @@ class MongoProcessor:
                                           status=response)
         return response
 
+    def delete_Intent(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete single intent from Intent collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
+        try:
+            # status to be filtered as Invalid Intent should not be fetched
+            intentObj = Intents.objects(bot=botName, status=True).get(name__iexact=intentName)
+            intentObj.user = userName
+            intentObj.status = False
+            intentObj.timestamp = datetime.utcnow()
+            intentObj.save(validate=False)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document" + str(ex))
+
+    def delete_TrainingExamplesForIntent(self, intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from TrainingExamples collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
+        try:
+            # if intent not matches no error
+            Utility.delete_document([TrainingExamples], bot=botName, user=userName, intent__iexact=intentName)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document" + str(ex))
+
+    def delete_StoriesForIntent(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from Stories collection.
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
+        if Utility.check_empty_string(intentName):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
+        try:
+            # if intent not matches no error
+            Utility.delete_document([Stories], bot=botName, user=userName, block_name__iexact=intentName)
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Unable to remove document: " + str(ex))
+
+    def deleteIntentWithDependencies(self,intentName: Text, botName: Text, userName: Text):
+        """
+        This api will help to delete intents from Intent, TrainingExamples and Stories collection
+        for the stated IntentName
+        intentName: Name of intent,
+        botname: bot name,
+        userName: name of User
+        """
+        try:
+            self.delete_Intent(intentName,botName,userName)
+            self.delete_TrainingExamplesForIntent(intentName,botName,userName)
+            self.delete_StoriesForIntent(intentName,botName,userName)
+            return intentName
+        except AssertionError as ex:
+            logging.info(ex)
+            raise AssertionError("Error while synching deleting of Intent: " + str(ex))
+        except AppException as ex:
+            logging.info(ex)
+            raise AppException("Error while synching deleting of Intent: "+str(ex))
+        except Exception as ex:
+            logging.info(ex)
+            raise AppException("Error while synching deleting of Intent: " + str(ex))
+
 
 class AgentProcessor:
     mongo_processor = MongoProcessor()
