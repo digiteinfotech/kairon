@@ -35,7 +35,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["content-disposition"]
+    expose_headers=["content-disposition"],
 )
 
 
@@ -57,8 +57,10 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
 
     process_time = (time() - start_time) * 1000
-    formatted_process_time = '{0:.2f}'.format(process_time)
-    logging.info(f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}")
+    formatted_process_time = "{0:.2f}".format(process_time)
+    logging.info(
+        f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
+    )
 
     return response
 
@@ -95,9 +97,7 @@ async def http_exception_handler(request, exc):
         appropriate message and details of the error """
     logging.exception(exc)
     return JSONResponse(
-        Response(
-            success=False, error_code=422, message=str(exc)
-        ).dict()
+        Response(success=False, error_code=422, message=str(exc)).dict()
     )
 
 
@@ -223,7 +223,12 @@ async def app_exception_handler(request, exc):
     )
 
 
-app.include_router(auth.router, prefix="/api/auth")
+@app.get("/", response_model=Response)
+def index():
+    return {"message": "hello"}
+
+
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(account.router, prefix="/api/account", tags=["Account"])
 app.include_router(user.router, prefix="/api/user", tags=["User"])
 app.include_router(bot.router, prefix="/api/bot", tags=["Bot"])

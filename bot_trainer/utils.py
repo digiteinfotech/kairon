@@ -19,23 +19,34 @@ from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from pymongo.errors import InvalidURI
-from pymongo.uri_parser import SRV_SCHEME_LEN, SCHEME, SCHEME_LEN, SRV_SCHEME, parse_userinfo
+from pymongo.uri_parser import (
+    SRV_SCHEME_LEN,
+    SCHEME,
+    SCHEME_LEN,
+    SRV_SCHEME,
+    parse_userinfo,
+)
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.constants import DEFAULT_MODELS_PATH
+from rasa.core import config as configuration
 from rasa.core.tracker_store import MongoTrackerStore
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
+from rasa.nlu.components import ComponentBuilder
+from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
-from rasa.nlu.config import RasaNLUModelConfig
-from rasa.nlu.components import ComponentBuilder
-from rasa.core import config as configuration
+
 from .exceptions import AppException
 from datetime import datetime
 
 
 class Utility:
+    """
+    Class contains logic for various utilities
+    """
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
     environment = None
@@ -49,8 +60,12 @@ class Utility:
 
     @staticmethod
     def check_empty_string(value: str):
-        """ Checks for an empty string. Returns True if empty or not a string,
-            and returns False if it is a string """
+        """
+        checks for empty string
+
+        :param value: string value
+        :return: boolean
+        """
         if not value:
             return True
         if not value.strip():
@@ -60,8 +75,13 @@ class Utility:
 
     @staticmethod
     def prepare_nlu_text(example: Text, entities: List[Dict]):
-        """ This function converts the entity data into the format required for the
-            nlu file of the bot """
+        """
+        combines plain text and entities into training example format
+
+        :param example: training example plain text
+        :param entities: list of entities
+        :return: trianing example combine with enities
+        """
         if not Utility.check_empty_string(example):
             if entities:
                 for entity in entities:
@@ -73,22 +93,35 @@ class Utility:
 
     @staticmethod
     def validate_document_list(documents: List[BaseDocument]):
-        """ Returns the validation results (if the document schema is valid or not)
-            of the input documents """
+        """
+        validates list of documents
+
+        :param documents: list of documents
+        :return: None
+        """
         if documents:
             for document in documents:
                 document.validate()
 
     @staticmethod
     def load_yaml(file: Text):
-        """ Loads content from the .yaml file """
+        """
+        loads yaml file
+
+        :param file: yaml file path
+        :return: dict
+        """
         with open(file) as fp:
             return yaml.load(fp, yaml.FullLoader)
 
     @staticmethod
     def load_evironment():
-        """ Loads the environment variables and their values from the
-            system.yaml file for defining the working environment of the app """
+        """
+        Loads the environment variables and their values from the
+        system.yaml file for defining the working environment of the app
+
+        :return: None
+        """
         environment = Utility.load_yaml(os.getenv("system_file", "./system.yaml"))
         for key in environment:
             if key in os.environ:
@@ -97,8 +130,13 @@ class Utility:
 
     @staticmethod
     def validate_fields(fields: Dict, data: Dict):
-        """ Checks if the input fields of a dictionary
-            are valid (not empty) and returns an error if not """
+        """
+        validate fields
+
+        :param fields: fields
+        :param data: data
+        :return: None
+        """
         error = ""
         for key, value in fields.items():
             if isinstance(value, StringField):
@@ -112,8 +150,17 @@ class Utility:
 
     @staticmethod
     def is_exist(
-            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
+        document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
+        """
+        check if document exist
+
+        :param document: document type
+        :param exp_message: exception message
+        :param raise_error: boolean to raise exception
+        :param kwargs: filter parameters
+        :return: boolean
+        """
         doc = document.objects(**kwargs)
         if doc.__len__():
             if raise_error:
@@ -128,26 +175,46 @@ class Utility:
 
     @staticmethod
     def verify_password(plain_password, hashed_password):
-        """ Verifies the password with the hashed version of the password """
+        """
+        verify password on constant time
+
+        :param plain_password: user password
+        :param hashed_password: saved password
+        :return: boolean
+        """
         return Utility.pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
     def get_password_hash(password):
-        """ Returns the hashed version of the input password """
+        """
+        convert plain password to hashed
+
+        :param password: plain password
+        :return: hashed password
+        """
         if not Utility.check_empty_string(password):
             return Utility.pwd_context.hash(password)
 
     @staticmethod
     def get_latest_file(folder):
-        """ Gets the latest file in a folder """
+        """
+        fetches latest file from folder
+
+        :param folder: folder path
+        :return: latest file
+        """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(iglob(folder + "/*"), key=os.path.getctime)
 
     @staticmethod
     def check_empty_list_elements(items: List[Text]):
-        """ Checks if the input strings are empty. Returns True if empty and False,
-            if not """
+        """
+        checks if any of the input strings are empty
+
+        :param items: text list
+        :return: boolean
+        """
         for item in items:
             if Utility.check_empty_string(item):
                 return True
@@ -155,28 +222,29 @@ class Utility:
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
-        """ Deploys the chatbot to the specified endpoint """
+        """
+        deploys the model to the specified endpoint
+
+        :param endpoint: endpoint configuration
+        :param bot: bot id
+        :return: endpoint deployed response
+        """
         if not endpoint or not endpoint.get("bot_endpoint"):
             raise AppException("Please configure the bot endpoint for deployment!")
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         url = endpoint["bot_endpoint"].get("url")
         if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get(
-                "token"
+            "token"
         ):
             headers["Authorization"] = (
-                    endpoint["bot_endpoint"].get("token_type")
-                    + " "
-                    + endpoint["bot_endpoint"].get("token")
+                endpoint["bot_endpoint"].get("token_type")
+                + " "
+                + endpoint["bot_endpoint"].get("token")
             )
         try:
-            model_file = Utility.get_latest_file(
-                        os.path.join(DEFAULT_MODELS_PATH, bot))
+            model_file = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
             response = requests.put(
-                url + "/model",
-                json={
-                    "model_file": model_file
-                },
-                headers=headers,
+                url + "/model", json={"model_file": model_file}, headers=headers,
             )
             json_response = response.json()
             if isinstance(json_response, str):
@@ -197,12 +265,27 @@ class Utility:
         return result, model_file
 
     @staticmethod
-    def generate_password(size=6, chars=string.ascii_uppercase + string.digits):
+    def generate_password(size=8, chars=string.ascii_letters + string.digits):
+        """
+        generates password
+
+        :param size: size of password
+        :param chars: password combination
+        :return: generated password
+        """
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
     def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
-        """save nlu, domain, stories and config data to files in temporary location."""
+        """
+        convert mongo data  to individual files
+
+        :param nlu: nlu data
+        :param domain: domain data
+        :param stories: stories data
+        :param config: config data
+        :return: files path
+        """
         temp_path = tempfile.mkdtemp()
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
         os.makedirs(data_path)
@@ -218,21 +301,41 @@ class Utility:
 
     @staticmethod
     def write_to_file(file: Text, data: bytes):
-        """open the files in binary mode and write to it"""
+        """
+        open file in binary mode
+
+        :param file: file path
+        :param data: data to write
+        :return: None
+        """
         with open(file, "wb") as w:
             w.write(data)
             w.flush()
 
     @staticmethod
     def delete_directory(path: Text):
-        """delete file directory"""
+        """
+        deletes directory with all files
+
+        :param path: directory path
+        :return: None
+        """
         shutil.rmtree(path)
 
     @staticmethod
     def create_zip_file(
-            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+        nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
     ):
+        """
+        adds training files to zip
 
+        :param nlu: nlu data
+        :param domain: domain data
+        :param stories: stories data
+        :param config: config data
+        :param bot: bot id
+        :return: None
+        """
         directory = Utility.save_files(
             nlu.nlu_as_markdown().encode(),
             domain.as_yaml().encode(),
@@ -246,6 +349,12 @@ class Utility:
 
     @staticmethod
     def load_file_in_memory(file: Text):
+        """
+        load file in memory
+
+        :param file: file path
+        :return: bytes
+        """
         data = BytesIO()
         with open(file, "rb") as fo:
             data.write(fo.read())
@@ -255,7 +364,13 @@ class Utility:
 
     @staticmethod
     def valid_password(password: Text):
-        """Used to validate password against the password policy"""
+        """
+        validate password against password policy
+
+        :param password: password
+        :return: None
+        :exception: list of failed policies
+        """
         results = Utility.password_policy.test(password)
         if results:
             response = []
@@ -265,7 +380,9 @@ class Utility:
                 elif isinstance(result, Special):
                     response.append("Missing " + str(result.count) + " special letter")
                 elif isinstance(result, Uppercase):
-                    response.append("Missing " + str(result.count) + " uppercase letter")
+                    response.append(
+                        "Missing " + str(result.count) + " uppercase letter"
+                    )
                 elif isinstance(result, Numbers):
                     response.append("Missing " + str(result.count) + "number")
 
@@ -276,6 +393,7 @@ class Utility:
     def delete_document(documents: List[Document], bot: Text, user: Text, **kwargs):
         """
         perform soft delete on list of mongo collections
+
         :param documents: list of mongo collections
         :param bot: bot id
         :param user: user id
@@ -285,13 +403,20 @@ class Utility:
             doc_list = document.objects(bot=bot, status=True, **kwargs)
             if doc_list:
                 for doc in doc_list:
-                    doc.status = False
+                    if "status" in document._db_field_map:
+                        doc.status = False
                     doc.user = user
                     doc.timestamp = datetime.utcnow()
                     doc.save(validate=False)
 
     @staticmethod
     def extract_user_password(uri: str):
+        """
+        extract username, password and host with port from mongo uri
+
+        :param uri: mongo uri
+        :return: username, password, scheme, hosts
+        """
         "extract username, password and host with port from mongo uri"
         if uri.startswith(SCHEME):
             scheme_free = uri[SCHEME_LEN:]
@@ -300,57 +425,71 @@ class Utility:
             scheme_free = uri[SRV_SCHEME_LEN:]
             scheme = uri[:SRV_SCHEME_LEN]
         else:
-            raise InvalidURI("Invalid URI scheme: URI must "
-                             "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME))
+            raise InvalidURI(
+                "Invalid URI scheme: URI must "
+                "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME)
+            )
 
         if not scheme_free:
             raise InvalidURI("Must provide at least one hostname or IP.")
 
-        host_part, _, path_part = scheme_free.partition('/')
-        if '@' in host_part:
-            userinfo, _, hosts = host_part.rpartition('@')
+        host_part, _, path_part = scheme_free.partition("/")
+        if "@" in host_part:
+            userinfo, _, hosts = host_part.rpartition("@")
             user, passwd = parse_userinfo(userinfo)
             return user, passwd, scheme + hosts
         else:
             return None, None, scheme + host_part
 
     @staticmethod
-    def get_local_mongo_store(bot: Text, domain:  Domain):
-        "create local mongo tracker"
-        db_url = Utility.environment['mongo_url']
-        db_name = Utility.environment['test_conversation_db']
+    def get_local_mongo_store(bot: Text, domain: Domain):
+        """
+        create local mongo tracker
+
+        :param bot: bot id
+        :param domain: domain data
+        :return: mongo tracker
+        """
+        db_url = Utility.environment["mongo_url"]
+        db_name = Utility.environment["test_conversation_db"]
         username, password, url = Utility.extract_user_password(db_url)
-        return MongoTrackerStore(domain=domain,
-                          host=url,
-                          db=db_name,
-                          collection=bot,
-                          username=username,
-                          password=password)
+        return MongoTrackerStore(
+            domain=domain,
+            host=url,
+            db=db_name,
+            collection=bot,
+            username=username,
+            password=password,
+        )
 
     @staticmethod
-    def special_match(strg, search=re.compile(r'[^a-zA-Z0-9_]').search):
-        """used to check of string contains special character other than allowed ones"""
+    def special_match(strg, search=re.compile(r"[^a-zA-Z0-9_]").search):
+        """
+        check if string contains special character other than allowed ones
+
+        :param strg: text value
+        :param search: search pattern
+        :return: boolen
+        """
         return bool(search(strg))
 
     @staticmethod
     def extract_text_and_entities(text: Text):
         """
         extract entities and plain text from markdown intent example
+
         :param text: markdown intent example
         :return: plain intent, list of extracted entities
         """
-        example = re.sub(
-            entity_regex, lambda m: m.groupdict()["entity_text"], text
-        )
-        entities = Utility.markdown_reader._find_entities_in_training_example(
-            text
-        )
+        example = re.sub(entity_regex, lambda m: m.groupdict()["entity_text"], text)
+        entities = Utility.markdown_reader._find_entities_in_training_example(text)
         return example, entities
 
     @staticmethod
     def __extract_response_button(buttons: Dict):
         """
         used to prepare ResponseButton by extracting buttons configuration from bot utterance
+
         :param buttons: button configuration in bot response
         :return: yields ResponseButton
         """
@@ -363,6 +502,7 @@ class Utility:
     def prepare_response(value: Dict):
         """
         used to prepare bot utterance either Text or Custom for saving in Mongo
+
         :param value: utterance value
         :return: response type, response object
         """
@@ -394,6 +534,7 @@ class Utility:
     def list_directories(path: Text):
         """
         list all the directories in given path
+
         :param path: directory path
         :return: list of directories
         """
@@ -401,13 +542,21 @@ class Utility:
 
     @staticmethod
     def list_files(path: Text, extensions=["yml", "yaml"]):
-        files = [glob(os.path.join(path, "*."+extension)) for extension in extensions]
+        """
+        list all the files in directory
+
+        :param path: directory path
+        :param extensions: extension to search
+        :return: file list
+        """
+        files = [glob(os.path.join(path, "*." + extension)) for extension in extensions]
         return sum(files, [])
 
     @staticmethod
     def validate_rasa_config(config: Dict):
         """
         validates bot config.yml content for invalid entries
+
         :param config: configuration
         :return: None
         """

@@ -10,6 +10,8 @@ auth = Authentication()
 
 @router.post("/registration", response_model=Response)
 async def register_account(register_account: RegisterAccount):
-    """new account registeration api"""
+    """
+    Register New Account
+    """
     await AccountProcessor.account_setup(register_account.dict(), "sysadmin")
     return {"message": "Account Registered!"}

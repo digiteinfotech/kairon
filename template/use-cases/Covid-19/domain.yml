@@ -18,7 +18,6 @@ intents:
 - mood_great
 - mood_unhappy
 - inform
-- search_provider
 - thanks
 - get_name
 

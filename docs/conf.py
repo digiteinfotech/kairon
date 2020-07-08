@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'Chiron'
-copyright = '2020, Digite <www.digite.com/chiron>'
+copyright = '2020, Digite'
 author = 'Fahad Shaikh <shaikhfahad2526@gmail.com>'
 
 # The full version, including alpha/beta/rc tags

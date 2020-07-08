@@ -1,10 +1,11 @@
 import itertools
-from loguru import logger as logging
 import os
 from collections import ChainMap
 from datetime import datetime
-from typing import Text, Dict, List
 from pathlib import Path
+from typing import Text, Dict, List
+
+from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -25,7 +26,7 @@ from rasa.nlu.training_data import Message, TrainingData
 from rasa.train import DEFAULT_MODELS_PATH
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.io import read_config_file
-from rasa.nlu.model import Trainer
+
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .cache import InMemoryAgentCache
@@ -62,27 +63,48 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
-    ModelDeployment
+    ModelDeployment,
 )
 
 
 class MongoProcessor:
+    """
+    Class contains logic for saves, updates and deletes bot data in mongo database
+    """
+
     async def upload_and_save(
-            self,
-            nlu: bytes,
-            domain: bytes,
-            stories: bytes,
-            config: bytes,
-            bot: Text,
-            user: Text,
-            overwrite: bool = True,
+        self,
+        nlu: bytes,
+        domain: bytes,
+        stories: bytes,
+        config: bytes,
+        bot: Text,
+        user: Text,
+        overwrite: bool = True,
     ):
-        """Upload the training data to temporary path and then save into mongo."""
+        """
+        loads the training data into database
+
+        :param nlu: nlu data
+        :param domain: domain data
+        :param stories: stories data
+        :param config: config data
+        :param bot: bot id
+        :param user: user id
+        :param overwrite: whether to append or overwrite, default is overwite
+        :return: None
+        """
         data_path = Utility.save_files(nlu, domain, stories, config)
         await self.save_from_path(data_path, bot, overwrite, user)
         Utility.delete_directory(data_path)
 
     def download_files(self, bot: Text):
+        """
+        create zip file containing download data
+
+        :param bot: bot id
+        :return: zip file path
+        """
         nlu = self.load_nlu(bot)
         domain = self.load_domain(bot)
         stories = self.load_stories(bot)
@@ -90,11 +112,17 @@ class MongoProcessor:
         return Utility.create_zip_file(nlu, domain, stories, config, bot)
 
     async def save_from_path(
-            self, path: Text, bot: Text, overwrite: bool = True, user="default"
+        self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
-        """ This function reads the bot files, using the file path (input)
-            for a particular bot (input) and saves data into objects.
-            Eg. MongoProcessor.save_from_path(main_path,bot_name) """
+        """
+        saves training data file
+
+        :param path: data directory path
+        :param bot: bot id
+        :param overwrite: append or overwrite, default is overwrite
+        :param user: user id
+        :return: None
+        """
         try:
             story_files, nlu_files = get_core_nlu_files(
                 os.path.join(path, DEFAULT_DATA_PATH)
@@ -123,51 +151,95 @@ class MongoProcessor:
             raise AppException(e)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
+        """
+        apply use-case template
+
+        :param template: use-case template name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: raise AppException
+        """
         use_case_path = os.path.join("./template/use-cases", template)
         if os.path.exists(use_case_path):
-            await self.save_from_path(path=use_case_path,
-                                      bot=bot,
-                                      user=user)
+            await self.save_from_path(path=use_case_path, bot=bot, user=user)
         else:
             raise AppException("Invalid template!")
 
     def apply_config(self, template: Text, bot: Text, user: Text):
-        config_path = os.path.join("./template/config", template+".yml")
+        """
+        apply config template
+
+        :param template: template name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: AppException
+        """
+        config_path = os.path.join("./template/config", template + ".yml")
         if os.path.exists(config_path):
             self.save_config(read_config_file(config_path), bot=bot, user=user)
         else:
             raise AppException("Invalid config!")
 
     def get_config_templates(self):
+        """
+        fetches list of available config template
+
+        :return: config template list
+        """
         files = Utility.list_files("./template/config")
-        return [{"name": Path(file).stem, "config": read_config_file(file)} for file in files]
+        return [
+            {"name": Path(file).stem, "config": read_config_file(file)}
+            for file in files
+        ]
 
     def delete_bot_data(self, bot: Text, user: Text):
+        """
+        deletes bot data
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         self.delete_domain(bot, user)
         self.delete_stories(bot, user)
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
-        """ saves the nlu data (input) of the bot (input) into respective objects.
-            Eg. story_files, nlu_files = get_core_nlu_files(os.path.join(main_bot_path, DEFAULT_DATA_PATH))
-                nlu = utils.training_data_from_paths(nlu_files, "en")
-                MongoProcessor.save_nlu(nlu,bot_name,user_name) """
+        """
+        saves training examples
+
+        :param nlu: nly data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         self.__save_training_examples(nlu.training_examples, bot, user)
         self.__save_entity_synonyms(nlu.entity_synonyms, bot, user)
         self.__save_lookup_tables(nlu.lookup_tables, bot, user)
         self.__save_regex_features(nlu.regex_features, bot, user)
 
     def delete_nlu(self, bot: Text, user: Text):
-        '''perform soft delete of nlu data for particular bot'''
-        Utility.delete_document([TrainingExamples,
-                                 EntitySynonyms,
-                                 LookupTables,
-                                 RegexFeatures], user, bot)
+        """
+        soft deletes nlu data
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document(
+            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], user, bot
+        )
 
     def load_nlu(self, bot: Text) -> TrainingData:
-        """ loads nlu data of the bot (input) from respective objects.
-            Eg. MongoProcessor.load_nlu(bot_name) """
+        """
+        loads nlu data for training
+
+        :param bot: bot id
+        :return: TrainingData object
+        """
         training_examples = self.__prepare_training_examples(bot)
         entity_synonyms = self.__prepare_training_synonyms(bot)
         lookup_tables = self.__prepare_training_lookup_tables(bot)
@@ -180,9 +252,14 @@ class MongoProcessor:
         )
 
     def save_domain(self, domain: Domain, bot: Text, user: Text):
-        """ saves the domain data (input) of the bot (input) into respective objects.
-            Eg. domain = Domain.from_file(os.path.join(main_path, DEFAULT_DOMAIN_PATH))
-                MongoProcessor.save_domain(domain,bot_name,user_name) """
+        """
+        saves domain data
+
+        :param domain: domain data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         self.__save_intents(domain.intents, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.form_names, bot, user)
@@ -192,17 +269,24 @@ class MongoProcessor:
         self.__save_session_config(domain.session_config, bot, user)
 
     def delete_domain(self, bot: Text, user: Text):
-        '''perform soft delete on domain data for particular bot'''
-        Utility.delete_document([Intents,
-                                 Entities,
-                                 Forms,
-                                 Actions,
-                                 Responses,
-                                 Slots], bot, user)
+        """
+        soft deletes domain data
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document(
+            [Intents, Entities, Forms, Actions, Responses, Slots], bot, user
+        )
 
     def load_domain(self, bot: Text) -> Domain:
-        """ loads domain data of the bot (input) from respective objects.
-            Eg. MongoProcessor.load_domain(bot_name) """
+        """
+        loads domain data for training
+
+        :param bot: bot id
+        :return: dict of Domain objects
+        """
         domain_dict = {
             DOMAIN.INTENTS.value: self.__prepare_training_intents(bot),
             DOMAIN.ACTIONS.value: self.__prepare_training_actions(bot),
@@ -215,30 +299,42 @@ class MongoProcessor:
         return Domain.from_dict(domain_dict)
 
     def save_stories(self, story_steps: List[StoryStep], bot: Text, user: Text):
-        """ saves the stories data (input) of the bot (input) into respective objects.
-            Eg. story_files, nlu_files = get_core_nlu_files(os.path.join(main_path, DEFAULT_DATA_PATH))
-                domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
-                loop = asyncio.new_event_loop()
-                story_steps = loop.run_until_complete(StoryFileReader.read_from_files(story_files, domain))
-                MongoProcessor.save_stories(story_steps,bot_name,user_name) """
+        """
+        saves stories data
+
+        :param story_steps: stories data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         self.__save_stories(story_steps, bot, user)
 
     def delete_stories(self, bot: Text, user: Text):
-        """perform soft delete on stories data for particular bot"""
+        """
+        soft deletes stories
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         Utility.delete_document([Stories], bot, user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
-        """ loads the stories data of the bot (input) from the respective objects.
-            Eg. MongoProcessor.load_stories(bot_name) """
+        """
+        loads stories for training
+
+        :param bot: bot id
+        :return: StoryGraph
+        """
         return self.__prepare_training_story(bot)
 
     def __save_training_examples(self, training_examples, bot: Text, user: Text):
         if training_examples:
-            new_examples = list(self.__extract_training_examples(training_examples, bot, user))
+            new_examples = list(
+                self.__extract_training_examples(training_examples, bot, user)
+            )
             if new_examples:
-                TrainingExamples.objects.insert(
-                    new_examples
-                )
+                TrainingExamples.objects.insert(new_examples)
 
     def __extract_entities(self, entities):
         for entity in entities:
@@ -255,7 +351,9 @@ class MongoProcessor:
         for training_example in training_examples:
             if str(training_example.text).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
-                training_data.intent = training_example.data[TRAINING_EXAMPLE.INTENT.value]
+                training_data.intent = training_example.data[
+                    TRAINING_EXAMPLE.INTENT.value
+                ]
                 training_data.text = training_example.text
                 training_data.bot = bot
                 training_data.user = user
@@ -268,14 +366,13 @@ class MongoProcessor:
                 yield training_data
 
     def __fetch_all_synonyms_value(self, bot: Text):
-        synonyms = list(EntitySynonyms.objects(bot=bot, status=True).aggregate([{
-            "$group": {
-                "_id": "$bot",
-                "values": {"$push": "$value"},
-            }
-        }]))
+        synonyms = list(
+            EntitySynonyms.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$bot", "values": {"$push": "$value"},}}]
+            )
+        )
         if synonyms:
-            return synonyms[0]['values']
+            return synonyms[0]["values"]
         else:
             return []
 
@@ -289,13 +386,16 @@ class MongoProcessor:
         if entity_synonyms:
             new_synonyms = list(self.__extract_synonyms(entity_synonyms, bot, user))
             if new_synonyms:
-                EntitySynonyms.objects.insert(
-                    new_synonyms
-                )
+                EntitySynonyms.objects.insert(new_synonyms)
 
     def fetch_synonyms(self, bot: Text, status=True):
-        """ Loads the entity synonyms of the bot (input).
-            Eg. MongoProcessor.fetch_synonyms(bot_name) """
+        """
+        fetches entity synonyms
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: yield name, value
+        """
         entitySynonyms = EntitySynonyms.objects(bot=bot, status=status)
         for entitySynonym in entitySynonyms:
             yield {entitySynonym.value: entitySynonym.synonym}
@@ -309,8 +409,13 @@ class MongoProcessor:
             yield entity.to_mongo().to_dict()
 
     def fetch_training_examples(self, bot: Text, status=True):
-        """ Returns the training examples (questions/sentences) of the bot (input).
-            Eg. MongoProcessor.fetch_training_examples(bot_name) """
+        """
+        fetches training examples
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: Message List
+        """
         trainingExamples = TrainingExamples.objects(bot=bot, status=status)
         for trainingExample in trainingExamples:
             message = Message(trainingExample.text)
@@ -325,15 +430,14 @@ class MongoProcessor:
         return list(self.fetch_training_examples(bot))
 
     def __fetch_all_lookup_values(self, bot: Text):
-        lookup_tables = list(LookupTables.objects(bot=bot, status=True).aggregate([{
-            "$group": {
-                "_id": "$bot",
-                "values": {"$push": "$value"},
-            }
-        }]))
+        lookup_tables = list(
+            LookupTables.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$bot", "values": {"$push": "$value"},}}]
+            )
+        )
 
         if lookup_tables:
-            return lookup_tables[0]['values']
+            return lookup_tables[0]["values"]
         else:
             return []
 
@@ -349,11 +453,16 @@ class MongoProcessor:
         if lookup_tables:
             new_lookup = list(self.__extract_lookup_tables(lookup_tables, bot, user))
             if new_lookup:
-                LookupTables.objects.insert(
-                    new_lookup
-                )
+                LookupTables.objects.insert(new_lookup)
 
     def fetch_lookup_tables(self, bot: Text, status=True):
+        """
+        fetches lookup table
+
+        :param bot: bot id
+        :param status: user id
+        :return: yield dict of lookup tables
+        """
         """ Returns the lookup tables of the bot (input).
             Eg. MongoProcessor.fetch_lookup_tables(bot_name) """
         lookup_tables = LookupTables.objects(bot=bot, status=status).aggregate(
@@ -369,22 +478,21 @@ class MongoProcessor:
         return list(self.fetch_lookup_tables(bot))
 
     def __fetch_all_regex_patterns(self, bot: Text):
-        regex_patterns = list(RegexFeatures.objects(bot=bot, status=True).aggregate([{
-            "$group": {
-                "_id": "$bot",
-                "patterns": {"$push": "$pattern"},
-            }
-        }]))
+        regex_patterns = list(
+            RegexFeatures.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$bot", "patterns": {"$push": "$pattern"},}}]
+            )
+        )
 
         if regex_patterns:
-            return regex_patterns[0]['patterns']
+            return regex_patterns[0]["patterns"]
         else:
             return []
 
     def __extract_regex_features(self, regex_features, bot: Text, user: Text):
         saved_regex_patterns = self.__fetch_all_regex_patterns(bot)
         for regex_feature in regex_features:
-            if regex_feature['pattern'] not in saved_regex_patterns:
+            if regex_feature["pattern"] not in saved_regex_patterns:
                 regex_data = RegexFeatures(**regex_feature)
                 regex_data.bot = bot
                 regex_data.user = user
@@ -392,15 +500,20 @@ class MongoProcessor:
 
     def __save_regex_features(self, regex_features, bot: Text, user: Text):
         if regex_features:
-            new_regex_patterns = list(self.__extract_regex_features(regex_features, bot, user))
+            new_regex_patterns = list(
+                self.__extract_regex_features(regex_features, bot, user)
+            )
             if new_regex_patterns:
-                RegexFeatures.objects.insert(
-                    new_regex_patterns
-                )
+                RegexFeatures.objects.insert(new_regex_patterns)
 
     def fetch_regex_features(self, bot: Text, status=True):
-        """ Returns the regex features of the bot (input).
-            Eg. MongoProcessor.fetch_regex_features(bot_name) """
+        """
+        fetches regular expression for entities
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: yield dict of regular expression
+        """
         regex_features = RegexFeatures.objects(bot=bot, status=status)
         for regex_feature in regex_features:
             yield {
@@ -424,8 +537,13 @@ class MongoProcessor:
                 Intents.objects.insert(new_intents)
 
     def fetch_intents(self, bot: Text, status=True):
-        """ Returns the intent list of the bot (input).
-            Eg. MongoProcessor.fetch_intents(bot_name) """
+        """
+        fetches intents
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: List of intents
+        """
         intents = Intents.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$bot", "intents": {"$push": "$name"}}}]
         )
@@ -451,8 +569,13 @@ class MongoProcessor:
                 Entities.objects.insert(new_entities)
 
     def fetch_domain_entities(self, bot: Text, status=True):
-        """ Returns the list of entities of the bot (input).
-            Eg. MongoProcessor.fetch_domain_entities(bot_name) """
+        """
+        fetches domain entities
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of entities
+        """
         entities = Entities.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$bot", "entities": {"$push": "$name"}}}]
         )
@@ -478,8 +601,13 @@ class MongoProcessor:
                 Forms.objects.insert(new_forms)
 
     def fetch_forms(self, bot: Text, status=True):
-        """ Returns the list of forms of the bot (input).
-            Eg. MongoProcessor.fetch_forms(bot_name) """
+        """
+        fetches form
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of forms
+        """
         forms = Forms.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$bot", "forms": {"$push": "$name"}}}]
         )
@@ -505,8 +633,13 @@ class MongoProcessor:
                 Actions.objects.insert(new_actions)
 
     def fetch_actions(self, bot: Text, status=True):
-        """ Returns the list of actions of the bot (input).
-            Eg. MongoProcessor.fetch_actions(bot_name) """
+        """
+        fetches actions
+
+        :param bot: bot id
+        :param status: user id
+        :return: list of actions
+        """
         actions = Actions.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}}}]
         )
@@ -520,7 +653,7 @@ class MongoProcessor:
             return []
 
     def __extract_session_config(
-            self, session_config: SessionConfig, bot: Text, user: Text
+        self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -530,7 +663,7 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-            self, session_config: SessionConfig, bot: Text, user: Text
+        self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
@@ -553,8 +686,12 @@ class MongoProcessor:
             raise AppException("Internal Server Error")
 
     def fetch_session_config(self, bot: Text):
-        """ Returns the session configurations of the bot (input).
-            Eg. MongoProcessor.fetch_session_config(bot_name) """
+        """
+        fetches session config
+
+        :param bot: bot id
+        :return: SessionConfigs object
+        """
         try:
             session_config = SessionConfigs.objects().get(bot=bot)
         except DoesNotExist as e:
@@ -594,7 +731,9 @@ class MongoProcessor:
     def __extract_response(self, responses, bot: Text, user: Text):
         responses_result = []
         for key, values in responses.items():
-            responses_to_saved = list(self.__extract_response_value(values, key, bot, user))
+            responses_to_saved = list(
+                self.__extract_response_value(values, key, bot, user)
+            )
             responses_result.extend(responses_to_saved)
         return responses_result
 
@@ -609,8 +748,13 @@ class MongoProcessor:
             yield text
 
     def fetch_responses(self, bot: Text, status=True):
-        """ Yields the response dictionary of the bot (input).
-            Eg. MongoProcessor.fetch_responses(bot_name) """
+        """
+        fetches utterances
+
+        :param bot: bot id
+        :param status: active or inactive, default is True
+        :return: yield bot utterances
+        """
         responses = Responses.objects(bot=bot, status=status).aggregate(
             [
                 {
@@ -664,8 +808,13 @@ class MongoProcessor:
                 Slots.objects.insert(new_slots)
 
     def fetch_slots(self, bot: Text, status=True):
-        """ Returns the list of slots of the bot (input).
-            Eg. MongoProcessor.fetch_slots(bot_name) """
+        """
+        fetches slots
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of slots
+        """
         slots = Slots.objects(bot=bot, status=status)
         return list(slots)
 
@@ -713,14 +862,11 @@ class MongoProcessor:
                 )
 
     def __fetch_story_block_names(self, bot: Text):
-        saved_stories = list(Stories.objects(bot=bot, status=True).aggregate([
-            {
-                "$group": {
-                    "_id": "$bot",
-                    "block": {"$push": "$block_name"},
-                }
-            }
-        ]))
+        saved_stories = list(
+            Stories.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"},}}]
+            )
+        )
         result = []
         if saved_stories:
             result = saved_stories[0]["block"]
@@ -738,7 +884,8 @@ class MongoProcessor:
                         for start_checkpoint in story_step.start_checkpoints
                     ],
                     end_checkpoints=[
-                        end_checkpoint.name for end_checkpoint in story_step.end_checkpoints
+                        end_checkpoint.name
+                        for end_checkpoint in story_step.end_checkpoints
                     ],
                     events=story_events,
                 )
@@ -750,9 +897,7 @@ class MongoProcessor:
         if story_steps:
             new_stories = list(self.__extract_story_step(story_steps, bot, user))
             if new_stories:
-                Stories.objects.insert(
-                    new_stories
-                )
+                Stories.objects.insert(new_stories)
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
@@ -761,11 +906,18 @@ class MongoProcessor:
                     STORY_EVENT.NAME.value: event.name,
                     STORY_EVENT.CONFIDENCE.value: 1.0,
                 }
-                parse_data = {"text": INTENT_MESSAGE_PREFIX + event.name,
-                              "intent": intent,
-                              "intent_ranking": [intent],
-                              "entities": []}
-                yield UserUttered(text=event.name, intent=intent, parse_data=parse_data, timestamp=timestamp)
+                parse_data = {
+                    "text": INTENT_MESSAGE_PREFIX + event.name,
+                    "intent": intent,
+                    "intent_ranking": [intent],
+                    "entities": [],
+                }
+                yield UserUttered(
+                    text=event.name,
+                    intent=intent,
+                    parse_data=parse_data,
+                    timestamp=timestamp,
+                )
             elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
             elif event.type == Form.type_name:
@@ -774,8 +926,13 @@ class MongoProcessor:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
     def fetch_stories(self, bot: Text, status=True):
-        """ Returns the list of stories of the bot (input).
-            Eg. MongoProcessor.fetch_stories(bot_name) """
+        """
+        fetches stories
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of stories
+        """
         return list(Stories.objects(bot=bot, status=status))
 
     def __prepare_training_story_step(self, bot: Text):
@@ -803,7 +960,8 @@ class MongoProcessor:
 
     def save_config(self, configs: dict, bot: Text, user: Text):
         """
-        save bot configuration
+        saves bot configuration
+
         :param configs: configuration
         :param bot: bot id
         :param user: user id
@@ -824,22 +982,38 @@ class MongoProcessor:
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def delete_config(self, bot: Text, user: Text):
-        """perform soft delete on bot pipeline and policies configuration"""
+        """
+        soft deletes bot training configuration
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         Utility.delete_document([Configs], bot, user)
 
     def fetch_configs(self, bot: Text):
-        """ Returns the configuration details of the bot (input).
-            Eg. MongoProcessor.fetch_configs(bot_name) """
+        """
+        fetches bot training configuration is exist otherwise load default
+
+        :param bot: bot id
+        :return: dict
+        """
         try:
             configs = Configs.objects().get(bot=bot)
         except DoesNotExist as e:
             logging.info(e)
-            configs = Configs._from_son(read_config_file("./template/config/default.yml"))
+            configs = Configs._from_son(
+                read_config_file("./template/config/default.yml")
+            )
         return configs
 
     def load_config(self, bot: Text):
-        """ Returns the configuration dictionary created from the config object of the bot (input).
-            Eg. MongoProcessor.load_config(bot_name) """
+        """
+        loads bot training configuration for training
+
+        :param bot: bot id
+        :return: dict
+        """
         configs = self.fetch_configs(bot)
         config_dict = configs.to_mongo().to_dict()
         return {
@@ -849,42 +1023,69 @@ class MongoProcessor:
         }
 
     def add_intent(self, text: Text, bot: Text, user: Text):
-        """ Adds a new intent (input) to the bot (input).
-            Eg. MongoProcessor.add_intent(intent_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(text), "Intent Name cannot be empty or blank spaces"
+        """
+        adds new intent
+
+        :param text: intent name
+        :param bot: bot id
+        :param user: user id
+        :return: intent id
+        """
+        if Utility.check_empty_string(text):
+            raise AppException("Intent Name cannot be empty or blank spaces")
+
         Utility.is_exist(
             Intents,
             exp_message="Intent already exists!",
             name__iexact=text.strip(),
             bot=bot,
-            status=True
+            status=True,
         )
         saved = Intents(name=text, bot=bot, user=user).save().to_mongo().to_dict()
         return saved["_id"].__str__()
 
     def get_intents(self, bot: Text):
-        """ Returns the list of intents of the bot (input) """
+        """
+        fetches list of intent
+
+        :param bot: bot id
+        :return: intent list
+        """
         intents = Intents.objects(bot=bot, status=True).order_by("-timestamp")
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-            self, examples: List[Text], intent: Text, bot: Text, user: Text
+        self, examples: List[Text], intent: Text, bot: Text, user: Text
     ):
-        """ Adds a sentence/question (training example) for an intent of the bot.
-            Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(intent), "Intent cannot be empty or blank spaces"
+        """
+        adds training examples for bot
+
+        :param examples: list of training example
+        :param intent: intent name
+        :param bot: bot id
+        :param user: user id
+        :return: list training examples id
+        """
+        if Utility.check_empty_string(intent):
+            raise AppException("Intent cannot be empty or blank spaces")
         if not Utility.is_exist(
-                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+            Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             self.add_intent(intent, bot, user)
 
         for example in examples:
             try:
-                assert not Utility.check_empty_string(example), "Training Example cannot be empty or blank spaces"
+                if Utility.check_empty_string(example):
+                    raise AppException(
+                        "Training Example cannot be empty or blank spaces"
+                    )
                 text, entities = Utility.extract_text_and_entities(example.strip())
-                print(text)
                 if Utility.is_exist(
-                        TrainingExamples, raise_error=False, text__iexact=text, bot=bot, status=True
+                    TrainingExamples,
+                    raise_error=False,
+                    text__iexact=text,
+                    bot=bot,
+                    status=True,
                 ):
                     yield {
                         "text": example,
@@ -896,14 +1097,16 @@ class MongoProcessor:
                         ext_entity = [ent["entity"] for ent in entities]
                         self.__save_domain_entities(ext_entity, bot=bot, user=user)
                         self.__add_slots_from_entities(ext_entity, bot, user)
-                        new_entities = list(
-                            self.__extract_entities(entities)
-                        )
+                        new_entities = list(self.__extract_entities(entities))
                     else:
                         new_entities = None
 
                     training_example = TrainingExamples(
-                        intent=intent.strip(), text=text, entities=new_entities, bot=bot, user=user
+                        intent=intent.strip(),
+                        text=text,
+                        entities=new_entities,
+                        bot=bot,
+                        user=user,
                     )
 
                     saved = training_example.save().to_mongo().to_dict()
@@ -916,19 +1119,33 @@ class MongoProcessor:
                 yield {"text": example, "_id": None, "message": str(e)}
 
     def edit_training_example(
-            self, id: Text, example: Text, intent: Text, bot: Text, user: Text
+        self, id: Text, example: Text, intent: Text, bot: Text, user: Text
     ):
-        """ Adds a sentence/question (training example) for an intent of the bot.
-            Eg. MongoProcessor.add_training_example([training_example],intent_name,bot_name,user_name) """
+        """
+        update training example
+
+        :param id: training example id
+        :param example: new training example
+        :param intent: intent name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         try:
-            assert not Utility.check_empty_string(
-                example), "Training Example cannot be empty or blank spaces"
+            if Utility.check_empty_string(example):
+                raise AppException("Training Example cannot be empty or blank spaces")
             text, entities = Utility.extract_text_and_entities(example.strip())
             if Utility.is_exist(
-                    TrainingExamples, raise_error=False, text__iexact=text, bot=bot, status=True
+                TrainingExamples,
+                raise_error=False,
+                text__iexact=text,
+                bot=bot,
+                status=True,
             ):
                 raise AppException("Training Example already exists!")
-            training_example = TrainingExamples.objects(bot=bot, intent=intent).get(id=id)
+            training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
+                id=id
+            )
             training_example.user = user
             training_example.text = text
             if entities:
@@ -939,26 +1156,33 @@ class MongoProcessor:
             raise AppException("Invalid trianing example!")
 
     def search_training_examples(self, search: Text, bot: Text):
-        """search the training example for particular bot
-        Args:
-            search: search text
-            bot: bot to search
-
-        Returns:
-            List of match training examples.
         """
-        results = TrainingExamples.objects(bot=bot, status=True).search_text(search).order_by('$text_score').limit(5)
+        search the training examples
+
+        :param search: search text
+        :param bot: bot id
+        :return: yields tuple of intent name, training example
+        """
+        results = (
+            TrainingExamples.objects(bot=bot, status=True)
+            .search_text(search)
+            .order_by("$text_score")
+            .limit(5)
+        )
         for result in results:
             yield {"intent": result.intent, "text": result.text}
 
     def get_training_examples(self, intent: Text, bot: Text):
-        """ Yields training examples for an intent of the bot.
-            Eg. MongoProcessor.get_training_examples(intent_name,bot_name) """
-        training_examples = (
-            TrainingExamples
-                .objects(bot=bot, intent__iexact=intent, status=True)
-                .order_by("-timestamp")
-        )
+        """
+        fetches training examples
+
+        :param intent: intent name
+        :param bot: bot id
+        :return: yields training examples
+        """
+        training_examples = TrainingExamples.objects(
+            bot=bot, intent__iexact=intent, status=True
+        ).order_by("-timestamp")
         for training_example in training_examples:
             example = training_example.to_mongo().to_dict()
             entities = example["entities"] if "entities" in example else None
@@ -968,7 +1192,12 @@ class MongoProcessor:
             }
 
     def get_all_training_examples(self, bot: Text):
-        """ Returns list of all training examples of a bot """
+        """
+        fetches list of all training examples
+
+        :param bot: bot id
+        :return: text list, id list
+        """
         training_examples = list(
             TrainingExamples.objects(bot=bot, status=True).aggregate(
                 [
@@ -988,11 +1217,20 @@ class MongoProcessor:
         else:
             return [], []
 
-    def remove_document(self, document: Document, id: Text, bot: Text, user: Text):
-        """ Removes a document of the bot.
-            Eg. MongoProcessor.remove_document(document_name,doc_ID,bot_name,user_name) """
+    def remove_document(
+        self, document: Document, id: Text, bot: Text, user: Text, **kwargs
+    ):
+        """
+        soft delete the document
+
+        :param document: mongoengine document
+        :param id: document id
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
         try:
-            doc = document.objects(bot=bot).get(id=id)
+            doc = document.objects(bot=bot, **kwargs).get(id=id)
             doc.status = False
             doc.user = user
             doc.timestamp = datetime.utcnow()
@@ -1010,42 +1248,71 @@ class MongoProcessor:
             yield {"_id": doc_dict["_id"].__str__(), field: doc_dict[field]}
 
     def add_entity(self, name: Text, bot: Text, user: Text):
-        """ Adds an entity for a bot of a user.
-            Eg. MongoProcessor.add_entity(entity_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(name), "Entity Name cannot be empty or blank spaces"
+        """
+        adds an entity
+
+        :param name: entity name
+        :param bot: bot id
+        :param user: user id
+        :return: entity id
+        """
+        if Utility.check_empty_string(name):
+            raise AppException("Entity Name cannot be empty or blank spaces")
         Utility.is_exist(
             Entities,
             exp_message="Entity already exists!",
             name__iexact=name.strip(),
             bot=bot,
-            status=True
+            status=True,
         )
-        Entities(name=name.strip(), bot=bot, user=user).save()
+        entity = (
+            Entities(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
+        )
         if not Utility.is_exist(
-                Slots, raise_error=False, name__iexact=name, bot=bot, status=True
+            Slots, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
             Slots(name=name.strip(), type="text", bot=bot, user=user).save()
+        return entity["_id"].__str__()
 
     def get_entities(self, bot: Text):
-        """ Returns the list of entities of a bot (input) """
+        """
+        fetches list of registered entities
+
+        :param bot: bot id
+        :return: list of entities
+        """
         entities = Entities.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(entities, "name"))
 
     def add_action(self, name: Text, bot: Text, user: Text):
-        """ Adds an action to the bot.
-            Eg. MongoProcessor.add_action(action_name,bot_name,user_name) """
-        assert not Utility.check_empty_string(name), "Action name cannot be empty or blank spaces"
+        """
+        adds action
+        :param name: action name
+        :param bot: bot id
+        :param user: user id
+        :return: action id
+        """
+        if Utility.check_empty_string(name):
+            raise AppException("Action name cannot be empty or blank spaces")
         Utility.is_exist(
             Actions,
             exp_message="Entity already exists!",
             name__iexact=name.strip(),
             bot=bot,
-            status=True
+            status=True,
         )
-        Actions(name=name.strip(), bot=bot, user=user).save()
+        action = (
+            Actions(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
+        )
+        return action["_id"].__str__()
 
     def get_actions(self, bot: Text):
-        """ Returns the list of actions of a bot (input) """
+        """
+        fetches actions
+
+        :param bot: bot id
+        :return: list of actions
+        """
         actions = Actions.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "name"))
 
@@ -1061,22 +1328,25 @@ class MongoProcessor:
 
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
         """
-        save bot text utterance in mongodb
+        saves bot text utterance
         :param utterance: text utterance
         :param name: utterance name
         :param bot: bot id
         :param user: user id
         :return: bot utterance id
         """
-        assert not Utility.check_empty_string(utterance), "Utterance text cannot be empty or blank spaces"
-        assert not Utility.check_empty_string(name), "Utterance name cannot be empty or blank spaces"
+        if Utility.check_empty_string(utterance):
+            raise AppException("Utterance text cannot be empty or blank spaces")
+        if Utility.check_empty_string(name):
+            raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
             utterances={"text": utterance.strip()}, name=name, bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
         """
-        save bot utterance in mongodb
+        save bot utterance
+
         :param utterances: utterance value
         :param name: utterance name
         :param bot: bot id
@@ -1093,14 +1363,17 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-                Actions, raise_error=False, name__iexact=name, bot=bot, status=True
+            Actions, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
             Actions(name=name.strip(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
-    def edit_text_response(self, id: Text, utterance: Text, name: Text, bot: Text, user: Text):
+    def edit_text_response(
+        self, id: Text, utterance: Text, name: Text, bot: Text, user: Text
+    ):
         """
-        update the text bot uuterance in mongodb
+        update the text bot utterance
+
         :param id: utterance id against which the utterance is updated
         :param utterance: text utterance value
         :param name: utterance name
@@ -1111,16 +1384,19 @@ class MongoProcessor:
         """
         self.edit_response(id, {"text": utterance}, name, bot, user)
 
-    def edit_response(self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text):
+    def edit_response(
+        self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
+    ):
         """
-        update the bot utterance in mongodb
+        update the bot utterance
+        
         :param id: utterance id against which the utterance is updated
         :param utterances: utterance value
         :param name: utterance name
         :param bot: bot id
         :param user: user id
         :return: None
-        :exception: DoesNotExist: if utterance does not exist
+        :raises: AppException
         """
         try:
             self.__check_response_existence(
@@ -1143,11 +1419,14 @@ class MongoProcessor:
     def get_response(self, name: Text, bot: Text):
         """
         fetch all the utterances
+        
         :param name: utterance name
         :param bot: bot id
         :return: yields the utterances
         """
-        values = Responses.objects(bot=bot, status=True, name__iexact=name).order_by("-timestamp")
+        values = Responses.objects(bot=bot, status=True, name__iexact=name).order_by(
+            "-timestamp"
+        )
         for value in values:
             val = None
             if value.text:
@@ -1179,10 +1458,10 @@ class MongoProcessor:
             )
         )
 
-        return saved_items;
+        return saved_items
 
     def __check_response_existence(
-            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_items = self.__fetch_list_of_response(bot)
 
@@ -1200,16 +1479,19 @@ class MongoProcessor:
     def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
         """
         save story in mongodb
+        
         :param name: story name
         :param events: story events list
         :param bot: bot id
         :param user: user id
         :return: story id
-        :raises AppException: Story already exist!
+        :raises: AppException: Story already exist!
 
         :todo need to add the logic to add action, slots and forms if it does not exist
         """
-        assert not Utility.check_empty_string(name), "Story path name cannot be empty or blank spaces"
+        if Utility.check_empty_string(name):
+            raise AppException("Story path name cannot be empty or blank spaces")
+
         self.__check_event_existence(
             events, bot=bot, exp_message="Story already exist!"
         )
@@ -1221,10 +1503,10 @@ class MongoProcessor:
                 user=user,
                 start_checkpoints=[STORY_START],
             )
-                .save()
-                .to_mongo()
-                .to_dict()["_id"]
-                .__str__()
+            .save()
+            .to_mongo()
+            .to_dict()["_id"]
+            .__str__()
         )
 
     def __fetch_list_of_events(self, bot: Text):
@@ -1241,7 +1523,7 @@ class MongoProcessor:
         return saved_items
 
     def __check_event_existence(
-            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_items = self.__fetch_list_of_events(bot)
 
@@ -1257,7 +1539,12 @@ class MongoProcessor:
                 return False
 
     def get_stories(self, bot: Text):
-        """ Yields all the stories of the bot """
+        """
+        fetches stories 
+        
+        :param bot: bot is 
+        :return: yield dict
+        """
         for value in Stories.objects(bot=bot, status=True):
             item = value.to_mongo().to_dict()
             item.pop("bot")
@@ -1268,11 +1555,18 @@ class MongoProcessor:
             yield item
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):
-        """ Returns the bot response for a particular intent.
-            Eg. MongoProcessor.get_utterance_from_intent(intent_name,bot_name) """
-        assert not Utility.check_empty_string(intent), "Intent cannot be empty or blank spaces"
+        """
+        fetches the utterance name by searching intent name in stories
+
+        :param intent: intent name
+        :param bot: bot id
+        :return: utterance name
+        """
+        if Utility.check_empty_string(intent):
+            raise AppException("Intent cannot be empty or blank spaces")
+
         responses = Responses.objects(bot=bot, status=True).distinct(field="name")
-        story = Stories.objects(bot=bot, status=True, events__name=intent)
+        story = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
         if story:
             events = story[0].events
             search = False
@@ -1287,17 +1581,24 @@ class MongoProcessor:
                     return event.name
 
     def add_session_config(
-            self,
-            bot: Text,
-            user: Text,
-            id: Text = None,
-            sesssionExpirationTime: int = 60,
-            carryOverSlots: bool = True,
+        self,
+        bot: Text,
+        user: Text,
+        id: Text = None,
+        sesssionExpirationTime: int = 60,
+        carryOverSlots: bool = True,
     ):
-        """ Adds a session configuration to the bot.
-            Eg. MongoProcessor.add_session_config(bot_name,user_name) """
-        if not Utility.check_empty_string(id):
+        """
+        save or update session config
 
+        :param bot: bot id
+        :param user: user id
+        :param id: session config id
+        :param sesssionExpirationTime: session expiration time, default is 60
+        :param carryOverSlots: caary over slots, default is True
+        :return:
+        """
+        if not Utility.check_empty_string(id):
             session_config = SessionConfigs.objects().get(id=id)
             session_config.sesssionExpirationTime = sesssionExpirationTime
             session_config.carryOverSlots = carryOverSlots
@@ -1314,7 +1615,12 @@ class MongoProcessor:
         return session_config.save().to_mongo().to_dict()["_id"].__str__()
 
     def get_session_config(self, bot: Text):
-        """ Returns the session configuration of the bot (input) """
+        """
+        fetches session configuration
+
+        :param bot: bot id
+        :return: dict of session configuration
+        """
         session_config = SessionConfigs.objects().get(bot=bot).to_mongo().to_dict()
         return {
             "_id": session_config["_id"].__str__(),
@@ -1323,8 +1629,14 @@ class MongoProcessor:
         }
 
     def add_endpoints(self, endpoint_config: Dict, bot: Text, user: Text):
-        """ Adds endpoints to the bot and user.
-            Eg. MongoProcessor.add_endpoints({endpoint config},bot_name,user_name) """
+        """
+        saves endpoint configurations
+
+        :param endpoint_config: endpoint configurations
+        :param bot: bot id
+        :param user: user id
+        :return: endpoint id
+        """
         try:
             endpoint = Endpoints.objects().get(bot=bot)
         except DoesNotExist:
@@ -1336,17 +1648,27 @@ class MongoProcessor:
             endpoint.bot_endpoint = EndPointBot(**endpoint_config.get("bot_endpoint"))
 
         if endpoint_config.get("action_endpoint"):
-            endpoint.action_endpoint = EndPointAction(**endpoint_config.get("action_endpoint"))
+            endpoint.action_endpoint = EndPointAction(
+                **endpoint_config.get("action_endpoint")
+            )
 
         if endpoint_config.get("tracker_endpoint"):
-            endpoint.tracker_endpoint = EndPointTracker(**endpoint_config.get("tracker_endpoint"))
+            endpoint.tracker_endpoint = EndPointTracker(
+                **endpoint_config.get("tracker_endpoint")
+            )
 
         endpoint.bot = bot
         endpoint.user = user
         return endpoint.save().to_mongo().to_dict()["_id"].__str__()
 
     def get_endpoints(self, bot: Text, raise_exception=True):
-        """ Returns the endpoints of the bot (input) """
+        """
+        fetches endpoint configuration
+
+        :param bot: bot id
+        :param raise_exception: wether to raise an exception, default is True
+        :return: endpoint configuration
+        """
         try:
             endpoint = Endpoints.objects().get(bot=bot).to_mongo().to_dict()
             endpoint.pop("bot")
@@ -1361,20 +1683,36 @@ class MongoProcessor:
             else:
                 return {}
 
-    def add_model_deployment_history(self, bot: Text, user: Text, model: Text, url: Text, status: Text):
-        return (ModelDeployment(bot=bot,
-                                user=user,
-                                model=model,
-                                url=url,
-                                status=status)
-                .save()
-                .to_mongo()
-                .to_dict().get("_id").__str__())
+    def add_model_deployment_history(
+        self, bot: Text, user: Text, model: Text, url: Text, status: Text
+    ):
+        """
+        saves model deployment history
+
+        :param bot: bot id
+        :param user: user id
+        :param model: model path
+        :param url: deployment url
+        :param status: deploument status
+        :return: model deployment id
+        """
+        return (
+            ModelDeployment(bot=bot, user=user, model=model, url=url, status=status)
+            .save()
+            .to_mongo()
+            .to_dict()
+            .get("_id")
+            .__str__()
+        )
 
     def get_model_deployment_history(self, bot: Text):
-        model_deployments = (ModelDeployment
-                             .objects(bot=bot)
-                             .order_by("-timestamp"))
+        """
+        fetches model deployment history
+
+        :param bot: bot id
+        :return: list of model deployment history
+        """
+        model_deployments = ModelDeployment.objects(bot=bot).order_by("-timestamp")
 
         for deployment in model_deployments:
             value = deployment.to_mongo().to_dict()
@@ -1383,6 +1721,14 @@ class MongoProcessor:
             yield value
 
     def deploy_model(self, bot: Text, user: Text):
+        """
+        deploy the model to the particular url
+
+        :param bot: bot id
+        :param user: user id
+        :return: deployment response
+        :raises: Exception
+        """
         endpoint = {}
         model = None
         try:
@@ -1391,117 +1737,103 @@ class MongoProcessor:
         except Exception as e:
             response = str(e)
 
-        self.add_model_deployment_history(bot=bot,
-                                          user=user,
-                                          model=model,
-                                          url=(endpoint.get("bot_endpoint").get("url")
-                                               if endpoint.get("bot_endpoint")
-                                               else None),
-                                          status=response)
+        self.add_model_deployment_history(
+            bot=bot,
+            user=user,
+            model=model,
+            url=(
+                endpoint.get("bot_endpoint").get("url")
+                if endpoint.get("bot_endpoint")
+                else None
+            ),
+            status=response,
+        )
         return response
 
-    def delete_Intent(self,intentName: Text, botName: Text, userName: Text):
+    def delete_intent(
+        self, intent: Text, bot: Text, user: Text, delete_dependencies=True
+    ):
         """
-        This api will help to delete single intent from Intent collection.
-        intentName: Name of intent,
-        botname: bot name,
-        userName: name of User
+        deletes intent including dependencies
+
+        :param intent: intent name
+        :param bot: bot id
+        :param user: user id
+        :param delete_dependencies: if True deletes training example, stories and responses
+        that are associated with intent, default is True
+        :return: None
+        :raises: AppException
         """
-        if Utility.check_empty_string(intentName):
+        if Utility.check_empty_string(intent):
             raise AssertionError("Intent Name cannot be empty or blank spaces")
         try:
             # status to be filtered as Invalid Intent should not be fetched
-            intentObj = Intents.objects(bot=botName, status=True).get(name__iexact=intentName)
-            intentObj.user = userName
+            intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
+            intentObj.user = user
             intentObj.status = False
             intentObj.timestamp = datetime.utcnow()
             intentObj.save(validate=False)
+
+            if delete_dependencies:
+                Utility.delete_document(
+                    [TrainingExamples], bot=bot, user=user, intent__iexact=intent
+                )
+                utterance_name = self.get_utterance_from_intent(intent, bot)
+                if utterance_name:
+                    Utility.delete_document(
+                        [Responses], bot=bot, user=user, name__iexact=utterance_name
+                    )
+                Utility.delete_document(
+                    [Stories], bot=bot, user=user, events__name__iexact=intent
+                )
         except DoesNotExist as custEx:
             logging.info(custEx)
-            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
+            raise AppException(
+                "Invalid IntentName: Unable to remove document: " + str(custEx)
+            )
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
-
-    def delete_TrainingExamplesForIntent(self, intentName: Text, botName: Text, userName: Text):
-        """
-        This api will help to delete intents from TrainingExamples collection.
-        intentName: Name of intent,
-        botname: bot name,
-        userName: name of User
-        """
-        if Utility.check_empty_string(intentName):
-            raise AssertionError("Intent Name cannot be empty or blank spaces")
-        try:
-            # if intent not matches no error
-            Utility.delete_document([TrainingExamples], bot=botName, user=userName, intent__iexact=intentName)
-        except DoesNotExist as custEx:
-            logging.info(custEx)
-            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
-        except Exception as ex:
-            logging.info(ex)
-            raise AppException("Unable to remove document" + str(ex))
-
-    def delete_StoriesForIntent(self,intentName: Text, botName: Text, userName: Text):
-        """
-        This api will help to delete intents from Stories collection.
-        intentName: Name of intent,
-        botname: bot name,
-        userName: name of User
-        """
-        if Utility.check_empty_string(intentName):
-            raise AssertionError("Intent Name cannot be empty or blank spaces")
-        try:
-            # if intent not matches no error
-            Utility.delete_document([Stories], bot=botName, user=userName, block_name__iexact=intentName)
-        except DoesNotExist as custEx:
-            logging.info(custEx)
-            raise AppException("Invalid IntentName: Unable to remove document: " + str(custEx))
-        except Exception as ex:
-            logging.info(ex)
-            raise AppException("Unable to remove document: " + str(ex))
-
-    def deleteIntentWithDependencies(self,intentName: Text, botName: Text, userName: Text):
-        """
-        This api will help to delete intents from Intent, TrainingExamples and Stories collection
-        for the stated IntentName
-        intentName: Name of intent,
-        botname: bot name,
-        userName: name of User
-        """
-        try:
-            self.delete_Intent(intentName,botName,userName)
-            self.delete_TrainingExamplesForIntent(intentName,botName,userName)
-            self.delete_StoriesForIntent(intentName,botName,userName)
-            return intentName
-        except AssertionError as ex:
-            logging.info(ex)
-            raise AssertionError("Error while synching deleting of Intent: " + str(ex))
-        except AppException as ex:
-            logging.info(ex)
-            raise AppException("Error while synching deleting of Intent: "+str(ex))
-        except Exception as ex:
-            logging.info(ex)
-            raise AppException("Error while synching deleting of Intent: " + str(ex))
 
 
 class AgentProcessor:
+    """
+    Class contains logic for loading bot agents
+    """
+
     mongo_processor = MongoProcessor()
+    cache_provider = InMemoryAgentCache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
-        """ Loads the agent of the bot (input) """
-        if not InMemoryAgentCache.is_exists(bot):
+        """
+        fetch the bot agent from cache if exist otherwise load it into the cache
+
+        :param bot: bot id
+        :return: Agent Object
+        """
+        if not AgentProcessor.cache_provider.is_exists(bot):
             AgentProcessor.reload(bot)
-        return InMemoryAgentCache.get(bot)
+        return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
     def get_latest_model(bot: Text):
+        """
+        fetches the latest model from the path
+
+        :param bot: bot id
+        :return: latest model path
+        """
         return Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
 
     @staticmethod
     def reload(bot: Text):
-        """ Reloads the bot (input) """
+        """
+        reload bot agent
+
+        :param bot: bot id
+        :return: None
+        """
         try:
             endpoint = AgentProcessor.mongo_processor.get_endpoints(
                 bot, raise_exception=False
@@ -1514,25 +1846,42 @@ class AgentProcessor:
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
-            agent = Agent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store)
-            InMemoryAgentCache.set(bot, agent)
+            agent = Agent.load(
+                model_path, action_endpoint=action_endpoint, tracker_store=mongo_store
+            )
+            AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
             logging.info(e)
             raise AppException("Bot has not been trained yet !")
 
 
 class ModelProcessor:
+    """
+    Class contains logic for model training history
+    """
+
     @staticmethod
     def set_training_status(
-            bot: Text,
-            user: Text,
-            status: Text,
-            model_path: Text = None,
-            exception: Text = None,
+        bot: Text,
+        user: Text,
+        status: Text,
+        model_path: Text = None,
+        exception: Text = None,
     ):
+        """
+        add or update bot training history
 
+        :param bot: bot id
+        :param user: user id
+        :param status: InProgress, Done, Fail
+        :param model_path: new model path
+        :param exception: exception while training
+        :return: None
+        """
         try:
-            doc = ModelTraining.objects(bot=bot).get(status=MODEL_TRAINING_STATUS.INPROGRESS.value)
+            doc = ModelTraining.objects(bot=bot).get(
+                status=MODEL_TRAINING_STATUS.INPROGRESS.value
+            )
             doc.status = status
             doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
@@ -1548,8 +1897,16 @@ class ModelProcessor:
 
     @staticmethod
     def is_training_inprogress(bot: Text, raise_exception=True):
+        """
+        checks if there is any bot training in progress
+
+        :param bot: bot id
+        :param raise_exception: whether to raise an exception, default is True
+        :return: None
+        :raises: AppException
+        """
         if ModelTraining.objects(
-                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
+            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
         ).count():
             if raise_exception:
                 raise AppException("Previous model training in progress.")
@@ -1560,14 +1917,20 @@ class ModelProcessor:
 
     @staticmethod
     def is_daily_training_limit_exceeded(bot: Text, raise_exception=True):
+        """
+        checks if daily bot training limit is exhausted
+
+        :param bot: bot id
+        :param raise_exception: whether to raise and exception
+        :return: boolean
+        :raises: AppException
+        """
         today = datetime.today()
 
         today_start = today.replace(hour=0, minute=0, second=0)
         doc_count = ModelTraining.objects(
-            bot=bot,
-            start_timestamp__gte=today_start
+            bot=bot, start_timestamp__gte=today_start
         ).count()
-        print(doc_count)
         if doc_count >= Utility.environment["MODEL_TRAINING_LIMIT_PER_DAY"]:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
@@ -1578,6 +1941,12 @@ class ModelProcessor:
 
     @staticmethod
     def get_training_history(bot: Text):
+        """
+        fetches bot training history
+
+        :param bot: bot id
+        :return: yield dict of training history
+        """
         for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
             item.pop("bot")

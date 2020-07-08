@@ -8,11 +8,12 @@ from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
-
+import os
 
 class TestHistory:
     @pytest.fixture(autouse=True)
     def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
         connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 
@@ -84,9 +85,9 @@ class TestHistory:
         monkeypatch.setattr(MongoProcessor, "get_endpoints", self.endpoint_details)
 
     def test_fetch_chat_users_db_error(self, mock_mongo_processor):
-        with pytest.raises(Exception):
-            users = ChatHistory.fetch_chat_users(bot="tests")
-            assert len(users) == 0
+        users = ChatHistory.fetch_chat_users(bot="tests")
+        print(users)
+        assert len(users) == 0
 
     def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):

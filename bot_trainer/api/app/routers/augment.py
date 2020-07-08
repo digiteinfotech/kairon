@@ -14,8 +14,13 @@ auth = Authentication()
 async def questions(
     request_data: ListData, current_user: User = Depends(auth.get_current_user)
 ):
-    """ This function returns the augmentation url present in the system.yaml file """
+    """
+    Generates other similar text by augmenting original text
+    """
+    plain_text_data = [
+        Utility.extract_text_and_entities(data)[0] for data in request_data.data
+    ]
     response = requests.post(
-        Utility.environment["augmentation_url"], json=request_data.data
+        Utility.environment["augmentation_url"], json=plain_text_data
     )
     return response.json()

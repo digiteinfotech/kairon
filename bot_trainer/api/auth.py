@@ -12,8 +12,10 @@ Utility.load_evironment()
 
 
 class Authentication:
-    """ This class defines functions that are necessary for the authentication processes of
-        the bot trainer """
+    """
+    Class contains logic for api Authentication
+    """
+
     SECRET_KEY = Utility.environment["SECRET_KEY"]
     ALGORITHM = Utility.environment["ALGORITHM"]
     ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment["ACCESS_TOKEN_EXPIRE_MINUTES"]
@@ -21,7 +23,13 @@ class Authentication:
     async def get_current_user(
         self, request: Request, token: str = Depends(Utility.oauth2_scheme)
     ):
-        """ Validates the user credentials and facilitates the login process """
+        """
+        validates jwt token
+
+        :param token: jwt token, default extracted by fastapi
+        :param request: http request object
+        :return: dict of user details
+        """
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -52,7 +60,6 @@ class Authentication:
         return user_model
 
     def __create_access_token(self, *, data: dict, is_integration=False):
-        """ Creates access tokens (JSON Web Tokens) for secure login """
         expires_delta = timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode = data.copy()
         if not is_integration:
@@ -65,8 +72,6 @@ class Authentication:
         return encoded_jwt
 
     def __authenticate_user(self, username: str, password: str):
-        """ Checks if the user name and password match. It returns the user details
-            if they match and returns False if not """
         user = AccountProcessor.get_user_details(username)
         if not user:
             return False
@@ -75,7 +80,13 @@ class Authentication:
         return user
 
     def authenticate(self, username: Text, password: Text):
-        """ Generates an access token if the user name and password match """
+        """
+        authenticate user and generate jwt token
+
+        :param username: login id ie. email address
+        :param password: login password
+        :return: jwt token
+        """
         user = self.__authenticate_user(username, password)
         if not user:
             raise HTTPException(

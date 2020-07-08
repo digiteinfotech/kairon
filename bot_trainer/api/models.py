@@ -87,14 +87,17 @@ class RegisterAccount(BaseModel):
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
         try:
-            Utility.valid_password(v.get_secret_value());
+            Utility.valid_password(v.get_secret_value())
         except AppException as e:
             raise ValueError(str(e))
         return v
 
     @validator("confirm_password")
     def validate_confirm_password(cls, v, values, **kwargs):
-        if "password" in values and v.get_secret_value() != values["password"].get_secret_value():
+        if (
+            "password" in values
+            and v.get_secret_value() != values["password"].get_secret_value()
+        ):
             raise ValueError("Password and Confirm Password does not match")
         return v
 

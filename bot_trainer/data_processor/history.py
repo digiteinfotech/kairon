@@ -5,14 +5,24 @@ import pandas as pd
 from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 from bot_trainer.utils import Utility
 from .processor import MongoProcessor
+from loguru import logger
 
 
 class ChatHistory:
+    """
+    Class contains logic for fetching history data and metrics from mongo tracker
+    """
+
     mongo_processor = MongoProcessor()
 
     @staticmethod
     def get_tracker_and_domain(bot: Text):
-        """ Returns the Mongo Tracker and Domain of the bot """
+        """
+        loads domain data and mongo tracker
+
+        :param bot: bot id
+        :return: tuple domain, tracker
+        """
         domain = ChatHistory.mongo_processor.load_domain(bot)
         try:
             endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
@@ -23,13 +33,21 @@ class ChatHistory:
                 username=endpoint["tracker_endpoint"].get("username"),
                 password=endpoint["tracker_endpoint"].get("password"),
             )
-        except Exception:
+        except Exception as e:
+            logger.info(e)
             tracker = Utility.get_local_mongo_store(bot, domain)
         return (domain, tracker)
 
     @staticmethod
     def fetch_chat_history(bot: Text, sender, latest_history=False):
-        """ Returns the chat history of the user with the specified bot """
+        """
+        fetches chat history
+
+        :param bot: bot id
+        :param sender: history details for user
+        :param latest_history: whether to fetch latest or complete history
+        :return: list of conversations
+        """
         events = ChatHistory.fetch_user_history(
             bot, sender, latest_history=latest_history
         )
@@ -37,7 +55,13 @@ class ChatHistory:
 
     @staticmethod
     def fetch_chat_users(bot: Text):
-        """ Returns the chat user list of the specified bot """
+        """
+        fetches user list who has conversation with the agent
+
+        :param bot: bot id
+        :return: list of user id
+
+        """
         _, tracker = ChatHistory.get_tracker_and_domain(bot)
         return tracker.keys()
 
@@ -61,13 +85,12 @@ class ChatHistory:
                         "date": datetime.fromtimestamp(event_data["timestamp"]).date(),
                     }
 
-                    if event_data.get("text") :
+                    if event_data.get("text"):
                         result["text"] = event_data.get("text")
-                        result["is_exists"] = event_data.get("text") in training_examples
+                        text_data = str(event_data.get("text")).lower()
+                        result["is_exists"] = text_data in training_examples
                         if result["is_exists"]:
-                            result["_id"] = ids[
-                                training_examples.index(event_data.get("text"))
-                            ]
+                            result["_id"] = ids[training_examples.index(text_data)]
 
                     if event_data["event"] == "user":
                         parse_data = event_data["parse_data"]
@@ -86,7 +109,14 @@ class ChatHistory:
 
     @staticmethod
     def fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
-        """ Returns the chat history of the bot with a particular user """
+        """
+        loads list of conversation events from chat history
+
+        :param bot: bot id
+        :param sender_id: user id
+        :param latest_history: whether to fetch latest history or complete history, default is latest
+        :return: list of conversation events
+        """
         domain, tracker = ChatHistory.get_tracker_and_domain(bot)
         if latest_history:
             return tracker.retrieve(sender_id).as_dialogue().events
@@ -103,8 +133,12 @@ class ChatHistory:
 
     @staticmethod
     def visitor_hit_fallback(bot: Text):
-        """ Counts the number of times, the bot was unable to provide a response
-            to users """
+        """
+        Counts the number of times, the agent was unable to provide a response to users
+
+        :param bot: bot id
+        :return: list of visitor fallback
+        """
         data_frame = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
             fallback_count = 0
@@ -118,7 +152,12 @@ class ChatHistory:
 
     @staticmethod
     def conversation_steps(bot: Text):
-        """ Returns the number of conversation steps of the chat between the bot and its users """
+        """
+        calculates the number of conversation steps between agent and users
+
+        :param bot: bot id
+        :return: list of conversation step count
+        """
         """
         data_frame = data_frame.groupby(['sender_id', data_frame.event.ne('session_started')])
         data_frame = data_frame.size().reset_index()
@@ -145,7 +184,12 @@ class ChatHistory:
 
     @staticmethod
     def conversation_time(bot: Text):
-        """ Returns the duration of the chat between a bot and its users """
+        """
+        calculates the duration of between agent and users
+
+        :param bot: bot id
+        :return: list of users duration
+        """
         data_frame = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
             return {}
@@ -169,14 +213,17 @@ class ChatHistory:
 
     @staticmethod
     def get_conversations(bot: Text):
-        """ Returns all the conversations of a bot with its users """
+        """
+        fetches all the conversations between agent and users
+
+        :param bot: bot id
+        :return: list of conversations
+        """
         _, tracker = ChatHistory.get_tracker_and_domain(bot)
         return list(tracker.conversations.find())
 
     @staticmethod
     def __fetch_history_metrics(bot: Text, show_session=False, filter_columns=None):
-        """ returns the dataframe on which the chat metrics will be calculated
-            for the conversations between the bot and the users """
         filter_events = ["user", "bot"]
         if show_session:
             filter_events.append("session_started")

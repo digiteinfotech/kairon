@@ -13,8 +13,6 @@ from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-
 client = TestClient(app)
 
 def pytest_configure():
@@ -22,9 +20,9 @@ def pytest_configure():
             'access_token': None
             }
 
-
 @pytest.fixture(autouse=True)
-def init_connection():
+def setup():
+    os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 

@@ -27,7 +27,17 @@ async def train_model(
     persist_nlu_training_data: bool = False,
     additional_arguments: Optional[Dict] = None,
 ):
-    """ Trains the rasa model internally, using functions from the rasa modules """
+    """
+    trains the bot, overridden the function from rasa
+
+    :param data_importer: TrainingDataImporter object
+    :param output_path: model output path
+    :param force_training: w
+    :param fixed_model_name:
+    :param persist_nlu_training_data:
+    :param additional_arguments:
+    :return: model path
+    """
 
     with ExitStack() as stack:
         train_path = stack.enter_context(TempDirectoryPath(tempfile.mkdtemp()))
@@ -56,8 +66,18 @@ async def train_model_from_mongo(
     persist_nlu_training_data: bool = False,
     additional_arguments: Optional[Dict] = None,
 ):
-    """ Trains the rasa model, using the data that is loaded onto
-        Mongo, through the bot files """
+    """
+    trains the bot from loading the data from mongo
+
+    :param bot:
+    :param force_training:
+    :param fixed_model_name:
+    :param persist_nlu_training_data:
+    :param additional_arguments:
+    :return: model path
+
+    :todo loading data directly from mongo, bot is not able to idetify stories properly
+    """
     data_importer = MongoDataImporter(bot)
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
     return await train_model(
@@ -71,8 +91,13 @@ async def train_model_from_mongo(
 
 
 def train_model_for_bot(bot: str):
-    """ Trains the rasa model, using the data that is loaded onto
-            Mongo, through the bot files """
+    """
+    loads bot data from mongo into individual files for training
+
+    :param bot: bot id
+    :return: model path
+
+    """
     processor = MongoProcessor()
     nlu = processor.load_nlu(bot)
     if not nlu.training_examples:
@@ -82,31 +107,38 @@ def train_model_for_bot(bot: str):
     config = processor.load_config(bot)
 
     directory = Utility.save_files(
-                nlu.nlu_as_markdown().encode(),
-                domain.as_yaml().encode(),
-                stories.as_story_string().encode(),
-                yaml.dump(config).encode(),
-            )
+        nlu.nlu_as_markdown().encode(),
+        domain.as_yaml().encode(),
+        stories.as_story_string().encode(),
+        yaml.dump(config).encode(),
+    )
 
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
-    model = train(domain=os.path.join(directory,DEFAULT_DOMAIN_PATH),
-                  config=os.path.join(directory,DEFAULT_CONFIG_PATH),
-                  training_files=os.path.join(directory,DEFAULT_DATA_PATH),
-                  output=output)
+    model = train(
+        domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
+        config=os.path.join(directory, DEFAULT_CONFIG_PATH),
+        training_files=os.path.join(directory, DEFAULT_DATA_PATH),
+        output=output,
+    )
     Utility.delete_directory(directory)
     return model
 
 
 def start_training(bot: str, user: str):
-    """ Prevents training of the bot if the training session is in progress otherwise start training """
+    """
+    prevents training of the bot,
+    if the training session is in progress otherwise start training
+
+    :param bot: bot id
+    :param user: user id
+    :return: model path
+    """
     exception = None
     model_file = None
     training_status = None
 
     ModelProcessor.set_training_status(
-        bot=bot,
-        user=user,
-        status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+        bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
     )
     try:
         model_file = train_model_for_bot(bot)

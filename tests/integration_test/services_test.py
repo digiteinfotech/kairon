@@ -16,14 +16,13 @@ from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from rasa.utils.io import read_config_file
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-
 client = TestClient(app)
 access_token = None
 token_type = None
 
-
+@pytest.fixture(autouse=True)
 def setup():
+    os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
     connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
 
@@ -32,10 +31,6 @@ def pytest_configure():
     return {'token_type': None,
             'access_token': None
             }
-
-
-setup()
-
 
 
 def test_api_wrong_login():
@@ -1284,22 +1279,24 @@ def test_set_config_pipeline_error():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['data'] is None
     assert actual['error_code'] == 422
     assert actual['message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
     assert not actual['success']
 
+
 def test_delete_intent():
-    response = client.post(
+    client.post(
         "/api/bot/intents",
         json={"data": "happier"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    actualAdd = response.json()
     response = client.delete(
-        "/api/bot/Intent/happier",
+        "/api/bot/intents/happier",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    actualDel = response.json()
-    assert actualDel["data"]["IntentName"]=="happier"
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Intent deleted!"
+    assert actual['success']
