@@ -140,7 +140,7 @@ def test_chat_history(mock_auth, mock_chat_history):
 
 def test_visitor_hit_fallback(mock_auth, mock_chat_history):
     response = client.get(
-        "/api/history/metrics/visitor_hit_fallback",
+        "/api/history/metrics/fallback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -154,7 +154,7 @@ def test_visitor_hit_fallback(mock_auth, mock_chat_history):
 
 def test_conversation_steps(mock_auth, mock_chat_history):
     response = client.get(
-        "/api/history/metrics/conversation_steps",
+        "/api/history/metrics/conversation/steps",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -167,7 +167,7 @@ def test_conversation_steps(mock_auth, mock_chat_history):
 
 def test_conversation_time(mock_auth, mock_chat_history):
     response = client.get(
-        "/api/history/metrics/conversation_time",
+        "/api/history/metrics/conversation/time",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 

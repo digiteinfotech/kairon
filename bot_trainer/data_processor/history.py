@@ -7,6 +7,7 @@ from bot_trainer.utils import Utility
 from .processor import MongoProcessor
 from loguru import logger
 from pymongo.errors import ServerSelectionTimeoutError
+from pymongo import DESCENDING
 
 class ChatHistory:
     """
@@ -69,7 +70,12 @@ class ChatHistory:
 
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        return tracker.keys(), message
+        users = [sender['sender_id']
+                 for sender in tracker.conversations()
+                     .find({}, {'sender_id': 1, '_id': 0})
+                     .sort("last_event_time", DESCENDING)
+                 ]
+        return users, message
 
     @staticmethod
     def __prepare_data(bot: Text, events, show_session=False):
