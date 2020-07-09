@@ -71,7 +71,7 @@ class ChatHistory:
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
         users = [sender['sender_id']
-                 for sender in tracker.conversations()
+                 for sender in tracker.conversations
                      .find({}, {'sender_id': 1, '_id': 0})
                      .sort("last_event_time", DESCENDING)
                  ]
