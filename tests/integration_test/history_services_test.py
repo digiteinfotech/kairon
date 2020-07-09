@@ -63,7 +63,7 @@ def history_users(*args, **kwargs):
         "49931985-2b51-4db3-89d5-a50767e6d98e",
         "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
         "2fed7769-b647-4088-8ed9-a4f4f3653f25",
-    ]
+    ], None
 
 
 def user_history(*args, **kwargs):
@@ -74,13 +74,14 @@ def user_history(*args, **kwargs):
             "5e564fbcdcf0d5fad89e3acd", json_data["events"], domain.slots
         )
         .as_dialogue()
-        .events
+        .events,
+        None
     )
 
 
 def history_conversations(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversations_history.json"))
-    return json_data
+    return json_data, None
 
 
 @pytest.fixture

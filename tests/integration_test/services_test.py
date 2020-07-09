@@ -650,7 +650,7 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
 
 def test_get_model_training_history():
     response = client.get(
-        "/api/bot/model_training_history",
+        "/api/bot/train/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -786,7 +786,7 @@ def test_deploy(mock_endpoint):
 @responses.activate
 def test_deployment_history():
     response = client.get(
-        "/api/bot/deployment_history",
+        "/api/bot/deploy/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1033,7 +1033,7 @@ def test_get_user_details():
 
 def test_download_data():
     response = client.get(
-        "/api/bot/download_data",
+        "/api/bot/download/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     file_bytes = BytesIO(response.content)
@@ -1045,7 +1045,7 @@ def test_download_data():
 
 def test_download_model():
     response = client.get(
-        "/api/bot/download_model",
+        "/api/bot/download/model",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     d = response.headers['content-disposition']
@@ -1127,7 +1127,7 @@ def test_save_endpoint(monkeypatch):
 
 def test_get_templates():
     response = client.get(
-        "/api/bot/templates",
+        "/api/bot/templates/use-case",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1140,7 +1140,7 @@ def test_get_templates():
 
 def test_set_templates():
     response = client.post(
-        "/api/bot/templates",
+        "/api/bot/templates/use-case",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": "Hi-Hello"}
     )
@@ -1154,7 +1154,7 @@ def test_set_templates():
 
 def test_set_templates_invalid():
     response = client.post(
-        "/api/bot/templates",
+        "/api/bot/templates/use-case",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": "Hi"}
     )
@@ -1174,7 +1174,7 @@ def test_reload_model(monkeypatch):
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
 
     response = client.get(
-        "/api/bot/reload_model",
+        "/api/bot/model/reload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -1187,7 +1187,7 @@ def test_reload_model(monkeypatch):
 
 def test_get_config_templates():
     response = client.get(
-        "/api/bot/config/templates",
+        "/api/bot/templates/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1200,7 +1200,7 @@ def test_get_config_templates():
 
 def test_set_config_templates():
     response = client.post(
-        "/api/bot/config/templates",
+        "/api/bot/templates/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": "default"}
     )
@@ -1214,7 +1214,7 @@ def test_set_config_templates():
 
 def test_set_config_templates_invalid():
     response = client.post(
-        "/api/bot/config/templates",
+        "/api/bot/templates/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": "test"}
     )
@@ -1252,6 +1252,7 @@ def test_set_config():
     assert actual['error_code'] == 0
     assert actual['message'] == "Config saved!"
     assert actual['success']
+
 
 def test_set_config_policy_error():
     data = read_config_file('./template/config/default.yml')
@@ -1292,7 +1293,7 @@ def test_delete_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.delete(
-        "/api/bot/intents/happier",
+        "/api/bot/intents/happier/True",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()

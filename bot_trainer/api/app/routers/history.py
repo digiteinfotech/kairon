@@ -15,7 +15,8 @@ async def chat_history_users(current_user: User = Depends(auth.get_current_user)
     """
     Fetches the list of user who has conversation with the agent
     """
-    return {"data": {"users": ChatHistory.fetch_chat_users(current_user.get_bot())}}
+    users, message = ChatHistory.fetch_chat_users(current_user.get_bot())
+    return {"data": {"users": users}, "message": message}
 
 
 @router.get("/users/{sender}", response_model=Response)
@@ -25,12 +26,14 @@ async def chat_history(
     """
     Fetches the list of conversation with the agent by particular user
     """
+    history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender)
     return {
         "data": {
             "history": list(
-                ChatHistory.fetch_chat_history(current_user.get_bot(), sender)
+                history
             )
-        }
+        },
+        "message": message
     }
 
 
@@ -39,7 +42,8 @@ async def visitor_hit_fallback(current_user: User = Depends(auth.get_current_use
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
-    return {"data": ChatHistory.visitor_hit_fallback(current_user.get_bot())}
+    visitor_hit_fallback, message = ChatHistory.visitor_hit_fallback(current_user.get_bot())
+    return {"data": visitor_hit_fallback, "message": message}
 
 
 @router.get("/metrics/conversation_steps", response_model=Response)
@@ -47,11 +51,13 @@ async def conversation_steps(current_user: User = Depends(auth.get_current_user)
     """
      Fetches the number of conversation steps that took place in the chat between the users and the agent
      """
-    return {"data": ChatHistory.conversation_steps(current_user.get_bot())}
+    conversation_steps, message = ChatHistory.conversation_steps(current_user.get_bot())
+    return {"data": conversation_steps, "message": message}
 
 
 @router.get("/metrics/conversation_time", response_model=Response)
 async def conversation_time(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches the duration of the chat that took place between the users and the agent"""
-    return {"data": ChatHistory.conversation_time(current_user.get_bot())}
+    conversation_time, message = ChatHistory.conversation_time(current_user.get_bot())
+    return {"data": conversation_time, "message": message}

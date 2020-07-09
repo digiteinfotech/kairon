@@ -1,6 +1,6 @@
 import os
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
@@ -50,6 +50,24 @@ async def add_intents(
         user=current_user.get_user(),
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
+
+
+@router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
+async def delete_intent(
+        intent: str = Path(default=None,description="intent name", example="greet"),
+        delete_dependencies: bool = Path(default=True, description="""if True delete bot data related to this intent 
+        otherwise only delete intent"""),
+        current_user: User = Depends(auth.get_current_user)
+):
+    """
+    deletes an intent including training examples and stories
+    """
+    mongo_processor.delete_intent(
+        intent,
+        current_user.get_bot(), current_user.get_user(),
+        delete_dependencies
+    )
+    return {"message": "Intent deleted!"}
 
 
 @router.post("/intents/predict", response_model=Response)
@@ -171,21 +189,6 @@ async def add_responses(
     return {"message": "Utterance added!", "data": {"_id": id}}
 
 
-@router.delete("/response", response_model=Response)
-async def remove_responses(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
-):
-    """
-    Deletes existing utterance value
-    """
-    mongo_processor.remove_document(
-        Responses, request_data.data, current_user.get_bot(), current_user.get_user()
-    )
-    return {
-        "message": "Utterance removed!",
-    }
-
-
 @router.put("/response/{utterance}/{id}", response_model=Response)
 async def edit_responses(
     utterance: str,
@@ -205,6 +208,21 @@ async def edit_responses(
     )
     return {
         "message": "Utterance updated!",
+    }
+
+
+@router.delete("/response", response_model=Response)
+async def remove_responses(
+    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Deletes existing utterance value
+    """
+    mongo_processor.remove_document(
+        Responses, request_data.data, current_user.get_bot(), current_user.get_user()
+    )
+    return {
+        "message": "Utterance removed!",
     }
 
 
@@ -281,7 +299,19 @@ async def train(
     return {"message": "Model training started."}
 
 
-@router.get("/model_training_history", response_model=Response)
+@router.get("/model/reload", response_model=Response)
+async def reload_model(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Reloads model with configuration in cache
+    """
+    background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
+    return {"message": "Reloading Model!"}
+
+
+@router.get("/train/history", response_model=Response)
 async def get_model_training_history(
     current_user: User = Depends(auth.get_current_user),
 ):
@@ -303,7 +333,7 @@ async def deploy(current_user: User = Depends(auth.get_current_user)):
     return {"message": response}
 
 
-@router.get("/deployment_history", response_model=Response)
+@router.get("/deploy/history", response_model=Response)
 async def deployment_history(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches model deployment history, when and who deployed the model
@@ -345,7 +375,7 @@ async def upload_Files(
     return {"message": "Data uploaded successfully!"}
 
 
-@router.get("/download_data")
+@router.get("/download/data")
 async def download_data(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(auth.get_current_user),
@@ -363,7 +393,7 @@ async def download_data(
     return response
 
 
-@router.get("/download_model")
+@router.get("/download/model")
 async def download_model(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(auth.get_current_user),
@@ -437,7 +467,7 @@ async def set_config(
     return {"message": "Config saved!"}
 
 
-@router.get("/templates", response_model=Response)
+@router.get("/templates/use-case", response_model=Response)
 async def get_templates(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches use-case templates name
@@ -445,7 +475,7 @@ async def get_templates(current_user: User = Depends(auth.get_current_user)):
     return {"data": {"use-cases": Utility.list_directories("./template/use-cases")}}
 
 
-@router.post("/templates", response_model=Response)
+@router.post("/templates/use-case", response_model=Response)
 async def get_templates(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
@@ -458,19 +488,7 @@ async def get_templates(
     return {"message": "Data applied!"}
 
 
-@router.get("/reload_model", response_model=Response)
-async def reload_model(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(auth.get_current_user),
-):
-    """
-    Reloads model with configuration in cache
-    """
-    background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
-    return {"message": "Reloading Model!"}
-
-
-@router.get("/config/templates", response_model=Response)
+@router.get("/templates/config", response_model=Response)
 async def get_config_template(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches config templates
@@ -478,7 +496,7 @@ async def get_config_template(current_user: User = Depends(auth.get_current_user
     return {"data": {"config-templates": mongo_processor.get_config_templates()}}
 
 
-@router.post("/config/templates", response_model=Response)
+@router.post("/templates/config", response_model=Response)
 async def set_config_template(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
@@ -489,16 +507,3 @@ async def set_config_template(
         request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Config applied!"}
-
-
-@router.delete("/intents/{intent}", response_model=Response)
-async def delete_intent(
-    intent: str, current_user: User = Depends(auth.get_current_user)
-):
-    """
-    deletes an intent including training examples and stories
-    """
-    mongo_processor.delete_intent(
-        intent, current_user.get_bot(), current_user.get_user()
-    )
-    return {"message": "Intent deleted!"}

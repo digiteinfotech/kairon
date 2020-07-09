@@ -36,14 +36,15 @@ class TestHistory:
                 "5e564fbcdcf0d5fad89e3acd", json_data["events"], domain.slots
             )
             .as_dialogue()
-            .events
+            .events,
+            None
         )
 
     def history_conversations(self, *args, **kwargs):
         json_data = json.load(
             open("tests/testing_data/history/conversations_history.json")
         )
-        return json_data
+        return json_data, None
 
     @pytest.fixture
     def mock_tracker(self, monkeypatch):
@@ -51,7 +52,7 @@ class TestHistory:
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
-        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019")
+        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019"), None
 
     @pytest.fixture
     def mock_get_tracker_and_domain(self, monkeypatch):
@@ -62,10 +63,10 @@ class TestHistory:
     @pytest.fixture
     def mock_chat_history_empty(self, monkeypatch):
         def fetch_user_history(*args, **kwargs):
-            return []
+            return [], None
 
         def get_conversations(*args, **kwargs):
-            return []
+            return [], None
 
         monkeypatch.setattr(ChatHistory, "fetch_user_history", fetch_user_history)
         monkeypatch.setattr(ChatHistory, "get_conversations", get_conversations)
@@ -85,29 +86,32 @@ class TestHistory:
         monkeypatch.setattr(MongoProcessor, "get_endpoints", self.endpoint_details)
 
     def test_fetch_chat_users_db_error(self, mock_mongo_processor):
-        users = ChatHistory.fetch_chat_users(bot="tests")
-        print(users)
-        assert len(users) == 0
-
-    def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
             users = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
 
+
+    def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
+        with pytest.raises(Exception):
+            users, message = ChatHistory.fetch_chat_users(bot="tests")
+            assert len(users) == 0
+            assert message is None
+
     def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
-            history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
+            history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
             assert len(history) == 0
+            assert message is None
 
     def test_fetch_chat_history_empty(self, mock_chat_history_empty):
-        history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
+        history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
         assert len(history) == 0
+        assert message is None
 
     def test_fetch_chat_history(self, mock_chat_history):
-        history = ChatHistory.fetch_chat_history(
+        history, message = ChatHistory.fetch_chat_history(
             sender="5e564fbcdcf0d5fad89e3acd", bot="tests"
         )
-        print(history)
         assert len(history) == 12
         assert history[0]["event"]
         assert history[0]["time"]
@@ -116,45 +120,55 @@ class TestHistory:
         assert history[0]["is_exists"] == False or history[0]["is_exists"]
         assert history[0]["intent"]
         assert history[0]["confidence"]
+        assert message is None
 
     def test_visitor_hit_fallback_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
-            hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
+            hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
             assert hit_fall_back["fallback_count"] == 0
             assert hit_fall_back["total_count"] == 0
+            assert message is None
 
     def test_visitor_hit_fallback_empty(self, mock_chat_history_empty):
-        hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 0
+        assert message is None
 
     def test_visitor_hit_fallback(self, mock_chat_history):
-        hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
         assert hit_fall_back["fallback_count"] == 3
         assert hit_fall_back["total_count"] == 31
+        assert message is None
 
     def test_conversation_time_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
-            conversation_time = ChatHistory.conversation_time("tests")
+            conversation_time, message = ChatHistory.conversation_time("tests")
             assert not conversation_time
+            assert message is None
 
     def test_conversation_time_empty(self, mock_chat_history_empty):
-        conversation_time = ChatHistory.conversation_time("tests")
+        conversation_time, message = ChatHistory.conversation_time("tests")
         assert not conversation_time
+        assert message is None
 
     def test_conversation_time(self, mock_chat_history):
-        conversation_time = ChatHistory.conversation_time("tests")
+        conversation_time, message = ChatHistory.conversation_time("tests")
         assert conversation_time
+        assert message is None
 
     def test_conversation_steps_error(self, mock_get_tracker_and_domain):
         with pytest.raises(Exception):
-            conversation_steps = ChatHistory.conversation_steps("tests")
+            conversation_steps, message = ChatHistory.conversation_steps("tests")
             assert not conversation_steps
+            assert message is None
 
     def test_conversation_steps_empty(self, mock_chat_history_empty):
-        conversation_steps = ChatHistory.conversation_steps("tests")
+        conversation_steps, message = ChatHistory.conversation_steps("tests")
         assert not conversation_steps
+        assert message is None
 
     def test_conversation_steps(self, mock_chat_history):
-        conversation_steps = ChatHistory.conversation_steps("tests")
+        conversation_steps, message = ChatHistory.conversation_steps("tests")
         assert conversation_steps
+        assert message is None

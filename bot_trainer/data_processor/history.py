@@ -6,7 +6,7 @@ from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 from bot_trainer.utils import Utility
 from .processor import MongoProcessor
 from loguru import logger
-
+from pymongo.errors import ServerSelectionTimeoutError
 
 class ChatHistory:
     """
@@ -24,6 +24,7 @@ class ChatHistory:
         :return: tuple domain, tracker
         """
         domain = ChatHistory.mongo_processor.load_domain(bot)
+        message = None
         try:
             endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
             tracker = MongoTrackerStore(
@@ -33,10 +34,15 @@ class ChatHistory:
                 username=endpoint["tracker_endpoint"].get("username"),
                 password=endpoint["tracker_endpoint"].get("password"),
             )
+        except ServerSelectionTimeoutError as e:
+            logger.info(e)
+            message = "Loading test conversation! Production Connection Failed!"
         except Exception as e:
             logger.info(e)
+            message = "Loading test conversation! "+str(e)
+        finally:
             tracker = Utility.get_local_mongo_store(bot, domain)
-        return (domain, tracker)
+        return domain, tracker, message
 
     @staticmethod
     def fetch_chat_history(bot: Text, sender, latest_history=False):
@@ -48,10 +54,10 @@ class ChatHistory:
         :param latest_history: whether to fetch latest or complete history
         :return: list of conversations
         """
-        events = ChatHistory.fetch_user_history(
+        events, message = ChatHistory.fetch_user_history(
             bot, sender, latest_history=latest_history
         )
-        return list(ChatHistory.__prepare_data(bot, events))
+        return list(ChatHistory.__prepare_data(bot, events)), message
 
     @staticmethod
     def fetch_chat_users(bot: Text):
@@ -62,8 +68,8 @@ class ChatHistory:
         :return: list of user id
 
         """
-        _, tracker = ChatHistory.get_tracker_and_domain(bot)
-        return tracker.keys()
+        _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
+        return tracker.keys(), message
 
     @staticmethod
     def __prepare_data(bot: Text, events, show_session=False):
@@ -117,9 +123,9 @@ class ChatHistory:
         :param latest_history: whether to fetch latest history or complete history, default is latest
         :return: list of conversation events
         """
-        domain, tracker = ChatHistory.get_tracker_and_domain(bot)
+        domain, tracker, message = ChatHistory.get_tracker_and_domain(bot)
         if latest_history:
-            return tracker.retrieve(sender_id).as_dialogue().events
+            return tracker.retrieve(sender_id).as_dialogue().events, message
         else:
             user_conversation = tracker.conversations.find_one({"sender_id": sender_id})
             if user_conversation:
@@ -128,8 +134,10 @@ class ChatHistory:
                         sender_id, list(user_conversation["events"]), domain.slots
                     )
                     .as_dialogue()
-                    .events
+                    .events,
+                    message
                 )
+            return {}, message
 
     @staticmethod
     def visitor_hit_fallback(bot: Text):
@@ -139,7 +147,7 @@ class ChatHistory:
         :param bot: bot id
         :return: list of visitor fallback
         """
-        data_frame = ChatHistory.__fetch_history_metrics(bot)
+        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
             fallback_count = 0
             total_count = 0
@@ -148,7 +156,7 @@ class ChatHistory:
                 data_frame["name"] == "action_default_fallback"
             ].count()["name"]
             total_count = data_frame.count()["name"]
-        return {"fallback_count": int(fallback_count), "total_count": int(total_count)}
+        return {"fallback_count": int(fallback_count), "total_count": int(total_count)}, message
 
     @staticmethod
     def conversation_steps(bot: Text):
@@ -158,16 +166,9 @@ class ChatHistory:
         :param bot: bot id
         :return: list of conversation step count
         """
-        """
-        data_frame = data_frame.groupby(['sender_id', data_frame.event.ne('session_started')])
-        data_frame = data_frame.size().reset_index()
-        data_frame.rename(columns={0: 'count'}, inplace=True)
-        data_frame = data_frame[data_frame['event'] != 0]
-        return data_frame.to_json(orient='records')
-        """
-        data_frame = ChatHistory.__fetch_history_metrics(bot)
+        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
-            return {}
+            return {}, message
         else:
             data_frame["prev_event"] = data_frame["event"].shift()
             data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
@@ -179,7 +180,8 @@ class ChatHistory:
                 data_frame.groupby(["sender_id"])
                 .count()
                 .reset_index()[["sender_id", "event"]]
-                .to_dict(orient="records")
+                .to_dict(orient="records"),
+                message
             )
 
     @staticmethod
@@ -190,9 +192,9 @@ class ChatHistory:
         :param bot: bot id
         :return: list of users duration
         """
-        data_frame = ChatHistory.__fetch_history_metrics(bot)
+        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
         if data_frame.empty:
-            return {}
+            return {}, message
         else:
             data_frame["prev_event"] = data_frame["event"].shift()
             data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
@@ -208,7 +210,8 @@ class ChatHistory:
                 .groupby("sender_id")
                 .sum()
                 .reset_index()
-                .to_dict(orient="records")
+                .to_dict(orient="records"),
+                message
             )
 
     @staticmethod
@@ -217,10 +220,12 @@ class ChatHistory:
         fetches all the conversations between agent and users
 
         :param bot: bot id
-        :return: list of conversations
+        :return: list of conversations, message
         """
-        _, tracker = ChatHistory.get_tracker_and_domain(bot)
-        return list(tracker.conversations.find())
+        _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
+        print(ChatHistory.get_tracker_and_domain(bot))
+        conversations = list(tracker.conversations.find())
+        return (conversations, message)
 
     @staticmethod
     def __fetch_history_metrics(bot: Text, show_session=False, filter_columns=None):
@@ -238,7 +243,7 @@ class ChatHistory:
                 "input_channel",
                 "message_id",
             ]
-        records = ChatHistory.get_conversations(bot)
+        records, message = ChatHistory.get_conversations(bot)
         data_frame = pd.DataFrame(list(records))
         if not data_frame.empty:
             data_frame = data_frame.explode(column="events")
@@ -253,4 +258,4 @@ class ChatHistory:
             data_frame["name"] = data_frame["name"].shift()
             data_frame = data_frame[data_frame["event"].isin(filter_events)]
             data_frame = data_frame[filter_columns]
-        return data_frame
+        return data_frame, message
