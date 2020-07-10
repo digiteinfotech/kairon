@@ -1,0 +1,4 @@
+plain: value
+system: ${SYSTEM:testing}
+testing:
+  demo: ${ENVIRONMENT_VARIABLE:default}

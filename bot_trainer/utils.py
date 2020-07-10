@@ -40,7 +40,8 @@ from rasa.nlu.training_data.formats.markdown import entity_regex
 
 from .exceptions import AppException
 from datetime import datetime
-
+from loguru import logger
+from pathlib import Path
 
 class Utility:
     """
@@ -567,3 +568,49 @@ class Utility:
             component_builder.create_component(component_cfg, rasa_config)
 
         configuration.load(config)
+
+
+    @staticmethod
+    def load_configuration_yaml(file: Text):
+        """
+            substitute environment variable in the yaml field value
+
+            example.yaml
+            database:
+              host: ${DATABASE_HOST:mongodb://localhost}
+
+            it will search for DATABASE_HOST in environment, if not found
+            then default value is set ie. mongodb://localhost
+
+            :param file: yaml configuration file
+            :return: None
+        """
+        if Path(file).suffix not in ['.yml', '.yaml']:
+            raise AppException("Not a yaml file")
+        data = yaml.safe_load(open(file))
+        Utility.__process_env_in_yaml(data)
+        return data
+
+    @staticmethod
+    def __process_env_in_yaml(items: dict):
+        for key in items:
+            if isinstance(items[key], str):
+                Utility.__extract_env(items, key, )
+            elif isinstance(items[key], dict):
+                Utility.__process_env_in_yaml(items[key])
+
+    @staticmethod
+    def __extract_env(items: dict, key: str):
+        value = items[key]
+        if value.startswith("${") and value.endswith("}"):
+            values = value[2:-1].split(":")
+            if values.__len__() == 2:
+                items[key] = os.getenv(values[0], values[1])
+            elif values.__len__() == 1:
+                items[key] = os.getenv(values[0], None)
+                if not items[key]:
+                    logger.warning(f"Unable to find value in environment for key {key}")
+            else:
+                raise AppException("Invalid value format!")
+        elif value.startswith("${") or value.endswith("}"):
+            raise AppException("Invalid value format!")
