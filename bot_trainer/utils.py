@@ -42,6 +42,7 @@ from .exceptions import AppException
 from datetime import datetime
 from loguru import logger
 from pathlib import Path
+from json import loads
 
 class Utility:
     """
@@ -605,12 +606,22 @@ class Utility:
         if value.startswith("${") and value.endswith("}"):
             values = value[2:-1].split(":")
             if values.__len__() == 2:
-                items[key] = os.getenv(values[0], values[1])
+                new_value = os.getenv(values[0], values[1])
+
             elif values.__len__() == 1:
-                items[key] = os.getenv(values[0], None)
-                if not items[key]:
+                new_value = os.getenv(values[0], None)
+                if not new_value:
                     logger.warning(f"Unable to find value in environment for key {key}")
             else:
                 raise AppException("Invalid value format!")
+
+            try:
+                if new_value in ['True', 'False']:
+                    new_value = new_value.lower()
+                items[key] = loads(new_value)
+            except Exception:
+                items[key] = new_value
+
+
         elif value.startswith("${") or value.endswith("}"):
             raise AppException("Invalid value format!")
