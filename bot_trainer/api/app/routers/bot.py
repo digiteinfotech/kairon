@@ -54,17 +54,19 @@ async def add_intents(
 
 @router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
 async def delete_intent(
-        intent: str = Path(default=None,description="intent name", example="greet"),
-        delete_dependencies: bool = Path(default=True, description="""if True delete bot data related to this intent otherwise only delete intent"""),
-        current_user: User = Depends(auth.get_current_user)
+    intent: str = Path(default=None, description="intent name", example="greet"),
+    delete_dependencies: bool = Path(
+        default=True,
+        description="""if True delete bot data related to this intent 
+        otherwise only delete intent""",
+    ),
+    current_user: User = Depends(auth.get_current_user),
 ):
     """
     deletes an intent including training examples and stories
     """
     mongo_processor.delete_intent(
-        intent,
-        current_user.get_bot(), current_user.get_user(),
-        delete_dependencies
+        intent, current_user.get_bot(), current_user.get_user(), delete_dependencies
     )
     return {"message": "Intent deleted!"}
 

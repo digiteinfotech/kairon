@@ -1,0 +1,15 @@
+email:
+    verify: ${EMAIL_VERIFY:False}
+    confirmation:
+        url: ${EMAIL_CONFIRMATION_URL:"chiron.digite.com"}
+    sender:
+        email: ${EMAIL_SENDER_EMAIL:"changeit@changeit.com"}
+        password: ${EMAIL_SENDER_PASSWORD:"changeit"}
+        port: ${EMAIL_SENDER_PORT:"587"}
+        service: ${EMAIL_SENDER_SERVICE:"changeit"}
+    templates:
+        confirmation_subject: ${EMAIL_TEMPLATES_CONFIRMATION_SUBJECT:"Email Confirmation"}
+        confirmation_body: ${EMAIL_TEMPLATES_CONFIRMATION_BODY:"Thanks for signing up. You're one step away from accessing your account - please click on this confirmation link. "}
+        confirmed_subject: ${EMAIL_TEMPLATES_CONFIRMED_SUBJECT:"Email Confirmed!"}
+        confirmed_body: ${EMAIL_TEMPLATES_CONFIRMED_BODY:"Thanks for confirming your email address, you may now proceed to train your bot. Need help? Contact us @..."}
+

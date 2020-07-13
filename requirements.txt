@@ -30,3 +30,4 @@ loguru
 nltk
 transformers
 spacy
+fastapi_mail
