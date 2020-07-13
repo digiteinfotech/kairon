@@ -10,9 +10,7 @@ from bot_trainer.exceptions import AppException
 
 
 class MongoDataImporter(TrainingDataImporter):
-    """
-    Class overrides the TrainingDataImporter functionality required for training bot
-    """
+    """Class overrides the TrainingDataImporter functionality required for training bot"""
 
     def __init__(self, bot: str):
         self.bot = bot

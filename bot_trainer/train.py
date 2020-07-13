@@ -38,7 +38,6 @@ async def train_model(
     :param additional_arguments:
     :return: model path
     """
-
     with ExitStack() as stack:
         train_path = stack.enter_context(TempDirectoryPath(tempfile.mkdtemp()))
 

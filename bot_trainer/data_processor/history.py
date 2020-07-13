@@ -10,9 +10,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from pymongo import DESCENDING
 
 class ChatHistory:
-    """
-    Class contains logic for fetching history data and metrics from mongo tracker
-    """
+    """Class contains logic for fetching history data and metrics from mongo tracker"""
 
     mongo_processor = MongoProcessor()
 

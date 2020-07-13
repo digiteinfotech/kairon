@@ -463,8 +463,6 @@ class MongoProcessor:
         :param status: user id
         :return: yield dict of lookup tables
         """
-        """ Returns the lookup tables of the bot (input).
-            Eg. MongoProcessor.fetch_lookup_tables(bot_name) """
         lookup_tables = LookupTables.objects(bot=bot, status=status).aggregate(
             [{"$group": {"_id": "$name", "elements": {"$push": "$value"}}}]
         )

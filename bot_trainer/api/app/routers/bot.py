@@ -55,8 +55,7 @@ async def add_intents(
 @router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
 async def delete_intent(
         intent: str = Path(default=None,description="intent name", example="greet"),
-        delete_dependencies: bool = Path(default=True, description="""if True delete bot data related to this intent 
-        otherwise only delete intent"""),
+        delete_dependencies: bool = Path(default=True, description="""if True delete bot data related to this intent otherwise only delete intent"""),
         current_user: User = Depends(auth.get_current_user)
 ):
     """
@@ -476,7 +475,7 @@ async def get_templates(current_user: User = Depends(auth.get_current_user)):
 
 
 @router.post("/templates/use-case", response_model=Response)
-async def get_templates(
+async def set_templates(
     request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """

@@ -4,9 +4,7 @@ import re
 
 
 class QuestionGenerator:
-    """
-    Class contains logic for augmenting text
-    """
+    """Class contains logic for augmenting text"""
 
     aug = naw.ContextualWordEmbsAug(model_path="bert-base-uncased", action="substitute")
     aug_single = naw.SynonymAug(aug_src="wordnet")

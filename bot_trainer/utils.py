@@ -4,15 +4,19 @@ import re
 import shutil
 import string
 import tempfile
+from datetime import datetime
 from glob import glob, iglob
 from html import escape
 from io import BytesIO
+from json import loads
+from pathlib import Path
 from secrets import choice
 from typing import Text, List, Dict
 
 import requests
 import yaml
 from fastapi.security import OAuth2PasswordBearer
+from loguru import logger
 from mongoengine import StringField, ListField
 from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
@@ -39,10 +43,7 @@ from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
 
 from .exceptions import AppException
-from datetime import datetime
-from loguru import logger
-from pathlib import Path
-from json import loads
+
 
 class Utility:
     """
@@ -419,7 +420,6 @@ class Utility:
         :param uri: mongo uri
         :return: username, password, scheme, hosts
         """
-        "extract username, password and host with port from mongo uri"
         if uri.startswith(SCHEME):
             scheme_free = uri[SCHEME_LEN:]
             scheme = uri[:SCHEME_LEN]
@@ -435,7 +435,7 @@ class Utility:
         if not scheme_free:
             raise InvalidURI("Must provide at least one hostname or IP.")
 
-        host_part, _, path_part = scheme_free.partition("/")
+        host_part, _, _ = scheme_free.partition("/")
         if "@" in host_part:
             userinfo, _, hosts = host_part.rpartition("@")
             user, passwd = parse_userinfo(userinfo)
