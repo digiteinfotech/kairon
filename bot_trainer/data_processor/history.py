@@ -9,6 +9,7 @@ from loguru import logger
 from pymongo.errors import ServerSelectionTimeoutError
 from pymongo import DESCENDING
 
+
 class ChatHistory:
     """Class contains logic for fetching history data and metrics from mongo tracker"""
 
@@ -38,7 +39,7 @@ class ChatHistory:
             message = "Loading test conversation! Production Connection Failed!"
         except Exception as e:
             logger.info(e)
-            message = "Loading test conversation! "+str(e)
+            message = "Loading test conversation! " + str(e)
         finally:
             tracker = Utility.get_local_mongo_store(bot, domain)
         return domain, tracker, message
@@ -68,11 +69,12 @@ class ChatHistory:
 
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        users = [sender['sender_id']
-                 for sender in tracker.conversations
-                     .find({}, {'sender_id': 1, '_id': 0})
-                     .sort("last_event_time", DESCENDING)
-                 ]
+        users = [
+            sender["sender_id"]
+            for sender in tracker.conversations.find(
+                {}, {"sender_id": 1, "_id": 0}
+            ).sort("last_event_time", DESCENDING)
+        ]
         return users, message
 
     @staticmethod
@@ -139,7 +141,7 @@ class ChatHistory:
                     )
                     .as_dialogue()
                     .events,
-                    message
+                    message,
                 )
             return {}, message
 
@@ -160,7 +162,10 @@ class ChatHistory:
                 data_frame["name"] == "action_default_fallback"
             ].count()["name"]
             total_count = data_frame.count()["name"]
-        return {"fallback_count": int(fallback_count), "total_count": int(total_count)}, message
+        return (
+            {"fallback_count": int(fallback_count), "total_count": int(total_count)},
+            message,
+        )
 
     @staticmethod
     def conversation_steps(bot: Text):
@@ -185,7 +190,7 @@ class ChatHistory:
                 .count()
                 .reset_index()[["sender_id", "event"]]
                 .to_dict(orient="records"),
-                message
+                message,
             )
 
     @staticmethod
@@ -215,7 +220,7 @@ class ChatHistory:
                 .sum()
                 .reset_index()
                 .to_dict(orient="records"),
-                message
+                message,
             )
 
     @staticmethod

@@ -103,6 +103,62 @@ and set google analytics tracking id
    ```
    python -m uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
    ```
+   
+## System Configuration
+
+### Email verification setup
+The verification.yaml file can be used to configure the process for account confirmation through a verification link sent to the user's mail id. It consists of the following parameters:
+
+* **verify** -
+ 
+   set value to True for enabling verification, and False to disable.
+   
+   You can also use the environment variable **EMAIL_VERIFY** to change the values.
+* **url** - 
+
+  this url, along with a unique token is sent to the user's mail id for account verification.
+   
+  You can also use the environment variable **EMAIL_CONFIRMATION_URL** to change the values.
+* **email** - 
+
+  the mail id of the account which sends the confirmation mail.
+   
+  You can also use the environment variable **EMAIL_SENDER_EMAIL** to change the values.
+* **password** -
+ 
+  the password of the account which sends the confirmation mail.
+ 
+  You can also use the environment variable **EMAIL_SENDER_PASSWORD** to change the values.
+* **port** - 
+
+  the port that is used to send the mail [For ex. "587"].
+
+  You can also use the environment variable **EMAIL_SENDER_PORT** to change the values.
+* **service** - 
+
+  the mail service that is used to send the confirmation mail [For ex. "gmail"].
+ 
+  You can also use the environment variable **EMAIL_SENDER_SERVICE** to change the values.
+* **confirmation_subject** -
+
+  the subject of the mail to be sent for confirmation.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMATION_SUBJECT** to change the subject.
+* **confirmation_body** -
+
+  the body of the mail to be sent for confirmation. This also has the verification link included.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMATION_BODY** to change the body of the mail.
+* **confirmed_subject** -
+
+  the subject of the mail to be sent after confirmation.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMED_SUBJECT** to change the subject.
+* **confirmed_body** -
+
+  the body of the mail to be sent after confirmation.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMED_BODY** to change the body of the mail.   
 
 # Documentation
 
@@ -173,3 +229,4 @@ See also the list of [contributors](https://github.com/digiteinfotech/chiron/gra
 
 ## License
 Licensed under the Apache License, Version 2.0. [Copy of the license](LICENSE.txt)
+

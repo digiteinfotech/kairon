@@ -9,13 +9,13 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-
+from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.api.app.main import app
 from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from rasa.utils.io import read_config_file
-
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 token_type = None
@@ -77,7 +77,7 @@ def test_account_registration():
         },
     )
     actual = response.json()
-    assert actual["message"] == "Account Registered!"
+    assert actual["message"] == "Account Registered! A confirmation link has been sent to your mail"
     response = client.post(
         "/api/account/registration",
         json={
@@ -91,7 +91,7 @@ def test_account_registration():
         },
     )
     actual = response.json()
-    assert actual["message"] == "Account Registered!"
+    assert actual["message"] == "Account Registered! A confirmation link has been sent to your mail"
 
 
 def test_api_login():
@@ -1301,3 +1301,80 @@ def test_delete_intent():
     assert actual['error_code'] == 0
     assert actual['message'] == "Intent deleted!"
     assert actual['success']
+def test_api_login_with_account_not_verified():
+    AccountProcessor.EMAIL_VERIFIED=True
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    AccountProcessor.EMAIL_VERIFIED = False
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['data'] is None
+    assert actual['message'] == 'Please verify your mail'
+
+
+
+def test_account_registration_with_confirmation(monkeypatch):
+    monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+    monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+    monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+    AccountProcessor.EMAIL_VERIFIED = True
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "integ1@gmail.com",
+            "first_name": "Dem",
+            "last_name": "User22",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration33",
+            "bot": "integration33",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered! A confirmation link has been sent to your mail"
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert actual['data'] is None
+
+    response = client.post("/api/account/email/confirmation",
+        json={'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
+                           )
+    actual = response.json()
+    AccountProcessor.EMAIL_VERIFIED = False
+
+    assert actual['message'] == "Account Confirmed!"
+    assert actual['data'] is None
+    assert actual['success']
+    assert actual['error_code'] == 0
+
+
+def test_invalid_token_for_confirmation():
+    response = client.post("/api/account/email/confirmation",
+                           json={
+                               'data': 'hello'},
+                           )
+    actual = response.json()
+
+    assert actual['message'] == "Invalid token"
+    assert actual['data'] is None
+    assert not actual['success']
+    assert actual['error_code'] == 422
+
+
+def test_login_for_verified():
+    AccountProcessor.EMAIL_VERIFIED = True
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    AccountProcessor.EMAIL_VERIFIED = False
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    pytest.access_token = actual["data"]["access_token"]
+    pytest.token_type = actual["data"]["token_type"]

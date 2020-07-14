@@ -1,16 +1,19 @@
 from loguru import logger as logging
 from typing import Dict, Text
-
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
-from bot_trainer.api.data_objects import Account, User, Bot
+from bot_trainer.api.data_objects import Account, User, Bot, UserEmailConfirmation
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
 
+Utility.load_verification()
+
 
 class AccountProcessor:
+    EMAIL_VERIFIED = Utility.verification["email"]["verify"]
+
     @staticmethod
     def add_account(name: str, user: str):
         """
@@ -160,6 +163,8 @@ class AccountProcessor:
         :return: dict
         """
         user = AccountProcessor.get_user(email)
+        if not user["is_integration_user"]:
+            AccountProcessor.check_email_confirmation(user["email"])
         if not user["status"]:
             raise ValidationError("Inactive User please contact admin!")
         bot = AccountProcessor.get_bot(user["bot"])
@@ -245,6 +250,13 @@ class AccountProcessor:
             await MongoProcessor().save_from_path(
                 "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
+            if AccountProcessor.EMAIL_VERIFIED:
+                token = Utility.generate_token(account_setup.get("email"))
+                link = Utility.verification["email"]["confirmation"]["url"] + '/confirm/' + token
+                body = Utility.verification['email']['templates']['confirmation_body'] + link
+                subject = Utility.verification['email']['templates']['confirmation_subject']
+                await Utility.send_mail(email=account_setup.get("email"),subject=subject,body=body)
+
         except Exception as e:
             if account and "_id" in account:
                 Account.objects().get(id=account["_id"]).delete()
@@ -275,3 +287,50 @@ class AccountProcessor:
             return user
         except Exception as e:
             logging.info(str(e))
+
+    @staticmethod
+    async def confirm_email(token: str):
+        """
+        Confirms the user through link and updates the database
+
+        :param token: the token from link
+        :return: None
+        """
+        email_confirm = Utility.verify_token(token)
+        Utility.is_exist(
+            UserEmailConfirmation,
+            exp_message="Email already confirmed!",
+            email__iexact=email_confirm.strip(),
+        )
+        confirm = UserEmailConfirmation()
+        confirm.email = email_confirm
+        confirm.save()
+        subject = Utility.verification['email']['templates']['confirmed_subject']
+        body = Utility.verification['email']['templates']['confirmed_body']
+        await Utility.send_mail(email=email_confirm, subject=subject, body=body)
+
+
+    @staticmethod
+    def is_user_confirmed(email: str):
+        """
+        Checks if user is verified
+
+        :param email: mail id of user
+        :return: True,False or exception based on the user
+        """
+        try:
+            UserEmailConfirmation.objects().get(email=email)
+
+        except Exception:
+            raise AppException("Please verify your mail")
+
+    @staticmethod
+    def check_email_confirmation(email: str):
+        """
+        Checks if the account is verified through mail
+
+        :param email: email of the user
+        :return: None
+        """
+        if AccountProcessor.EMAIL_VERIFIED:
+            AccountProcessor.is_user_confirmed(email)

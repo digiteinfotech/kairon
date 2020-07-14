@@ -13,6 +13,7 @@ from bot_trainer.exceptions import AppException
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
+
 def pytest_configure():
     return {'bot': None}
 
@@ -300,6 +301,7 @@ class TestAccountProcessor:
                 "status": False,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -330,6 +332,7 @@ class TestAccountProcessor:
                 "status": True,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -362,6 +365,7 @@ class TestAccountProcessor:
                 "status": True,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -455,3 +459,74 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         actual = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual
+
+    def test_send_mail(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(Utility.send_mail('demo@ac.in',subject='test',body='test'))
+        assert True
+
+    def test_send_false_email_id(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.send_mail('..',subject='test',body="test"))
+
+    def test_send_empty_mail_subject(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.send_mail('demo@ac.in',subject=' ',body='test'))
+
+    def test_send_empty_mail_body(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.send_mail('demo@ac.in',subject='test',body=' '))
+
+    def test_valid_token(self):
+        mail = Utility.verify_token('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE')
+        assert mail
+
+    def test_invalid_token(self):
+        with pytest.raises(Exception):
+            Utility.verify_token('..')
+
+    def test_user_not_confirmed(self):
+        with pytest.raises(Exception):
+            AccountProcessor.is_user_confirmed('sd')
+
+    def test_user_confirmed(self):
+        AccountProcessor.is_user_confirmed('integ1@gmail.com')
+        assert True
+
+    def test_send_empty_token(self):
+        with pytest.raises(Exception):
+            Utility.verify_token(' ')
+
+    def test_new_user_confirm(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
+        assert True
+
+    def test_user_already_confirmed(self,monkeypatch):
+        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
+
+
+

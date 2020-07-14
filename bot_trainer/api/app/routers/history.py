@@ -21,21 +21,13 @@ async def chat_history_users(current_user: User = Depends(auth.get_current_user)
 
 @router.get("/users/{sender}", response_model=Response)
 async def chat_history(
-        sender: Text,
-        current_user: User = Depends(auth.get_current_user)
+    sender: Text, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches the list of conversation with the agent by particular user
     """
     history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender)
-    return {
-        "data": {
-            "history": list(
-                history
-            )
-        },
-        "message": message
-    }
+    return {"data": {"history": list(history)}, "message": message}
 
 
 @router.get("/metrics/fallback", response_model=Response)
@@ -43,7 +35,9 @@ async def visitor_hit_fallback(current_user: User = Depends(auth.get_current_use
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
-    visitor_hit_fallback, message = ChatHistory.visitor_hit_fallback(current_user.get_bot())
+    visitor_hit_fallback, message = ChatHistory.visitor_hit_fallback(
+        current_user.get_bot()
+    )
     return {"data": visitor_hit_fallback, "message": message}
 
 

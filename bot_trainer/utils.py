@@ -4,19 +4,16 @@ import re
 import shutil
 import string
 import tempfile
-from datetime import datetime
 from glob import glob, iglob
 from html import escape
 from io import BytesIO
-from json import loads
-from pathlib import Path
 from secrets import choice
 from typing import Text, List, Dict
+from fastapi_mail import FastMail
 
 import requests
 import yaml
 from fastapi.security import OAuth2PasswordBearer
-from loguru import logger
 from mongoengine import StringField, ListField
 from mongoengine.document import BaseDocument, Document
 from passlib.context import CryptContext
@@ -41,10 +38,17 @@ from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
+from mongoengine.errors import ValidationError
 
 from .exceptions import AppException
+from jwt import encode, decode
+from datetime import datetime
+from loguru import logger
+from pathlib import Path
+from json import loads
 
-
+from validators import ValidationFailure
+from validators import email as mail_check
 class Utility:
     """
     Class contains logic for various utilities
@@ -60,6 +64,7 @@ class Utility:
         special=1,  # need min. 1 special characters
     )
     markdown_reader = MarkdownReader()
+    verification = None
 
     @staticmethod
     def check_empty_string(value: str):
@@ -570,7 +575,6 @@ class Utility:
 
         configuration.load(config)
 
-
     @staticmethod
     def load_configuration_yaml(file: Text):
         """
@@ -586,7 +590,7 @@ class Utility:
             :param file: yaml configuration file
             :return: None
         """
-        if Path(file).suffix not in ['.yml', '.yaml']:
+        if Path(file).suffix not in [".yml", ".yaml"]:
             raise AppException("Not a yaml file")
         data = yaml.safe_load(open(file))
         Utility.__process_env_in_yaml(data)
@@ -596,7 +600,9 @@ class Utility:
     def __process_env_in_yaml(items: dict):
         for key in items:
             if isinstance(items[key], str):
-                Utility.__extract_env(items, key, )
+                Utility.__extract_env(
+                    items, key,
+                )
             elif isinstance(items[key], dict):
                 Utility.__process_env_in_yaml(items[key])
 
@@ -616,12 +622,94 @@ class Utility:
                 raise AppException("Invalid value format!")
 
             try:
-                if new_value in ['True', 'False']:
+                if new_value in ["True", "False"]:
                     new_value = new_value.lower()
                 items[key] = loads(new_value)
             except Exception:
                 items[key] = new_value
 
-
         elif value.startswith("${") or value.endswith("}"):
             raise AppException("Invalid value format!")
+
+    @staticmethod
+    def load_verification():
+        """
+            Loads the variables from the
+            verification.yaml file
+        """
+
+        Utility.verification = Utility.load_configuration_yaml(
+            os.getenv("VERIFICATION_CONF", "./verification.yaml")
+        )
+
+    @staticmethod
+    async def send_mail(email: str,subject: str,body: str):
+        """
+        Used to send the link for confirmation of new user account
+
+        :param email: email id of the recipient
+        :param subject: subject of the mail
+        :param body: body or message of the mail
+        :return: None
+        """
+        if isinstance(mail_check(email), ValidationFailure):
+            raise AppException("Please check if email is valid")
+
+        if (
+            Utility.check_empty_string(subject)
+            or Utility.check_empty_string(body)
+        ):
+            raise ValidationError(
+                "Subject and body of the mail cannot be empty or blank space"
+            )
+
+        mail_notify = FastMail(
+            email=Utility.verification["email"]["sender"]["email"],
+            password=Utility.verification["email"]["sender"]["password"],
+            tls=True,
+            port=Utility.verification["email"]["sender"]["port"],
+            service=Utility.verification["email"]["sender"]["service"],
+        )
+
+        await mail_notify.send_message(
+            recipient=email,
+            subject=subject,
+            body=body,
+        )
+
+    @staticmethod
+    def generate_token(email: str):
+        """
+        Used to encode the mail id into a token
+
+        :param email: mail id of the recipient
+        :return: the encoded token
+        """
+        data = {"mail_id": email}
+        encoded_jwt = encode(
+            data,
+            Utility.environment["SECRET_KEY"],
+            algorithm=Utility.environment["ALGORITHM"],
+        ).decode("utf-8")
+        return encoded_jwt
+
+    @staticmethod
+    def verify_token(token: str):
+        """
+        Used to check if token is valid
+
+        :param token: the token from the confirmation link
+        :return: mail id
+        """
+        try:
+
+            decoded_jwt = decode(
+                token,
+                Utility.environment["SECRET_KEY"],
+                algorithm=Utility.environment["ALGORITHM"],
+            )
+            mail = decoded_jwt["mail_id"]
+            return mail
+
+        except Exception:
+            raise AppException("Invalid token")

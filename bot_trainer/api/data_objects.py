@@ -61,3 +61,14 @@ class Account(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Account Name cannot be empty or blank spaces")
+
+
+class UserEmailConfirmation(Document):
+    email = StringField(required=True, primary_key=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.email):
+            raise ValidationError("Email cannot be empty or blank spaces")
+        elif isinstance(email(self.email), ValidationFailure):
+            raise ValidationError("Invalid email address")
