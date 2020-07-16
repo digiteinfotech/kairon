@@ -9,6 +9,8 @@ html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "collapse_navigation" : False
 }
+html_logo = 'logo.svg'
+html_favicon = 'logo.svg'
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
