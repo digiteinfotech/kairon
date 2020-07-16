@@ -42,7 +42,7 @@ from mongoengine.errors import ValidationError
 
 from .exceptions import AppException
 from jwt import encode, decode
-from datetime import datetime
+from datetime import datetime, timedelta
 from loguru import logger
 from pathlib import Path
 from json import loads
@@ -678,14 +678,17 @@ class Utility:
         )
 
     @staticmethod
-    def generate_token(email: str):
+    def generate_token(email: str, minutes_to_expire=1440):
         """
         Used to encode the mail id into a token
 
         :param email: mail id of the recipient
-        :return: the encoded token
+        :param minutes_to_expire: time in minutes until the token expires
+        :return: the token with encoded mail id
         """
         data = {"mail_id": email}
+        expire = datetime.utcnow() + timedelta(minutes=minutes_to_expire)
+        data.update({"exp": expire})
         encoded_jwt = encode(
             data,
             Utility.environment["SECRET_KEY"],

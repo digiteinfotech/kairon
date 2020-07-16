@@ -7,6 +7,9 @@ from bot_trainer.api.data_objects import Account, User, Bot, UserEmailConfirmati
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 from bot_trainer.exceptions import AppException
+from validators import ValidationFailure
+from validators import email as mail_check
+from datetime import datetime
 
 Utility.load_verification()
 
@@ -252,7 +255,7 @@ class AccountProcessor:
             )
             if AccountProcessor.EMAIL_VERIFIED:
                 token = Utility.generate_token(account_setup.get("email"))
-                link = Utility.verification["email"]["confirmation"]["url"] + '/confirm/' + token
+                link = Utility.verification["email"]["confirmation"]["url"] + '/verify/' + token
                 body = Utility.verification['email']['templates']['confirmation_body'] + link
                 subject = Utility.verification['email']['templates']['confirmation_subject']
                 await Utility.send_mail(email=account_setup.get("email"),subject=subject,body=body)
@@ -313,15 +316,12 @@ class AccountProcessor:
     @staticmethod
     def is_user_confirmed(email: str):
         """
-        Checks if user is verified
+        Checks if user is verified and raises an Exception if not
 
         :param email: mail id of user
-        :return: True,False or exception based on the user
+        :return: None
         """
-        try:
-            UserEmailConfirmation.objects().get(email=email)
-
-        except Exception:
+        if not Utility.is_exist(UserEmailConfirmation, email__iexact=email.strip(), raise_error=False):
             raise AppException("Please verify your mail")
 
     @staticmethod
@@ -334,3 +334,63 @@ class AccountProcessor:
         """
         if AccountProcessor.EMAIL_VERIFIED:
             AccountProcessor.is_user_confirmed(email)
+
+    @staticmethod
+    async def send_reset_link(mail: str):
+        """
+        Sends a password reset link to the mail id
+
+        :param mail: email id of the user
+        :return: None
+        """
+        if isinstance(mail_check(mail), ValidationFailure):
+            raise AppException("Please enter valid email id")
+        if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+            raise AppException("Error! There is no user with the following mail id")
+        if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
+            raise AppException("Error! The following user's mail is not verified")
+        token = Utility.generate_token(mail)
+        link = Utility.verification["email"]["confirmation"]["url"] + '/reset_password/' + token
+        body = Utility.verification['email']['templates']['password_reset_body'] + link
+        subject = Utility.verification['email']['templates']['password_reset_subject']
+        await Utility.send_mail(email=mail, subject=subject, body=body)
+
+    @staticmethod
+    async def overwrite_password(token:str, password:str):
+        """
+        Changes the user's password
+
+        :param token: unique token from the password reset page
+        :param password: new password entered by the user
+        :return: None
+        """
+        if Utility.check_empty_string(password):
+            raise AppException("password cannot be empty or blank")
+        email = Utility.verify_token(token)
+        user = User.objects().get(email=email)
+        user.password = Utility.get_password_hash(password.strip())
+        user.user = email
+        user.timestamp = datetime.utcnow
+        user.save()
+        subject = Utility.verification['email']['templates']['password_changed_subject']
+        body = Utility.verification['email']['templates']['password_changed_body']
+        await Utility.send_mail(email=email, subject=subject, body=body)
+
+    @staticmethod
+    async def send_confirmation_link(mail: str):
+        """
+        Sends a link to the user's mail id for account verification
+
+        :param mail: the mail id of the user
+        :return: None
+        """
+        if isinstance(mail_check(mail), ValidationFailure):
+            raise AppException("Please enter valid email id")
+        Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
+        if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+            raise AppException("Error! There is no user with the following mail id")
+        token = Utility.generate_token(mail)
+        link = Utility.verification["email"]["confirmation"]["url"] + '/verify/' + token
+        body = Utility.verification['email']['templates']['confirmation_body'] + link
+        subject = Utility.verification['email']['templates']['confirmation_subject']
+        await Utility.send_mail(email=mail, subject=subject, body=body)

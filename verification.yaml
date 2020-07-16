@@ -9,7 +9,10 @@ email:
         service: ${EMAIL_SENDER_SERVICE:"changeit"}
     templates:
         confirmation_subject: ${EMAIL_TEMPLATES_CONFIRMATION_SUBJECT:"Email Confirmation"}
-        confirmation_body: ${EMAIL_TEMPLATES_CONFIRMATION_BODY:"Thanks for signing up. You're one step away from accessing your account - please click on this confirmation link. "}
+        confirmation_body: ${EMAIL_TEMPLATES_CONFIRMATION_BODY:"Thanks for signing up. You're one step away from accessing your account - please click on this confirmation link. (NOTE - The following link will expire after one day) "}
         confirmed_subject: ${EMAIL_TEMPLATES_CONFIRMED_SUBJECT:"Email Confirmed!"}
         confirmed_body: ${EMAIL_TEMPLATES_CONFIRMED_BODY:"Thanks for confirming your email address, you may now proceed to train your bot. Need help? Contact us @..."}
-
+        password_reset_subject: ${EMAIL_TEMPLATES_PASSWORD_RESET_SUBJECT:"Reset Password"}
+        password_reset_body: ${EMAIL_TEMPLATES_PASSWORD_RESET_BODY:"We heard that you lost your password. But don’t worry! You can use the following link to reset your password. (NOTE - The following link will expire after one day) "}
+        password_changed_subject: ${EMAIL_TEMPLATES_PASSWORD_CHANGED_SUBJECT:"Password Changed!"}
+        password_changed_body: ${EMAIL_TEMPLATES_PASSWORD_CHANGED_BODY:"Your password has been changed, please contact us @ ... if this was not you."}

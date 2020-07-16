@@ -116,7 +116,7 @@ The verification.yaml file can be used to configure the process for account conf
    You can also use the environment variable **EMAIL_VERIFY** to change the values.
 * **url** - 
 
-  this url, along with a unique token is sent to the user's mail id for account verification.
+  this url, along with a unique token is sent to the user's mail id for account verification as well as for password reset tasks.
    
   You can also use the environment variable **EMAIL_CONFIRMATION_URL** to change the values.
 * **email** - 
@@ -146,7 +146,7 @@ The verification.yaml file can be used to configure the process for account conf
   You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMATION_SUBJECT** to change the subject.
 * **confirmation_body** -
 
-  the body of the mail to be sent for confirmation. This also has the verification link included.
+  the body of the mail to be sent for confirmation.
   
   You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMATION_BODY** to change the body of the mail.
 * **confirmed_subject** -
@@ -158,7 +158,27 @@ The verification.yaml file can be used to configure the process for account conf
 
   the body of the mail to be sent after confirmation.
   
-  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMED_BODY** to change the body of the mail.   
+  You can also use the environment variable **EMAIL_TEMPLATES_CONFIRMED_BODY** to change the body of the mail.
+* **password_reset_subject** -
+
+  the subject of the mail to be sent for password reset.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_PASSWORD_RESET_SUBJECT** to change the subject.
+* **password_reset_body** -
+
+  the body of the mail to be sent for password reset.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_PASSWORD_RESET_BODY** to change the body of the mail.
+* **password_changed_subject** -
+
+  the subject of the mail to be sent after changing the password.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_PASSWORD_CHANGED_SUBJECT** to change the subject.
+* **password_changed_body** -
+
+  the body of the mail to be sent after changing the password.
+  
+  You can also use the environment variable **EMAIL_TEMPLATES_PASSWORD_CHANGED_BODY** to change the body of the mail.  
 
 # Documentation
 
