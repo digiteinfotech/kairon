@@ -1302,13 +1302,13 @@ def test_delete_intent():
     assert actual['message'] == "Intent deleted!"
     assert actual['success']
 def test_api_login_with_account_not_verified():
-    AccountProcessor.EMAIL_VERIFIED=True
+    AccountProcessor.EMAIL_ENABLED=True
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_VERIFIED = False
+    AccountProcessor.EMAIL_ENABLED = False
 
     assert not actual['success']
     assert actual['error_code'] == 422
@@ -1318,10 +1318,10 @@ def test_api_login_with_account_not_verified():
 
 
 def test_account_registration_with_confirmation(monkeypatch):
-    monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
-    AccountProcessor.EMAIL_VERIFIED = True
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/registration",
         json={
@@ -1344,7 +1344,7 @@ def test_account_registration_with_confirmation(monkeypatch):
         json={'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
                            )
     actual = response.json()
-    AccountProcessor.EMAIL_VERIFIED = False
+    AccountProcessor.EMAIL_ENABLED = False
 
     assert actual['message'] == "Account Verified!"
     assert actual['data'] is None
@@ -1366,13 +1366,13 @@ def test_invalid_token_for_confirmation():
 
 
 def test_login_for_verified():
-    AccountProcessor.EMAIL_VERIFIED = True
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@1"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_VERIFIED = False
+    AccountProcessor.EMAIL_ENABLED = False
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -1380,34 +1380,38 @@ def test_login_for_verified():
     pytest.token_type = actual["data"]["token_type"]
 
 def test_reset_password_for_valid_id(monkeypatch):
-    monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/password/reset",
         json={"data": "integ1@gmail.com"},
     )
     actual = response.json()
+    AccountProcessor.EMAIL_ENABLED = False
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Success! A password reset link has been sent to your mail id"
     assert actual['data'] is None
 
 def test_reset_password_for_invalid_id():
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/password/reset",
         json={"data": "sasha.41195@gmail.com"},
     )
     actual = response.json()
+    AccountProcessor.EMAIL_ENABLED = False
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Error! There is no user with the following mail id"
     assert actual['data'] is None
 
 def test_overwrite_password_for_matching_passwords(monkeypatch):
-    monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
     response = client.post(
         "/api/account/password/change",
         json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
@@ -1445,26 +1449,45 @@ def test_login_old_password():
     assert actual['data'] is None
 
 def test_send_link_for_valid_id(monkeypatch):
-    monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
                                'data': 'integration@demo.ai'},
                            )
     actual = response.json()
+    AccountProcessor.EMAIL_ENABLED = False
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Success! Confirmation link sent'
     assert actual['data'] is None
 
 def test_send_link_for_confirmed_id():
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
                                'data': 'integ1@gmail.com'},
                            )
     actual = response.json()
+    AccountProcessor.EMAIL_ENABLED = False
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Email already confirmed!'
+    assert actual['data'] is None
+
+def test_overwrite_password_for_non_matching_passwords():
+    AccountProcessor.EMAIL_ENABLED = True
+    response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
+            "password": "Welcome@2",
+            "confirm_password": "Welcume@2"},
+    )
+    actual = response.json()
+    AccountProcessor.EMAIL_ENABLED = False
+    assert not actual["success"]
+    assert actual["error_code"] == 422
     assert actual['data'] is None

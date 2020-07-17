@@ -107,18 +107,18 @@ and set google analytics tracking id
 ## System Configuration
 
 ### Email verification setup
-The verification.yaml file can be used to configure the process for account confirmation through a verification link sent to the user's mail id. It consists of the following parameters:
+The email.yaml file can be used to configure the process for account confirmation through a verification link sent to the user's mail id. It consists of the following parameters:
 
-* **verify** -
+* **enable** -
  
-   set value to True for enabling verification, and False to disable.
+   set value to True for enabling email verification, and False to disable.
    
-   You can also use the environment variable **EMAIL_VERIFY** to change the values.
+   You can also use the environment variable **EMAIL_ENABLE** to change the values.
 * **url** - 
 
   this url, along with a unique token is sent to the user's mail id for account verification as well as for password reset tasks.
    
-  You can also use the environment variable **EMAIL_CONFIRMATION_URL** to change the values.
+  You can also use the environment variable **APP_URL** to change the values.
 * **email** - 
 
   the mail id of the account which sends the confirmation mail.

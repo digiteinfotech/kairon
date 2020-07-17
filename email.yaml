@@ -1,7 +1,7 @@
+app:
+    url: ${APP_URL:"chiron.digite.com"}
 email:
-    verify: ${EMAIL_VERIFY:False}
-    confirmation:
-        url: ${EMAIL_CONFIRMATION_URL:"chiron.digite.com"}
+    enable: ${EMAIL_ENABLE:False}
     sender:
         email: ${EMAIL_SENDER_EMAIL:"changeit@changeit.com"}
         password: ${EMAIL_SENDER_PASSWORD:"changeit"}

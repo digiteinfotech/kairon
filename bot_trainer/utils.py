@@ -64,7 +64,7 @@ class Utility:
         special=1,  # need min. 1 special characters
     )
     markdown_reader = MarkdownReader()
-    verification = None
+    email_conf = None
 
     @staticmethod
     def check_empty_string(value: str):
@@ -632,14 +632,14 @@ class Utility:
             raise AppException("Invalid value format!")
 
     @staticmethod
-    def load_verification():
+    def load_email_configuration():
         """
             Loads the variables from the
-            verification.yaml file
+            email.yaml file
         """
 
-        Utility.verification = Utility.load_configuration_yaml(
-            os.getenv("VERIFICATION_CONF", "./verification.yaml")
+        Utility.email_conf = Utility.load_configuration_yaml(
+            os.getenv("EMAIL_CONF", "./email.yaml")
         )
 
     @staticmethod
@@ -664,11 +664,11 @@ class Utility:
             )
 
         mail_notify = FastMail(
-            email=Utility.verification["email"]["sender"]["email"],
-            password=Utility.verification["email"]["sender"]["password"],
+            email=Utility.email_conf["email"]["sender"]["email"],
+            password=Utility.email_conf["email"]["sender"]["password"],
             tls=True,
-            port=Utility.verification["email"]["sender"]["port"],
-            service=Utility.verification["email"]["sender"]["service"],
+            port=Utility.email_conf["email"]["sender"]["port"],
+            service=Utility.email_conf["email"]["sender"]["service"],
         )
 
         await mail_notify.send_message(

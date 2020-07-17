@@ -11,11 +11,11 @@ from validators import ValidationFailure
 from validators import email as mail_check
 from datetime import datetime
 
-Utility.load_verification()
+Utility.load_email_configuration()
 
 
 class AccountProcessor:
-    EMAIL_VERIFIED = Utility.verification["email"]["verify"]
+    EMAIL_ENABLED = Utility.email_conf["email"]["enable"]
 
     @staticmethod
     def add_account(name: str, user: str):
@@ -253,11 +253,11 @@ class AccountProcessor:
             await MongoProcessor().save_from_path(
                 "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
-            if AccountProcessor.EMAIL_VERIFIED:
+            if AccountProcessor.EMAIL_ENABLED:
                 token = Utility.generate_token(account_setup.get("email"))
-                link = Utility.verification["email"]["confirmation"]["url"] + '/verify/' + token
-                body = Utility.verification['email']['templates']['confirmation_body'] + link
-                subject = Utility.verification['email']['templates']['confirmation_subject']
+                link = Utility.email_conf["app"]["url"] + '/verify/' + token
+                body = Utility.email_conf['email']['templates']['confirmation_body'] + link
+                subject = Utility.email_conf['email']['templates']['confirmation_subject']
                 await Utility.send_mail(email=account_setup.get("email"),subject=subject,body=body)
 
         except Exception as e:
@@ -308,8 +308,8 @@ class AccountProcessor:
         confirm = UserEmailConfirmation()
         confirm.email = email_confirm
         confirm.save()
-        subject = Utility.verification['email']['templates']['confirmed_subject']
-        body = Utility.verification['email']['templates']['confirmed_body']
+        subject = Utility.email_conf['email']['templates']['confirmed_subject']
+        body = Utility.email_conf['email']['templates']['confirmed_body']
         await Utility.send_mail(email=email_confirm, subject=subject, body=body)
 
 
@@ -332,7 +332,7 @@ class AccountProcessor:
         :param email: email of the user
         :return: None
         """
-        if AccountProcessor.EMAIL_VERIFIED:
+        if AccountProcessor.EMAIL_ENABLED:
             AccountProcessor.is_user_confirmed(email)
 
     @staticmethod
@@ -343,17 +343,20 @@ class AccountProcessor:
         :param mail: email id of the user
         :return: None
         """
-        if isinstance(mail_check(mail), ValidationFailure):
-            raise AppException("Please enter valid email id")
-        if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
-            raise AppException("Error! There is no user with the following mail id")
-        if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
-            raise AppException("Error! The following user's mail is not verified")
-        token = Utility.generate_token(mail)
-        link = Utility.verification["email"]["confirmation"]["url"] + '/reset_password/' + token
-        body = Utility.verification['email']['templates']['password_reset_body'] + link
-        subject = Utility.verification['email']['templates']['password_reset_subject']
-        await Utility.send_mail(email=mail, subject=subject, body=body)
+        if AccountProcessor.EMAIL_ENABLED:
+            if isinstance(mail_check(mail), ValidationFailure):
+                raise AppException("Please enter valid email id")
+            if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+                raise AppException("Error! There is no user with the following mail id")
+            if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
+                raise AppException("Error! The following user's mail is not verified")
+            token = Utility.generate_token(mail)
+            link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
+            body = Utility.email_conf['email']['templates']['password_reset_body'] + link
+            subject = Utility.email_conf['email']['templates']['password_reset_subject']
+            await Utility.send_mail(email=mail, subject=subject, body=body)
+        else:
+            raise AppException("Error! Email verification is not enabled")
 
     @staticmethod
     async def overwrite_password(token:str, password:str):
@@ -372,8 +375,8 @@ class AccountProcessor:
         user.user = email
         user.timestamp = datetime.utcnow
         user.save()
-        subject = Utility.verification['email']['templates']['password_changed_subject']
-        body = Utility.verification['email']['templates']['password_changed_body']
+        subject = Utility.email_conf['email']['templates']['password_changed_subject']
+        body = Utility.email_conf['email']['templates']['password_changed_body']
         await Utility.send_mail(email=email, subject=subject, body=body)
 
     @staticmethod
@@ -384,13 +387,16 @@ class AccountProcessor:
         :param mail: the mail id of the user
         :return: None
         """
-        if isinstance(mail_check(mail), ValidationFailure):
-            raise AppException("Please enter valid email id")
-        Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
-        if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
-            raise AppException("Error! There is no user with the following mail id")
-        token = Utility.generate_token(mail)
-        link = Utility.verification["email"]["confirmation"]["url"] + '/verify/' + token
-        body = Utility.verification['email']['templates']['confirmation_body'] + link
-        subject = Utility.verification['email']['templates']['confirmation_subject']
-        await Utility.send_mail(email=mail, subject=subject, body=body)
+        if AccountProcessor.EMAIL_ENABLED:
+            if isinstance(mail_check(mail), ValidationFailure):
+                raise AppException("Please enter valid email id")
+            Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
+            if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+                raise AppException("Error! There is no user with the following mail id")
+            token = Utility.generate_token(mail)
+            link = Utility.email_conf["app"]["url"] + '/verify/' + token
+            body = Utility.email_conf['email']['templates']['confirmation_body'] + link
+            subject = Utility.email_conf['email']['templates']['confirmation_subject']
+            await Utility.send_mail(email=mail, subject=subject, body=body)
+        else:
+            raise AppException("Error! Email verification is not enabled")
