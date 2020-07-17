@@ -36,7 +36,7 @@ COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
 COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
-COPY verification.yaml ${RASA_NLU_HOME}/
+COPY email.yaml ${RASA_NLU_HOME}/
 
 EXPOSE 80
 
