@@ -461,33 +461,33 @@ class TestAccountProcessor:
         assert actual
 
     def test_send_mail(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         loop.run_until_complete(Utility.send_mail('demo@ac.in',subject='test',body='test'))
         assert True
 
     def test_send_false_email_id(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(Utility.send_mail('..',subject='test',body="test"))
 
     def test_send_empty_mail_subject(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(Utility.send_mail('demo@ac.in',subject=' ',body='test'))
 
     def test_send_empty_mail_body(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(Utility.send_mail('demo@ac.in',subject='test',body=' '))
@@ -513,20 +513,139 @@ class TestAccountProcessor:
             Utility.verify_token(' ')
 
     def test_new_user_confirm(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
         assert True
 
     def test_user_already_confirmed(self,monkeypatch):
-        monkeypatch.setitem(Utility.verification['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.verification['email']['sender'], "service", "gmail")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
 
+    def test_reset_link_with_mail(self,monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.send_reset_link('integ1@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+        assert True
+
+    def test_reset_link_with_empty_mail(self,monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link(''))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_unregistered_mail(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('sasha.41195@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_overwrite_password_with_invalid_token(self,monkeypatch):
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.overwrite_password('fgh',"asdfghj@1"))
+
+    def test_overwrite_password_with_empty_password_string(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.overwrite_password('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20', " "))
+
+    def test_overwrite_password_with_valid_entries(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.overwrite_password('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20',"Welcome@3"))
+        assert True
+
+    def test_send_confirmation_link_with_valid_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
+        AccountProcessor.EMAIL_ENABLED = False
+        assert True
+
+    def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('integ1@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_send_confirmation_link_with_invalid_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link(''))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_send_confirmation_link_with_unregistered_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('sasha.41195@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_mail_not_enabled(self,monkeypatch):
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integ1@gmail.com'))
+
+    def test_send_confirmation_link_with_mail_not_enabled(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
+        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
 
 
