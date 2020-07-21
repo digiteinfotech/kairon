@@ -1320,7 +1320,7 @@ def test_api_login_with_account_not_verified():
 def test_account_registration_with_confirmation(monkeypatch):
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/registration",
@@ -1382,7 +1382,7 @@ def test_login_for_verified():
 def test_reset_password_for_valid_id(monkeypatch):
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/password/reset",
@@ -1411,7 +1411,7 @@ def test_reset_password_for_invalid_id():
 def test_overwrite_password_for_matching_passwords(monkeypatch):
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
     response = client.post(
         "/api/account/password/change",
         json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
@@ -1451,7 +1451,7 @@ def test_login_old_password():
 def test_send_link_for_valid_id(monkeypatch):
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
     monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
-    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "gmail")
+    monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post("/api/account/email/confirmation/link",
                            json={

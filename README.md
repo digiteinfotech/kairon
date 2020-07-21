@@ -139,6 +139,16 @@ The email.yaml file can be used to configure the process for account confirmatio
   the mail service that is used to send the confirmation mail [For ex. "gmail"].
  
   You can also use the environment variable **EMAIL_SENDER_SERVICE** to change the values.
+* **tls** -
+ 
+   set value to True for enabling transport layer security, and False to disable.
+   
+   You can also use the environment variable **EMAIL_SENDER_TLS** to change the values.
+* **userid** - 
+
+  the user ID for the mail service if you're using a custom service for sending mails.
+   
+  You can also use the environment variable **EMAIL_SENDER_USERID** to change the values.
 * **confirmation_subject** -
 
   the subject of the mail to be sent for confirmation.

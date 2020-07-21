@@ -9,7 +9,7 @@ from html import escape
 from io import BytesIO
 from secrets import choice
 from typing import Text, List, Dict
-from fastapi_mail import FastMail
+from smtplib import SMTP
 
 import requests
 import yaml
@@ -643,7 +643,7 @@ class Utility:
         )
 
     @staticmethod
-    async def send_mail(email: str,subject: str,body: str):
+    async def send_mail(email: str, subject: str, body: str):
         """
         Used to send the link for confirmation of new user account
 
@@ -663,19 +663,19 @@ class Utility:
                 "Subject and body of the mail cannot be empty or blank space"
             )
 
-        mail_notify = FastMail(
-            email=Utility.email_conf["email"]["sender"]["email"],
-            password=Utility.email_conf["email"]["sender"]["password"],
-            tls=True,
-            port=Utility.email_conf["email"]["sender"]["port"],
-            service=Utility.email_conf["email"]["sender"]["service"],
-        )
-
-        await mail_notify.send_message(
-            recipient=email,
-            subject=subject,
-            body=body,
-        )
+        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"], port=Utility.email_conf["email"]["sender"]["port"])
+        smtp.connect(Utility.email_conf["email"]["sender"]["service"], Utility.email_conf["email"]["sender"]["port"])
+        if Utility.email_conf["email"]["sender"]["tls"]:
+            smtp.starttls()
+        smtp.login(Utility.email_conf["email"]["sender"]["userid"] if
+                   Utility.email_conf["email"]["sender"]["userid"] else
+                   Utility.email_conf["email"]["sender"]["email"],
+                   Utility.email_conf["email"]["sender"]["password"])
+        from_addr = Utility.email_conf["email"]["sender"]["email"]
+        msg = "From: %s\nTo: %s\nSubject: %s\n\n\n%s" % (from_addr, email, subject, body)
+        msg = msg.encode('utf-8')
+        smtp.sendmail(from_addr, email, msg)
+        smtp.quit()
 
     @staticmethod
     def generate_token(email: str, minutes_to_expire=1440):
