@@ -34,14 +34,11 @@ class ChatHistory:
                 username=endpoint["tracker_endpoint"].get("username"),
                 password=endpoint["tracker_endpoint"].get("password"),
             )
-        except ServerSelectionTimeoutError as e:
-            logger.info(e)
-            message = "Loading test conversation! Production Connection Failed!"
         except Exception as e:
             logger.info(e)
             message = "Loading test conversation! " + str(e)
-        finally:
             tracker = Utility.get_local_mongo_store(bot, domain)
+
         return domain, tracker, message
 
     @staticmethod
