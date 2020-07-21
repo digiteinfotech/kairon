@@ -18,6 +18,7 @@ class ChatHistory:
     def get_tracker_and_domain(bot: Text):
         """
         loads domain data and mongo tracker
+
         :param bot: bot id
         :return: tuple domain, tracker
         """
@@ -43,6 +44,7 @@ class ChatHistory:
     def fetch_chat_history(bot: Text, sender, latest_history=False):
         """
         fetches chat history
+
         :param bot: bot id
         :param sender: history details for user
         :param latest_history: whether to fetch latest or complete history
@@ -57,6 +59,7 @@ class ChatHistory:
     def fetch_chat_users(bot: Text):
         """
         fetches user list who has conversation with the agent
+
         :param bot: bot id
         :return: list of user id
         """
@@ -115,6 +118,7 @@ class ChatHistory:
     def fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
         """
         loads list of conversation events from chat history
+
         :param bot: bot id
         :param sender_id: user id
         :param latest_history: whether to fetch latest history or complete history, default is latest
@@ -140,6 +144,7 @@ class ChatHistory:
     def visitor_hit_fallback(bot: Text):
         """
         Counts the number of times, the agent was unable to provide a response to users
+
         :param bot: bot id
         :return: list of visitor fallback
         """
@@ -161,6 +166,7 @@ class ChatHistory:
     def conversation_steps(bot: Text):
         """
         calculates the number of conversation steps between agent and users
+
         :param bot: bot id
         :return: list of conversation step count
         """
@@ -186,6 +192,7 @@ class ChatHistory:
     def conversation_time(bot: Text):
         """
         calculates the duration of between agent and users
+
         :param bot: bot id
         :return: list of users duration
         """
@@ -215,6 +222,7 @@ class ChatHistory:
     def get_conversations(bot: Text):
         """
         fetches all the conversations between agent and users
+
         :param bot: bot id
         :return: list of conversations, message
         """
