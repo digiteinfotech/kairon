@@ -5,8 +5,10 @@ email:
     sender:
         email: ${EMAIL_SENDER_EMAIL:"changeit@changeit.com"}
         password: ${EMAIL_SENDER_PASSWORD:"changeit"}
-        port: ${EMAIL_SENDER_PORT:"587"}
+        port: ${EMAIL_SENDER_PORT:587}
         service: ${EMAIL_SENDER_SERVICE:"changeit"}
+        tls: ${EMAIL_SENDER_TLS:True}
+        userid: ${EMAIL_SENDER_USERID}
     templates:
         confirmation_subject: ${EMAIL_TEMPLATES_CONFIRMATION_SUBJECT:"Email Confirmation"}
         confirmation_body: ${EMAIL_TEMPLATES_CONFIRMATION_BODY:"Thanks for signing up. You're one step away from accessing your account - please click on this confirmation link. (NOTE - The following link will expire after one day) "}
