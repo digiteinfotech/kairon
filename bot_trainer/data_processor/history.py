@@ -6,7 +6,6 @@ from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 from bot_trainer.utils import Utility
 from .processor import MongoProcessor
 from loguru import logger
-from pymongo.errors import ServerSelectionTimeoutError
 from pymongo import DESCENDING
 
 
@@ -63,7 +62,6 @@ class ChatHistory:
 
         :param bot: bot id
         :return: list of user id
-
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
         users = [
