@@ -28,7 +28,7 @@ RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
 RUN python3 -m pip install password-strength
 RUN python3 -m pip install loguru
-RUN python3 -m pip install smart-config
+RUN python3 -m pip install smart-config==0.1.3
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
 
