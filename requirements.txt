@@ -30,4 +30,4 @@ loguru
 nltk
 transformers
 spacy
-smart-config
+smart-config==0.1.3
