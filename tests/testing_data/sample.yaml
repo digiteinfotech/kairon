@@ -1,6 +1,0 @@
-boolean: ${BOOLEAN_VALUE:True}
-integer: ${INT_VALUE:1}
-plain: value
-system: ${SYSTEM:testing}
-testing:
-  demo: ${ENVIRONMENT_VARIABLE:default}

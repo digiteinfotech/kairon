@@ -10,6 +10,7 @@ from io import BytesIO
 from secrets import choice
 from typing import Text, List, Dict
 from smtplib import SMTP
+from smart_config import ConfigLoader
 
 import requests
 import yaml
@@ -130,11 +131,7 @@ class Utility:
 
         :return: None
         """
-        environment = Utility.load_yaml(os.getenv("system_file", "./system.yaml"))
-        for key in environment:
-            if key in os.environ:
-                environment[key] = os.getenv(key)
-        Utility.environment = environment
+        Utility.environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
 
     @staticmethod
     def validate_fields(fields: Dict, data: Dict):
@@ -575,61 +572,6 @@ class Utility:
 
         configuration.load(config)
 
-    @staticmethod
-    def load_configuration_yaml(file: Text):
-        """
-            substitute environment variable in the yaml field value
-
-            example.yaml
-            database:
-              host: ${DATABASE_HOST:mongodb://localhost}
-
-            it will search for DATABASE_HOST in environment, if not found
-            then default value is set ie. mongodb://localhost
-
-            :param file: yaml configuration file
-            :return: None
-        """
-        if Path(file).suffix not in [".yml", ".yaml"]:
-            raise AppException("Not a yaml file")
-        data = yaml.safe_load(open(file))
-        Utility.__process_env_in_yaml(data)
-        return data
-
-    @staticmethod
-    def __process_env_in_yaml(items: dict):
-        for key in items:
-            if isinstance(items[key], str):
-                Utility.__extract_env(
-                    items, key,
-                )
-            elif isinstance(items[key], dict):
-                Utility.__process_env_in_yaml(items[key])
-
-    @staticmethod
-    def __extract_env(items: dict, key: str):
-        value = items[key]
-        if value.startswith("${") and value.endswith("}"):
-            values = value[2:-1].split(":")
-            if values.__len__() == 2:
-                new_value = os.getenv(values[0], values[1])
-
-            elif values.__len__() == 1:
-                new_value = os.getenv(values[0], None)
-                if not new_value:
-                    logger.warning(f"Unable to find value in environment for key {key}")
-            else:
-                raise AppException("Invalid value format!")
-
-            try:
-                if new_value in ["True", "False"]:
-                    new_value = new_value.lower()
-                items[key] = loads(new_value)
-            except Exception:
-                items[key] = new_value
-
-        elif value.startswith("${") or value.endswith("}"):
-            raise AppException("Invalid value format!")
 
     @staticmethod
     def load_email_configuration():
@@ -638,9 +580,8 @@ class Utility:
             email.yaml file
         """
 
-        Utility.email_conf = Utility.load_configuration_yaml(
-            os.getenv("EMAIL_CONF", "./email.yaml")
-        )
+        Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
+
 
     @staticmethod
     async def send_mail(email: str, subject: str, body: str):
