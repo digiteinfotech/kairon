@@ -21,6 +21,6 @@ async def questions(
         Utility.extract_text_and_entities(data)[0] for data in request_data.data
     ]
     response = requests.post(
-        Utility.environment["augmentation_url"], json=plain_text_data
+        Utility.environment["augmentation"]["url"], json=plain_text_data
     )
     return response.json()

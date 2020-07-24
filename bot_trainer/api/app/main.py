@@ -68,7 +68,7 @@ async def log_requests(request: Request, call_next):
 @app.on_event("startup")
 async def startup():
     """ MongoDB is connected on the bot trainer startup """
-    connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+    connect(host=Utility.environment['database']["url"])
     await AccountProcessor.default_account_setup()
 
 

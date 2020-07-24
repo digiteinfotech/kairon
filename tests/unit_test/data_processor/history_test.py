@@ -10,12 +10,13 @@ from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
 import os
 
+
 class TestHistory:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+        connect(host=Utility.environment['database']["url"])
 
     def tracker_keys(self, *args, **kwargs):
         return [

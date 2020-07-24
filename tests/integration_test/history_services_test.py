@@ -24,7 +24,7 @@ def pytest_configure():
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
-    connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+    connect(host=Utility.environment['database']["url"])
 
 
 def user_details(*args, **kwargs):

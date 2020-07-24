@@ -21,7 +21,7 @@ class TestAccountProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+        connect(host=Utility.environment['database']["url"])
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
@@ -493,31 +493,30 @@ class TestAccountProcessor:
             loop.run_until_complete(Utility.send_mail('demo@ac.in',subject='test',body=' '))
 
     def test_valid_token(self):
-        mail = Utility.verify_token('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE')
+        token = Utility.generate_token('integ1@gmail.com')
+        mail = Utility.verify_token(token)
         assert mail
 
     def test_invalid_token(self):
         with pytest.raises(Exception):
             Utility.verify_token('..')
 
-    def test_user_not_confirmed(self):
-        with pytest.raises(Exception):
-            AccountProcessor.is_user_confirmed('sd')
-
-    def test_user_confirmed(self):
-        AccountProcessor.is_user_confirmed('integ1@gmail.com')
-        assert True
-
-    def test_send_empty_token(self):
-        with pytest.raises(Exception):
-            Utility.verify_token(' ')
-
     def test_new_user_confirm(self,monkeypatch):
+        AccountProcessor.add_user(
+            email="integ2@gmail.com",
+            first_name="inteq",
+            last_name="2",
+            password='Welcome@1',
+            account=1,
+            bot=pytest.bot,
+            user="testAdmin",
+        )
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
+        token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
+        loop.run_until_complete(AccountProcessor.confirm_email(token))
         assert True
 
     def test_user_already_confirmed(self,monkeypatch):
@@ -525,8 +524,21 @@ class TestAccountProcessor:
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
         loop = asyncio.new_event_loop()
+        token = Utility.generate_token('integ2@gmail.com')
         with pytest.raises(Exception):
-            loop.run_until_complete(AccountProcessor.confirm_email("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoic2hhc2hhbmsubUBkaWdpdGUuY29tIn0.GtM8cYPf35-dJWkjYFNlcripFWh7yds8-80oeSvKEiE"))
+            loop.run_until_complete(AccountProcessor.confirm_email(token))
+
+    def test_user_not_confirmed(self):
+        with pytest.raises(Exception):
+            AccountProcessor.is_user_confirmed('sd')
+
+    def test_user_confirmed(self):
+        AccountProcessor.is_user_confirmed('integ2@gmail.com')
+        assert True
+
+    def test_send_empty_token(self):
+        with pytest.raises(Exception):
+            Utility.verify_token(' ')
 
     def test_reset_link_with_mail(self,monkeypatch):
         AccountProcessor.EMAIL_ENABLED = True
@@ -534,7 +546,7 @@ class TestAccountProcessor:
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.send_reset_link('integ1@gmail.com'))
+        loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
         AccountProcessor.EMAIL_ENABLED = False
         assert True
 
@@ -588,17 +600,27 @@ class TestAccountProcessor:
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
+        token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.overwrite_password('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20',"Welcome@3"))
+        loop.run_until_complete(AccountProcessor.overwrite_password(token,"Welcome@3"))
         assert True
 
     def test_send_confirmation_link_with_valid_id(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="integ3@gmail.com",
+            first_name="inteq",
+            last_name="3",
+            password='Welcome@1',
+            account=1,
+            bot=pytest.bot,
+            user="testAdmin",
+        )
         AccountProcessor.EMAIL_ENABLED = True
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
         monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
+        loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))
         AccountProcessor.EMAIL_ENABLED = False
         assert True
 

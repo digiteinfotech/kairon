@@ -27,7 +27,7 @@ class TestMongoProcessor:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+        connect(host=Utility.environment["database"]['url'])
 
     def test_load_from_path(self):
         processor = MongoProcessor()
@@ -951,7 +951,7 @@ class TestModelProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+        connect(host=Utility.environment['database']["url"])
 
     @pytest.fixture
     def test_set_training_status_inprogress(self):
@@ -1026,17 +1026,17 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 5)
+        monkeypatch.setitem(Utility.environment['model'], "training_limit_per_day", 5)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
+        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "MODEL_TRAINING_LIMIT_PER_DAY", 1)
+        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 

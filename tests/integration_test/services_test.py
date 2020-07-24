@@ -24,7 +24,7 @@ token_type = None
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
-    connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+    connect(host=Utility.environment['database']["url"])
 
 
 def pytest_configure():
@@ -950,7 +950,7 @@ def test_integration_token_missing_x_user():
 
 @mongomock.patch(servers=(('localhost', 27019),))
 def test_predict_intent():
-    Utility.environment["mongo_url"] = "mongodb://localhost:27019"
+    Utility.environment['database']["url"] = "mongodb://localhost:27019"
     response = client.post(
         "/api/bot/intents/predict",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

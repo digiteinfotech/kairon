@@ -16,9 +16,9 @@ class Authentication:
     Class contains logic for api Authentication
     """
 
-    SECRET_KEY = Utility.environment["SECRET_KEY"]
-    ALGORITHM = Utility.environment["ALGORITHM"]
-    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment["ACCESS_TOKEN_EXPIRE_MINUTES"]
+    SECRET_KEY = Utility.environment['security']["secret_key"]
+    ALGORITHM = Utility.environment['security']["algorithm"]
+    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
 
     async def get_current_user(
         self, request: Request, token: str = Depends(Utility.oauth2_scheme)

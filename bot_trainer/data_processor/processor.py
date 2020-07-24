@@ -1929,7 +1929,7 @@ class ModelProcessor:
         doc_count = ModelTraining.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment["MODEL_TRAINING_LIMIT_PER_DAY"]:
+        if doc_count >= Utility.environment['model']["training_limit_per_day"]:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
             else:

@@ -454,8 +454,8 @@ class Utility:
         :param domain: domain data
         :return: mongo tracker
         """
-        db_url = Utility.environment["mongo_url"]
-        db_name = Utility.environment["test_conversation_db"]
+        db_url = Utility.environment['database']["url"]
+        db_name = Utility.environment['database']["test_db"]
         username, password, url = Utility.extract_user_password(db_url)
         return MongoTrackerStore(
             domain=domain,
@@ -632,8 +632,8 @@ class Utility:
         data.update({"exp": expire})
         encoded_jwt = encode(
             data,
-            Utility.environment["SECRET_KEY"],
-            algorithm=Utility.environment["ALGORITHM"],
+            Utility.environment['security']["secret_key"],
+            algorithm=Utility.environment['security']["algorithm"],
         ).decode("utf-8")
         return encoded_jwt
 
@@ -649,8 +649,8 @@ class Utility:
 
             decoded_jwt = decode(
                 token,
-                Utility.environment["SECRET_KEY"],
-                algorithm=Utility.environment["ALGORITHM"],
+                Utility.environment['security']["secret_key"],
+                algorithm=Utility.environment['security']["algorithm"],
             )
             mail = decoded_jwt["mail_id"]
             return mail
