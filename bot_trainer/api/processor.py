@@ -290,7 +290,7 @@ class AccountProcessor:
         }
         try:
             user, mail, subject, body = await AccountProcessor.account_setup(account, user="sysadmin")
-            return user
+            return user, mail, subject, body
         except Exception as e:
             logging.info(str(e))
 

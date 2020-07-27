@@ -457,7 +457,7 @@ class TestAccountProcessor:
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
-        actual = loop.run_until_complete(AccountProcessor.default_account_setup())
+        actual, mail, subject, body = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual
 
     async def mock_smtp(self, *args, **kwargs):
