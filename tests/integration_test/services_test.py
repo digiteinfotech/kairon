@@ -15,9 +15,6 @@ from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from rasa.utils.io import read_config_file
-from validators import ValidationFailure
-from validators import email as mail_check
-from mongoengine.errors import ValidationError
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
@@ -80,7 +77,7 @@ def test_account_registration():
         },
     )
     actual = response.json()
-    assert actual["message"] == "Account Registered! A confirmation link has been sent to your mail"
+    assert actual["message"] == "Account Registered!"
     response = client.post(
         "/api/account/registration",
         json={
@@ -94,7 +91,7 @@ def test_account_registration():
         },
     )
     actual = response.json()
-    assert actual["message"] == "Account Registered! A confirmation link has been sent to your mail"
+    assert actual["message"] == "Account Registered!"
 
 
 def test_api_login():
@@ -474,7 +471,7 @@ def test_remove_response_empty_id():
     assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
-def test_remove_response():
+def test_remove_response_():
     training_examples = client.get(
         "/api/bot/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1318,21 +1315,11 @@ def test_api_login_with_account_not_verified():
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
 
-async def mock_send_mail(email: str, subject: str, body: str):
-    if isinstance(mail_check(email), ValidationFailure):
-        raise AppException("Please check if email is valid")
-    if (
-        Utility.check_empty_string(subject)
-        or Utility.check_empty_string(body)
-    ):
-        raise ValidationError(
-            "Subject and body of the mail cannot be empty or blank space"
-        )
-    if not Utility.email_conf["email"]["sender"]["tls"]:
-        raise AppException("TLS not enabled")
+async def mock_smtp(*args, **kwargs):
+    return None
 
 def test_account_registration_with_confirmation(monkeypatch):
-    monkeypatch.setattr(Utility, 'send_mail', mock_send_mail)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/registration",
@@ -1392,7 +1379,7 @@ def test_login_for_verified():
     pytest.token_type = actual["data"]["token_type"]
 
 def test_reset_password_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'send_mail', mock_send_mail)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/account/password/reset",
@@ -1419,7 +1406,7 @@ def test_reset_password_for_invalid_id():
     assert actual['data'] is None
 
 def test_overwrite_password_for_matching_passwords(monkeypatch):
-    monkeypatch.setattr(Utility, 'send_mail', mock_send_mail)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/password/change",
         json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
@@ -1457,7 +1444,7 @@ def test_login_old_password():
     assert actual['data'] is None
 
 def test_send_link_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'send_mail', mock_send_mail)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
