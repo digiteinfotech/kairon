@@ -7,6 +7,7 @@ from bot_trainer.utils import Utility
 from .processor import MongoProcessor
 from loguru import logger
 from pymongo import DESCENDING
+from bot_trainer.exceptions import AppException
 
 
 class ChatHistory:
@@ -64,12 +65,18 @@ class ChatHistory:
         :return: list of user id
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        users = [
-            sender["sender_id"]
-            for sender in tracker.conversations.find(
-                {}, {"sender_id": 1, "_id": 0}
-            ).sort("last_event_time", DESCENDING)
-        ]
+        users = []
+        try:
+            users = [
+                sender["sender_id"]
+                for sender in tracker.conversations.find(
+                    {}, {"sender_id": 1, "_id": 0}
+                ).sort("last_event_time", DESCENDING)
+            ]
+        except Exception as e:
+            raise AppException(e)
+        finally:
+            tracker.client.close()
         return users, message
 
     @staticmethod
@@ -125,20 +132,25 @@ class ChatHistory:
         :return: list of conversation events
         """
         domain, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        if latest_history:
-            return tracker.retrieve(sender_id).as_dialogue().events, message
-        else:
-            user_conversation = tracker.conversations.find_one({"sender_id": sender_id})
-            if user_conversation:
-                return (
-                    DialogueStateTracker.from_dict(
-                        sender_id, list(user_conversation["events"]), domain.slots
+        try:
+            if latest_history:
+                return tracker.retrieve(sender_id).as_dialogue().events, message
+            else:
+                user_conversation = tracker.conversations.find_one({"sender_id": sender_id})
+                if user_conversation:
+                    return (
+                        DialogueStateTracker.from_dict(
+                            sender_id, list(user_conversation["events"]), domain.slots
+                        )
+                            .as_dialogue()
+                            .events,
+                        message,
                     )
-                    .as_dialogue()
-                    .events,
-                    message,
-                )
-            return {}, message
+                return {}, message
+        except Exception as e:
+            raise AppException(e)
+        finally:
+            tracker.client.close()
 
     @staticmethod
     def visitor_hit_fallback(bot: Text):
@@ -227,8 +239,13 @@ class ChatHistory:
         :return: list of conversations, message
         """
         _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        print(ChatHistory.get_tracker_and_domain(bot))
-        conversations = list(tracker.conversations.find())
+        conversations = []
+        try:
+            conversations = list(tracker.conversations.find())
+        except Exception as e:
+            raise AppException(e)
+        finally:
+            tracker.client.close()
         return (conversations, message)
 
     @staticmethod

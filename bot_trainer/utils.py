@@ -4,19 +4,21 @@ import re
 import shutil
 import string
 import tempfile
+from datetime import datetime, timedelta
 from glob import glob, iglob
 from html import escape
 from io import BytesIO
 from secrets import choice
-from typing import Text, List, Dict
 from smtplib import SMTP
-from smart_config import ConfigLoader
+from typing import Text, List, Dict
 
 import requests
 import yaml
 from fastapi.security import OAuth2PasswordBearer
+from jwt import encode, decode
 from mongoengine import StringField, ListField
 from mongoengine.document import BaseDocument, Document
+from mongoengine.errors import ValidationError
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
@@ -39,17 +41,13 @@ from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.training_data import TrainingData
 from rasa.nlu.training_data.formats.markdown import MarkdownReader
 from rasa.nlu.training_data.formats.markdown import entity_regex
-from mongoengine.errors import ValidationError
-
-from .exceptions import AppException
-from jwt import encode, decode
-from datetime import datetime, timedelta
-from loguru import logger
-from pathlib import Path
-from json import loads
-
+from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
+
+from .exceptions import AppException
+
+
 class Utility:
     """
     Class contains logic for various utilities
