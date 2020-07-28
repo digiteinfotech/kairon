@@ -1,13 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Text
 
 import pandas as pd
+from loguru import logger
+from pymongo import MongoClient
 from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
+
+from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
 from .processor import MongoProcessor
-from loguru import logger
-from pymongo import DESCENDING
-from bot_trainer.exceptions import AppException
 
 
 class ChatHistory:
@@ -71,7 +72,7 @@ class ChatHistory:
                 sender["sender_id"]
                 for sender in tracker.conversations.find(
                     {}, {"sender_id": 1, "_id": 0}
-                ).sort("last_event_time", DESCENDING)
+                )
             ]
         except Exception as e:
             raise AppException(e)
@@ -153,24 +154,46 @@ class ChatHistory:
             tracker.client.close()
 
     @staticmethod
-    def visitor_hit_fallback(bot: Text):
+    def visitor_hit_fallback(bot: Text, month: int = 1):
         """
         Counts the number of times, the agent was unable to provide a response to users
 
         :param bot: bot id
+        :param month: history month default is 1 month and max is 6 months
         :return: list of visitor fallback
         """
-        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
-        if data_frame.empty:
+
+        client, database = ChatHistory.get_mongo_connection(bot)
+        db = client.get_database(database)
+        conversations = db.get_collection("conversations")
+        values = []
+        message = None
+        start_time = datetime.now() - timedelta(month * 30)
+        try:
+            values = list(conversations.aggregate([{"$unwind": "$events"},
+                                                  {"$match": {"events.event": "action", "events.timestamp": {"$gte": start_time.timestamp()}}},
+                                                  {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
+                                                              "events": {"$push": "$events"}}},
+                                                  {"$unwind": "$events"},
+                                                  {"$match": {
+                                                      "events.name": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                                                  {"$group": {"_id": None, "total_count": {"$first": "$total_count"},
+                                                              "fallback_count": {"$sum": 1}}},
+                                                  {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}
+                                                  ], allowDiskUse=True))
+        except Exception as e:
+            message = str(e)
+        finally:
+            client.close()
+        print(values)
+        if not values:
             fallback_count = 0
             total_count = 0
         else:
-            fallback_count = data_frame[
-                data_frame["name"] == "action_default_fallback"
-            ].count()["name"]
-            total_count = data_frame.count()["name"]
+            fallback_count = values[0]['fallback_count'] if values[0]['fallback_count'] else 0
+            total_count = values[0]['total_count'] if values[0]['total_count'] else 0
         return (
-            {"fallback_count": int(fallback_count), "total_count": int(total_count)},
+            {"fallback_count": fallback_count, "total_count": total_count},
             message,
         )
 
@@ -194,9 +217,9 @@ class ChatHistory:
             ]
             return (
                 data_frame.groupby(["sender_id"])
-                .count()
-                .reset_index()[["sender_id", "event"]]
-                .to_dict(orient="records"),
+                    .count()
+                    .reset_index()[["sender_id", "event"]]
+                    .to_dict(orient="records"),
                 message,
             )
 
@@ -223,10 +246,10 @@ class ChatHistory:
             ) - pd.to_datetime(data_frame["prev_timestamp"], unit="s")
             return (
                 data_frame[["sender_id", "time"]]
-                .groupby("sender_id")
-                .sum()
-                .reset_index()
-                .to_dict(orient="records"),
+                    .groupby("sender_id")
+                    .sum()
+                    .reset_index()
+                    .to_dict(orient="records"),
                 message,
             )
 
@@ -280,3 +303,75 @@ class ChatHistory:
             data_frame = data_frame[data_frame["event"].isin(filter_events)]
             data_frame = data_frame[filter_columns]
         return data_frame, message
+
+    @staticmethod
+    def user_with_metrics(bot, month=1):
+        """
+        fetches user with the steps and time in conversation
+
+        :param bot: bot id
+        :param month: history month default is 1 month and max is 6 months
+        :return: list of users with step and time in conversation
+        """
+        client, database = ChatHistory.get_mongo_connection(bot)
+        db = client.get_database(database)
+        conversations = db.get_collection("conversations")
+        start_time = datetime.now() - timedelta(month * 30)
+        users = []
+        try:
+            list(
+                conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                         {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                                     "events.timestamp": {"$gte": start_time.timestamp()}}},
+                                         {"$group": {"_id": "$sender_id",
+                                                     "latest_event_time": {"$first": "$latest_event_time"},
+                                                     "events": {"$push": "$events"},
+                                                     "allevents": {"$push": "$events"}}},
+                                         {"$unwind": "$events"},
+                                         {"$project": {
+                                             "_id": 1,
+                                             "events": 1,
+                                             "latest_event_time": 1,
+                                             "following_events": {
+                                                 "$arrayElemAt": [
+                                                     "$allevents",
+                                                     {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                                 ]
+                                             }
+                                         }},
+                                         {"$project": {
+                                             "latest_event_time": 1,
+                                             "user_timestamp": "$events.timestamp",
+                                             "bot_timestamp": "$following_events.timestamp",
+                                             "user_event": "$events.event",
+                                             "bot_event": "$following_events.event",
+                                             "time_diff": {
+                                                 "$subtract": ["$following_events.timestamp", "$events.timestamp"]
+                                             }
+                                         }},
+                                         {"$match": {"user_event": "user", "bot_event": "bot"}},
+                                         {"$group": {"_id": "$_id",
+                                                     "latest_event_time": {"$first": "$latest_event_time"},
+                                                     "steps": {"$sum": 1}, "time": {"$sum": "$time_diff"}}},
+                                         {"$project": {
+                                             "sender_id": "$_id",
+                                             "_id": 0,
+                                             "steps": 1,
+                                             "time": 1,
+                                             "latest_event_time": 1,
+                                         }}
+                                         ], allowDiskUse=True))
+        except Exception as e:
+            logger.info(e)
+        finally:
+            client.close()
+        return users
+
+    @staticmethod
+    def get_mongo_connection(bot: Text):
+        endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
+
+        client = MongoClient(host=endpoint["tracker_endpoint"]["url"],
+                             username=endpoint["tracker_endpoint"].get("username"),
+                             password=endpoint["tracker_endpoint"].get("password"))
+        return client, endpoint["tracker_endpoint"]['db']

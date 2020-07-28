@@ -582,9 +582,9 @@ class Utility:
 
 
     @staticmethod
-    async def send_mail(email: str, subject: str, body: str):
+    async def validate_and_send_mail(email: str, subject: str, body: str):
         """
-        Used to send the link for confirmation of new user account
+        Used to validate the parameters of the mail to be sent
 
         :param email: email id of the recipient
         :param subject: subject of the mail
@@ -601,7 +601,18 @@ class Utility:
             raise ValidationError(
                 "Subject and body of the mail cannot be empty or blank space"
             )
+        await Utility.trigger_smtp(email, subject, body)
 
+    @staticmethod
+    async def trigger_smtp(email: str, subject: str, body: str):
+        """
+        Sends an email to the mail id of the recipient
+
+        :param email: the mail id of the recipient
+        :param subject: the subject of the mail
+        :param body: the body of the mail
+        :return: None
+        """
         smtp = SMTP(Utility.email_conf["email"]["sender"]["service"], port=Utility.email_conf["email"]["sender"]["port"])
         smtp.connect(Utility.email_conf["email"]["sender"]["service"], Utility.email_conf["email"]["sender"]["port"])
         if Utility.email_conf["email"]["sender"]["tls"]:

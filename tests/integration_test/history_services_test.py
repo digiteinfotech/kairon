@@ -12,7 +12,7 @@ from bot_trainer.api.processor import AccountProcessor
 from bot_trainer.data_processor.history import ChatHistory
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.utils import Utility
-
+from mongomock import MongoClient
 client = TestClient(app)
 
 def pytest_configure():
@@ -53,6 +53,12 @@ def endpoint_details(*args, **kwargs):
 def mock_mongo_processor(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_details)
 
+@pytest.fixture
+def mock_db_client(monkeypatch):
+    def db_client(*args, **kwargs):
+        return MongoClient(), "conversation"
+    monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
+
 
 def history_users(*args, **kwargs):
     return [
@@ -89,6 +95,8 @@ def mock_chat_history(monkeypatch):
     monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
     monkeypatch.setattr(ChatHistory, "get_conversations", history_conversations)
     monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
+
+
 
 
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
@@ -138,7 +146,7 @@ def test_chat_history(mock_auth, mock_chat_history):
     assert actual["success"]
 
 
-def test_visitor_hit_fallback(mock_auth, mock_chat_history):
+def test_visitor_hit_fallback(mock_auth, mock_db_client):
     response = client.get(
         "/api/history/metrics/fallback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -146,8 +154,8 @@ def test_visitor_hit_fallback(mock_auth, mock_chat_history):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_count"] == 3
-    assert actual["data"]["total_count"] == 31
+    assert actual["data"]["fallback_count"] == 0
+    assert actual["data"]["total_count"] == 0
     assert actual["message"] is None
     assert actual["success"]
 
@@ -174,5 +182,18 @@ def test_conversation_time(mock_auth, mock_chat_history):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 7
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_user_with_metrics(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/users",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["users"] == []
     assert actual["message"] is None
     assert actual["success"]

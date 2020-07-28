@@ -154,3 +154,15 @@ class Password(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
+
+
+class History_Month_Enum(int, Enum):
+    One = 1
+    Two = 2
+    Three = 3
+    Four = 4
+    Five = 5
+    Six = 6
+
+class HistoryMonth(BaseModel):
+    month: History_Month_Enum

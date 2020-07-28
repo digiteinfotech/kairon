@@ -230,11 +230,14 @@ class AccountProcessor:
 
         :param account_setup: dict of account details
         :param user: user id
-        :return: dict user details
+        :return: dict user details, user email id, confirmation mail subject, mail body
         """
         account = None
         bot = None
         user_details = None
+        body = None
+        subject = None
+        mail_to = None
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
             bot = AccountProcessor.add_bot(
@@ -258,7 +261,7 @@ class AccountProcessor:
                 link = Utility.email_conf["app"]["url"] + '/verify/' + token
                 body = Utility.email_conf['email']['templates']['confirmation_body'] + link
                 subject = Utility.email_conf['email']['templates']['confirmation_subject']
-                await Utility.send_mail(email=account_setup.get("email"),subject=subject,body=body)
+                mail_to = account_setup.get("email")
 
         except Exception as e:
             if account and "_id" in account:
@@ -267,7 +270,7 @@ class AccountProcessor:
                 Bot.objects().get(id=bot["_id"]).delete()
             raise e
 
-        return user_details
+        return user_details, mail_to, subject, body
 
     @staticmethod
     async def default_account_setup():
@@ -286,8 +289,8 @@ class AccountProcessor:
             "password": SecretStr("Changeit@123"),
         }
         try:
-            user = await AccountProcessor.account_setup(account, user="sysadmin")
-            return user
+            user, mail, subject, body = await AccountProcessor.account_setup(account, user="sysadmin")
+            return user, mail, subject, body
         except Exception as e:
             logging.info(str(e))
 
@@ -297,7 +300,7 @@ class AccountProcessor:
         Confirms the user through link and updates the database
 
         :param token: the token from link
-        :return: None
+        :return: mail id, subject of mail, body of mail
         """
         email_confirm = Utility.verify_token(token)
         Utility.is_exist(
@@ -310,7 +313,7 @@ class AccountProcessor:
         confirm.save()
         subject = Utility.email_conf['email']['templates']['confirmed_subject']
         body = Utility.email_conf['email']['templates']['confirmed_body']
-        await Utility.send_mail(email=email_confirm, subject=subject, body=body)
+        return email_confirm, subject, body
 
 
     @staticmethod
@@ -341,7 +344,7 @@ class AccountProcessor:
         Sends a password reset link to the mail id
 
         :param mail: email id of the user
-        :return: None
+        :return: mail id, mail subject, mail body
         """
         if AccountProcessor.EMAIL_ENABLED:
             if isinstance(mail_check(mail), ValidationFailure):
@@ -354,18 +357,18 @@ class AccountProcessor:
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
             body = Utility.email_conf['email']['templates']['password_reset_body'] + link
             subject = Utility.email_conf['email']['templates']['password_reset_subject']
-            await Utility.send_mail(email=mail, subject=subject, body=body)
+            return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")
 
     @staticmethod
-    async def overwrite_password(token:str, password:str):
+    async def overwrite_password(token: str, password: str):
         """
         Changes the user's password
 
         :param token: unique token from the password reset page
         :param password: new password entered by the user
-        :return: None
+        :return: mail id, mail subject and mail body
         """
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
@@ -377,7 +380,7 @@ class AccountProcessor:
         user.save()
         subject = Utility.email_conf['email']['templates']['password_changed_subject']
         body = Utility.email_conf['email']['templates']['password_changed_body']
-        await Utility.send_mail(email=email, subject=subject, body=body)
+        return email, subject, body
 
     @staticmethod
     async def send_confirmation_link(mail: str):
@@ -385,7 +388,7 @@ class AccountProcessor:
         Sends a link to the user's mail id for account verification
 
         :param mail: the mail id of the user
-        :return: None
+        :return: mail id, mail subject and mail body
         """
         if AccountProcessor.EMAIL_ENABLED:
             if isinstance(mail_check(mail), ValidationFailure):
@@ -397,6 +400,6 @@ class AccountProcessor:
             link = Utility.email_conf["app"]["url"] + '/verify/' + token
             body = Utility.email_conf['email']['templates']['confirmation_body'] + link
             subject = Utility.email_conf['email']['templates']['confirmation_subject']
-            await Utility.send_mail(email=mail, subject=subject, body=body)
+            return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")

@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from bot_trainer.api.auth import Authentication
 from bot_trainer.data_processor.history import ChatHistory
-from bot_trainer.api.models import Response, User
+from bot_trainer.api.models import Response, User, HistoryMonth
 from fastapi import Depends
 from typing import Text
 
@@ -30,13 +30,25 @@ async def chat_history(
     return {"data": {"history": list(history)}, "message": message}
 
 
+@router.get("/metrics/users", response_model=Response)
+async def user_with_metrics(
+        month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the list of user who has conversation with the agent with steps anf time
+    """
+    users = ChatHistory.user_with_metrics(
+        current_user.get_bot(), month
+    )
+    return {"data": {"users": users}}
+
+
 @router.get("/metrics/fallback", response_model=Response)
-async def visitor_hit_fallback(current_user: User = Depends(auth.get_current_user)):
+async def visitor_hit_fallback(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
     visitor_hit_fallback, message = ChatHistory.visitor_hit_fallback(
-        current_user.get_bot()
+        current_user.get_bot(), month
     )
     return {"data": visitor_hit_fallback, "message": message}
 
