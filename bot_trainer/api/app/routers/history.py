@@ -16,7 +16,7 @@ async def chat_history_users(month: HistoryMonth = 1, current_user: User = Depen
     """
     Fetches the list of user who has conversation with the agent
     """
-    users, message = ChatHistory.fetch_chat_users(current_user.get_bot(), month)
+    users, message = ChatHistory.fetch_chat_users(current_user.get_bot(), month.value)
     return {"data": {"users": users}, "message": message}
 
 
@@ -27,7 +27,7 @@ async def chat_history(
     """
     Fetches the list of conversation with the agent by particular user
     """
-    history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender, month)
+    history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender, month.value)
     return {"data": {"history": list(history)}, "message": message}
 
 

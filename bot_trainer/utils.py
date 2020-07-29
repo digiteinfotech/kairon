@@ -673,6 +673,6 @@ class Utility:
         return username, password, url, db_name
 
     @staticmethod
-    def get_timestamp_prevoius_month(month: int):
+    def get_timestamp_previous_month(month: int):
         start_time = datetime.now() - timedelta(month * 30)
         return start_time.timestamp()

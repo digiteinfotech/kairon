@@ -58,7 +58,7 @@ class ChatHistory:
         return list(ChatHistory.__prepare_data(bot, events)), message
 
     @staticmethod
-    def fetch_chat_users(bot: Text, month: int=1):
+    def fetch_chat_users(bot: Text, month: int = 1):
         """
         fetches user list who has conversation with the agent
 
@@ -71,10 +71,10 @@ class ChatHistory:
         conversations = db.get_collection(collection)
         users = []
         try:
+            values = conversations.find({"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}, {"_id": 0, "sender_id": 1})
             users = [
                 sender["sender_id"]
-                for sender in conversations
-                    .find({"events.timestamp": {"$gte": Utility.get_timestamp_prevoius_month(month)}}, {"_id":0, "sender_id": 1})
+                for sender in values
             ]
         except Exception as e:
             raise AppException(e)
