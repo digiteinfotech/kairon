@@ -74,7 +74,7 @@ class ChatHistory:
             users = [
                 sender["sender_id"]
                 for sender in conversations
-                    .find({"latest_event_time": {"$gte": Utility.get_timestamp_prevoius_month(month)}}, {"_id":0, "sender_id": 1})
+                    .find({"events.timestamp": {"$gte": Utility.get_timestamp_prevoius_month(month)}}, {"_id":0, "sender_id": 1})
             ]
         except Exception as e:
             raise AppException(e)
