@@ -56,7 +56,7 @@ def mock_mongo_processor(monkeypatch):
 @pytest.fixture
 def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
-        return MongoClient(), "conversation"
+        return MongoClient(), "conversation", "conversations", None
     monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
 
 

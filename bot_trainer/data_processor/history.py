@@ -43,7 +43,7 @@ class ChatHistory:
         return domain, tracker, message
 
     @staticmethod
-    def fetch_chat_history(bot: Text, sender, latest_history=False):
+    def fetch_chat_history(bot: Text, sender, month: int = 1):
         """
         fetches chat history
 
@@ -53,31 +53,33 @@ class ChatHistory:
         :return: list of conversations
         """
         events, message = ChatHistory.fetch_user_history(
-            bot, sender, latest_history=latest_history
+            bot, sender, month=month
         )
         return list(ChatHistory.__prepare_data(bot, events)), message
 
     @staticmethod
-    def fetch_chat_users(bot: Text):
+    def fetch_chat_users(bot: Text, month: int=1):
         """
         fetches user list who has conversation with the agent
 
+        :param month: fetch user who as conversation for current to prevoius month
         :param bot: bot id
         :return: list of user id
         """
-        _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
+        client, db_name, collection, message = ChatHistory.get_mongo_connection(bot)
+        db = client.get_database(db_name)
+        conversations = db.get_collection(collection)
         users = []
         try:
             users = [
                 sender["sender_id"]
-                for sender in tracker.conversations.find(
-                    {}, {"sender_id": 1, "_id": 0}
-                )
+                for sender in conversations
+                    .find({"latest_event_time": {"$gte": Utility.get_timestamp_prevoius_month(month)}}, {"_id":0, "sender_id": 1})
             ]
         except Exception as e:
             raise AppException(e)
         finally:
-            tracker.client.close()
+            client.close()
         return users, message
 
     @staticmethod
@@ -123,35 +125,38 @@ class ChatHistory:
                     )
 
     @staticmethod
-    def fetch_user_history(bot: Text, sender_id: Text, latest_history=True):
+    def fetch_user_history(bot: Text, sender_id: Text, month: int = 1):
         """
         loads list of conversation events from chat history
 
+        :param month: past months cutoff for history
         :param bot: bot id
         :param sender_id: user id
         :param latest_history: whether to fetch latest history or complete history, default is latest
         :return: list of conversation events
         """
-        domain, tracker, message = ChatHistory.get_tracker_and_domain(bot)
+        client, db_name, collection, message = ChatHistory.get_mongo_connection(bot)
         try:
-            if latest_history:
-                return tracker.retrieve(sender_id).as_dialogue().events, message
-            else:
-                user_conversation = tracker.conversations.find_one({"sender_id": sender_id})
-                if user_conversation:
-                    return (
-                        DialogueStateTracker.from_dict(
-                            sender_id, list(user_conversation["events"]), domain.slots
-                        )
-                            .as_dialogue()
-                            .events,
-                        message,
-                    )
-                return {}, message
+            db = client.get_database(db_name)
+            conversations = db.get_collection(collection)
+            values = list(conversations
+                 .aggregate([{"$match": {"sender_id": sender_id}},
+                             {"$unwind": "$events"},
+                             {"$match": {"events.event": {"$in": ["user", "bot", "action"]},
+                                         "events.timestamp": {"$gte": Utility.get_timestamp_prevoius_month(month)}}},
+                             {"$group": {"_id": None, "events": {"$push": "$events"}}},
+                             {"$project": {"_id": 0, "events": 1}}])
+                 )
+            if values:
+                return (
+                    values[0]['events'],
+                    message
+                )
+            return {}, message
         except Exception as e:
             raise AppException(e)
         finally:
-            tracker.client.close()
+            client.close()
 
     @staticmethod
     def visitor_hit_fallback(bot: Text, month: int = 1):
@@ -163,11 +168,10 @@ class ChatHistory:
         :return: list of visitor fallback
         """
 
-        client, database = ChatHistory.get_mongo_connection(bot)
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         db = client.get_database(database)
-        conversations = db.get_collection("conversations")
+        conversations = db.get_collection(collection)
         values = []
-        message = None
         start_time = datetime.now() - timedelta(month * 30)
         try:
             values = list(conversations.aggregate([{"$unwind": "$events"},
@@ -313,9 +317,9 @@ class ChatHistory:
         :param month: history month default is 1 month and max is 6 months
         :return: list of users with step and time in conversation
         """
-        client, database = ChatHistory.get_mongo_connection(bot)
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         db = client.get_database(database)
-        conversations = db.get_collection("conversations")
+        conversations = db.get_collection(collection)
         start_time = datetime.now() - timedelta(month * 30)
         users = []
         try:
@@ -365,13 +369,23 @@ class ChatHistory:
             logger.info(e)
         finally:
             client.close()
-        return users
+        return users, message
 
     @staticmethod
     def get_mongo_connection(bot: Text):
-        endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
-
-        client = MongoClient(host=endpoint["tracker_endpoint"]["url"],
-                             username=endpoint["tracker_endpoint"].get("username"),
-                             password=endpoint["tracker_endpoint"].get("password"))
-        return client, endpoint["tracker_endpoint"]['db']
+        message = None
+        try:
+            endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
+            client = MongoClient(host=endpoint["tracker_endpoint"]["url"],
+                                 username=endpoint["tracker_endpoint"].get("username"),
+                                 password=endpoint["tracker_endpoint"].get("password"))
+            db_name = endpoint["tracker_endpoint"]['db']
+            collection = "conversations"
+        except Exception as e:
+            message = "Loading test conversation! " + str(e)
+            username, password, url, db_name = Utility.get_local_db()
+            client = MongoClient(host=url,
+                                 username=username,
+                                 password=password)
+            collection = bot
+        return client, db_name, collection, message

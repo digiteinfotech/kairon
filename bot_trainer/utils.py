@@ -452,9 +452,7 @@ class Utility:
         :param domain: domain data
         :return: mongo tracker
         """
-        db_url = Utility.environment['database']["url"]
-        db_name = Utility.environment['database']["test_db"]
-        username, password, url = Utility.extract_user_password(db_url)
+        username, password, url, db_name = Utility.get_local_db()
         return MongoTrackerStore(
             domain=domain,
             host=url,
@@ -666,3 +664,15 @@ class Utility:
 
         except Exception:
             raise AppException("Invalid token")
+
+    @staticmethod
+    def get_local_db():
+        db_url = Utility.environment['database']["url"]
+        db_name = Utility.environment['database']["test_db"]
+        username, password, url = Utility.extract_user_password(db_url)
+        return username, password, url, db_name
+
+    @staticmethod
+    def get_timestamp_prevoius_month(month: int):
+        start_time = datetime.now() - timedelta(month * 30)
+        return start_time.timestamp()

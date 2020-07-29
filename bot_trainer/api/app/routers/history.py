@@ -11,22 +11,23 @@ auth = Authentication()
 
 
 @router.get("/users", response_model=Response)
-async def chat_history_users(current_user: User = Depends(auth.get_current_user)):
+async def chat_history_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+
     """
     Fetches the list of user who has conversation with the agent
     """
-    users, message = ChatHistory.fetch_chat_users(current_user.get_bot())
+    users, message = ChatHistory.fetch_chat_users(current_user.get_bot(), month)
     return {"data": {"users": users}, "message": message}
 
 
 @router.get("/users/{sender}", response_model=Response)
 async def chat_history(
-    sender: Text, current_user: User = Depends(auth.get_current_user)
+    sender: Text, month: HistoryMonth = 1,current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches the list of conversation with the agent by particular user
     """
-    history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender)
+    history, message = ChatHistory.fetch_chat_history(current_user.get_bot(), sender, month)
     return {"data": {"history": list(history)}, "message": message}
 
 
@@ -36,10 +37,10 @@ async def user_with_metrics(
     """
     Fetches the list of user who has conversation with the agent with steps anf time
     """
-    users = ChatHistory.user_with_metrics(
+    users, message = ChatHistory.user_with_metrics(
         current_user.get_bot(), month
     )
-    return {"data": {"users": users}}
+    return {"data": {"users": users}, "message": message}
 
 
 @router.get("/metrics/fallback", response_model=Response)

@@ -73,6 +73,12 @@ class TestHistory:
         monkeypatch.setattr(ChatHistory, "get_conversations", get_conversations)
 
     @pytest.fixture
+    def mock_mongo_client(self, monkeypatch):
+        def client(*args, **kwargs):
+            return MongoClient(), "conversation", "conversations", None
+        monkeypatch.setattr(ChatHistory, "get_mongo_connection", client)
+
+    @pytest.fixture
     def mock_chat_history(self, monkeypatch):
         monkeypatch.setattr(ChatHistory, "fetch_user_history", self.user_history)
         monkeypatch.setattr(
@@ -91,20 +97,23 @@ class TestHistory:
             users = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
 
+    def test_fetch_chat_users(self, mock_mongo_client):
+        users = ChatHistory.fetch_chat_users(bot="tests")
+        assert len(users) == 2
 
-    def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
+    def test_fetch_chat_users_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
             users, message = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
             assert message is None
 
-    def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
+    def test_fetch_chat_history_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
             history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
             assert len(history) == 0
             assert message is None
 
-    def test_fetch_chat_history_empty(self, mock_chat_history_empty):
+    def test_fetch_chat_history_empty(self, mock_mongo_client):
         history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
         assert len(history) == 0
         assert message is None
@@ -132,7 +141,7 @@ class TestHistory:
 
     def test_visitor_hit_fallback(self, monkeypatch):
         def client(*args, **kwargs):
-            return MongoClient(), "conversation"
+            return MongoClient(), "conversation", "conversations", None
 
         monkeypatch.setattr(ChatHistory, "get_mongo_connection", client)
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
@@ -172,9 +181,7 @@ class TestHistory:
         assert conversation_steps
         assert message is None
 
-    def test_user_with_metrics(self, monkeypatch):
-        def client(*args, **kwargs):
-            return MongoClient(), "conversation"
-        monkeypatch.setattr(ChatHistory, "get_mongo_connection", client)
-        users = ChatHistory.user_with_metrics("tests")
+    def test_user_with_metrics(self, mock_mongo_client):
+        users, message = ChatHistory.user_with_metrics("tests")
         assert users == []
+        assert message is None
