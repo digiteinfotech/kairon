@@ -280,7 +280,7 @@ async def chat(
     response = await model.handle_text(
         request_data.data, sender_id=current_user.get_user()
     )
-    return {"data": {"response": response[0]["text"] if response else None}}
+    return {"data": {"response": response}}
 
 
 @router.post("/train", response_model=Response)
