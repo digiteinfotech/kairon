@@ -84,15 +84,13 @@ class ChatHistory:
         return users, message
 
     @staticmethod
-    def __prepare_data(bot: Text, events, show_session=False):
+    def __prepare_data(bot: Text, events):
         bot_action = None
         training_examples, ids = ChatHistory.mongo_processor.get_all_training_examples(
             bot
         )
         if events:
             event_list = ["user", "bot"]
-            if show_session:
-                event_list.append("session_started")
             for i in range(events.__len__()):
                 event = events[i]
                 if event["event"] in event_list:
@@ -151,7 +149,7 @@ class ChatHistory:
                     values[0]['events'],
                     message
                 )
-            return {}, message
+            return [], message
         except Exception as e:
             raise AppException(e)
         finally:

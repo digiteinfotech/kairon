@@ -74,13 +74,8 @@ def history_users(*args, **kwargs):
 
 def user_history(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversation.json"))
-    domain = Domain.from_file("tests/testing_data/initial/domain.yml")
     return (
-        DialogueStateTracker.from_dict(
-            "5e564fbcdcf0d5fad89e3acd", json_data["events"], domain.slots
-        )
-        .as_dialogue()
-        .events,
+        json_data['events'],
         None
     )
 
