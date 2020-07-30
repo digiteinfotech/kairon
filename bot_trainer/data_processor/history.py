@@ -143,7 +143,7 @@ class ChatHistory:
                  .aggregate([{"$match": {"sender_id": sender_id}},
                              {"$unwind": "$events"},
                              {"$match": {"events.event": {"$in": ["user", "bot", "action"]},
-                                         "events.timestamp": {"$gte": Utility.get_timestamp_prevoius_month(month)}}},
+                                         "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                              {"$group": {"_id": None, "events": {"$push": "$events"}}},
                              {"$project": {"_id": 0, "events": 1}}])
                  )
