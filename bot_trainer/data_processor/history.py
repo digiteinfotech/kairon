@@ -47,6 +47,7 @@ class ChatHistory:
         """
         fetches chat history
 
+        :param month: default is current month and max is last 6 months
         :param bot: bot id
         :param sender: history details for user
         :param latest_history: whether to fetch latest or complete history
@@ -94,26 +95,25 @@ class ChatHistory:
                 event_list.append("session_started")
             for i in range(events.__len__()):
                 event = events[i]
-                event_data = event.as_dict()
-                if event_data["event"] in event_list:
+                if event["event"] in event_list:
                     result = {
-                        "event": event_data["event"],
-                        "time": datetime.fromtimestamp(event_data["timestamp"]).time(),
-                        "date": datetime.fromtimestamp(event_data["timestamp"]).date(),
+                        "event": event["event"],
+                        "time": datetime.fromtimestamp(event["timestamp"]).time(),
+                        "date": datetime.fromtimestamp(event["timestamp"]).date(),
                     }
 
-                    if event_data.get("text"):
-                        result["text"] = event_data.get("text")
-                        text_data = str(event_data.get("text")).lower()
+                    if event.get("text"):
+                        result["text"] = event.get("text")
+                        text_data = str(event.get("text")).lower()
                         result["is_exists"] = text_data in training_examples
                         if result["is_exists"]:
                             result["_id"] = ids[training_examples.index(text_data)]
 
-                    if event_data["event"] == "user":
-                        parse_data = event_data["parse_data"]
+                    if event["event"] == "user":
+                        parse_data = event["parse_data"]
                         result["intent"] = parse_data["intent"]["name"]
                         result["confidence"] = parse_data["intent"]["confidence"]
-                    elif event_data["event"] == "bot":
+                    elif event["event"] == "bot":
                         if bot_action:
                             result["action"] = bot_action
 
@@ -121,7 +121,7 @@ class ChatHistory:
                         yield result
                 else:
                     bot_action = (
-                        event_data["name"] if event_data["event"] == "action" else None
+                        event["name"] if event["event"] == "action" else None
                     )
 
     @staticmethod
@@ -140,10 +140,9 @@ class ChatHistory:
             db = client.get_database(db_name)
             conversations = db.get_collection(collection)
             values = list(conversations
-                 .aggregate([{"$match": {"sender_id": sender_id}},
+                 .aggregate([{"$match": {"sender_id": sender_id, "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                              {"$unwind": "$events"},
-                             {"$match": {"events.event": {"$in": ["user", "bot", "action"]},
-                                         "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                             {"$match": {"events.event": {"$in": ["user", "bot", "action"]}}},
                              {"$group": {"_id": None, "events": {"$push": "$events"}}},
                              {"$project": {"_id": 0, "events": 1}}])
                  )
