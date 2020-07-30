@@ -160,7 +160,7 @@ def test_visitor_hit_fallback(mock_auth, mock_db_client):
     assert actual["success"]
 
 
-def test_conversation_steps(mock_auth, mock_chat_history):
+def test_conversation_steps(mock_auth, mock_db_client):
     response = client.get(
         "/api/history/metrics/conversation/steps",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -168,12 +168,12 @@ def test_conversation_steps(mock_auth, mock_chat_history):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 7
+    assert len(actual["data"]) == 0
     assert actual["message"] is None
     assert actual["success"]
 
 
-def test_conversation_time(mock_auth, mock_chat_history):
+def test_conversation_time(mock_auth, mock_db_client):
     response = client.get(
         "/api/history/metrics/conversation/time",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -181,7 +181,7 @@ def test_conversation_time(mock_auth, mock_chat_history):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 7
+    assert len(actual["data"]) == 0
     assert actual["message"] is None
     assert actual["success"]
 

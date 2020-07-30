@@ -55,17 +55,17 @@ async def visitor_hit_fallback(month: HistoryMonth = 1, current_user: User = Dep
 
 
 @router.get("/metrics/conversation/steps", response_model=Response)
-async def conversation_steps(current_user: User = Depends(auth.get_current_user)):
+async def conversation_steps(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
     """
      Fetches the number of conversation steps that took place in the chat between the users and the agent
      """
-    conversation_steps, message = ChatHistory.conversation_steps(current_user.get_bot())
+    conversation_steps, message = ChatHistory.conversation_steps(current_user.get_bot(), month)
     return {"data": conversation_steps, "message": message}
 
 
 @router.get("/metrics/conversation/time", response_model=Response)
-async def conversation_time(current_user: User = Depends(auth.get_current_user)):
+async def conversation_time(month: HistoryMonth = 1,current_user: User = Depends(auth.get_current_user)):
     """
     Fetches the duration of the chat that took place between the users and the agent"""
-    conversation_time, message = ChatHistory.conversation_time(current_user.get_bot())
+    conversation_time, message = ChatHistory.conversation_time(current_user.get_bot(), month)
     return {"data": conversation_time, "message": message}

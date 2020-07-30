@@ -149,36 +149,36 @@ class TestHistory:
         assert hit_fall_back["total_count"] == 0
         assert message is None
 
-    def test_conversation_time_error(self, mock_get_tracker_and_domain):
+    def test_conversation_time_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
             conversation_time, message = ChatHistory.conversation_time("tests")
             assert not conversation_time
             assert message is None
 
-    def test_conversation_time_empty(self, mock_chat_history_empty):
+    def test_conversation_time_empty(self, mock_mongo_client):
         conversation_time, message = ChatHistory.conversation_time("tests")
         assert not conversation_time
         assert message is None
 
-    def test_conversation_time(self, mock_chat_history):
+    def test_conversation_time(self, mock_mongo_client):
         conversation_time, message = ChatHistory.conversation_time("tests")
-        assert conversation_time
+        assert conversation_time == []
         assert message is None
 
-    def test_conversation_steps_error(self, mock_get_tracker_and_domain):
+    def test_conversation_steps_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
             conversation_steps, message = ChatHistory.conversation_steps("tests")
             assert not conversation_steps
             assert message is None
 
-    def test_conversation_steps_empty(self, mock_chat_history_empty):
+    def test_conversation_steps_empty(self, mock_mongo_client):
         conversation_steps, message = ChatHistory.conversation_steps("tests")
         assert not conversation_steps
         assert message is None
 
-    def test_conversation_steps(self, mock_chat_history):
+    def test_conversation_steps(self, mock_mongo_client):
         conversation_steps, message = ChatHistory.conversation_steps("tests")
-        assert conversation_steps
+        assert conversation_steps == []
         assert message is None
 
     def test_user_with_metrics(self, mock_mongo_client):

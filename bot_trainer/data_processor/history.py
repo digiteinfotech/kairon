@@ -62,7 +62,7 @@ class ChatHistory:
         """
         fetches user list who has conversation with the agent
 
-        :param month: fetch user who as conversation for current to prevoius month
+        :param month: default is current month and max is last 6 months
         :param bot: bot id
         :return: list of user id
         """
@@ -129,7 +129,7 @@ class ChatHistory:
         """
         loads list of conversation events from chat history
 
-        :param month: past months cutoff for history
+        :param month: default is current month and max is last 6 months
         :param bot: bot id
         :param sender_id: user id
         :param latest_history: whether to fetch latest history or complete history, default is latest
@@ -164,7 +164,7 @@ class ChatHistory:
         Counts the number of times, the agent was unable to provide a response to users
 
         :param bot: bot id
-        :param month: history month default is 1 month and max is 6 months
+        :param month: default is current month and max is last 6 months
         :return: list of visitor fallback
         """
 
@@ -172,10 +172,9 @@ class ChatHistory:
         db = client.get_database(database)
         conversations = db.get_collection(collection)
         values = []
-        start_time = datetime.now() - timedelta(month * 30)
         try:
             values = list(conversations.aggregate([{"$unwind": "$events"},
-                                                  {"$match": {"events.event": "action", "events.timestamp": {"$gte": start_time.timestamp()}}},
+                                                  {"$match": {"events.event": "action", "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                                                   {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
                                                               "events": {"$push": "$events"}}},
                                                   {"$unwind": "$events"},
@@ -202,60 +201,95 @@ class ChatHistory:
         )
 
     @staticmethod
-    def conversation_steps(bot: Text):
+    def conversation_steps(bot: Text, month: int = 1):
         """
         calculates the number of conversation steps between agent and users
 
         :param bot: bot id
+        :param month: default is current month and max is last 6 months
         :return: list of conversation step count
         """
-        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
-        if data_frame.empty:
-            return {}, message
-        else:
-            data_frame["prev_event"] = data_frame["event"].shift()
-            data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
-            data_frame.fillna("", inplace=True)
-            data_frame = data_frame[
-                ((data_frame["event"] == "bot") & (data_frame["prev_event"] == "user"))
-            ]
-            return (
-                data_frame.groupby(["sender_id"])
-                    .count()
-                    .reset_index()[["sender_id", "event"]]
-                    .to_dict(orient="records"),
-                message,
-            )
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        db = client.get_database(database)
+        conversations = db.get_collection(collection)
+        values = list(conversations
+             .aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                         {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                     "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                         {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                     "allevents": {"$push": "$events"}}},
+                         {"$unwind": "$events"},
+                         {"$project": {
+                             "_id": 1,
+                             "events": 1,
+                             "following_events": {
+                                 "$arrayElemAt": [
+                                     "$allevents",
+                                     {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                 ]
+                             }
+                         }},
+                         {"$project": {
+                             "user_event": "$events.event",
+                             "bot_event": "$following_events.event",
+                         }},
+                         {"$match": {"user_event": "user", "bot_event": "bot"}},
+                         {"$group": {"_id": "$_id", "event": {"$sum": 1}}},
+                         {"$project": {
+                             "sender_id": "$_id",
+                             "_id": 0,
+                             "event": 1,
+                         }}
+                         ], allowDiskUse=True)
+             )
+        return values, message
 
     @staticmethod
-    def conversation_time(bot: Text):
+    def conversation_time(bot: Text, month: int = 1):
         """
         calculates the duration of between agent and users
 
         :param bot: bot id
+        :param month: default is current month and max is last 6 months
         :return: list of users duration
         """
-        data_frame, message = ChatHistory.__fetch_history_metrics(bot)
-        if data_frame.empty:
-            return {}, message
-        else:
-            data_frame["prev_event"] = data_frame["event"].shift()
-            data_frame["prev_timestamp"] = data_frame["timestamp"].shift()
-            data_frame.fillna("", inplace=True)
-            data_frame = data_frame[
-                ((data_frame["event"] == "bot") & (data_frame["prev_event"] == "user"))
-            ]
-            data_frame["time"] = pd.to_datetime(
-                data_frame["timestamp"], unit="s"
-            ) - pd.to_datetime(data_frame["prev_timestamp"], unit="s")
-            return (
-                data_frame[["sender_id", "time"]]
-                    .groupby("sender_id")
-                    .sum()
-                    .reset_index()
-                    .to_dict(orient="records"),
-                message,
-            )
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        db = client.get_database(database)
+        conversations = db.get_collection(collection)
+        values = list(conversations
+             .aggregate([{"$unwind": "$events"},
+                         {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                     "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                         {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                     "allevents": {"$push": "$events"}}},
+                         {"$unwind": "$events"},
+                         {"$project": {
+                             "_id": 1,
+                             "events": 1,
+                             "following_events": {
+                                 "$arrayElemAt": [
+                                     "$allevents",
+                                     {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                 ]
+                             }
+                         }},
+                         {"$project": {
+                             "user_event": "$events.event",
+                             "bot_event": "$following_events.event",
+                             "time_diff": {
+                                 "$subtract": ["$following_events.timestamp", "$events.timestamp"]
+                             }
+                         }},
+                         {"$match": {"user_event": "user", "bot_event": "bot"}},
+                         {"$group": {"_id": "$_id", "time": {"$sum": "$time_diff"}}},
+                         {"$project": {
+                             "sender_id": "$_id",
+                             "_id": 0,
+                             "time": 1,
+                         }}
+                         ], allowDiskUse=True)
+             )
+        return values, message
 
     @staticmethod
     def get_conversations(bot: Text):
@@ -314,19 +348,18 @@ class ChatHistory:
         fetches user with the steps and time in conversation
 
         :param bot: bot id
-        :param month: history month default is 1 month and max is 6 months
+        :param month: default is current month and max is last 6 months
         :return: list of users with step and time in conversation
         """
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         db = client.get_database(database)
         conversations = db.get_collection(collection)
-        start_time = datetime.now() - timedelta(month * 30)
         users = []
         try:
             list(
                 conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                                          {"$match": {"events.event": {"$in": ["user", "bot"]},
-                                                     "events.timestamp": {"$gte": start_time.timestamp()}}},
+                                                     "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                                          {"$group": {"_id": "$sender_id",
                                                      "latest_event_time": {"$first": "$latest_event_time"},
                                                      "events": {"$push": "$events"},

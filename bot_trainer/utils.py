@@ -674,5 +674,5 @@ class Utility:
 
     @staticmethod
     def get_timestamp_previous_month(month: int):
-        start_time = datetime.now() - timedelta(month * 30)
+        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
         return start_time.timestamp()
