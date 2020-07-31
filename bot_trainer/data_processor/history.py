@@ -353,7 +353,7 @@ class ChatHistory:
         conversations = db.get_collection(collection)
         users = []
         try:
-            list(
+            users = list(
                 conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                                          {"$match": {"events.event": {"$in": ["user", "bot"]},
                                                      "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
