@@ -4,7 +4,9 @@ from typing import Any, Optional, Text, Dict, TYPE_CHECKING
 
 import spacy
 from rasa.nlu.components import Component
+from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.extractors.extractor import EntityExtractor
+from rasa.nlu.training_data import TrainingData
 from spacy.matcher import Matcher
 
 if TYPE_CHECKING:
@@ -41,6 +43,7 @@ class SpacyPatternNER(EntityExtractor):
 
     def __init__(self, component_config=None, matcher=None):
         super(SpacyPatternNER, self).__init__(component_config)
+        print(component_config)
         if matcher:
             self.matcher = matcher
             self.spacy_nlp = spacy.blank('en')
@@ -49,7 +52,9 @@ class SpacyPatternNER(EntityExtractor):
             self.spacy_nlp = spacy.blank('en')
             self.matcher = Matcher(self.spacy_nlp.vocab)
 
-    def train(self, training_data, cfg, **kwargs):
+    def train(self, training_data: TrainingData,
+        config: Optional[RasaNLUModelConfig] = None,
+        **kwargs: Any,):
         """Train this component.
 
         This is the components chance to train itself provided

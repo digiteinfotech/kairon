@@ -120,6 +120,11 @@ def train_model_for_bot(bot: str):
         output=output,
     )
     Utility.delete_directory(directory)
+    del processor
+    del nlu
+    del domain
+    del stories
+    del config
     return model
 
 
