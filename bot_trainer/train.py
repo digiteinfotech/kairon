@@ -121,7 +121,7 @@ def train_model_for_bot(bot: str):
     data_directory = os.path.join(directory,DEFAULT_DATA_PATH)
     domain_file = os.path.join(directory, DEFAULT_DOMAIN_PATH)
     config_file = os.path.join(directory, DEFAULT_CONFIG_PATH)
-    Popen(f"python -m rasa train --data {data_directory} --domain {domain_file} --config {config_file} --out {output}", stdout=PIPE).stdout.read()
+    Popen(f"rasa train --data {data_directory} --domain {domain_file} --config {config_file} --out {output}", stdout=PIPE).stdout.read()
     Utility.delete_directory(directory)
     del processor
     del nlu
