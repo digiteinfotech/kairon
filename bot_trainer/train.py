@@ -17,7 +17,7 @@ from bot_trainer.data_processor.processor import AgentProcessor, ModelProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
-
+from gc import collect
 
 async def train_model(
     data_importer: TrainingDataImporter,
@@ -162,4 +162,5 @@ def start_training(bot: str, user: str):
         )
 
     AgentProcessor.reload(bot)
+    collect()
     return model_file
