@@ -3,7 +3,6 @@ import os
 import tempfile
 from contextlib import ExitStack
 from typing import Text, Optional, Dict
-
 import yaml
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.importers.importer import TrainingDataImporter
@@ -17,7 +16,7 @@ from bot_trainer.data_processor.processor import AgentProcessor, ModelProcessor
 from bot_trainer.data_processor.processor import MongoProcessor
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
-from gc import collect
+from subprocess import Popen, PIPE
 
 async def train_model(
     data_importer: TrainingDataImporter,
@@ -113,18 +112,23 @@ def train_model_for_bot(bot: str):
     )
 
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
-    model = train(
-        domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
-        config=os.path.join(directory, DEFAULT_CONFIG_PATH),
-        training_files=os.path.join(directory, DEFAULT_DATA_PATH),
-        output=output,
-    )
+    #model = train(
+    #    domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
+    #    config=os.path.join(directory, DEFAULT_CONFIG_PATH),
+    #    training_files=os.path.join(directory, DEFAULT_DATA_PATH),
+    #    output=output,
+    #)
+    data_directory = os.path.join(directory,DEFAULT_DATA_PATH)
+    domain_file = os.path.join(directory, DEFAULT_DOMAIN_PATH)
+    config_file = os.path.join(directory, DEFAULT_CONFIG_PATH)
+    Popen(f"python -m rasa train --data {data_directory} --domain {domain_file} --config {config_file} --out {output}", stdout=PIPE).stdout.read()
     Utility.delete_directory(directory)
     del processor
     del nlu
     del domain
     del stories
     del config
+    model = os.path.join(DEFAULT_MODELS_PATH, bot)
     return model
 
 
@@ -162,5 +166,4 @@ def start_training(bot: str, user: str):
         )
 
     AgentProcessor.reload(bot)
-    collect()
     return model_file
