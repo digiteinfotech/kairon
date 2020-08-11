@@ -118,11 +118,11 @@ def train_model_for_bot(bot: str):
     #    training_files=os.path.join(directory, DEFAULT_DATA_PATH),
     #    output=output,
     #)
-    data_directory = os.path.join(directory,DEFAULT_DATA_PATH)
+    data_directory = os.path.join(directory, DEFAULT_DATA_PATH)
     domain_file = os.path.join(directory, DEFAULT_DOMAIN_PATH)
     config_file = os.path.join(directory, DEFAULT_CONFIG_PATH)
-    data = Popen(f"rasa train --data {data_directory} --domain {domain_file} --config {config_file} --out {output}", stdout=PIPE).communicate()
-    #Utility.delete_directory(directory)
+    data = Popen(f"rasa train --data {data_directory} --domain {domain_file} --config {config_file} --out {output}".split(), stdout=PIPE).communicate()
+    Utility.delete_directory(directory)
     del processor
     del nlu
     del domain
