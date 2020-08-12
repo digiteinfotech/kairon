@@ -44,6 +44,8 @@ class InMemoryAgentCache(AgentCache):
         :param agent:  bot agent
         :return: None
         """
+        if bot in InMemoryAgentCache.cache.keys():
+            InMemoryAgentCache.cache.pop(bot)
         InMemoryAgentCache.cache.__setitem__(bot, agent)
 
     def get(self, bot: Text) -> Agent:
