@@ -43,7 +43,6 @@ class SpacyPatternNER(EntityExtractor):
 
     def __init__(self, component_config=None, matcher=None):
         super(SpacyPatternNER, self).__init__(component_config)
-        print(component_config)
         if matcher:
             self.matcher = matcher
             self.spacy_nlp = spacy.blank('en')
@@ -145,6 +144,9 @@ class SpacyPatternNER(EntityExtractor):
             self.saveModel(modelFile)
         return {"pattern_ner_file": PATTERN_NER_FILE}
 
+    @classmethod
+    def cache_key(cls, component_meta: Dict[Text, Any], model_metadata: "Metadata") -> Optional[Text]:
+        return cls.name
 
     @classmethod
     def load(
@@ -156,16 +158,17 @@ class SpacyPatternNER(EntityExtractor):
         **kwargs: Any
     ) -> "Component":
         """Load this component from file."""
-
-        file_name = meta.get("pattern_ner_file", PATTERN_NER_FILE)
-        modelFile = os.path.join(model_dir, file_name)
-        if os.path.exists(modelFile):
-            modelLoad = open(modelFile, "rb")
-            matcher = pickle.load(modelLoad)
-            modelLoad.close()
-            return cls(meta, matcher)
+        if cached_component:
+            return cached_component
         else:
-            return cls(meta)
+            file_name = meta.get("pattern_ner_file", PATTERN_NER_FILE)
+            modelFile = os.path.join(model_dir, file_name)
+            if os.path.exists(modelFile):
+                with open(modelFile, "rb") as modelLoad:
+                    matcher = pickle.load(modelLoad)
+                    return cls(meta, matcher)
+            else:
+                return cls(meta)
 
 
     def saveModel(self, modelFile):
