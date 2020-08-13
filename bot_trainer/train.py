@@ -7,7 +7,7 @@ import yaml
 from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.importers.importer import TrainingDataImporter
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.train import _train_async_internal, handle_domain_if_not_exists, train_async
+from rasa.train import _train_async_internal, handle_domain_if_not_exists, train
 from rasa.utils.common import TempDirectoryPath
 
 from bot_trainer.data_processor.constant import MODEL_TRAINING_STATUS
@@ -88,7 +88,7 @@ async def train_model_from_mongo(
     )
 
 
-async def train_model_for_bot(bot: str):
+def train_model_for_bot(bot: str):
     """
     loads bot data from mongo into individual files for training
 
@@ -112,11 +112,11 @@ async def train_model_for_bot(bot: str):
     )
 
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
-    model = await train_async(
+    model = train(
         domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
         config=os.path.join(directory, DEFAULT_CONFIG_PATH),
         training_files=os.path.join(directory, DEFAULT_DATA_PATH),
-        output_path=output,
+        output=output,
     )
     Utility.delete_directory(directory)
     del processor
@@ -127,7 +127,7 @@ async def train_model_for_bot(bot: str):
     return model
 
 
-async def start_training(bot: str, user: str, reload=True):
+def start_training(bot: str, user: str, reload=True):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
@@ -145,7 +145,7 @@ async def start_training(bot: str, user: str, reload=True):
         bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
     )
     try:
-        model_file = await train_model_for_bot(bot)
+        model_file = train_model_for_bot(bot)
         training_status = MODEL_TRAINING_STATUS.DONE.value
     except Exception as e:
         logging.exception(e)

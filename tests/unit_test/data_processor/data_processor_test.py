@@ -716,17 +716,15 @@ class TestMongoProcessor:
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        loop = asyncio.new_event_loop()
-        model_path = loop.run_until_complete(start_training("tests", "testUser"))
+        model_path = start_training("tests", "testUser")
         assert model_path
         model_training = ModelTraining.objects(bot="tests", status="Done")
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
-        loop = asyncio.new_event_loop()
         with pytest.raises(AppException) as exp:
-            assert loop.run_until_complete(start_training("test", "testUser"))
+            assert start_training("test", "testUser")
 
         assert str(exp.value) == "Training data does not exists!"
 
