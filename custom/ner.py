@@ -175,3 +175,7 @@ class SpacyPatternNER(EntityExtractor):
         modelSave = open(modelFile, "wb")
         pickle.dump(self.matcher, modelSave)
         modelSave.close()
+
+    def __del__(self):
+        del self.spacy_nlp
+        del self.matcher
