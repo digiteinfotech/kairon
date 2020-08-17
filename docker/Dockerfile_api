@@ -24,6 +24,7 @@ RUN python3 -m pip install rasa[convert]==1.10.3
 RUN python3 -m pip install tensorflow_text==2.1.1
 RUN python3 -m pip install tensorflow-addons==0.9.1
 RUN python3 -m pip install secure
+RUN python3 -m pip install spacy==2.3.2
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
 RUN python3 -m pip install password-strength
