@@ -239,8 +239,6 @@ python -m black bot_trainer
 * [FastApi](https://github.com/tiangolo/fastapi) - Rest Api
 * [Uvicorn](https://www.uvicorn.org/) - ASGI Server
 * [Spacy](https://spacy.io/) - NLP
-* [Gensim](https://radimrehurek.com/gensim/) - Embedding and Topic Modelling
-* [Sentence Transformer](https://github.com/UKPLab/sentence-transformers) - Semantic Similarity
 * [Pytest](https://docs.pytest.org/en/latest/) - Testing
 * [MongoMock](https://github.com/mongomock/mongomock) - Mocking DB
 * [Response](https://github.com/getsentry/responses) - Mocking HTTP requests
