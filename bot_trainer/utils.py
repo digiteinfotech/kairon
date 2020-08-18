@@ -249,18 +249,22 @@ class Utility:
             response = requests.put(
                 url + "/model", json={"model_file": model_file}, headers=headers,
             )
-            json_response = response.json()
-            if isinstance(json_response, str):
-                result = escape(json_response)
-            elif isinstance(json_response, dict):
-                if "message" in json_response:
-                    result = escape(json_response["message"])
-                elif "reason" in json_response:
-                    result = escape(json_response["reason"])
+
+            if response.status_code == 204:
+                result = "Model was successfully replaced."
+            else:
+                json_response = response.json()
+                if isinstance(json_response, str):
+                    result = escape(json_response)
+                elif isinstance(json_response, dict):
+                    if "message" in json_response:
+                        result = escape(json_response["message"])
+                    elif "reason" in json_response:
+                        result = escape(json_response["reason"])
+                    else:
+                        result = None
                 else:
                     result = None
-            else:
-                result = None
         except requests.exceptions.ConnectionError as e:
             raise AppException("Host is not reachable")
         except Exception as e:

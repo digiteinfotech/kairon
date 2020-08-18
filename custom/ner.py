@@ -8,6 +8,7 @@ from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.extractors.extractor import EntityExtractor
 from rasa.nlu.training_data import TrainingData
 from spacy.matcher import Matcher
+from .spacy_utils import SpacyNLP
 
 if TYPE_CHECKING:
     from rasa.nlu.model import Metadata
@@ -33,7 +34,7 @@ class SpacyPatternNER(EntityExtractor):
     # these values can be overwritten in the pipeline configuration
     # of the model. The component should choose sensible defaults
     # and should be able to create reasonable results with the defaults.
-    defaults = {}
+    defaults = {"model": None}
 
     # Defines what language(s) this component can handle.
     # This attribute is designed for instance method: `can_handle_language`.
@@ -43,12 +44,17 @@ class SpacyPatternNER(EntityExtractor):
 
     def __init__(self, component_config=None, matcher=None):
         super(SpacyPatternNER, self).__init__(component_config)
-        if matcher:
-            self.matcher = matcher
-            self.spacy_nlp = spacy.blank('en')
-            self.spacy_nlp.vocab = self.matcher.vocab
+
+        spacy_model_name = component_config.get("model")
+
+        if spacy_model_name:
+            self.spacy_nlp = SpacyNLP.load_model(spacy_model_name)
         else:
             self.spacy_nlp = spacy.blank('en')
+
+        if matcher:
+            self.matcher = matcher
+        else:
             self.matcher = Matcher(self.spacy_nlp.vocab)
 
     def train(self, training_data: TrainingData,
@@ -175,3 +181,7 @@ class SpacyPatternNER(EntityExtractor):
         modelSave = open(modelFile, "wb")
         pickle.dump(self.matcher, modelSave)
         modelSave.close()
+
+    def __del__(self):
+        del self.spacy_nlp
+        del self.matcher

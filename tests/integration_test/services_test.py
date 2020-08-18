@@ -768,8 +768,7 @@ def test_deploy(mock_endpoint):
     responses.add(
         responses.PUT,
         "http://localhost:5000/model",
-        json="Model was successfully replaced.",
-        status=200,
+        status=204,
     )
     response = client.post(
         "/api/bot/deploy",

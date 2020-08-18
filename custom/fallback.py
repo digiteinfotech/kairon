@@ -47,7 +47,6 @@ class FallbackIntentFilter(Component):
         self.out_of_scope_intent = out_of_scope_intent
 
     def process(self, message, **kwargs):
-        # type: (Message, **Any) -> None
         message_confidence = message.data['intent']['confidence']
         print(message_confidence)
         new_intent = None
