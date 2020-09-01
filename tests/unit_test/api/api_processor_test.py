@@ -506,9 +506,7 @@ class TestAccountProcessor:
             bot=pytest.bot,
             user="testAdmin",
         )
-        monkeypatch.setitem(Utility.email_conf['email']['sender'], "email", "chirontestmail@gmail.com")
-        monkeypatch.setitem(Utility.email_conf['email']['sender'], "password", "Welcome@1")
-        monkeypatch.setitem(Utility.email_conf['email']['sender'], "service", "smtp.gmail.com")
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.confirm_email(token))

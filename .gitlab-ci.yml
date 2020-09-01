@@ -17,7 +17,7 @@ test:
 
 build:
   tags:
-    - chiron
+    - kairon
   only:
     - master
   stage: build
