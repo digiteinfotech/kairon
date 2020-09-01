@@ -17,10 +17,10 @@ test:
 
 build:
   tags:
-    - chiron
+    - kairon
   only:
     - master
   stage: build
   script:
-    -  docker build -f ./docker/Dockerfile_api -t chiron-api:latest .
-    -  docker build -f ./docker/Dockerfile_augment -t chiron-augment:latest .
+    -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
+    -  docker build -f ./docker/Dockerfile_augment -t kairon-augment:latest .

@@ -11,12 +11,12 @@ services:
     volumes:
       - ./mongo_data:/data/db
 
-  chiron-augment:
-    image: digite/chiron-augment:latest
+  kairon-augment:
+    image: digite/kairon-augment:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-augment
-    hostname: chiron-augment
+    container_name: kairon-augment
+    hostname: kairon-augment
     depends_on:
       - mongo
     ports:
@@ -26,34 +26,34 @@ services:
     environment:
       mongo_url: "mongodb://mongo:27017"
 
-  chiron-api:
-    image: digite/chiron-api:latest
+  kairon-api:
+    image: digite/kairon-api:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-api
-    hostname: chiron-api
+    container_name: kairon-api
+    hostname: kairon-api
     depends_on:
       - mongo
-      - chiron-augment
+      - kairon-augment
     ports:
       - 81:80
     volumes:
       - ./models:/app/models
       - ./api_tmp:/root/.cache/
     environment:
-      DATABASE_URL: "mongodb://mongo:27017/chiron"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      AUGMENTATION_URL: "http://chiron-augment:8001/questions"
-      TEST_DB: "chiron_conversations"
+      AUGMENTATION_URL: "http://kairon-augment:8001/questions"
+      TEST_DB: "kairon_conversations"
 
-  chiron-ui:
-    image: digite/chiron-ui:latest
+  kairon-ui:
+    image: digite/kairon-ui:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-ui
-    hostname: chiron-ui
+    container_name: kairon-ui
+    hostname: kairon-ui
     depends_on:
-      - chiron-api
+      - kairon-api
     ports:
       - 80:8080
     environment:
