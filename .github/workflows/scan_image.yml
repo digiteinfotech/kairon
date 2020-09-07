@@ -12,15 +12,15 @@ jobs:
     steps:
       - name: Pull docker images
         run: |
-          docker pull digite/rasa-dx-augment
-          docker pull digite/rasa-dx-api
+          docker pull digite/kairon-augment
+          docker pull digite/kairon-api
       - uses: homoluctus/gitrivy@v2
         name: Scanning augment image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          image: digite/rasa-dx-augment
+          image: digite/kairon-augment
       - uses: homoluctus/gitrivy@v2
         name: Scanning api image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          image: digite/rasa-dx-api
+          image: digite/kairon-api
