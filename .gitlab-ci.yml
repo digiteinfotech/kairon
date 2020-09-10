@@ -24,3 +24,4 @@ build:
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_augment -t kairon-augment:latest .
+    -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
