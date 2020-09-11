@@ -34,6 +34,11 @@ class User(BaseModel):
             return self.alias_user
         return self.email
 
+    def get_integration_status(self):
+        if self.is_integration_user:
+            return True
+        return False
+
 
 class Response(BaseModel):
     success: bool = True

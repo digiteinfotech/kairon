@@ -48,6 +48,7 @@ async def add_intents(
         text=request_data.data.strip(),
         bot=current_user.get_bot(),
         user=current_user.get_user(),
+        is_integration=current_user.get_integration_status()
     )
     return {"message": "Intent added successfully!", "data": {"_id": id}}
 
@@ -65,7 +66,8 @@ async def delete_intent(
     deletes an intent including training examples and stories
     """
     mongo_processor.delete_intent(
-        intent, current_user.get_bot(), current_user.get_user(), delete_dependencies
+        intent, current_user.get_bot(), current_user.get_user(), current_user.get_integration_status(),
+        delete_dependencies
     )
     return {"message": "Intent deleted!"}
 
@@ -124,7 +126,8 @@ async def add_training_examples(
     """
     results = list(
         mongo_processor.add_training_example(
-            request_data.data, intent, current_user.get_bot(), current_user.get_user()
+            request_data.data, intent, current_user.get_bot(), current_user.get_user(),
+            current_user.get_integration_status()
         )
     )
     return {"data": results}

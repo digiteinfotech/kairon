@@ -1020,13 +1020,14 @@ class MongoProcessor:
             if key in ["language", "pipeline", "policies"]
         }
 
-    def add_intent(self, text: Text, bot: Text, user: Text):
+    def add_intent(self, text: Text, bot: Text, user: Text, is_integration: bool):
         """
         adds new intent
 
         :param text: intent name
         :param bot: bot id
         :param user: user id
+        :param is_integration: integration status
         :return: intent id
         """
         if Utility.check_empty_string(text):
@@ -1039,7 +1040,7 @@ class MongoProcessor:
             bot=bot,
             status=True,
         )
-        saved = Intents(name=text, bot=bot, user=user).save().to_mongo().to_dict()
+        saved = Intents(name=text, bot=bot, user=user, is_integration=is_integration).save().to_mongo().to_dict()
         return saved["_id"].__str__()
 
     def get_intents(self, bot: Text):
@@ -1053,7 +1054,7 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-        self, examples: List[Text], intent: Text, bot: Text, user: Text
+        self, examples: List[Text], intent: Text, bot: Text, user: Text, is_integration: bool
     ):
         """
         adds training examples for bot
@@ -1062,6 +1063,7 @@ class MongoProcessor:
         :param intent: intent name
         :param bot: bot id
         :param user: user id
+        :param is_integration: integration status
         :return: list training examples id
         """
         if Utility.check_empty_string(intent):
@@ -1069,7 +1071,7 @@ class MongoProcessor:
         if not Utility.is_exist(
             Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
-            self.add_intent(intent, bot, user)
+            self.add_intent(intent, bot, user, is_integration)
 
         for example in examples:
             try:
@@ -1749,7 +1751,7 @@ class MongoProcessor:
         return response
 
     def delete_intent(
-        self, intent: Text, bot: Text, user: Text, delete_dependencies=True
+        self, intent: Text, bot: Text, user: Text, is_integration: bool, delete_dependencies=True
     ):
         """
         deletes intent including dependencies
@@ -1757,6 +1759,7 @@ class MongoProcessor:
         :param intent: intent name
         :param bot: bot id
         :param user: user id
+        :param is_integration: integration status
         :param delete_dependencies: if True deletes training example, stories and responses
         that are associated with intent, default is True
         :return: None
@@ -1764,9 +1767,22 @@ class MongoProcessor:
         """
         if Utility.check_empty_string(intent):
             raise AssertionError("Intent Name cannot be empty or blank spaces")
+
         try:
             # status to be filtered as Invalid Intent should not be fetched
             intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
+
+        except DoesNotExist as custEx:
+            logging.info(custEx)
+            raise AppException(
+                "Invalid IntentName: Unable to remove document: " + str(custEx)
+            )
+
+        if is_integration:
+            if not intentObj.is_integration:
+                raise AppException("This intent cannot be deleted by an integration user")
+
+        try:
             intentObj.user = user
             intentObj.status = False
             intentObj.timestamp = datetime.utcnow()
@@ -1784,15 +1800,10 @@ class MongoProcessor:
                 Utility.delete_document(
                     [Stories], bot=bot, user=user, events__name__iexact=intent
                 )
-        except DoesNotExist as custEx:
-            logging.info(custEx)
-            raise AppException(
-                "Invalid IntentName: Unable to remove document: " + str(custEx)
-            )
+
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
-
 
 class AgentProcessor:
     """
