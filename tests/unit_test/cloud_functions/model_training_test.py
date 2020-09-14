@@ -1,9 +1,11 @@
-import moto
-from cloud_functions.aws import model_training
 import os
 from json import dumps
-from pytest import fixture
+
+import moto
 from boto3 import client
+
+from cloud_functions.aws import model_training
+
 
 @moto.mock_ecs
 def test_model_training():
