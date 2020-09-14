@@ -1,6 +1,5 @@
 import logging
-import typing
-from typing import Any, Dict, List, Optional, Text, Tuple
+from typing import Any, Dict, List, Optional, Text, Tuple, TYPE_CHECKING
 
 from rasa.nlu.components import Component
 from rasa.nlu.config import RasaNLUModelConfig, override_defaults
@@ -9,12 +8,13 @@ from rasa.nlu.model import InvalidModelError
 from cachetools.lru import LRUCache
 logger = logging.getLogger(__name__)
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from spacy.language import Language
     from spacy.tokens.doc import Doc  # pytype: disable=import-error
     from rasa.nlu.model import Metadata
 
 from rasa.nlu.constants import TEXT, SPACY_DOCS, DENSE_FEATURIZABLE_ATTRIBUTES
+
 
 class SpacyNLP(Component):
     cache = LRUCache(maxsize=10)
