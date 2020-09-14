@@ -142,7 +142,7 @@ class TestMongoProcessor:
 
     def test_add_intent(self):
         processor = MongoProcessor()
-        assert processor.add_intent("greeting", "tests", "testUser")
+        assert processor.add_intent("greeting", "tests", "testUser", is_integration=False)
         intent = Intents.objects(bot="tests").get(name="greeting")
         assert intent.name == "greeting"
 
@@ -165,7 +165,7 @@ class TestMongoProcessor:
 
     def test_add_intent_with_underscore(self):
         processor = MongoProcessor()
-        assert processor.add_intent("greeting_examples", "tests", "testUser")
+        assert processor.add_intent("greeting_examples", "tests", "testUser", is_integration=False)
         intent = Intents.objects(bot="tests").get(name="greeting_examples")
         assert intent.name == "greeting_examples"
 
@@ -173,33 +173,33 @@ class TestMongoProcessor:
     def test_add_intent_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            processor.add_intent("greeting", "tests", "testUser")
+            processor.add_intent("greeting", "tests", "testUser", is_integration=False)
 
 
     def test_add_intent_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            processor.add_intent("Greeting", "tests", "testUser")
+            processor.add_intent("Greeting", "tests", "testUser", is_integration=False)
 
     def test_add_none_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.add_intent(None, "tests", "testUser")
+            processor.add_intent(None, "tests", "testUser", is_integration=False)
 
     def test_add_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.add_intent("", "tests", "testUser")
+            processor.add_intent("", "tests", "testUser", is_integration=False)
 
     def test_add_blank_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.add_intent("  ", "tests", "testUser")
+            processor.add_intent("  ", "tests", "testUser", is_integration=False)
 
     def test_add_training_example(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example(["Hi, How are you?"], "greeting", "tests", "testUser")
+            processor.add_training_example(["Hi, How are you?"], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"]
         assert results[0]["text"] == "Hi, How are you?"
@@ -208,7 +208,7 @@ class TestMongoProcessor:
     def test_add_same_training_example(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example(["Hi"], "greeting", "tests", "testUser")
+            processor.add_training_example(["Hi"], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "Hi"
@@ -218,7 +218,7 @@ class TestMongoProcessor:
     def test_add_training_example_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example(["hi"], "greeting", "tests", "testUser")
+            processor.add_training_example(["hi"], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "hi"
@@ -227,7 +227,7 @@ class TestMongoProcessor:
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example([None], "greeting", "tests", "testUser")
+            processor.add_training_example([None], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] is None
@@ -239,7 +239,7 @@ class TestMongoProcessor:
     def test_add_training_example_empty_text(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example([""], "greeting", "tests", "testUser")
+            processor.add_training_example([""], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == ""
@@ -251,7 +251,7 @@ class TestMongoProcessor:
     def test_add_training_example_blank_text(self):
         processor = MongoProcessor()
         results = list(
-            processor.add_training_example(["  "], "greeting", "tests", "testUser")
+            processor.add_training_example(["  "], "greeting", "tests", "testUser", is_integration=False)
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "  "
@@ -265,7 +265,7 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             results = list(
                 processor.add_training_example(
-                    ["Hi! How are you"], None, "tests", "testUser"
+                    ["Hi! How are you"], None, "tests", "testUser", is_integration=False
                 )
             )
             assert results[0]["_id"] is None
@@ -280,7 +280,7 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             results = list(
                 processor.add_training_example(
-                    ["Hi! How are you"], "", "tests", "testUser"
+                    ["Hi! How are you"], "", "tests", "testUser", is_integration=False
                 )
             )
             assert results[0]["_id"] is None
@@ -295,7 +295,7 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             results = list(
                 processor.add_training_example(
-                    ["Hi! How are you"], "  ", "tests", "testUser"
+                    ["Hi! How are you"], "  ", "tests", "testUser", is_integration=False
                 )
             )
             assert results[0]["_id"] is None
@@ -309,7 +309,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException):
             results = list(
-                processor.add_training_example([""], None, "tests", "testUser")
+                processor.add_training_example([""], None, "tests", "testUser", is_integration=False)
             )
             assert results[0]["_id"] is None
             assert results[0]["text"] == "Hi! How are you"
@@ -344,6 +344,7 @@ class TestMongoProcessor:
                 "get_priority",
                 "tests",
                 "testUser",
+                is_integration=False
             )
         )
         assert results[0]["_id"]
@@ -371,6 +372,7 @@ class TestMongoProcessor:
                 "get_priority",
                 "tests",
                 "testUser",
+                is_integration=False
             )
         )
         assert results[0]["_id"]
@@ -420,7 +422,7 @@ class TestMongoProcessor:
         actual = list(processor.add_training_example(["Log a [critical issue](priority)",
                                         "Make [TKT456](ticketID) a [high issue](priority)"],
                                         intent="get_priority",
-                                       bot="tests", user="testUser"))
+                                       bot="tests", user="testUser", is_integration=False))
         assert actual[0]['message'] == "Training Example already exists!"
         assert actual[1]['message'] == "Training Example added successfully!"
 
@@ -1048,31 +1050,31 @@ class TestModelProcessor:
 
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser", delete_dependencies=False)
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False, delete_dependencies=False)
         with pytest.raises(Exception):
             intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
 
     def test_delete_invalid_intent(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            processor.delete_intent("TestingDelGreetingInvalid", "tests", "testUser")
+            processor.delete_intent("TestingDelGreetingInvalid", "tests", "testUser", is_integration=False)
 
     def test_delete_empty_Intent(self):
         processor = MongoProcessor()
         with pytest.raises(AssertionError):
-            processor.delete_intent("", "tests", "testUser")
+            processor.delete_intent("", "tests", "testUser", is_integration=False)
 
     def test_delete_valid_intent(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
 
     def test_intent_no_stories(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
-        processor.add_training_example(["Hows You Doing!"], "TestingDelGreeting", "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.add_training_example(["Hows You Doing!"], "TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting'  for intent in actual)
         actual = len(list(processor.get_training_examples("TestingDelGreeting", "tests")))
@@ -1080,10 +1082,10 @@ class TestModelProcessor:
 
     def test_delete_intent_no_trainingExamples(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
         processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser")
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting'  for intent in actual)
         actual = list(processor.get_stories("tests"))
@@ -1093,9 +1095,9 @@ class TestModelProcessor:
 
     def test_delete_intent_no_utterance(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser")
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting'  for intent in actual)
         actual = list(processor.get_stories("tests"))
@@ -1104,13 +1106,31 @@ class TestModelProcessor:
 
     def test_delete_intent_with_examples_stories_utterance(self):
         processor = MongoProcessor()
-        processor.add_intent("TestingDelGreeting", "tests", "testUser")
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
         processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser")
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting'  for intent in actual)
         actual = list(processor.get_stories("tests"))
         assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
         actual = processor.get_utterance_from_intent("TestingDelGreeting", "tests")
         assert not actual
+
+    def test_add_and_delete_non_integration_intent_by_integration_user(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        with pytest.raises(Exception):
+            processor.delete_intent("TestingDelGreeting", "tests", "testUser1", is_integration=True, delete_dependencies=False)
+
+    def test_add_and_delete_integration_intent_by_same_integration_user(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True)
+        processor.delete_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True,
+                                    delete_dependencies=False)
+
+    def test_add_and_delete_integration_intent_by_different_integration_user(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting2", "tests", "testUser", is_integration=True)
+        processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
+                                    delete_dependencies=False)
