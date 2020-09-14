@@ -1483,3 +1483,88 @@ def test_overwrite_password_for_non_matching_passwords():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual['data'] is None
+
+def test_add_and_delete_intents_by_integration_user():
+    response = client.get(
+        "/api/auth/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["data"]["access_token"]
+    assert token["data"]["token_type"]
+
+    response = client.post(
+        "/api/bot/intents",
+        headers={
+            "Authorization": token["data"]["token_type"]
+                             + " "
+                             + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
+        json={"data": "integration_intent"},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+
+    response = client.delete(
+        "/api/bot/intents/integration_intent/True",
+        headers={
+                "Authorization": token["data"]["token_type"]
+                                 + " "
+                                 + token["data"]["access_token"],
+                "X-USER": "integration1",
+            },
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Intent deleted!"
+    assert actual['success']
+
+def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
+    response = client.get(
+        "/api/auth/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["data"]["access_token"]
+    assert token["data"]["token_type"]
+
+    response = client.post(
+        "/api/bot/intents",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "non_integration_intent"},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+
+    response = client.delete(
+        "/api/bot/intents/non_integration_intent/True",
+        headers={
+                "Authorization": token["data"]["token_type"]
+                                 + " "
+                                 + token["data"]["access_token"],
+                "X-USER": "integration1",
+            },
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "This intent cannot be deleted by an integration user"
+    assert not actual['success']
