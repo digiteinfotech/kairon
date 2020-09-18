@@ -10,6 +10,7 @@ RUN python3 -m pip install nltk
 RUN python3 -m pip install transformers
 RUN python3 -m pip install loguru
 RUN python3 -m pip install nlp
+RUN python3 -m pip install torch
 RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN python3 -m nltk.downloader punkt
 
