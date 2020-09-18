@@ -6,7 +6,7 @@ class ParaPhrasing:
     model_name = 'tuner007/pegasus_paraphrase'
     torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
     tokenizer = PegasusTokenizer.from_pretrained(model_name)
-    model = PegasusForConditionalGeneration.from_pretrained(model_name).to(torch_device)
+    model = PegasusForConditionalGeneration.from_pretrained(model_name, force_download=True).to(torch_device)
 
     @staticmethod
     def paraphrases(input_text, num_return_sequences=10, num_beams=10):
