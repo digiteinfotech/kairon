@@ -24,5 +24,5 @@ build:
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
-    -  docker build -f ./docker/Dockerfile_augment --target paraphrase -t kairon-paraphrase:latest .
-    -  docker build -f ./docker/Dockerfile_augment --target question-generation -t kairon-question-generation:latest .
+    -  docker build -f ./docker/Dockerfile_parahrases -t kairon-paraphrase:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
