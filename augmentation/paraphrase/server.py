@@ -56,5 +56,5 @@ async def http_exception_handler(request, exc):
 @app.post("/paraphrases", response_model=Response)
 async def chat(request_data: List[Text]):
     """Generates variations for given list of sentences/questions"""
-    response = await ParaPhrasing.paraphrases(request_data)
+    response = ParaPhrasing.paraphrases(request_data)
     return {"data": {"questions": response}}

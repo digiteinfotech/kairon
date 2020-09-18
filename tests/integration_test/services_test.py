@@ -984,20 +984,23 @@ def test_predict_intent_error():
 
 
 @responses.activate
-def test_augment_questions():
+def test_augment_paraphrase():
     responses.add(
         responses.POST,
-        "http://localhost:8000/questions",
+        "http://localhost:8000/paraphrases",
         json={
             "sucess": True,
             "data": {
-                "questions": [
-                    "where is digite centrally located?",
-                    "where is digite conveniently located?",
-                    "where is digite islocated?",
-                    "where is digite situated?",
-                    "where is digite strategically located?",
-                ]
+                "questions": ['Where is digite located?',
+                    'Where is digite?',
+                    'What is the location of digite?',
+                    'Where is the digite located?',
+                    'Where is it located?',
+                    'What location is digite located?',
+                    'Where is the digite?',
+                    'where is digite located?',
+                    'Where is digite situated?',
+                    'digite is located where?']
             },
             "message": None,
             "error_code": 0,
@@ -1005,7 +1008,7 @@ def test_augment_questions():
         status=200,
     )
     response = client.post(
-        "/api/augment/questions",
+        "/api/augment/paraphrases",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": ["where is digite located?'"]},
     )
