@@ -54,7 +54,7 @@ async def http_exception_handler(request, exc):
 
 
 @app.post("/questions", response_model=Response)
-async def chat(request_data: Text):
+async def questions(request_data: Text):
     """Generates variations for given list of sentences/questions"""
     response = await QuestionGenerator.generate(request_data)
     return {"data": {"questions": response}}
