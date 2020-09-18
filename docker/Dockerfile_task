@@ -1,0 +1,42 @@
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+
+SHELL ["/bin/bash", "-c"]
+
+ENV RASA_NLU_DOCKER="YES" \
+    RASA_NLU_HOME=/app \
+    RASA_NLU_PYTHON_PACKAGES=/usr/local/lib/python3.7/dist-packages
+
+WORKDIR ${RASA_NLU_HOME}
+
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install pyyaml
+RUN python3 -m pip install mongoengine==0.20.0
+RUN python3 -m pip install rasa==1.10.3
+RUN python3 -m pip install cython
+RUN python3 -m pip install pandas
+RUN python3 -m pip install pyjwt
+RUN python3 -m pip install passlib[bcrypt]
+RUN python3 -m pip install python-multipart
+RUN python3 -m pip install validators
+RUN python3 -m pip install rasa[transformers]==1.10.3
+RUN python3 -m pip install rasa[spacy]==1.10.3
+RUN python3 -m pip install rasa[convert]==1.10.3
+RUN python3 -m pip install tensorflow_text==2.1.1
+RUN python3 -m pip install tensorflow-addons==0.9.1
+RUN python3 -m pip install secure
+RUN python3 -m pip install spacy==2.3.2
+RUN python3 -m spacy download en_core_web_md
+RUN python3 -m spacy link en_core_web_md en
+RUN python3 -m pip install password-strength
+RUN python3 -m pip install loguru
+RUN python3 -m pip install smart-config==0.1.3
+RUN mkdir ssl
+RUN chmod 777 -R /tmp
+
+COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
+COPY system.yaml ${RASA_NLU_HOME}/
+COPY template ${RASA_NLU_HOME}/template
+COPY custom ${RASA_NLU_HOME}/custom
+COPY email.yaml ${RASA_NLU_HOME}/
+
+CMD ["bot_trainer","$BOT","$USER"]

@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Text
 
 import pandas as pd
 from loguru import logger
 from pymongo import MongoClient
-from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
+from rasa.core.tracker_store import MongoTrackerStore
 
 from bot_trainer.exceptions import AppException
 from bot_trainer.utils import Utility
