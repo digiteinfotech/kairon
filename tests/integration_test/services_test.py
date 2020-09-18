@@ -57,7 +57,7 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
-    assert actual["message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
+    assert actual["message"] == '''1 validation error for Request\nbody -> password\n  Missing 1 uppercase letter (type=value_error)'''
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -533,7 +533,7 @@ def test_add_story_missing_event_type():
     assert actual["error_code"] == 422
     assert (
         actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required (type=value_error.missing)"
+        == "1 validation error for Request\nbody -> events -> 0 -> type\n  field required (type=value_error.missing)"
     )
 
 
@@ -554,7 +554,7 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
         actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
+        == "1 validation error for Request\nbody -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
     )
 
 
@@ -1077,7 +1077,7 @@ def test_save_endpoint_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == '1 validation error for Request\nbody -> endpoint\n  field required (type=value_error.missing)'
+    assert actual['message'] == '1 validation error for Request\nbody\n  field required (type=value_error.missing)'
     assert not actual['success']
 
 
