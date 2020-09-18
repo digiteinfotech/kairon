@@ -11,20 +11,31 @@ services:
     volumes:
       - ./mongo_data:/data/db
 
-  kairon-augment:
-    image: digite/kairon-augment:latest
+  kairon-paraphrase:
+    image: digite/kairon-paraphrase:latest
     networks:
       - chatbotnetwork
-    container_name: kairon-augment
-    hostname: kairon-augment
+    container_name: kairon-paraphrase
+    hostname: kairon-paraphrase
     depends_on:
       - mongo
     ports:
       - 8001:8000
     volumes:
-      - ./augment_tmp:/root/.cache/
-    environment:
-      mongo_url: "mongodb://mongo:27017"
+      - ./paraphrase_tmp:/root/.cache/
+
+  kairon-question-generation:
+    image: digite/kairon-question-generation:latest
+    networks:
+      - chatbotnetwork
+    container_name: kairon-question-generation
+    hostname: kairon-question-generation
+    depends_on:
+      - mongo
+    ports:
+      - 8001:8000
+    volumes:
+      - ./question_generation_tmp:/root/.cache/
 
   kairon-api:
     image: digite/kairon-api:latest
@@ -43,7 +54,7 @@ services:
     environment:
       DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      AUGMENTATION_URL: "http://kairon-augment:8001/questions"
+      AUGMENTATION_URL: "http://kairon-paraphrase:8001/questions"
       TEST_DB: "kairon_conversations"
 
   kairon-ui:

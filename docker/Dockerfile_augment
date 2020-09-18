@@ -1,26 +1,30 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7 AS base
 SHELL ["/bin/bash", "-c"]
 
 ENV RASA_NLU_DOCKER="YES" \
     RASA_NLU_HOME=/app \
     RASA_NLU_PYTHON_PACKAGES=/usr/local/lib/python3.7/dist-packages
 
-WORKDIR ${RASA_NLU_HOME}
-
 RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install nltk
+RUN python3 -m pip install transformers
+RUN python3 -m pip install loguru
+WORKDIR ${RASA_NLU_HOME}
+COPY augmentation ${RASA_NLU_HOME}/augmentation
+EXPOSE 8000
+
+FROM base AS paraphrase
 RUN python3 -m pip install numpy
 RUN python3 -m pip install matplotlib
 RUN python3 -m pip install requests
 RUN python3 -m pip install torch
-RUN python3 -m pip install transformers
 RUN python3 -m pip install nlpaug
-RUN python3 -m pip install nltk
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
-RUN python3 -m pip install loguru
+CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0"]
 
-COPY augmentation ${RASA_NLU_HOME}/augmentation
 
-EXPOSE 8000
-
-CMD ["uvicorn", "augmentation.server:app","--host","0.0.0.0"]
+FROM base AS question-generation
+RUN python3 -m pip install nlp
+RUN python3 -m nltk.downloader punkt
+CMD ["uvicorn", "augmentation.question_generator.server:app","--host","0.0.0.0"]

@@ -9,11 +9,11 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.api.app.main import app
-from bot_trainer.data_processor.processor import MongoProcessor, ModelProcessor
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.api.processor import AccountProcessor
+from kairon.api.app.main import app
+from kairon.data_processor.processor import MongoProcessor, ModelProcessor
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 from rasa.utils.io import read_config_file
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)

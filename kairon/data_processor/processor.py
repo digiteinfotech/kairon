@@ -27,8 +27,8 @@ from rasa.train import DEFAULT_MODELS_PATH
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.io import read_config_file
 
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 from .cache import InMemoryAgentCache
 from .constant import (
     DOMAIN,

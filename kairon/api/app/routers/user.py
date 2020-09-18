@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from bot_trainer.api.auth import Authentication
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.api.models import Response, User
+from kairon.api.auth import Authentication
+from kairon.api.processor import AccountProcessor
+from kairon.api.models import Response, User
 from fastapi import Depends
 
 router = APIRouter()

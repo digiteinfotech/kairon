@@ -3,10 +3,10 @@ from typing import Dict, Text
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
-from bot_trainer.api.data_objects import Account, User, Bot, UserEmailConfirmation
-from bot_trainer.data_processor.processor import MongoProcessor
-from bot_trainer.utils import Utility
-from bot_trainer.exceptions import AppException
+from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.data_processor.processor import MongoProcessor
+from kairon.utils import Utility
+from kairon.exceptions import AppException
 from validators import ValidationFailure
 from validators import email as mail_check
 from datetime import datetime

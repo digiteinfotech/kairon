@@ -3,8 +3,8 @@ from typing import List, Any, Dict
 
 from pydantic import BaseModel, validator, SecretStr
 
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 
 
 class Token(BaseModel):

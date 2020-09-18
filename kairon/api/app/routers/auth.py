@@ -2,8 +2,8 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import Response, User
+from kairon.api.auth import Authentication
+from kairon.api.models import Response, User
 
 router = APIRouter()
 auth = Authentication()

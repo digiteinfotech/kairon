@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from bot_trainer.api.auth import Authentication
-from bot_trainer.data_processor.history import ChatHistory
-from bot_trainer.api.models import Response, User, HistoryMonth
+from kairon.api.auth import Authentication
+from kairon.data_processor.history import ChatHistory
+from kairon.api.models import Response, User, HistoryMonth
 from fastapi import Depends
 from typing import Text
 

@@ -8,7 +8,7 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
-from bot_trainer.utils import Utility
+from kairon.utils import Utility
 from validators import email, ValidationFailure
 
 

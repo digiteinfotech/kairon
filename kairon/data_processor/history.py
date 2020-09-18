@@ -1,13 +1,12 @@
 from datetime import datetime
 from typing import Text
 
-import pandas as pd
 from loguru import logger
 from pymongo import MongoClient
 from rasa.core.tracker_store import MongoTrackerStore
 
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 from .processor import MongoProcessor
 
 
@@ -305,39 +304,6 @@ class ChatHistory:
         finally:
             tracker.client.close()
         return (conversations, message)
-
-    @staticmethod
-    def __fetch_history_metrics(bot: Text, show_session=False, filter_columns=None):
-        filter_events = ["user", "bot"]
-        if show_session:
-            filter_events.append("session_started")
-
-        if not filter_columns:
-            filter_columns = [
-                "sender_id",
-                "event",
-                "name",
-                "text",
-                "timestamp",
-                "input_channel",
-                "message_id",
-            ]
-        records, message = ChatHistory.get_conversations(bot)
-        data_frame = pd.DataFrame(list(records))
-        if not data_frame.empty:
-            data_frame = data_frame.explode(column="events")
-            data_frame = pd.concat(
-                [
-                    data_frame.drop(["events"], axis=1),
-                    data_frame["events"].apply(pd.Series),
-                ],
-                axis=1,
-            )
-            data_frame.fillna("", inplace=True)
-            data_frame["name"] = data_frame["name"].shift()
-            data_frame = data_frame[data_frame["event"].isin(filter_events)]
-            data_frame = data_frame[filter_columns]
-        return data_frame, message
 
     @staticmethod
     def user_with_metrics(bot, month=1):

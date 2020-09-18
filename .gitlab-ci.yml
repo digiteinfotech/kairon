@@ -13,7 +13,7 @@ test:
   stage: test
   script:
     - python3.6 -m pip install -r requirements.txt
-    - python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
+    - python3.6 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html
 
 build:
   tags:
@@ -23,5 +23,6 @@ build:
   stage: build
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
-    -  docker build -f ./docker/Dockerfile_augment -t kairon-augment:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
+    -  docker build -f ./docker/Dockerfile_augment --target paraphrase -t kairon-paraphrase:latest .
+    -  docker build -f ./docker/Dockerfile_augment --target question-generation -t kairon-question-generation:latest .

@@ -9,18 +9,18 @@ from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 
-from bot_trainer.data_processor.data_objects import (TrainingExamples,
-                                                     Slots,
-                                                     Entities,
-                                                     Intents,
-                                                     Actions,
-                                                     Responses,
-                                                     ModelTraining
-                                                     )
-from bot_trainer.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
-from bot_trainer.exceptions import AppException
-from bot_trainer.train import train_model_from_mongo, start_training
-from bot_trainer.utils import Utility
+from kairon.data_processor.data_objects import (TrainingExamples,
+                                                Slots,
+                                                Entities,
+                                                Intents,
+                                                Actions,
+                                                Responses,
+                                                ModelTraining
+                                                )
+from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from kairon.exceptions import AppException
+from kairon.train import train_model_from_mongo, start_training
+from kairon.utils import Utility
 
 class TestMongoProcessor:
     @pytest.fixture(autouse=True)

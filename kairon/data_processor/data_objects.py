@@ -26,8 +26,8 @@ from rasa.core.slots import (
 )
 from validators import url, ValidationFailure
 
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 
 
 class Entity(EmbeddedDocument):

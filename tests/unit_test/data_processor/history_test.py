@@ -5,9 +5,9 @@ from mongoengine import connect
 from rasa.core.domain import Domain
 from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
 
-from bot_trainer.data_processor.history import ChatHistory
-from bot_trainer.data_processor.processor import MongoProcessor
-from bot_trainer.utils import Utility
+from kairon.data_processor.history import ChatHistory
+from kairon.data_processor.processor import MongoProcessor
+from kairon.utils import Utility
 import os
 from mongomock import MongoClient
 

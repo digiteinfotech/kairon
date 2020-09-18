@@ -4,8 +4,8 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
-from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import (
+from kairon.api.auth import Authentication
+from kairon.api.models import (
     TextData,
     User,
     ListData,
@@ -14,15 +14,15 @@ from bot_trainer.api.models import (
     Endpoint,
     Config,
 )
-from bot_trainer.data_processor.data_objects import TrainingExamples, Responses
-from bot_trainer.data_processor.processor import (
+from kairon.data_processor.data_objects import TrainingExamples, Responses
+from kairon.data_processor.processor import (
     MongoProcessor,
     AgentProcessor,
     ModelProcessor,
 )
-from bot_trainer.exceptions import AppException
-from bot_trainer.train import start_training
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.train import start_training
+from kairon.utils import Utility
 
 router = APIRouter()
 auth = Authentication()

@@ -17,11 +17,11 @@ from mongoengine.errors import (
 )
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from bot_trainer.exceptions import AppException
-from bot_trainer.utils import Utility
+from kairon.exceptions import AppException
+from kairon.utils import Utility
 from .routers import auth, bot, augment, history, user, account
-from bot_trainer.api.models import Response
-from bot_trainer.api.processor import AccountProcessor
+from kairon.api.models import Response
+from kairon.api.processor import AccountProcessor
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 from secure import SecureHeaders

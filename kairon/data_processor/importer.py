@@ -6,7 +6,7 @@ from rasa.core.domain import Domain
 from rasa.core.training.structures import StoryGraph
 from .processor import MongoProcessor
 from rasa.core.interpreter import RegexInterpreter, NaturalLanguageInterpreter
-from bot_trainer.exceptions import AppException
+from kairon.exceptions import AppException
 
 
 class MongoDataImporter(TrainingDataImporter):

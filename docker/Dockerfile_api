@@ -33,7 +33,7 @@ RUN python3 -m pip install smart-config==0.1.3
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
 
-COPY bot_trainer ${RASA_NLU_HOME}/bot_trainer
+COPY kairon ${RASA_NLU_HOME}/kairon
 COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
@@ -41,4 +41,4 @@ COPY email.yaml ${RASA_NLU_HOME}/
 
 EXPOSE 80
 
-CMD ["uvicorn", "bot_trainer.api.app.main:app","--host","0.0.0.0","--port","80"]
+CMD ["uvicorn", "kairon.api.app.main:app","--host","0.0.0.0","--port","80"]

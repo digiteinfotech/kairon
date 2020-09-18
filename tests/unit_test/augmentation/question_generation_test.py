@@ -1,6 +1,6 @@
 import asyncio
 
-from augmentation.generator import QuestionGenerator
+from augmentation.paraphrase.generator import QuestionGenerator
 
 
 class TestQuestionGeneration:

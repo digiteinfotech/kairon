@@ -4,7 +4,7 @@ from typing import Text
 from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode, encode
 
-from bot_trainer.utils import Utility
+from kairon.utils import Utility
 from .models import User, TokenData
 from .processor import AccountProcessor
 

@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
-from bot_trainer.api.auth import Authentication
-from bot_trainer.api.models import Response, RegisterAccount, TextData, Password
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.utils import Utility
+from kairon.api.auth import Authentication
+from kairon.api.models import Response, RegisterAccount, TextData, Password
+from kairon.api.processor import AccountProcessor
+from kairon.utils import Utility
 
 router = APIRouter()
 auth = Authentication()

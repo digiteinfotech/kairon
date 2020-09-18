@@ -6,9 +6,9 @@ from mongoengine.errors import ValidationError
 import pytest
 from pydantic import SecretStr
 
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.utils import Utility
-from bot_trainer.exceptions import AppException
+from kairon.api.processor import AccountProcessor
+from kairon.utils import Utility
+from kairon.exceptions import AppException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 

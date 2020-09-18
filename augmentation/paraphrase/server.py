@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from .generator import QuestionGenerator
+from augmentation.paraphrase.paraphrasing import ParaPhrasing
 from pydantic import BaseModel
 from typing import Any, List, Text
 from loguru import logger as logging
@@ -53,8 +53,8 @@ async def http_exception_handler(request, exc):
     )
 
 
-@app.post("/questions", response_model=Response)
+@app.post("/paraphrases", response_model=Response)
 async def chat(request_data: List[Text]):
     """Generates variations for given list of sentences/questions"""
-    response = await QuestionGenerator.generateQuestions(request_data)
+    response = await ParaPhrasing.paraphrases(request_data)
     return {"data": {"questions": response}}

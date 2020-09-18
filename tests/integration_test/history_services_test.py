@@ -7,11 +7,11 @@ import pytest
 from rasa.core.domain import Domain
 from rasa.core.tracker_store import DialogueStateTracker
 
-from bot_trainer.api.app.main import app
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.data_processor.history import ChatHistory
-from bot_trainer.data_processor.processor import MongoProcessor
-from bot_trainer.utils import Utility
+from kairon.api.app.main import app
+from kairon.api.processor import AccountProcessor
+from kairon.data_processor.history import ChatHistory
+from kairon.data_processor.processor import MongoProcessor
+from kairon.utils import Utility
 from mongomock import MongoClient
 client = TestClient(app)
 

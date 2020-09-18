@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from mongoengine import connect
 from smart_config import ConfigLoader
 
-from bot_trainer.train import start_training
+from kairon.train import start_training
 
 
 def create_arg_parser():

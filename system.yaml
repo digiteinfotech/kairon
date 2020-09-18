@@ -8,7 +8,8 @@ security:
   token_expire: ${TOKEN_EXPIRE:10080}
 
 augmentation:
-  url: ${AUGMENTATION_URL:"http://localhost:8000/questions"}
+  paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrase"}
+  question_generation_url: ${QUESTION_GENERATION_URL:"http://localhost:8000/questionss"}
 
 model:
   training_limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
