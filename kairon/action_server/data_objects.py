@@ -1,4 +1,5 @@
 import validators
+from validators import ValidationFailure
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -10,7 +11,6 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
-from validators import ValidationFailure
 
 
 
@@ -20,7 +20,7 @@ class HttpActionRequestBody(EmbeddedDocument):
     parameter_type = StringField(default="value", choices=["value", "slot"])
 
     def validate(self, clean=True):
-        from bot_trainer.action_server.actions import ActionUtility
+        from kairon.action_server.actions import ActionUtility
 
         if self.parameter_type == "value" and ActionUtility.is_empty(self.value):
             raise ValidationError("Either value for the key should be given or parameter_type should be set to slot")
@@ -47,4 +47,3 @@ class HttpActionConfig(Document):
             raise ValidationError("URL is malformed")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValidationError("Invalid HTTP method")
-

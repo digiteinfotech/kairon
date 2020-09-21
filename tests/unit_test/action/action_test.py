@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Dict, Text, Any, List
+from typing import Dict, Text, Any, List
 
 import pytest
 import responses
@@ -11,7 +11,6 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.action_server.data_objects import HttpActionRequestBody, HttpActionConfig
 from kairon.action_server.actions import ActionUtility, HttpAction
 from kairon.action_server.exception import HttpActionFailure
-from kairon.exceptions import AppException
 from kairon.utils import Utility
 
 
@@ -39,6 +38,7 @@ class TestActions:
     @responses.activate
     def test_execute_http_request_getWith_auth_token(self):
         http_url = 'http://localhost:8080/mock'
+        # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
 
         responses.add(
@@ -314,6 +314,25 @@ class TestActions:
         except HttpActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
 
+    def test_get_http_action_no_request_body(self):
+        http_params = []
+        HttpActionConfig(
+            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
+            action_name="http_action",
+            response="json",
+            http_url="http://test.com",
+            request_method="GET",
+            params_list=http_params,
+            bot="bot",
+            user="user"
+        ).save().to_mongo().to_dict()
+
+        try:
+            ActionUtility.get_http_action_config(pytest.db_url, "bot", "http_action1")
+            assert False
+        except HttpActionFailure as ex:
+            assert str(ex).__contains__("No HTTP action found for bot")
+
     def test_prepare_request(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -348,6 +367,7 @@ class TestActions:
                           followup_action=None, active_form=None, latest_action_name=None)
         actual_request_body = ActionUtility.prepare_request(tracker=tracker,
                                                             http_action_config_params=http_action_config_params)
+        #  deepcode ignore C1801: empty request body for http request with no request body params
         assert len(actual_request_body) == 0
 
     def test_name(self):
@@ -459,7 +479,8 @@ class TestActions:
         assert response == 'The value of 2 in red is []'
 
     def test_run_invalid_http_action(self):
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run_invalid_http_action", "param2": "param2value"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run_invalid_http_action",
+                 "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         HttpActionConfig(
             auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
@@ -476,7 +497,8 @@ class TestActions:
                           followup_action=None, active_form=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpAction().run(dispatcher, tracker, domain)
-        str(dispatcher.messages[0]['text']).__contains__("I have failed to process your request: No HTTP action found for bot")
+        str(dispatcher.messages[0]['text']).__contains__(
+            "I have failed to process your request: No HTTP action found for bot")
 
     def test_run_no_bot(self):
         slots = {"bot": None, "http_action_config": "new_http_action", "param2": "param2value"}
@@ -488,7 +510,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
         assert actual[0]['name'] is not None
-        assert type(actual[0]['name']) == HttpActionFailure
+        assert isinstance(actual[0]['name'], HttpActionFailure)
         assert str(actual[0][
                        'name']) == 'I have failed to process your request: Bot id and HTTP action configuration name not found in slot'
 
@@ -502,7 +524,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
         assert actual[0]['name'] is not None
-        assert type(actual[0]['name']) == HttpActionFailure
+        assert isinstance(actual[0]['name'],HttpActionFailure)
         assert str(actual[0][
                        'name']) == 'I have failed to process your request: Bot id and HTTP action configuration name not found in slot'
 
@@ -680,7 +702,7 @@ class TestActions:
             }
         }
         key_values = ActionUtility.retrieve_value_from_response(keys, resp_msg)
-        assert key_values is not None and len(key_values) != 0
+        assert key_values is not None
         assert key_values['${a.b.3}'] == 2
         assert key_values['${a.b}'] is not None
         assert key_values['${a.b}']['3'] == 2

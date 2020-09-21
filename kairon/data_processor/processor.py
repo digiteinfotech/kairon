@@ -66,7 +66,7 @@ from .data_objects import (
     ModelDeployment,
 )
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
-from ..api.models import User, StoryEventRequest, StoryEventType, HttpActionConfigRequest
+from ..api.models import StoryEventType, HttpActionConfigRequest
 
 
 class MongoProcessor:
@@ -75,14 +75,14 @@ class MongoProcessor:
     """
 
     async def upload_and_save(
-        self,
-        nlu: bytes,
-        domain: bytes,
-        stories: bytes,
-        config: bytes,
-        bot: Text,
-        user: Text,
-        overwrite: bool = True,
+            self,
+            nlu: bytes,
+            domain: bytes,
+            stories: bytes,
+            config: bytes,
+            bot: Text,
+            user: Text,
+            overwrite: bool = True,
     ):
         """
         loads the training data into database
@@ -114,7 +114,7 @@ class MongoProcessor:
         return Utility.create_zip_file(nlu, domain, stories, config, bot)
 
     async def save_from_path(
-        self, path: Text, bot: Text, overwrite: bool = True, user="default"
+            self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
         """
         saves training data file
@@ -370,7 +370,7 @@ class MongoProcessor:
     def __fetch_all_synonyms_value(self, bot: Text):
         synonyms = list(
             EntitySynonyms.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"},}}]
+                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
             )
         )
         if synonyms:
@@ -434,7 +434,7 @@ class MongoProcessor:
     def __fetch_all_lookup_values(self, bot: Text):
         lookup_tables = list(
             LookupTables.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"},}}]
+                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
             )
         )
 
@@ -480,7 +480,7 @@ class MongoProcessor:
     def __fetch_all_regex_patterns(self, bot: Text):
         regex_patterns = list(
             RegexFeatures.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "patterns": {"$push": "$pattern"},}}]
+                [{"$group": {"_id": "$bot", "patterns": {"$push": "$pattern"}, }}]
             )
         )
 
@@ -653,7 +653,7 @@ class MongoProcessor:
             return []
 
     def __extract_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -663,7 +663,7 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
@@ -864,7 +864,7 @@ class MongoProcessor:
     def __fetch_story_block_names(self, bot: Text):
         saved_stories = list(
             Stories.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"},}}]
+                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
             )
         )
         result = []
@@ -1056,7 +1056,7 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-        self, examples: List[Text], intent: Text, bot: Text, user: Text, is_integration: bool
+            self, examples: List[Text], intent: Text, bot: Text, user: Text, is_integration: bool
     ):
         """
         adds training examples for bot
@@ -1071,7 +1071,7 @@ class MongoProcessor:
         if Utility.check_empty_string(intent):
             raise AppException("Intent cannot be empty or blank spaces")
         if not Utility.is_exist(
-            Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             self.add_intent(intent, bot, user, is_integration)
 
@@ -1083,11 +1083,11 @@ class MongoProcessor:
                     )
                 text, entities = Utility.extract_text_and_entities(example.strip())
                 if Utility.is_exist(
-                    TrainingExamples,
-                    raise_error=False,
-                    text__iexact=text,
-                    bot=bot,
-                    status=True,
+                        TrainingExamples,
+                        raise_error=False,
+                        text__iexact=text,
+                        bot=bot,
+                        status=True,
                 ):
                     yield {
                         "text": example,
@@ -1121,7 +1121,7 @@ class MongoProcessor:
                 yield {"text": example, "_id": None, "message": str(e)}
 
     def edit_training_example(
-        self, id: Text, example: Text, intent: Text, bot: Text, user: Text
+            self, id: Text, example: Text, intent: Text, bot: Text, user: Text
     ):
         """
         update training example
@@ -1138,11 +1138,11 @@ class MongoProcessor:
                 raise AppException("Training Example cannot be empty or blank spaces")
             text, entities = Utility.extract_text_and_entities(example.strip())
             if Utility.is_exist(
-                TrainingExamples,
-                raise_error=False,
-                text__iexact=text,
-                bot=bot,
-                status=True,
+                    TrainingExamples,
+                    raise_error=False,
+                    text__iexact=text,
+                    bot=bot,
+                    status=True,
             ):
                 raise AppException("Training Example already exists!")
             training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
@@ -1167,9 +1167,9 @@ class MongoProcessor:
         """
         results = (
             TrainingExamples.objects(bot=bot, status=True)
-            .search_text(search)
-            .order_by("$text_score")
-            .limit(5)
+                .search_text(search)
+                .order_by("$text_score")
+                .limit(5)
         )
         for result in results:
             yield {"intent": result.intent, "text": result.text}
@@ -1220,7 +1220,7 @@ class MongoProcessor:
             return [], []
 
     def remove_document(
-        self, document: Document, id: Text, bot: Text, user: Text, **kwargs
+            self, document: Document, id: Text, bot: Text, user: Text, **kwargs
     ):
         """
         soft delete the document
@@ -1271,7 +1271,7 @@ class MongoProcessor:
             Entities(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
         )
         if not Utility.is_exist(
-            Slots, raise_error=False, name__iexact=name, bot=bot, status=True
+                Slots, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
             Slots(name=name.strip(), type="text", bot=bot, user=user).save()
         return entity["_id"].__str__()
@@ -1365,13 +1365,13 @@ class MongoProcessor:
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
-            Actions, raise_error=False, name__iexact=name, bot=bot, status=True
+                Actions, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
             Actions(name=name.strip(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def edit_text_response(
-        self, id: Text, utterance: Text, name: Text, bot: Text, user: Text
+            self, id: Text, utterance: Text, name: Text, bot: Text, user: Text
     ):
         """
         update the text bot utterance
@@ -1387,7 +1387,7 @@ class MongoProcessor:
         self.edit_response(id, {"text": utterance}, name, bot, user)
 
     def edit_response(
-        self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
+            self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
     ):
         """
         update the bot utterance
@@ -1463,7 +1463,7 @@ class MongoProcessor:
         return saved_items
 
     def __check_response_existence(
-        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_items = self.__fetch_list_of_response(bot)
 
@@ -1505,10 +1505,10 @@ class MongoProcessor:
                 user=user,
                 start_checkpoints=[STORY_START],
             )
-            .save()
-            .to_mongo()
-            .to_dict()["_id"]
-            .__str__()
+                .save()
+                .to_mongo()
+                .to_dict()["_id"]
+                .__str__()
         )
 
     def __fetch_list_of_events(self, bot: Text):
@@ -1525,7 +1525,7 @@ class MongoProcessor:
         return saved_items
 
     def __check_event_existence(
-        self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
+            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_items = self.__fetch_list_of_events(bot)
 
@@ -1696,7 +1696,7 @@ class MongoProcessor:
                 return {}
 
     def add_model_deployment_history(
-        self, bot: Text, user: Text, model: Text, url: Text, status: Text
+            self, bot: Text, user: Text, model: Text, url: Text, status: Text
     ):
         """
         saves model deployment history
@@ -1710,11 +1710,11 @@ class MongoProcessor:
         """
         return (
             ModelDeployment(bot=bot, user=user, model=model, url=url, status=status)
-            .save()
-            .to_mongo()
-            .to_dict()
-            .get("_id")
-            .__str__()
+                .save()
+                .to_mongo()
+                .to_dict()
+                .get("_id")
+                .__str__()
         )
 
     def get_model_deployment_history(self, bot: Text):
@@ -1763,7 +1763,7 @@ class MongoProcessor:
         return response
 
     def delete_intent(
-        self, intent: Text, bot: Text, user: Text, is_integration: bool, delete_dependencies=True
+            self, intent: Text, bot: Text, user: Text, is_integration: bool, delete_dependencies=True
     ):
         """
         deletes intent including dependencies
@@ -1982,6 +1982,20 @@ class MongoProcessor:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
         Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
 
+    def get_http_action_config_and_intent(self, bot: str, user: str, action_name: str):
+        http_action_config = self.get_http_action_config(action_name=action_name, user=user, bot=bot)
+        try:
+            story = Stories.objects().get(bot=bot, user=user, block_name=action_name, status=True)
+        except DoesNotExist as ex:
+            logging.info(ex)
+            raise AppException("No intent found for bot " + bot + " and action " + action_name)
+        except Exception as e:
+            logging.error(e)
+            raise AppException(e)
+        intent = story.events[0].name
+        action_config = Utility.build_http_response_object(http_action_config, intent, user, bot)
+        return action_config
+
     def get_http_action_config(self, bot: str, user: str, action_name: str):
         """
         Fetches Http action config from collection.
@@ -1993,8 +2007,6 @@ class MongoProcessor:
         try:
             http_config_dict = HttpActionConfig.objects().get(bot=bot, user=user,
                                                               action_name=action_name, status=True)
-            if http_config_dict is None:
-                raise DoesNotExist
         except DoesNotExist as ex:
             logging.info(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
@@ -2070,11 +2082,11 @@ class ModelProcessor:
 
     @staticmethod
     def set_training_status(
-        bot: Text,
-        user: Text,
-        status: Text,
-        model_path: Text = None,
-        exception: Text = None,
+            bot: Text,
+            user: Text,
+            status: Text,
+            model_path: Text = None,
+            exception: Text = None,
     ):
         """
         add or update bot training history
@@ -2114,7 +2126,7 @@ class ModelProcessor:
         :raises: AppException
         """
         if ModelTraining.objects(
-            bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
+                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
         ).count():
             if raise_exception:
                 raise AppException("Previous model training in progress.")

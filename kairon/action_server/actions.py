@@ -16,12 +16,15 @@ from .exception import HttpActionFailure
 
 
 class ActionUtility:
-    """Utility class to assist executing actions"""
+    """
+    Utility class to assist executing actions
+    """
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, auth_token=None):
         """
-        Executes http urls provided
+        Executes http urls provided.
+
         :param http_url: HTTP url to be executed
         :param request_method: One of GET, PUT, POST, DELETE
         :param request_body: Request body to be sent with the request
@@ -70,7 +73,7 @@ class ActionUtility:
         :return: Request body for the HTTP request
         """
         request_body = {}
-
+        #  deepcode ignore C1801: Handling empty lists from collection
         if http_action_config_params is None or len(http_action_config_params) == 0:
             return request_body
 
@@ -95,10 +98,7 @@ class ActionUtility:
         """
         if not value:
             return True
-        if not value.strip():
-            return True
-        else:
-            return False
+        return bool(not value.strip())
 
     @staticmethod
     def get_db_url():
@@ -106,8 +106,8 @@ class ActionUtility:
         Fetches MongoDB URL defined in system.yaml file
         :return: MongoDB connection URL
         """
-        os.environ["system_file"] = "E:/kairon/tests/testing_data/system.yaml"
-        environment = ConfigLoader(os.getenv("system_file", "E:/kairon/system.yaml")).get_config()
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
         return environment['database']["url"]
 
     @staticmethod
@@ -153,7 +153,7 @@ class ActionUtility:
                 keys = punctuation_separated_key.split(".")
                 json_search_region = http_response
                 for key in keys:
-                    if type(json_search_region) is dict:
+                    if isinstance(json_search_region, dict):
                         json_search_region = json_search_region[key]
                     else:
                         json_search_region = json_search_region[int(key)]
@@ -186,27 +186,26 @@ class ActionUtility:
         """
         value_mapping = {}
         parsed_output = ActionUtility.attach_response(response_template, http_response)
-        is_placeholder = lambda term: str(term).startswith("${") and str(term).endswith("}")
-        trim_placeholder_identifier = lambda placeholder: str(placeholder).lstrip("${").rstrip("}")
-        keys_with_placeholders = list(filter(is_placeholder, response_template.split(" ")))
+        keys_with_placeholders = [term for term in response_template.split(" ") if term.startswith("${") and term.endswith("}")]
+        #  deepcode ignore C1801: Length check required in case there are no placeholders
         if keys_with_placeholders is None or len(keys_with_placeholders) == 0:
             return parsed_output
-        keys_without_placeholders = list(map(trim_placeholder_identifier, keys_with_placeholders))
+        keys_without_placeholders = [plcehlder.lstrip("${").rstrip("}") for plcehlder in keys_with_placeholders]
 
         try:
-            if type(http_response) is not dict:
+            if not isinstance(http_response, dict):
                 http_response_as_json = json.loads(http_response)
             else:
                 http_response_as_json = http_response
         except ValueError as e:
             logging.error(e)
-            if keys_with_placeholders is not None and len(keys_with_placeholders) != 0:
+            if keys_with_placeholders is not None:
                 raise HttpActionFailure("Could not find value for keys in response")
             return parsed_output
         value_mapping = ActionUtility.retrieve_value_from_response(keys_without_placeholders, http_response_as_json)
         for key in value_mapping:
             value_for_placeholder = value_mapping[key]
-            if type(value_for_placeholder) is dict:
+            if isinstance(value_for_placeholder, dict):
                 parsed_output = parsed_output.replace(key, json.dumps(value_for_placeholder))
             else:
                 parsed_output = parsed_output.replace(key, str(value_mapping[key]))
@@ -215,11 +214,14 @@ class ActionUtility:
 
 
 class HttpAction(Action):
-    """Executes any HTTP action configured by user"""
+    """
+    Executes any HTTP action configured by user
+    """
 
     def name(self) -> Text:
         """
         Name of HTTP action.
+
         :return: Returns literal "http_action".
         """
         return "http_action"
@@ -230,6 +232,7 @@ class HttpAction(Action):
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         """
         Executes GET, PUT, POST, DELETE Http requests and curates and returns the user defined output.
+
         :param dispatcher: Rasa provided Dispatcher to send messages back to the user.
         :param tracker: Rasa provided Tracker to maintain the state of a dialogue between the assistant and the user in the form of conversation sessions.
         :param domain: Rasa provided Domain to specify the intents, entities, slots, and actions your bot should know about.
@@ -252,6 +255,7 @@ class HttpAction(Action):
                                                                request_body=request_body)
 
             response = ActionUtility.prepare_response(http_action_config['response'], http_response)
+        #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
             response = HttpActionFailure("I have failed to process your request: " + str(e))
 

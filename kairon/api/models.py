@@ -2,8 +2,9 @@ from enum import Enum
 from typing import List, Any, Dict
 
 import validators
-from pydantic import BaseModel, validator, SecretStr
 from validators import ValidationFailure
+
+from pydantic import BaseModel, validator, SecretStr
 
 from kairon.exceptions import AppException
 
@@ -90,6 +91,7 @@ class RegisterAccount(BaseModel):
     account: str
     bot: str
 
+    # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
         from kairon.utils import Utility
@@ -232,6 +234,7 @@ class HttpActionParametersResponse(BaseModel):
 
 
 class HttpActionConfigResponse(BaseModel):
+    intent: str
     auth_token: str
     action_name: str
     response: str

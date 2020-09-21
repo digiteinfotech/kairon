@@ -1895,6 +1895,8 @@ def test_update_http_action():
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    actual = response.json()
+    assert actual["error_code"] == 0
 
     request_body = {
         "intent": "slap_test_update_http_action",
@@ -1918,6 +1920,8 @@ def test_update_http_action():
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    actual = response.json()
+    assert actual["error_code"] == 0
 
     response = client.get(
         url="/api/bot/action/httpaction/test_update_http_action",
@@ -1978,7 +1982,7 @@ def test_update_http_action_story():
     assert story is not None
     assert story['events'][0]['name'] == 'greet_test_update_http_action_story'
     assert story['events'][0]['type'] == 'user'
-    assert story['events'][0]['value'] == None
+    assert story['events'][0]['value'] is None
     assert story['events'][1]['name'] == 'bot'
     assert story['events'][1]['type'] == 'slot'
     assert story['events'][2]['name'] == 'http_action_config'
