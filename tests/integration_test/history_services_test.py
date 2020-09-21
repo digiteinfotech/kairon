@@ -97,7 +97,7 @@ def mock_chat_history(monkeypatch):
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.com", "password": "welcome@1"},
+        data={"username": "udit@digite.com", "password": "Password@123"},
     )
     token_response = response.json()
     pytest.access_token = token_response["data"]["access_token"]

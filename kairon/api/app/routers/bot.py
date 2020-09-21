@@ -3,7 +3,9 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
-
+from mongoengine import DoesNotExist
+import kairon
+from kairon.action_server.data_objects import HttpActionConfig, HttpActionRequestBody
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -13,6 +15,7 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
+    HttpActionConfigRequest, HttpActionConfigResponse, HttpActionParametersResponse,
 )
 from kairon.data_processor.data_objects import TrainingExamples, Responses
 from kairon.data_processor.processor import (
@@ -20,6 +23,7 @@ from kairon.data_processor.processor import (
     AgentProcessor,
     ModelProcessor,
 )
+from datetime import datetime
 from kairon.exceptions import AppException
 from kairon.train import start_training
 from kairon.utils import Utility
@@ -262,13 +266,11 @@ async def get_story_from_intent(
     intent: str, current_user: User = Depends(auth.get_current_user)
 ):
     """
-    Fetches he utterance or response that is mapped to a particular intent
+    Fetches the utterance or response that is mapped to a particular intent
     """
-    return {
-        "data": mongo_processor.get_utterance_from_intent(
-            intent, current_user.get_bot()
-        )
-    }
+    response, type = mongo_processor.get_utterance_from_intent(intent, current_user.get_bot())
+    return_data = {"name": response, "type": type}
+    return {"data": return_data}
 
 
 @router.post("/chat", response_model=Response)
@@ -510,3 +512,57 @@ async def set_config_template(
         request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Config applied!"}
+
+
+@router.post("/action/httpaction", response_model=Response)
+async def add_http_action(request_data: HttpActionConfigRequest, current_user: User = Depends(auth.get_current_user)):
+    """
+    Stores the http action config and story event
+    """
+    http_config_id = mongo_processor.add_http_action_with_story(request_data, current_user.get_user(),
+                                                                current_user.get_bot())
+    response = {"http_config_id": http_config_id}
+    message = "Http action added!"
+    return Response(data=response, message=message)
+
+
+@router.get("/action/httpaction/{action}", response_model=Response)
+async def get_http_action(action: str = Path(default=None, description="action name", example="http_action"),
+                          current_user: User = Depends(auth.get_current_user)):
+    """
+    Returns configuration set for the HTTP action
+    """
+    http_action_config = mongo_processor.get_http_action_config(action_name=action, user=current_user.get_user(),
+                                                                bot=current_user.bot)
+    response = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.get_bot())
+    return Response(data=response)
+
+
+@router.put("/action/httpaction", response_model=Response)
+async def update_http_action(request_data: HttpActionConfigRequest,
+                             current_user: User = Depends(auth.get_current_user)):
+    """
+    Updates the http action config and related story event
+    """
+    http_config_id = mongo_processor.update_http_config(request_data=request_data, user=current_user.get_user(),
+                                                        bot=current_user.get_bot())
+    response = {"http_config_id": http_config_id}
+    message = "Http action updated!"
+    return Response(data=response, message=message)
+
+
+@router.delete("/action/httpaction/{action}", response_model=Response)
+async def delete_http_action(action: str = Path(default=None, description="action name", example="http_action"),
+                             current_user: User = Depends(auth.get_current_user)):
+    """
+    Deletes the http action config and story event
+    """
+    try:
+        mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
+                                                  bot=current_user.bot)
+        mongo_processor.delete_story(story=action, user=current_user.get_user(),
+                                     bot=current_user.bot)
+    except Exception as e:
+        raise AppException(e)
+    message = "HTTP action deleted"
+    return Response(message=message)

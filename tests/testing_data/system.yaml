@@ -13,3 +13,6 @@ augmentation:
 
 model:
   training_limit_per_day: ${TRAINING_LIMIT_PER_DAY:2}
+
+action:
+  url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}

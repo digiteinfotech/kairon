@@ -40,7 +40,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    MODEL_TRAINING_STATUS,
+    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS,
 )
 from .data_objects import (
     Responses,
@@ -65,6 +65,8 @@ from .data_objects import (
     ModelTraining,
     ModelDeployment,
 )
+from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
+from ..api.models import User, StoryEventRequest, StoryEventType, HttpActionConfigRequest
 
 
 class MongoProcessor:
@@ -1566,10 +1568,12 @@ class MongoProcessor:
             raise AppException("Intent cannot be empty or blank spaces")
 
         responses = Responses.objects(bot=bot, status=True).distinct(field="name")
+        actions = HttpActionConfig.objects(bot=bot, status=True).distinct(field="action_name")
         story = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
         if story:
             events = story[0].events
             search = False
+            http_action_for_story = None
             for i in range(len(events)):
                 event = events[i]
                 if event.type == "user":
@@ -1577,16 +1581,24 @@ class MongoProcessor:
                         search = True
                     else:
                         search = False
-                if search and event.type == "action" and event.name in responses:
-                    return event.name
+                if search and event.type == StoryEventType.action and event.name in responses:
+                    return event.name, UTTERANCE_TYPE.BOT
+                elif search and event.type == StoryEventType.action and event.name == CUSTOM_ACTIONS.HTTP_ACTION_NAME:
+                    if http_action_for_story in actions:
+                        return http_action_for_story, UTTERANCE_TYPE.HTTP
+                elif search and event.type == StoryEventType.action:
+                    return event.name, event.type
+                if search and event.name == CUSTOM_ACTIONS.HTTP_ACTION_CONFIG:
+                    http_action_for_story = event.value
+        return None, None
 
     def add_session_config(
-        self,
-        bot: Text,
-        user: Text,
-        id: Text = None,
-        sesssionExpirationTime: int = 60,
-        carryOverSlots: bool = True,
+            self,
+            bot: Text,
+            user: Text,
+            id: Text = None,
+            sesssionExpirationTime: int = 60,
+            carryOverSlots: bool = True,
     ):
         """
         save or update session config
@@ -1792,7 +1804,7 @@ class MongoProcessor:
                 Utility.delete_document(
                     [TrainingExamples], bot=bot, user=user, intent__iexact=intent
                 )
-                utterance_name = self.get_utterance_from_intent(intent, bot)
+                utterance_name, utterance_type = self.get_utterance_from_intent(intent, bot)
                 if utterance_name:
                     Utility.delete_document(
                         [Responses], bot=bot, user=user, name__iexact=utterance_name
@@ -1804,6 +1816,193 @@ class MongoProcessor:
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
+
+    def prepare_and_add_story(self, story: str, intent: str, bot: str, user: str):
+        """
+        Creates story events from intent for related Http action and adds it to the stories collection.
+        :param story: Name of the story
+        :param story_event: Event to be added to story
+        :param bot: Bot id
+        :param user: User id
+        :return: Story id
+        """
+        if Utility.check_empty_string(story) or Utility.check_empty_string(bot) or Utility.check_empty_string(user):
+            raise AppException("Story, bot and user are required")
+        try:
+            Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
+                             events__name__iexact=intent)
+        except Exception as e:
+            logging.error(e)
+            raise AppException(e)
+        story_event_list = [{"name": intent, "type": "user"},
+                            {"name": "bot", "type": StoryEventType.slot, "value": bot},
+                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
+                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
+        return self.add_story(story, story_event_list, bot, user)
+
+    def delete_story(self, story: str, user: str, bot: str):
+        """
+        Soft deletes the story.
+        :param story: Story name
+        :param user: user id
+        :param bot: bot id
+        :return:
+        """
+        try:
+            Utility.delete_document([Stories], block_name__iexact=story, bot=bot, user=user)
+        except Exception as e:
+            logging.info(e)
+            raise AppException(e)
+
+    def update_story(self, story: str, intent: str, user: str, bot: str):
+        """
+        Creates story events with event provided and updates the story.
+        :param story: story name
+        :param event: StoryEventRequest<name, type, value> to be added
+        :param user: user id
+        :param bot: bot id
+        :return: story id
+        """
+        story_event_list: List[StoryEvents] = [
+            StoryEvents(name=intent, type=StoryEventType.user),
+            StoryEvents(name="bot", type=StoryEventType.slot, value=bot),
+            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, type=StoryEventType.slot, value=story),
+            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_NAME, type=StoryEventType.action)]
+        try:
+            story_old = Stories.objects(block_name__iexact=story, user=user, bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logging.info(e)
+            raise AppException("Story " + story + " does not exists")
+        story_old.user = user
+        story_old.events = story_event_list
+        story_old.timestamp = datetime.utcnow()
+        return story_old.save(validate=False).to_mongo().to_dict()["_id"].__str__()
+
+    def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):
+        """
+        Updates Http configuration.
+        :param request_data: HttpActionConfigRequest object containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: Http configuration id for updated Http action config
+        """
+        http_action = None
+        try:
+            http_action: HttpActionConfig = self.get_http_action_config(
+                action_name=request_data.action_name, user=user, bot=bot)
+            if http_action is None:
+                raise AppException("No HTTP action found for bot " + bot + " and action " + request_data.action_name)
+        except AppException as e:
+            if str(e).__contains__("No HTTP action found for bot"):
+                raise e
+        try:
+            self.update_story(story=request_data.action_name, intent=request_data.intent,
+                              user=user, bot=bot)
+        except AppException as e:
+            raise e
+
+        http_params = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
+                       for param in request_data.http_params_list]
+        http_action.request_method = request_data.request_method
+        http_action.params_list = http_params
+        http_action.http_url = request_data.http_url
+        http_action.response = request_data.response
+        http_action.auth_token = request_data.auth_token
+        http_action.user = user
+        http_action.status = True
+        http_action.bot = bot
+        http_action.timestamp = datetime.utcnow()
+        http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
+        return http_config_id
+
+    def add_http_action_with_story(self, request_data: HttpActionConfigRequest, user: str, bot: str):
+        """
+        Wrapper method that adds a story for Http action and then adds configuration for the Http action.
+        :param request_data: HttpActionConfigRequest object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Http configuration id for saved Http action config
+        """
+        http_config_id = None
+        self.prepare_and_add_story(story=request_data.action_name, intent=request_data.intent,
+                                   bot=bot, user=user)
+        try:
+            http_config_id = self.add_http_action_config(request_data,
+                                                         user=user,
+                                                         bot=bot)
+        except Exception as e:
+            self.delete_story(story=request_data.action_name, user=user, bot=bot)
+            raise AppException(e)
+        return http_config_id
+
+    def add_http_action_config(self, http_action_config: HttpActionConfigRequest, user: str, bot: str):
+        """
+        Adds a new Http action.
+        :param http_action_config: HttpActionConfigRequest object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Http configuration id for saved Http action config
+        """
+        try:
+            Utility.is_exist(HttpActionConfig, exp_message="Action exists",
+                             action_name__iexact=http_action_config.action_name, bot=bot,
+                             status=True)
+        except Exception as ex:
+            logging.error(str(ex))
+            raise AppException(ex)
+        http_action_params = [
+            HttpActionRequestBody(
+                key=param.key,
+                value=param.value,
+                parameter_type=param.parameter_type)
+            for param in http_action_config.http_params_list]
+
+        return HttpActionConfig(
+            auth_token=http_action_config.auth_token,
+            action_name=http_action_config.action_name,
+            response=http_action_config.response,
+            http_url=http_action_config.http_url,
+            request_method=http_action_config.request_method,
+            params_list=http_action_params,
+            bot=bot,
+            user=user
+        ).save().to_mongo().to_dict()["_id"].__str__()
+
+    def delete_http_action_config(self, action: str, user: str, bot: str):
+        """
+        Soft deletes configuration for Http action.
+        :param action: Http action to be deleted.
+        :param user: user id
+        :param bot: bot id
+        :return:
+        """
+        is_exists = Utility.is_exist(HttpActionConfig, action_name__iexact=action, bot=bot, user=user,
+                                     raise_error=False)
+        if not is_exists:
+            raise AppException("No HTTP action found for bot " + bot + " and action " + action)
+        Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
+
+    def get_http_action_config(self, bot: str, user: str, action_name: str):
+        """
+        Fetches Http action config from collection.
+        :param bot: bot id
+        :param user: user id
+        :param action_name: action name
+        :return: HttpActionConfig object containing configuration for the Http action.
+        """
+        try:
+            http_config_dict = HttpActionConfig.objects().get(bot=bot, user=user,
+                                                              action_name=action_name, status=True)
+            if http_config_dict is None:
+                raise DoesNotExist
+        except DoesNotExist as ex:
+            logging.info(ex)
+            raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
+        except Exception as e:
+            logging.error(e)
+            raise AppException(e)
+        return http_config_dict
+
 
 class AgentProcessor:
     """

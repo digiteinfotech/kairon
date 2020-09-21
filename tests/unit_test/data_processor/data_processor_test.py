@@ -1,21 +1,25 @@
 import asyncio
 import os
+from typing import List
 
 import pytest
-from mongoengine import connect
+from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
 from rasa.core.training.structures import StoryGraph
 from rasa.importers.rasa import Domain
 from rasa.nlu.training_data import TrainingData
 
+from kairon.action_server.data_objects import HttpActionConfig
+from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
+from kairon.data_processor.constant import UTTERANCE_TYPE
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
                                                 Intents,
                                                 Actions,
                                                 Responses,
-                                                ModelTraining
+                                                ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText
                                                 )
 from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
 from kairon.exceptions import AppException
@@ -35,7 +39,7 @@ class TestMongoProcessor:
         assert (
                 loop.run_until_complete(
                     processor.save_from_path(
-                        "tests/testing_data/initial", bot="tests", user="testUser"
+                        "./tests/testing_data/initial", bot="tests", user="testUser"
                     )
                 )
                 is None
@@ -47,7 +51,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             loop.run_until_complete(
                 processor.save_from_path(
-                    "tests/testing_data/error", bot="tests", user="testUser"
+                    "./tests/testing_data/error", bot="tests", user="testUser"
                 )
             )
 
@@ -55,7 +59,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.new_event_loop()
         loop.run_until_complete(
-            processor.save_from_path("tests/testing_data/all", "all", user="testUser")
+            processor.save_from_path("./tests/testing_data/all", "all", user="testUser")
         )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
@@ -85,7 +89,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.new_event_loop()
         loop.run_until_complete(
-            processor.save_from_path("tests/testing_data/all",
+            processor.save_from_path("./tests/testing_data/all",
                                      "all",
                                      overwrite=False,
                                      user="testUser")
@@ -420,9 +424,9 @@ class TestMongoProcessor:
     def test_add_training_example_multiple(self):
         processor = MongoProcessor()
         actual = list(processor.add_training_example(["Log a [critical issue](priority)",
-                                        "Make [TKT456](ticketID) a [high issue](priority)"],
-                                        intent="get_priority",
-                                       bot="tests", user="testUser", is_integration=False))
+                                                      "Make [TKT456](ticketID) a [high issue](priority)"],
+                                                     intent="get_priority",
+                                                     bot="tests", user="testUser", is_integration=False))
         assert actual[0]['message'] == "Training Example already exists!"
         assert actual[1]['message'] == "Training Example added successfully!"
 
@@ -869,9 +873,9 @@ class TestMongoProcessor:
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
-        response = processor.get_utterance_from_intent("deny", "tests")
-        print(response)
+        response, type = processor.get_utterance_from_intent("deny", "tests")
         assert response == "utter_goodbye"
+        assert type == UTTERANCE_TYPE.BOT
 
     def test_get_utterance_from_empty_intent(self):
         processor = MongoProcessor()
@@ -929,6 +933,8 @@ class TestMongoProcessor:
         processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
+
+
 # pylint: disable=R0201
 class TestAgentProcessor:
 
@@ -949,9 +955,11 @@ class TestAgentProcessor:
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
 
+
 class TestModelProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
         connect(host=Utility.environment['database']["url"])
 
@@ -1083,7 +1091,9 @@ class TestModelProcessor:
     def test_delete_intent_no_trainingExamples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
+        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
+                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
+                            "tests", "testUser")
         processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
@@ -1091,12 +1101,15 @@ class TestModelProcessor:
         actual = list(processor.get_stories("tests"))
         assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
         actual = processor.get_utterance_from_intent("TestingDelGreeting", "tests")
-        assert not actual
+        assert not actual[0]
+        assert not actual[1]
 
     def test_delete_intent_no_utterance(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
+        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
+                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
+                            "tests", "testUser")
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting'  for intent in actual)
@@ -1107,7 +1120,9 @@ class TestModelProcessor:
     def test_delete_intent_with_examples_stories_utterance(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"}, {"name": "utter_TestingDelGreeting", "type": "action"}], "tests", "testUser")
+        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
+                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
+                            "tests", "testUser")
         processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
@@ -1115,7 +1130,727 @@ class TestModelProcessor:
         actual = list(processor.get_stories("tests"))
         assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
         actual = processor.get_utterance_from_intent("TestingDelGreeting", "tests")
-        assert not actual
+        assert not actual[0]
+        assert not actual[1]
+
+    def test_prepare_and_add_story(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        action = 'test_action'
+        user = 'test_user'
+        intent = "greet_http_action"
+        processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
+        story = Stories.objects(block_name=action, bot=bot, status=True).get(block_name__iexact=action)
+
+        assert story['events'] is not None
+        assert story['events'][0] is not None
+        assert story['events'][0]['name'] == intent
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "bot"
+        assert story['events'][1]['type'] == StoryEventType.slot
+        assert story['events'][1]['value'] == bot
+        assert story['events'][2]['name'] == "http_action_config"
+        assert story['events'][2]['type'] == StoryEventType.slot
+        assert story['events'][2]['value'] == action
+        assert story['events'][3]['name'] == "kairon_http_action"
+        assert story['events'][3]['type'] == StoryEventType.action
+
+    def test_prepare_and_add_story_no_bot(self):
+        processor = MongoProcessor()
+        bot = None
+        action = 'test_action'
+        user = 'test_user'
+        event_name = "greet_http_action"
+        intent = "test"
+        try:
+            processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__("Story, bot and user are required")
+        except Exception:
+            assert False
+
+    def test_prepare_and_add_story_no_user(self):
+        processor = MongoProcessor()
+        bot = "bot"
+        action = 'test_action'
+        user = None
+        intent = "greet_http_action"
+        try:
+            processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__("Story, bot and user are required")
+        except Exception:
+            assert False
+
+    def test_prepare_and_add_story_no_story(self):
+        processor = MongoProcessor()
+        bot = "bot"
+        story = None
+        user = "test_user"
+        event_name = "greet_http_action"
+        intent = "test"
+        try:
+            processor.prepare_and_add_story(story=story, intent=intent, bot=bot, user=user)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__("Story, bot and user are required")
+        except Exception:
+            assert False
+
+    def test_delete_story(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        action = 'test_action'
+        user = 'test_user'
+        event_name = "greet_http_action"
+        story_event = [StoryEvents(name=event_name, type="user")]
+        Stories(
+            block_name=action,
+            events=story_event,
+            bot=bot,
+            user=user,
+        ).save().to_mongo()
+        processor.delete_story(story=action, user=user, bot=bot)
+        try:
+            Stories.objects(bot=bot, status=True).get(block_name__iexact=action)
+            assert False
+        except DoesNotExist:
+            assert True
+
+    def test_delete_story_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        action = 'test_action'
+        user = 'test_user'
+        event_name = "greet_http_action"
+        story_event = [StoryEvents(name=event_name, type="user")]
+        Stories(
+            block_name=action,
+            events=story_event,
+            bot=bot,
+            user=user,
+        ).save().to_mongo()
+        try:
+            processor.delete_story(story='test_action1', user=user, bot=bot)
+        except AppException:
+            assert True
+        except Exception:
+            assert False
+
+    def test_add_http_action_config(self):
+        processor = MongoProcessor()
+        intent = "greet"
+        story_event = StoryEventRequest(name=intent, type="user")
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        processor.add_http_action_config(http_action_config, user, bot)
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action)
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['auth_token'] == auth_token
+        assert actual_http_action['response'] == response
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] is not None
+        assert actual_http_action['params_list'][0]['key'] == "param1"
+        assert actual_http_action['params_list'][0]['value'] == "param1"
+        assert actual_http_action['params_list'][0]['parameter_type'] == "slot"
+        assert actual_http_action['params_list'][1]['key'] == "param2"
+        assert actual_http_action['params_list'][1]['value'] == "value2"
+        assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+
+    def test_add_http_action_delete_story_on_add_failure(self):
+        processor = MongoProcessor()
+        intent = "greet"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_delete_story_on_add_failure'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save()
+
+        try:
+            processor.add_http_action_with_story(http_action_config, user, bot)
+        except AppException as e:
+            assert str(e) == "Action exists"
+        try:
+            Stories.objects(bot=bot, user=user, status=True).get(block_name__iexact=action)
+            assert False
+        except DoesNotExist:
+            assert True
+
+    def test_add_http_action_config_existing(self):
+        processor = MongoProcessor()
+        intent = "greet"
+        story_event = StoryEventRequest(name=intent, type="user")
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_config_existing'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
+
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo().to_dict()["_id"].__str__()
+
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=params
+        )
+        try:
+            processor.add_http_action_config(http_action_config, user, bot)
+            assert False
+        except AppException as ex:
+            assert str(ex).__contains__("Action exists")
+
+    def test_add_http_action_wrapper(self):
+        processor = MongoProcessor()
+        intent = "greet"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_wrapper'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        http_config_id = processor.add_http_action_with_story(http_action_config, user, bot)
+        assert http_config_id is not None
+        actual_http_action = HttpActionConfig.objects(bot=bot, user=user, status=True).get(
+            action_name__iexact=action)
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['auth_token'] == auth_token
+        assert actual_http_action['response'] == response
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] is not None
+        assert actual_http_action['params_list'][0]['key'] == "param1"
+        assert actual_http_action['params_list'][0]['value'] == "param1"
+        assert actual_http_action['params_list'][0]['parameter_type'] == "slot"
+        assert actual_http_action['params_list'][1]['key'] == "param2"
+        assert actual_http_action['params_list'][1]['value'] == "value2"
+        assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+
+    def test_add_http_action_wrapper_existing_action(self):
+        processor = MongoProcessor()
+        intent = "greet_me"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_wrapper_existing_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
+
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo().to_dict()["_id"].__str__()
+
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=params
+        )
+        try:
+            processor.add_http_action_with_story(http_action_config, user, bot)
+            assert False
+        except AppException as ex:
+            assert str(ex).__contains__("Action exists")
+
+    def test_add_http_action_wrapper_existing_story(self):
+        processor = MongoProcessor()
+        intent = "greet"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_wrapper_existing_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
+
+        Stories(
+            block_name="test_add_http_action_wrapper_existing_action",
+            events=[{"name": "greet", "type": "user"}],
+            bot=bot,
+            user=user
+        ).save(validate=False)
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo().to_dict()["_id"].__str__()
+
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=params
+        )
+        try:
+            processor.add_http_action_with_story(http_action_config, user, bot)
+            assert False
+        except AppException as ex:
+            assert str(ex).__contains__("Story already exists")
+
+    def test_delete_http_action_config(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_delete_http_action_config'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        processor.delete_http_action_config(action=action, user=user, bot=bot)
+        try:
+            HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+                action_name__iexact=action)
+            assert False
+        except DoesNotExist:
+            assert True
+
+    def test_delete_http_action_config_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        action = 'test_delete_http_action_config_non_existing'
+        user = 'test_user'
+        http_url = 'http://www.google.com'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        response = "json"
+        request_method = 'GET'
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        try:
+            processor.delete_http_action_config(action="test_delete_http_action_config_non_existing_non_existing",
+                                                user=user, bot=bot)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__('No HTTP action found for bot test_bot and action test_delete_http_action_config_non_existing_non_existing')
+        except Exception:
+            assert False
+
+    def test_get_http_action_config(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_get_http_action_config'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+
+        actual_test_user1 = processor.get_http_action_config(bot=bot, user="test_user", action_name=action)
+        assert actual_test_user1 is not None
+        assert actual_test_user1['auth_token'] == auth_token
+        assert actual_test_user1['action_name'] == action
+        assert actual_test_user1['response'] == response
+        assert actual_test_user1['http_url'] == http_url
+        assert actual_test_user1['request_method'] == request_method
+
+        http_url1 = 'http://www.google.com'
+        action1 = 'test_get_http_action_config'
+        auth_token1 = "bearer ndgxffffgfhfgkjfjfjfcjjjjjjjj"
+        user1 = 'test_user1'
+        response1 = ""
+        request_method1 = 'POST'
+        HttpActionConfig(
+            auth_token=auth_token1,
+            action_name=action1,
+            response=response1,
+            http_url=http_url1,
+            request_method=request_method1,
+            bot=bot,
+            user=user1
+        ).save().to_mongo()
+
+        actual_test_user2 = processor.get_http_action_config(bot=bot, user="test_user", action_name=action)
+        assert actual_test_user2 is not None
+        assert actual_test_user2['auth_token'] == auth_token
+        assert actual_test_user2['action_name'] == action
+        assert actual_test_user2['response'] == response
+        assert actual_test_user2['http_url'] == http_url
+        assert actual_test_user2['request_method'] == request_method
+
+    def test_get_http_action_config_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+
+        try:
+            processor.get_http_action_config(bot=bot, user="test_user", action_name="action")
+            assert False
+        except AppException as e:
+            assert str(e) == "No HTTP action found for bot test_bot and action action"
+        except Exception:
+            assert False
+
+    def test_update_story_non_existing(self):
+        processor = MongoProcessor()
+        user = "test_user"
+        story = "new_story"
+        bot = "bot"
+        story_event = [StoryEvents(name="greet", type="user")]
+        intent = "greet_again"
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+        try:
+            processor.update_story(story="story", intent=intent, user=user, bot=bot)
+        except AppException as ex:
+            assert str(ex) == 'Story story does not exists'
+        except Exception:
+            assert False
+
+    def test_update_story(self):
+        processor = MongoProcessor()
+        user = "test_user"
+        story = "test_update_story"
+        bot = "bot"
+        story_event = [StoryEvents(name="greet", type="user")]
+        intent = "slap"
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+        processor.update_story(story=story, intent=intent, user=user, bot=bot)
+        updated = Stories.objects(block_name=story, bot=bot, user=user, status=True).get(block_name__iexact=story)
+        assert updated is not None
+        assert updated.events[0].name == intent
+        assert updated.events[0].type == "user"
+        assert updated.events[0].value == None
+
+    def test_update_http_config(self):
+        processor = MongoProcessor()
+        intent = "greet_test_update_http_config"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_update_http_config'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        http_config_id = processor.add_http_action_with_story(http_action_config, user, bot)
+        assert http_config_id is not None
+        intent = "slap_test_update_http_config"
+        http_url = 'http://www.alphabet.com'
+        auth_token = ""
+        response = "string"
+        request_method = 'POST'
+        http_params_list = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        processor.update_http_config(http_action_config, user, bot)
+
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action)
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['auth_token'] == auth_token
+        assert actual_http_action['response'] == response
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] is not None
+        assert actual_http_action['params_list'][0]['key'] == "param3"
+        assert actual_http_action['params_list'][0]['value'] == "param1"
+        assert actual_http_action['params_list'][0]['parameter_type'] == "slot"
+        assert actual_http_action['params_list'][1]['key'] == "param4"
+        assert actual_http_action['params_list'][1]['value'] == "value2"
+        assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+
+    def test_update_http_config_invalid_action(self):
+        processor = MongoProcessor()
+        intent="greet"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_update_http_config_invalid_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        http_config_id = processor.add_http_action_config(http_action_config, user, bot)
+        assert http_config_id is not None
+        intent = "slap"
+        bot = 'test_bot'
+        http_url = 'http://www.alphabet.com'
+        action = 'test_update_http_config_invalid'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "string"
+        request_method = 'POST'
+        http_params_list = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        try:
+            processor.update_http_config(http_action_config, user, bot)
+        except AppException as e:
+            assert str(e) == 'No HTTP action found for bot test_bot and action test_update_http_config_invalid'
+
+    def test_get_utterance_from_intent_with_action(self):
+        processor = MongoProcessor()
+        user = "testUser"
+        action = "test_get_utterance_from_intent_with_action"
+        bot = "bot"
+        intent = "slap_test_get_utterance_from_intent_with_action"
+
+        http_action = HttpActionConfigRequest(
+            intent=intent,
+            auth_token="",
+            action_name=action,
+            response="",
+            http_url="http://www.google.com",
+            request_method="GET",
+            http_params_list=[]
+        )
+        processor.add_http_action_with_story(http_action, user, bot)
+        actual_action, type = processor.get_utterance_from_intent(intent=intent, bot=bot)
+        assert actual_action == action
+        assert type == UTTERANCE_TYPE.HTTP
+
+    def test_get_utterance_from_intent_event_order(self):
+        processor = MongoProcessor()
+        user = "testuser"
+        action = "test_get_utterance_from_intent_event_order"
+        bot = "tests"
+        intent = "greet_test_get_utterance_from_intent_event_order"
+        action_req = HttpActionConfigRequest(
+            intent=intent,
+            auth_token="",
+            action_name=action,
+            response="",
+            http_url="http://www.google.com",
+            request_method="GET",
+            http_params_list=[]
+        )
+        processor.add_http_action_with_story(action_req, user, bot)
+        actual_story = Stories.objects(bot=bot, user=user).get(block_name__iexact=action)
+        assert actual_story is not None
+        assert actual_story.events is not None
+        assert actual_story.events[0]['name'] == intent
+        assert actual_story.events[0]['type'] == 'user'
+        assert actual_story.events[0]['value'] is None
+        assert actual_story.events[1]['name'] == 'bot'
+        assert actual_story.events[1]['type'] == 'slot'
+        assert actual_story.events[1]['value'] == bot
+        assert actual_story.events[2]['name'] == 'http_action_config'
+        assert actual_story.events[2]['type'] == 'slot'
+        assert actual_story.events[2]['value'] == action
+        assert actual_story.events[3]['name'] == 'kairon_http_action'
+        assert actual_story.events[3]['type'] == 'action'
+        assert actual_story.events[3]['value'] is None
+
+    def test_get_utterance_from_intent_non_existing(self):
+        processor = MongoProcessor()
+        user = "test_user"
+        story = "new_story"
+        action = story
+        bot = "bot"
+        intent = "greet_you"
+        story_event = [StoryEvents(name=intent, type="user"),
+                       StoryEvents(name="bot", type="slot", value=bot),
+                       StoryEvents(name="http_action_config", type="slot", value=action),
+                       StoryEvents(name="kairon_http_action", type="action")]
+        cust = ResponseCustom(custom={"key": "value"})
+        text = ResponseText(text="hello")
+
+        Responses(
+            name=intent,
+            text=text,
+            custom=cust,
+            bot=bot,
+            user=user
+        ).save(validate=False).to_mongo()
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+        HttpActionConfig(
+            auth_token="",
+            action_name=action,
+            response="",
+            http_url="http://www.google.com",
+            request_method="GET",
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        actual_action, type = processor.get_utterance_from_intent(intent="intent", bot=bot)
+        assert actual_action == None
+        assert type == None
 
     def test_add_and_delete_non_integration_intent_by_integration_user(self):
         processor = MongoProcessor()

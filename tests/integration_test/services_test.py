@@ -9,16 +9,21 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
+from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
+from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE
+from kairon.data_processor.data_objects import Stories
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.utils.io import read_config_file
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 token_type = None
+
 
 @pytest.fixture(autouse=True)
 def setup():
@@ -29,7 +34,8 @@ def setup():
 
 def pytest_configure():
     return {'token_type': None,
-            'access_token': None
+            'access_token': None,
+            'bot': None
             }
 
 
@@ -57,7 +63,8 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
-    assert actual["message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
+    assert actual[
+               "message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -134,8 +141,8 @@ def test_upload_missing_data():
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+            actual["message"]
+            == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
     )
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -165,18 +172,19 @@ def test_upload_error():
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+            actual["message"]
+            == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
     )
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert not actual["success"]
 
+
 def test_upload(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
-    monkeypatch.setattr(Utility,"get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     files = {
         "nlu": (
             "tests/testing_data/all/data/nlu.md",
@@ -323,8 +331,8 @@ def test_add_empty_training_examples():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert (
-        actual["data"][0]["message"]
-        == "Training Example cannot be empty or blank spaces"
+            actual["data"][0]["message"]
+            == "Training Example cannot be empty or blank spaces"
     )
     assert actual["data"][0]["_id"] is None
 
@@ -372,7 +380,7 @@ def test_edit_training_examples():
     )
     training_examples = training_examples.json()
     response = client.put(
-        "/api/bot/training_examples/greet/"+training_examples["data"][0]["_id"],
+        "/api/bot/training_examples/greet/" + training_examples["data"][0]["_id"],
         json={"data": "hey, there"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -380,6 +388,7 @@ def test_edit_training_examples():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Training Example updated!"
+
 
 def test_get_responses():
     response = client.get(
@@ -471,6 +480,7 @@ def test_remove_response_empty_id():
     assert actual["error_code"] == 422
     assert actual["message"] == "Unable to remove document"
 
+
 def test_remove_response_():
     training_examples = client.get(
         "/api/bot/response/utter_greet",
@@ -478,7 +488,7 @@ def test_remove_response_():
     )
     training_examples = training_examples.json()
     response = client.put(
-        "/api/bot/response/utter_greet/"+training_examples["data"][0]["_id"],
+        "/api/bot/response/utter_greet/" + training_examples["data"][0]["_id"],
         json={"data": "Hello, How are you!"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -532,8 +542,8 @@ def test_add_story_missing_event_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required (type=value_error.missing)"
+            actual["message"]
+            == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required (type=value_error.missing)"
     )
 
 
@@ -553,8 +563,8 @@ def test_add_story_invalid_event_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
+            actual["message"]
+            == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
     )
 
 
@@ -578,7 +588,8 @@ def test_get_utterance_from_intent():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == "utter_offer_help"
+    assert actual["data"]["name"] == "utter_offer_help"
+    assert actual["data"]["type"] == UTTERANCE_TYPE.BOT
     assert Utility.check_empty_string(actual["message"])
 
 
@@ -590,8 +601,10 @@ def test_get_utterance_from_not_exist_intent():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert actual["data"]["name"] is None
+    assert actual["data"]["type"] is None
     assert Utility.check_empty_string(actual["message"])
+
 
 def test_train(monkeypatch):
     def mongo_store(*arge, **kwargs):
@@ -648,6 +661,7 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
     assert actual["data"] is None
     assert actual["message"] == "Daily model training limit exceeded."
 
+
 def test_get_model_training_history():
     response = client.get(
         "/api/bot/train/history",
@@ -680,6 +694,7 @@ def test_chat(monkeypatch):
 def test_chat_fetch_from_cache(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
+
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     response = client.post(
         "/api/bot/chat",
@@ -704,8 +719,8 @@ def test_chat_model_not_trained():
         json={"data": "Hi"},
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"]
+                             + " "
+                             + token["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -881,16 +896,16 @@ def test_integration_token():
     assert token["data"]["access_token"]
     assert token["data"]["token_type"]
     assert (
-        token["message"]
-        == """It is your responsibility to keep the token secret.
+            token["message"]
+            == """It is your responsibility to keep the token secret.
         If leaked then other may have access to your system."""
     )
     response = client.get(
         "/api/bot/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     )
@@ -904,8 +919,8 @@ def test_integration_token():
         "/api/bot/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
         json={"data": "integration"},
@@ -929,16 +944,16 @@ def test_integration_token_missing_x_user():
     assert actual["data"]["access_token"]
     assert actual["data"]["token_type"]
     assert (
-        actual["message"]
-        == """It is your responsibility to keep the token secret.
+            actual["message"]
+            == """It is your responsibility to keep the token secret.
         If leaked then other may have access to your system."""
     )
     response = client.get(
         "/api/bot/intents",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -946,6 +961,7 @@ def test_integration_token_missing_x_user():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Alias user missing for integration"
+
 
 @mongomock.patch(servers=(('localhost', 27019),))
 def test_predict_intent():
@@ -972,8 +988,8 @@ def test_predict_intent_error():
         json={"data": "Hi"},
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"]
+                             + " "
+                             + token["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -992,15 +1008,15 @@ def test_augment_paraphrase():
             "sucess": True,
             "data": {
                 "questions": ['Where is digite located?',
-                    'Where is digite?',
-                    'What is the location of digite?',
-                    'Where is the digite located?',
-                    'Where is it located?',
-                    'What location is digite located?',
-                    'Where is the digite?',
-                    'where is digite located?',
-                    'Where is digite situated?',
-                    'digite is located where?']
+                              'Where is digite?',
+                              'What is the location of digite?',
+                              'Where is the digite located?',
+                              'Where is it located?',
+                              'What location is digite located?',
+                              'Where is the digite?',
+                              'where is digite located?',
+                              'Where is digite situated?',
+                              'digite is located where?']
             },
             "message": None,
             "error_code": 0,
@@ -1071,6 +1087,7 @@ def test_get_endpoint():
     assert actual['message'] is None
     assert actual['success']
 
+
 def test_save_endpoint_error():
     response = client.put(
         "/api/bot/endpoint",
@@ -1080,7 +1097,8 @@ def test_save_endpoint_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == '1 validation error for Request\nbody -> endpoint\n  field required (type=value_error.missing)'
+    assert actual[
+               'message'] == '1 validation error for Request\nbody -> endpoint\n  field required (type=value_error.missing)'
     assert not actual['success']
 
 
@@ -1109,7 +1127,7 @@ def test_save_endpoint(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"bot_endpoint": {"url": "http://localhost:5005/"},
               "action_endpoint": {"url": "http://localhost:5000/"},
-              "tracker_endpoint":{"url": "mongodb://localhost:27017", "db": "rasa"}}
+              "tracker_endpoint": {"url": "mongodb://localhost:27017", "db": "rasa"}}
     )
 
     actual = response.json()
@@ -1126,6 +1144,7 @@ def test_save_endpoint(monkeypatch):
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('tracker_endpoint')
+
 
 def test_get_templates():
     response = client.get(
@@ -1194,7 +1213,7 @@ def test_get_config_templates():
     )
 
     actual = response.json()
-    assert any( "default" == template['name'] for template in actual['data']['config-templates'])
+    assert any("default" == template['name'] for template in actual['data']['config-templates'])
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
@@ -1236,7 +1255,7 @@ def test_get_config():
     )
 
     actual = response.json()
-    assert all( key in ["language","pipeline", "policies"]  for key in actual['data']['config'].keys())
+    assert all(key in ["language", "pipeline", "policies"] for key in actual['data']['config'].keys())
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
@@ -1258,33 +1277,35 @@ def test_set_config():
 
 def test_set_config_policy_error():
     data = read_config_file('./template/config/default.yml')
-    data['policies'].append({"name":"TestPolicy"})
+    data['policies'].append({"name": "TestPolicy"})
     response = client.put(
         "/api/bot/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json= data
+        json=data
     )
 
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == "Module for policy 'TestPolicy' could not be loaded. Please make sure the name is a valid policy."
+    assert actual[
+               'message'] == "Module for policy 'TestPolicy' could not be loaded. Please make sure the name is a valid policy."
     assert not actual['success']
 
 
 def test_set_config_pipeline_error():
     data = read_config_file('./template/config/default.yml')
-    data['pipeline'].append({"name":"TestFeaturizer"})
+    data['pipeline'].append({"name": "TestFeaturizer"})
     response = client.put(
         "/api/bot/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json= data
+        json=data
     )
 
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
+    assert actual[
+               'message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
     assert not actual['success']
 
 
@@ -1303,8 +1324,10 @@ def test_delete_intent():
     assert actual['error_code'] == 0
     assert actual['message'] == "Intent deleted!"
     assert actual['success']
+
+
 def test_api_login_with_account_not_verified():
-    AccountProcessor.EMAIL_ENABLED=True
+    AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -1317,8 +1340,10 @@ def test_api_login_with_account_not_verified():
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
 
+
 async def mock_smtp(*args, **kwargs):
     return None
+
 
 def test_account_registration_with_confirmation(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
@@ -1342,7 +1367,8 @@ def test_account_registration_with_confirmation(monkeypatch):
     assert actual['data'] is None
 
     response = client.post("/api/account/email/confirmation",
-        json={'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
+                           json={
+                               'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
                            )
     actual = response.json()
     AccountProcessor.EMAIL_ENABLED = False
@@ -1380,6 +1406,7 @@ def test_login_for_verified():
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
 
+
 def test_reset_password_for_valid_id(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     AccountProcessor.EMAIL_ENABLED = True
@@ -1394,6 +1421,7 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual["message"] == "Success! A password reset link has been sent to your mail id"
     assert actual['data'] is None
 
+
 def test_reset_password_for_invalid_id():
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post(
@@ -1407,13 +1435,15 @@ def test_reset_password_for_invalid_id():
     assert actual["message"] == "Error! There is no user with the following mail id"
     assert actual['data'] is None
 
+
 def test_overwrite_password_for_matching_passwords(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/password/change",
-        json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-              "password": "Welcome@2",
-              "confirm_password": "Welcome@2"},
+        json={
+            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
+            "password": "Welcome@2",
+            "confirm_password": "Welcome@2"},
     )
     actual = response.json()
     assert actual["success"]
@@ -1434,6 +1464,7 @@ def test_login_new_password():
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
 
+
 def test_login_old_password():
     response = client.post(
         "/api/auth/login",
@@ -1444,6 +1475,7 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+
 
 def test_send_link_for_valid_id(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
@@ -1459,6 +1491,7 @@ def test_send_link_for_valid_id(monkeypatch):
     assert actual["message"] == 'Success! Confirmation link sent'
     assert actual['data'] is None
 
+
 def test_send_link_for_confirmed_id():
     AccountProcessor.EMAIL_ENABLED = True
     response = client.post("/api/account/email/confirmation/link",
@@ -1471,6 +1504,7 @@ def test_send_link_for_confirmed_id():
     assert actual["error_code"] == 422
     assert actual["message"] == 'Email already confirmed!'
     assert actual['data'] is None
+
 
 def test_overwrite_password_for_non_matching_passwords():
     AccountProcessor.EMAIL_ENABLED = True
@@ -1486,6 +1520,7 @@ def test_overwrite_password_for_non_matching_passwords():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual['data'] is None
+
 
 def test_add_and_delete_intents_by_integration_user():
     response = client.get(
@@ -1532,6 +1567,7 @@ def test_add_and_delete_intents_by_integration_user():
     assert actual['message'] == "Intent deleted!"
     assert actual['success']
 
+
 def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     response = client.get(
         "/api/auth/integration/token",
@@ -1571,3 +1607,480 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert actual['error_code'] == 422
     assert actual['message'] == "This intent cannot be deleted by an integration user"
     assert not actual['success']
+
+
+def test_add_http_action_no_intent():
+    request_body = {
+        "intent": "",
+        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
+        "action_name": "test_add_http_action_no_intent",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_malformed_url():
+    request_body = {
+        "story_name": "http_story",
+        "intent": "hehhehehe",
+        "auth_token": "",
+        "action_name": "new_http_action",
+        "response": "",
+        "http_url": "192.168.104.1/api/test",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_invalid_req_method():
+    request_body = {
+        "story_name": "http_story",
+        "intent": "hehhehehe",
+        "auth_token": "",
+        "action_name": "new_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "TUP",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_no_action_name():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_no_token():
+    request_body = {
+        "intent": "greet_test_add_http_action_no_token",
+        "auth_token": "",
+        "action_name": "test_add_http_action_no_token",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_http_action_with_token_and_story():
+    request_body = {
+        "intent": "greet_test_add_http_action_with_token_and_story",
+        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
+        "action_name": "test_add_http_action_with_token_and_story",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.get(
+        url="/api/bot/action/httpaction/test_add_http_action_with_token_and_story",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == "string"
+    assert actual['data']["auth_token"] == "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
+    assert actual['data']["http_url"] == "http://www.google.com"
+    assert actual['data']["request_method"] == "GET"
+    assert len(actual['data']["params_list"]) == 3
+    assert actual["success"]
+
+    story = Stories.objects(block_name="test_add_http_action_with_token_and_story", status=True).get(
+        block_name__iexact="test_add_http_action_with_token_and_story")
+    assert story
+    assert story['events'][0]['name'] == 'greet_test_add_http_action_with_token_and_story'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == 'bot'
+    assert story['events'][1]['type'] == StoryEventType.slot
+    assert story['events'][2]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_CONFIG
+    assert story['events'][2]['type'] == StoryEventType.slot
+    assert story['events'][2]['value'] == 'test_add_http_action_with_token_and_story'
+    assert story['events'][3]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_NAME
+    assert story['events'][3]['type'] == StoryEventType.action
+    assert actual["success"]
+
+
+def test_add_http_action_no_params():
+    request_body = {
+        "intent": "greet_test_add_http_action_no_params",
+        "auth_token": "",
+        "action_name": "test_add_http_action_no_params",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_http_action_existing():
+    request_body = {
+        "intent": "greet_test_add_http_action_existing",
+        "auth_token": "",
+        "action_name": "test_add_http_action_existing",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_get_http_action_non_exisitng():
+    response = client.get(
+        url="/api/bot/action/httpaction/never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] is not None
+    assert not actual["success"]
+
+
+def test_update_http_action():
+    request_body = {
+        "intent": "greet_test_update_http_action",
+        "auth_token": "",
+        "action_name": "test_update_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    request_body = {
+        "intent": "slap_test_update_http_action",
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action",
+        "response": "json",
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }]
+    }
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.get(
+        url="/api/bot/action/httpaction/test_update_http_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == "json"
+    assert actual['data']["auth_token"] == "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf"
+    assert actual['data']["http_url"] == "http://www.alphabet.com"
+    assert actual['data']["request_method"] == "POST"
+    assert len(actual['data']["params_list"]) == 2
+    assert actual["success"]
+
+
+def test_update_http_action_story():
+    action_name = 'test_update_http_action_story'
+    request_body = {
+        "intent": "happy_test_update_http_action_story",
+        "auth_token": "",
+        "action_name": action_name,
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    request_body = {
+        "intent": "greet_test_update_http_action_story",
+        "auth_token": "",
+        "action_name": action_name,
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    story = Stories.objects(block_name=action_name, status=True).get(block_name__iexact=action_name)
+    assert story is not None
+    assert story['events'][0]['name'] == 'greet_test_update_http_action_story'
+    assert story['events'][0]['type'] == 'user'
+    assert story['events'][0]['value'] == None
+    assert story['events'][1]['name'] == 'bot'
+    assert story['events'][1]['type'] == 'slot'
+    assert story['events'][2]['name'] == 'http_action_config'
+    assert story['events'][2]['type'] == 'slot'
+    assert story['events'][2]['value'] == action_name
+    assert story['events'][3]['name'] == 'kairon_http_action'
+    assert story['events'][3]['type'] == 'action'
+
+
+def test_update_http_action_non_existing():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "test_update_http_action_non_existing",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    request_body = {
+        "intent": "slap",
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_non_existing_new",
+        "response": "json",
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "http_params_list": [{
+            "key": "param1",
+            "value": "value1",
+            "parameter_type": "value"},
+            {
+                "key": "param2",
+                "value": "value2",
+                "parameter_type": "slot"}]
+    }
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_delete_http_action():
+    request_body = {
+        "intent": "greet_test_delete_http_action",
+        "auth_token": "",
+        "action_name": "test_delete_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url="/api/bot/action/httpaction/test_delete_http_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_delete_http_action_non_existing():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "new_http_action4",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url="/api/bot/action/httpaction/new_http_action_never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
