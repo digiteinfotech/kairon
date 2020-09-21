@@ -14,6 +14,7 @@ test:
   script:
     - python3.7 -m pip install --upgrade pip
     - python3.7 -m pip install -r requirements.txt
+    - python3.7 -m pip install https://github.com/sfahad1414/question_generation.git
     - python3.7 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html
 
 build:
