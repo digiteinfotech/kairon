@@ -57,4 +57,4 @@ async def http_exception_handler(request, exc):
 async def paraphrases(request_data: List[Text]):
     """Generates variations for given list of sentences/questions"""
     response = ParaPhrasing.paraphrases(request_data)
-    return {"data": {"questions": response}}
+    return {"data": {"paraphrases": response}}
