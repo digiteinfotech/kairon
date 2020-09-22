@@ -1,5 +1,3 @@
-import asyncio
-
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
 
 
