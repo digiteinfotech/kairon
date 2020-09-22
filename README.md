@@ -95,13 +95,13 @@ and set google analytics tracking id
 
 5. For starting augmentation services run
    ```
-   python -m uvicorn augmentation.server:app --host 0.0.0.0
+   python -m uvicorn augmentation.paraphrase.server:app --host 0.0.0.0
    ```
 
 6. For starting trainer-api services run
 
    ```
-   python -m uvicorn bot_trainer.api.app.main:app --host 0.0.0.0 --port 8080
+   python -m uvicorn kairon.api.app.main:app --host 0.0.0.0 --port 8080
    ```
    
 ## System Configuration
