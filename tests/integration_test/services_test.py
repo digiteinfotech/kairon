@@ -19,7 +19,6 @@ from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.utils.io import read_config_file
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 token_type = None
@@ -63,6 +62,7 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
+    print(actual["message"])
     assert actual[
                "message"] == '''1 validation error for Request\nbody -> register_account -> password\n  Missing 1 uppercase letter (type=value_error)'''
     assert not actual["success"]
@@ -541,6 +541,7 @@ def test_add_story_missing_event_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
+    print(actual["message"])
     assert (
             actual["message"]
             == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  field required (type=value_error.missing)"
@@ -562,6 +563,7 @@ def test_add_story_invalid_event_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
+    print(actual["message"])
     assert (
             actual["message"]
             == "1 validation error for Request\nbody -> story -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
@@ -1097,6 +1099,7 @@ def test_save_endpoint_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
+    print(actual['message'])
     assert actual[
                'message'] == '1 validation error for Request\nbody -> endpoint\n  field required (type=value_error.missing)'
     assert not actual['success']

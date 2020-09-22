@@ -455,7 +455,7 @@ class TestActions:
             }
         })
         response = ActionUtility.prepare_response("", json1)
-        assert response == ""
+        assert response == '{"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'
 
     def test_prepare_response_string_empty_request_output(self):
         json1 = json.dumps("{}")
@@ -476,6 +476,10 @@ class TestActions:
     def test_prepare_response_as_json_and_expected_as_plain_string(self):
         json_as_string = "Not a json string"
         response = ActionUtility.prepare_response("The value of 2 in red is []", json_as_string)
+        assert response == 'The value of 2 in red is []'
+
+    def test_prepare_response_as_string_and_expected_as_none(self):
+        response = ActionUtility.prepare_response("The value of 2 in red is []", None)
         assert response == 'The value of 2 in red is []'
 
     def test_run_invalid_http_action(self):

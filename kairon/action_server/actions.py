@@ -189,6 +189,8 @@ class ActionUtility:
         keys_with_placeholders = [term for term in response_template.split(" ") if term.startswith("${") and term.endswith("}")]
         #  deepcode ignore C1801: Length check required in case there are no placeholders
         if keys_with_placeholders is None or len(keys_with_placeholders) == 0:
+            if ActionUtility.is_empty(response_template):
+                return http_response
             return parsed_output
         keys_without_placeholders = [plcehlder.lstrip("${").rstrip("}") for plcehlder in keys_with_placeholders]
 

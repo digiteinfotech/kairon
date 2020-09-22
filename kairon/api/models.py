@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Any, Dict
 
 import validators
-from validators import ValidationFailure
+ValidationFailure = validators.ValidationFailure
 
 from pydantic import BaseModel, validator, SecretStr
 

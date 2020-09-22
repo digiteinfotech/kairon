@@ -1,5 +1,5 @@
 import validators
-from validators import ValidationFailure
+ValidationFailure = validators.ValidationFailure
 from mongoengine import (
     Document,
     EmbeddedDocument,
