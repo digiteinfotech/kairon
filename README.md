@@ -9,8 +9,7 @@ Kairon is envisioned as a web based microservices driven suite that helps train 
 
 **What is Kairon?**
 
-Kairon is envisioned as a web based microservices driven suite that helps train contextual AI assistants at scale. It is designed to make the lives of those who work with AI-assistants easy, by giving them a no-coding web interface to adapt, train, test and maintain such assistants.
-Kairon is currently built on the RASA framework.
+Kairon is currently a set of tools  built on the RASA framework with a helpful UI interface .
 While RASA focuses on technology of chatbots itself. Kairon on the other hand focuses on technology that deal with pre-processing of data that are needed by this framework. These include question augmentation and generation of knowledge graphs that can be used to automatically generate intents, questions and responses.
 It also deals with the post processing and maintenance of these bots such metrics / follow-up messages etc. 
 
