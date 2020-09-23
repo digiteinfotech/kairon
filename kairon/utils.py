@@ -44,6 +44,8 @@ from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
 
+from .action_server.data_objects import HttpActionConfig
+from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .exceptions import AppException
 
 
@@ -679,3 +681,29 @@ class Utility:
     def get_timestamp_previous_month(month: int):
         start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
         return start_time.timestamp()
+
+    @staticmethod
+    def build_http_response_object(http_action_config: HttpActionConfig, intent: str, user: str, bot: str):
+        """
+        Builds a new HttpActionConfigResponse object from HttpActionConfig object.
+        :param http_action_config: HttpActionConfig object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: HttpActionConfigResponse containing configuration for Http action
+        """
+        http_params = [
+            HttpActionParametersResponse(key=param.key, value=param.value, parameter_type=param.parameter_type)
+            for param in
+            http_action_config.params_list]
+        response = HttpActionConfigResponse(
+            intent=intent,
+            auth_token=http_action_config.auth_token,
+            action_name=http_action_config.action_name,
+            response=http_action_config.response,
+            http_url=http_action_config.http_url,
+            request_method=http_action_config.request_method,
+            params_list=http_params,
+            user=user,
+            bot=bot
+        )
+        return response

@@ -4,8 +4,6 @@ import os
 from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
-from rasa.core.domain import Domain
-from rasa.core.tracker_store import DialogueStateTracker
 
 from kairon.api.app.main import app
 from kairon.api.processor import AccountProcessor
@@ -97,7 +95,7 @@ def mock_chat_history(monkeypatch):
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.com", "password": "welcome@1"},
+        data={"username": "integration@demo", "password": "welcome@1"},
     )
     token_response = response.json()
     pytest.access_token = token_response["data"]["access_token"]

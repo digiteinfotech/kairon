@@ -54,6 +54,7 @@ services:
       PARAPHRASE_URL: "http://kairon-paraphrase:8001/paraphrases"
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
+      ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
 
   kairon-ui:
     image: digite/kairon-ui:latest
@@ -67,9 +68,9 @@ services:
       - 80:8080
     environment:
       server: "http://localhost:81"
-## if you want to use google analytics then uncomment trackingid
-## and set you google analytics code
-#      trackingid: ""
+  ## if you want to use google analytics then uncomment trackingid
+  ## and set you google analytics code
+  #      trackingid: ""
 
   duckling:
     image: rasa/duckling
@@ -79,6 +80,15 @@ services:
     hostname: duckling
     ports:
       - 8000:8000
+
+  kairon-action-server:
+    image: digite/kairon-action-server:latest
+    container_name: kairon-action-server
+    hostname: kairon-action-server
+    ports:
+      - 5055:5055
+    networks:
+      - chatbotnetwork
 
 networks:
   chatbotnetwork:

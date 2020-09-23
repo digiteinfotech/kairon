@@ -3,7 +3,6 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
-
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -13,6 +12,7 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
+    HttpActionConfigRequest
 )
 from kairon.data_processor.data_objects import TrainingExamples, Responses
 from kairon.data_processor.processor import (
@@ -39,28 +39,28 @@ async def get_intents(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/intents", response_model=Response)
 async def add_intents(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Adds a new intent to the bot
     """
-    id = mongo_processor.add_intent(
+    intent_id = mongo_processor.add_intent(
         text=request_data.data.strip(),
         bot=current_user.get_bot(),
         user=current_user.get_user(),
         is_integration=current_user.get_integration_status()
     )
-    return {"message": "Intent added successfully!", "data": {"_id": id}}
+    return {"message": "Intent added successfully!", "data": {"_id": intent_id}}
 
 
 @router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
 async def delete_intent(
-    intent: str = Path(default=None, description="intent name", example="greet"),
-    delete_dependencies: bool = Path(
-        default=True,
-        description="""if True delete bot data related to this intent otherwise only delete intent""",
-    ),
-    current_user: User = Depends(auth.get_current_user),
+        intent: str = Path(default=None, description="intent name", example="greet"),
+        delete_dependencies: bool = Path(
+            default=True,
+            description="""if True delete bot data related to this intent otherwise only delete intent""",
+        ),
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     deletes an intent including training examples and stories
@@ -74,7 +74,7 @@ async def delete_intent(
 
 @router.post("/intents/predict", response_model=Response)
 async def predict_intent(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches the predicted intent of the entered text form the loaded agent
@@ -88,7 +88,7 @@ async def predict_intent(
 
 @router.post("/intents/search", response_model=Response)
 async def search_intent(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Searches existing training examples
@@ -103,7 +103,7 @@ async def search_intent(
 
 @router.get("/training_examples/{intent}", response_model=Response)
 async def get_training_examples(
-    intent: str, current_user: User = Depends(auth.get_current_user)
+        intent: str, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches all training examples against intent
@@ -117,9 +117,9 @@ async def get_training_examples(
 
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
-    intent: str,
-    request_data: ListData,
-    current_user: User = Depends(auth.get_current_user),
+        intent: str,
+        request_data: ListData,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Adds training example in particular intent
@@ -135,10 +135,10 @@ async def add_training_examples(
 
 @router.put("/training_examples/{intent}/{id}", response_model=Response)
 async def edit_training_examples(
-    intent: str,
-    id: str,
-    request_data: TextData,
-    current_user: User = Depends(auth.get_current_user),
+        intent: str,
+        id: str,
+        request_data: TextData,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Updates existing training example
@@ -151,7 +151,7 @@ async def edit_training_examples(
 
 @router.delete("/training_examples", response_model=Response)
 async def remove_training_examples(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Deletes existing training example
@@ -167,7 +167,7 @@ async def remove_training_examples(
 
 @router.get("/response/{utterance}", response_model=Response)
 async def get_responses(
-    utterance: str, current_user: User = Depends(auth.get_current_user)
+        utterance: str, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches list of utterances against utterance name
@@ -179,25 +179,25 @@ async def get_responses(
 
 @router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
-    request_data: TextData,
-    utterance: str,
-    current_user: User = Depends(auth.get_current_user),
+        request_data: TextData,
+        utterance: str,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Adds utterance value in particular utterance
     """
-    id = mongo_processor.add_text_response(
+    utterance_id = mongo_processor.add_text_response(
         request_data.data, utterance, current_user.get_bot(), current_user.get_user()
     )
-    return {"message": "Utterance added!", "data": {"_id": id}}
+    return {"message": "Utterance added!", "data": {"_id": utterance_id}}
 
 
 @router.put("/response/{utterance}/{id}", response_model=Response)
 async def edit_responses(
-    utterance: str,
-    id: str,
-    request_data: TextData,
-    current_user: User = Depends(auth.get_current_user),
+        utterance: str,
+        id: str,
+        request_data: TextData,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Updates existing utterance value
@@ -216,7 +216,7 @@ async def edit_responses(
 
 @router.delete("/response", response_model=Response)
 async def remove_responses(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Deletes existing utterance value
@@ -231,7 +231,7 @@ async def remove_responses(
 
 @router.post("/stories", response_model=Response)
 async def add_stories(
-    story: StoryRequest, current_user: User = Depends(auth.get_current_user)
+        story: StoryRequest, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Adds a story (conversational flow) in the particular bot
@@ -259,21 +259,19 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
 
 @router.get("/utterance_from_intent/{intent}", response_model=Response)
 async def get_story_from_intent(
-    intent: str, current_user: User = Depends(auth.get_current_user)
+        intent: str, current_user: User = Depends(auth.get_current_user)
 ):
     """
-    Fetches he utterance or response that is mapped to a particular intent
+    Fetches the utterance or response that is mapped to a particular intent
     """
-    return {
-        "data": mongo_processor.get_utterance_from_intent(
-            intent, current_user.get_bot()
-        )
-    }
+    response = mongo_processor.get_utterance_from_intent(intent, current_user.get_bot())
+    return_data = {"name": response[0], "type": response[1]}
+    return {"data": return_data}
 
 
 @router.post("/chat", response_model=Response)
 async def chat(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Fetches a bot response for a given text/query.
@@ -288,8 +286,8 @@ async def chat(
 
 @router.post("/train", response_model=Response)
 async def train(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Trains the chatbot
@@ -304,8 +302,8 @@ async def train(
 
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Reloads model with configuration in cache
@@ -316,7 +314,7 @@ async def reload_model(
 
 @router.get("/train/history", response_model=Response)
 async def get_model_training_history(
-    current_user: User = Depends(auth.get_current_user),
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Fetches model training history, when and who trained the bot
@@ -352,13 +350,13 @@ async def deployment_history(current_user: User = Depends(auth.get_current_user)
 
 @router.post("/upload", response_model=Response)
 async def upload_Files(
-    background_tasks: BackgroundTasks,
-    nlu: UploadFile = File(...),
-    domain: UploadFile = File(...),
-    stories: UploadFile = File(...),
-    config: UploadFile = File(...),
-    overwrite: bool = True,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        nlu: UploadFile = File(...),
+        domain: UploadFile = File(...),
+        stories: UploadFile = File(...),
+        config: UploadFile = File(...),
+        overwrite: bool = True,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Uploads training data nlu.md, domain.yml, stories.md and config.yml files
@@ -380,8 +378,8 @@ async def upload_Files(
 
 @router.get("/download/data")
 async def download_data(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Downloads training data nlu.md, domain.yml, stories.md, config.yml files
@@ -398,8 +396,8 @@ async def download_data(
 
 @router.get("/download/model")
 async def download_model(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Downloads latest trained model file
@@ -420,7 +418,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -432,9 +430,9 @@ async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
 
 @router.put("/endpoint", response_model=Response)
 async def set_endpoint(
-    background_tasks: BackgroundTasks,
-    endpoint: Endpoint,
-    current_user: User = Depends(auth.get_current_user),
+        background_tasks: BackgroundTasks,
+        endpoint: Endpoint,
+        current_user: User = Depends(auth.get_current_user),
 ):
     """
     Saves or Updates the bot endpoint configuration
@@ -449,7 +447,7 @@ async def set_endpoint(
 
 
 @router.get("/config", response_model=Response)
-async def get_config(current_user: User = Depends(auth.get_current_user),):
+async def get_config(current_user: User = Depends(auth.get_current_user), ):
     """
     Fetches bot pipeline and polcies configurations
     """
@@ -459,7 +457,7 @@ async def get_config(current_user: User = Depends(auth.get_current_user),):
 
 @router.put("/config", response_model=Response)
 async def set_config(
-    config: Config, current_user: User = Depends(auth.get_current_user),
+        config: Config, current_user: User = Depends(auth.get_current_user),
 ):
     """
     Saves or Updates the bot pipeline and policies configurations
@@ -480,7 +478,7 @@ async def get_templates(current_user: User = Depends(auth.get_current_user)):
 
 @router.post("/templates/use-case", response_model=Response)
 async def set_templates(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Applies the use-case template
@@ -501,7 +499,7 @@ async def get_config_template(current_user: User = Depends(auth.get_current_user
 
 @router.post("/templates/config", response_model=Response)
 async def set_config_template(
-    request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Applies the config template
@@ -510,3 +508,57 @@ async def set_config_template(
         request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Config applied!"}
+
+
+@router.post("/action/httpaction", response_model=Response)
+async def add_http_action(request_data: HttpActionConfigRequest, current_user: User = Depends(auth.get_current_user)):
+    """
+    Stores the http action config and story event
+    """
+    http_config_id = mongo_processor.add_http_action_with_story(request_data, current_user.get_user(),
+                                                                current_user.get_bot())
+    response = {"http_config_id": http_config_id}
+    message = "Http action added!"
+    return Response(data=response, message=message)
+
+
+@router.get("/action/httpaction/{action}", response_model=Response)
+async def get_http_action(action: str = Path(default=None, description="action name", example="http_action"),
+                          current_user: User = Depends(auth.get_current_user)):
+    """
+    Returns configuration set for the HTTP action
+    """
+    http_action_config = mongo_processor.get_http_action_config_and_intent(action_name=action,
+                                                                           user=current_user.get_user(),
+                                                                           bot=current_user.bot)
+    return Response(data=http_action_config)
+
+
+@router.put("/action/httpaction", response_model=Response)
+async def update_http_action(request_data: HttpActionConfigRequest,
+                             current_user: User = Depends(auth.get_current_user)):
+    """
+    Updates the http action config and related story event
+    """
+    http_config_id = mongo_processor.update_http_config(request_data=request_data, user=current_user.get_user(),
+                                                        bot=current_user.get_bot())
+    response = {"http_config_id": http_config_id}
+    message = "Http action updated!"
+    return Response(data=response, message=message)
+
+
+@router.delete("/action/httpaction/{action}", response_model=Response)
+async def delete_http_action(action: str = Path(default=None, description="action name", example="http_action"),
+                             current_user: User = Depends(auth.get_current_user)):
+    """
+    Deletes the http action config and story event
+    """
+    try:
+        mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
+                                                  bot=current_user.bot)
+        mongo_processor.delete_story(story=action, user=current_user.get_user(),
+                                     bot=current_user.bot)
+    except Exception as e:
+        raise AppException(e)
+    message = "HTTP action deleted"
+    return Response(message=message)

@@ -65,3 +65,20 @@ class MODEL_TRAINING_STATUS(str, Enum):
     INPROGRESS = "Inprogress"
     DONE = "Done"
     FAIL = "Fail"
+
+
+class UTTERANCE_TYPE(str, Enum):
+    BOT = "bot"
+    HTTP = "http"
+
+    def __str__(self):
+        return str(self.value)
+
+
+class CUSTOM_ACTIONS(str, Enum):
+    HTTP_ACTION_NAME = "kairon_http_action"
+    HTTP_ACTION_CONFIG = "http_action_config"
+
+    def __str__(self):
+        return str(self.value)
+

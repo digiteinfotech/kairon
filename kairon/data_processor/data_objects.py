@@ -38,7 +38,7 @@ class Entity(EmbeddedDocument):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.value) or Utility.check_empty_string(
-            self.entity
+                self.entity
         ):
             raise ValidationError(
                 "Entity name and value cannot be empty or blank spaces"
@@ -60,7 +60,7 @@ class TrainingExamples(Document):
         if self.entities:
             for ent in self.entities:
                 ent.validate()
-                extracted_ent = self.text[ent.start : ent.end]
+                extracted_ent = self.text[ent.start: ent.end]
                 if extracted_ent != ent.value:
                     raise ValidationError(
                         "Invalid entity: "
@@ -71,7 +71,7 @@ class TrainingExamples(Document):
                         + extracted_ent
                     )
         elif Utility.check_empty_string(self.text) or Utility.check_empty_string(
-            self.intent
+                self.intent
         ):
             raise ValidationError(
                 "Training Example name and text cannot be empty or blank spaces"
@@ -90,7 +90,7 @@ class EntitySynonyms(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.synonym) or Utility.check_empty_string(
-            self.value
+                self.value
         ):
             raise ValidationError(
                 "Synonym name and value cannot be empty or blank spaces"
@@ -109,7 +109,7 @@ class LookupTables(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-            self.value
+                self.value
         ):
             raise ValidationError(
                 "Lookup name and value cannot be empty or blank spaces"
@@ -128,7 +128,7 @@ class RegexFeatures(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-            self.pattern
+                self.pattern
         ):
             raise ValidationError(
                 "Regex name and pattern cannot be empty or blank spaces"
@@ -185,7 +185,7 @@ class ResponseButton(EmbeddedDocument):
         if not self.title or not self.payload:
             raise ValidationError("title and payload must be present!")
         elif Utility.check_empty_string(self.title) or Utility.check_empty_string(
-            self.payload.strip()
+                self.payload.strip()
         ):
             raise ValidationError(
                 "Response title and payload cannot be empty or blank spaces"
@@ -275,7 +275,7 @@ class Slots(Document):
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-            self.type
+                self.type
         ):
             raise ValueError("Slot name and type cannot be empty or blank spaces")
         error = ""
@@ -301,6 +301,10 @@ class StoryEvents(EmbeddedDocument):
     name = StringField()
     type = StringField(required=True, choices=["user", "action", "form", "slot"])
     value = StringField()
+
+    def validate(self, clean=True):
+        if not Utility.check_empty_string(self.value) and self.type != 'slot':
+            raise ValidationError("Value is allowed only for slot")
 
 
 class Stories(Document):
@@ -341,9 +345,9 @@ class EndPointTracker(EmbeddedDocument):
 
     def validate(self, clean=True):
         if (
-            Utility.check_empty_string(self.type)
-            or Utility.check_empty_string(self.url)
-            or Utility.check_empty_string(self.db)
+                Utility.check_empty_string(self.type)
+                or Utility.check_empty_string(self.url)
+                or Utility.check_empty_string(self.db)
         ):
             raise ValidationError("Type, Url and DB cannot be blank or empty spaces")
         else:

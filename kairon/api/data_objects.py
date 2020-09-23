@@ -27,10 +27,10 @@ class User(Document):
 
     def validate(self, clean=True):
         if (
-            Utility.check_empty_string(self.email)
-            or Utility.check_empty_string(self.first_name)
-            or Utility.check_empty_string(self.last_name)
-            or Utility.check_empty_string(self.password)
+                Utility.check_empty_string(self.email)
+                or Utility.check_empty_string(self.first_name)
+                or Utility.check_empty_string(self.last_name)
+                or Utility.check_empty_string(self.password)
         ):
             raise ValidationError(
                 "Email, FirstName, LastName and password cannot be empty or blank space"

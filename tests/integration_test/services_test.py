@@ -9,8 +9,11 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
+from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
+from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE
+from kairon.data_processor.data_objects import Stories
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -578,7 +581,8 @@ def test_get_utterance_from_intent():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == "utter_offer_help"
+    assert actual["data"]["name"] == "utter_offer_help"
+    assert actual["data"]["type"] == UTTERANCE_TYPE.BOT
     assert Utility.check_empty_string(actual["message"])
 
 
@@ -590,7 +594,8 @@ def test_get_utterance_from_not_exist_intent():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert actual["data"]["name"] is None
+    assert actual["data"]["type"] is None
     assert Utility.check_empty_string(actual["message"])
 
 def test_train(monkeypatch):
@@ -1303,6 +1308,8 @@ def test_delete_intent():
     assert actual['error_code'] == 0
     assert actual['message'] == "Intent deleted!"
     assert actual['success']
+
+
 def test_api_login_with_account_not_verified():
     AccountProcessor.EMAIL_ENABLED=True
     response = client.post(
@@ -1571,3 +1578,484 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert actual['error_code'] == 422
     assert actual['message'] == "This intent cannot be deleted by an integration user"
     assert not actual['success']
+
+
+def test_add_http_action_no_intent():
+    request_body = {
+        "intent": "",
+        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
+        "action_name": "test_add_http_action_no_intent",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_malformed_url():
+    request_body = {
+        "story_name": "http_story",
+        "intent": "hehhehehe",
+        "auth_token": "",
+        "action_name": "new_http_action",
+        "response": "",
+        "http_url": "192.168.104.1/api/test",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_invalid_req_method():
+    request_body = {
+        "story_name": "http_story",
+        "intent": "hehhehehe",
+        "auth_token": "",
+        "action_name": "new_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "TUP",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_no_action_name():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_no_token():
+    request_body = {
+        "intent": "greet_test_add_http_action_no_token",
+        "auth_token": "",
+        "action_name": "test_add_http_action_no_token",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_http_action_with_token_and_story():
+    request_body = {
+        "intent": "greet_test_add_http_action_with_token_and_story",
+        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
+        "action_name": "test_add_http_action_with_token_and_story",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.get(
+        url="/api/bot/action/httpaction/test_add_http_action_with_token_and_story",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == "string"
+    assert actual['data']["auth_token"] == "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
+    assert actual['data']["http_url"] == "http://www.google.com"
+    assert actual['data']["request_method"] == "GET"
+    assert len(actual['data']["params_list"]) == 3
+    assert actual["success"]
+
+    story = Stories.objects(block_name="test_add_http_action_with_token_and_story", status=True).get(
+        block_name__iexact="test_add_http_action_with_token_and_story")
+    assert story
+    assert story['events'][0]['name'] == 'greet_test_add_http_action_with_token_and_story'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == 'bot'
+    assert story['events'][1]['type'] == StoryEventType.slot
+    assert story['events'][2]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_CONFIG
+    assert story['events'][2]['type'] == StoryEventType.slot
+    assert story['events'][2]['value'] == 'test_add_http_action_with_token_and_story'
+    assert story['events'][3]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_NAME
+    assert story['events'][3]['type'] == StoryEventType.action
+    assert actual["success"]
+
+
+def test_add_http_action_no_params():
+    request_body = {
+        "intent": "greet_test_add_http_action_no_params",
+        "auth_token": "",
+        "action_name": "test_add_http_action_no_params",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_http_action_existing():
+    request_body = {
+        "intent": "greet_test_add_http_action_existing",
+        "auth_token": "",
+        "action_name": "test_add_http_action_existing",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_get_http_action_non_exisitng():
+    response = client.get(
+        url="/api/bot/action/httpaction/never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] is not None
+    assert not actual["success"]
+
+
+def test_update_http_action():
+    request_body = {
+        "intent": "greet_test_update_http_action",
+        "auth_token": "",
+        "action_name": "test_update_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "intent": "slap_test_update_http_action",
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action",
+        "response": "json",
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }]
+    }
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        url="/api/bot/action/httpaction/test_update_http_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == "json"
+    assert actual['data']["auth_token"] == "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf"
+    assert actual['data']["http_url"] == "http://www.alphabet.com"
+    assert actual['data']["request_method"] == "POST"
+    assert len(actual['data']["params_list"]) == 2
+    assert actual["success"]
+
+
+def test_update_http_action_story():
+    action_name = 'test_update_http_action_story'
+    request_body = {
+        "intent": "happy_test_update_http_action_story",
+        "auth_token": "",
+        "action_name": action_name,
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    request_body = {
+        "intent": "greet_test_update_http_action_story",
+        "auth_token": "",
+        "action_name": action_name,
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    story = Stories.objects(block_name=action_name, status=True).get(block_name__iexact=action_name)
+    assert story is not None
+    assert story['events'][0]['name'] == 'greet_test_update_http_action_story'
+    assert story['events'][0]['type'] == 'user'
+    assert story['events'][0]['value'] is None
+    assert story['events'][1]['name'] == 'bot'
+    assert story['events'][1]['type'] == 'slot'
+    assert story['events'][2]['name'] == 'http_action_config'
+    assert story['events'][2]['type'] == 'slot'
+    assert story['events'][2]['value'] == action_name
+    assert story['events'][3]['name'] == 'kairon_http_action'
+    assert story['events'][3]['type'] == 'action'
+
+
+def test_update_http_action_non_existing():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "test_update_http_action_non_existing",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    request_body = {
+        "intent": "slap",
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_non_existing_new",
+        "response": "json",
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "http_params_list": [{
+            "key": "param1",
+            "value": "value1",
+            "parameter_type": "value"},
+            {
+                "key": "param2",
+                "value": "value2",
+                "parameter_type": "slot"}]
+    }
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_delete_http_action():
+    request_body = {
+        "intent": "greet_test_delete_http_action",
+        "auth_token": "",
+        "action_name": "test_delete_http_action",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url="/api/bot/action/httpaction/test_delete_http_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_delete_http_action_non_existing():
+    request_body = {
+        "intent": "greet",
+        "auth_token": "",
+        "action_name": "new_http_action4",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": []
+    }
+
+    client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url="/api/bot/action/httpaction/new_http_action_never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]

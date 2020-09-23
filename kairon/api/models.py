@@ -1,10 +1,12 @@
 from enum import Enum
 from typing import List, Any, Dict
 
+import validators
+ValidationFailure = validators.ValidationFailure
+
 from pydantic import BaseModel, validator, SecretStr
 
 from kairon.exceptions import AppException
-from kairon.utils import Utility
 
 
 class Token(BaseModel):
@@ -89,8 +91,11 @@ class RegisterAccount(BaseModel):
     account: str
     bot: str
 
+    # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+
         try:
             Utility.valid_password(v.get_secret_value())
         except AppException as e:
@@ -145,6 +150,8 @@ class Password(BaseModel):
 
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+
         try:
             Utility.valid_password(v.get_secret_value())
         except AppException as e:
@@ -171,3 +178,68 @@ class History_Month_Enum(int, Enum):
 
 class HistoryMonth(BaseModel):
     month: History_Month_Enum
+
+
+class HttpActionParameters(BaseModel):
+    key: str
+    value: str
+    parameter_type: str
+
+
+class HttpActionConfigRequest(BaseModel):
+    intent: str
+    auth_token: str
+    action_name: str
+    response: str
+    http_url: str
+    request_method: str
+    http_params_list: List[HttpActionParameters]
+
+    def get_http_params(self):
+        return [param.dict() for param in self.http_params_list]
+
+    @validator("intent")
+    def validate_story_event(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("Intent is required")
+        return v
+
+    @validator("action_name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("action_name is required")
+        return v
+
+    @validator("http_url")
+    def validate_http_url(cls, v, values, **kwargs):
+        if isinstance(validators.url(v), ValidationFailure):
+            raise ValueError("URL is malformed")
+        return v
+
+    @validator("request_method")
+    def validate_request_method(cls, v, values, **kwargs):
+        if v.upper() not in ("GET", "POST", "PUT", "DELETE"):
+            raise ValueError("Invalid HTTP method")
+        return v.upper()
+
+
+class HttpActionParametersResponse(BaseModel):
+    key: str
+    value: str
+    parameter_type: str
+
+
+class HttpActionConfigResponse(BaseModel):
+    intent: str
+    auth_token: str
+    action_name: str
+    response: str
+    http_url: str
+    request_method: str
+    params_list: List[HttpActionParametersResponse]
+    bot: str
+    user: str
