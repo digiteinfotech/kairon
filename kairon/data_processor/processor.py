@@ -2061,7 +2061,7 @@ class AgentProcessor:
             action_endpoint = (
                 EndpointConfig(url=endpoint["action_endpoint"]["url"])
                 if endpoint and endpoint.get("action_endpoint")
-                else None
+                else Utility.environment['action'].get('url')
             )
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)

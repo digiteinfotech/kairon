@@ -28,3 +28,4 @@ build:
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
     -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .
     -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
+    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .
