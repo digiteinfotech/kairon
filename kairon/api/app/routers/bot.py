@@ -528,10 +528,11 @@ async def get_http_action(action: str = Path(default=None, description="action n
     """
     Returns configuration set for the HTTP action
     """
-    http_action_config = mongo_processor.get_http_action_config_and_intent(action_name=action,
+    http_action_config = mongo_processor.get_http_action_config(action_name=action,
                                                                            user=current_user.get_user(),
                                                                            bot=current_user.bot)
-    return Response(data=http_action_config)
+    action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
+    return Response(data=action_config)
 
 
 @router.put("/action/httpaction", response_model=Response)

@@ -683,7 +683,7 @@ class Utility:
         return start_time.timestamp()
 
     @staticmethod
-    def build_http_response_object(http_action_config: HttpActionConfig, intent: str, user: str, bot: str):
+    def build_http_response_object(http_action_config: HttpActionConfig, user: str, bot: str):
         """
         Builds a new HttpActionConfigResponse object from HttpActionConfig object.
         :param http_action_config: HttpActionConfig object containing configuration for the Http action
@@ -696,7 +696,6 @@ class Utility:
             for param in
             http_action_config.params_list]
         response = HttpActionConfigResponse(
-            intent=intent,
             auth_token=http_action_config.auth_token,
             action_name=http_action_config.action_name,
             response=http_action_config.response,
