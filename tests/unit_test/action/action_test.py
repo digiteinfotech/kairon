@@ -29,10 +29,6 @@ class TestActions:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
 
-        # try:
-        #     disconnect()
-        # except Exception:
-        #     print("No connections exist")
         connect(host=db_url)
 
     @responses.activate
