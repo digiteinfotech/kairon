@@ -16,9 +16,7 @@ from .exception import HttpActionFailure
 
 
 class ActionUtility:
-    """
-    Utility class to assist executing actions
-    """
+    """Utility class to assist executing actions"""
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, auth_token=None):

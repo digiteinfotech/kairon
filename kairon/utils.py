@@ -50,9 +50,7 @@ from .exceptions import AppException
 
 
 class Utility:
-    """
-    Class contains logic for various utilities
-    """
+    """Class contains logic for various utilities"""
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -120,7 +118,7 @@ class Utility:
         :return: dict
         """
         with open(file) as fp:
-            return yaml.load(fp, yaml.FullLoader)
+            return yaml.safe_load(fp)
 
     @staticmethod
     def load_evironment():
@@ -266,7 +264,7 @@ class Utility:
                         result = None
                 else:
                     result = None
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError:
             raise AppException("Host is not reachable")
         except Exception as e:
             raise AppException(e)
@@ -526,14 +524,14 @@ class Utility:
                     Utility.__extract_response_button(value[RESPONSE.BUTTONS.value])
                 )
             data = response_text
-            type = "text"
+            response_type = "text"
         elif RESPONSE.CUSTOM.value in value:
             data = ResponseCustom._from_son(
                 {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
             )
-            type = "custom"
+            response_type = "custom"
 
-        return type, data
+        return response_type, data
 
     @staticmethod
     def list_directories(path: Text):
@@ -546,7 +544,7 @@ class Utility:
         return list(os.listdir(path))
 
     @staticmethod
-    def list_files(path: Text, extensions=["yml", "yaml"]):
+    def list_files(path: Text, extensions=None):
         """
         list all the files in directory
 
@@ -554,6 +552,8 @@ class Utility:
         :param extensions: extension to search
         :return: file list
         """
+        if extensions is None:
+            extensions = ["yml", "yaml"]
         files = [glob(os.path.join(path, "*." + extension)) for extension in extensions]
         return sum(files, [])
 
