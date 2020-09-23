@@ -1905,6 +1905,9 @@ def test_update_http_action():
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
+    assert actual['data']["params_list"][0]['key'] == 'testParam1'
+    assert actual['data']["params_list"][0]['parameter_type'] == 'value'
+    assert actual['data']["params_list"][0]['value'] == 'testValue1'
     assert actual["success"]
 
 

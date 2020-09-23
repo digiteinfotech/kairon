@@ -104,7 +104,6 @@ class ActionUtility:
         Fetches MongoDB URL defined in system.yaml file
         :return: MongoDB connection URL
         """
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
         return environment['database']["url"]
 
