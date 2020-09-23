@@ -12,7 +12,7 @@ from rasa.nlu.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE
+from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -1233,7 +1233,6 @@ class TestModelProcessor:
     def test_add_http_action_config(self):
         processor = MongoProcessor()
         intent = "greet"
-        story_event = StoryEventRequest(name=intent, type="user")
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_action'
@@ -1270,6 +1269,9 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param2"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=CUSTOM_ACTIONS.HTTP_ACTION_NAME)
 
     def test_add_http_action_delete_story_on_add_failure(self):
         processor = MongoProcessor()
