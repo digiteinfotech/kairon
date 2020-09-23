@@ -1524,6 +1524,61 @@ class TestModelProcessor:
             assert str(e).__contains__(
                 'No HTTP action found for bot test_bot and action test_delete_http_action_config_non_existing_non_existing')
 
+
+    def test_get_http_action_config_with_intent(self):
+        processor = MongoProcessor()
+        intent = "greet_test_get_http_action_config_with_intent"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_get_http_action_config_with_intent'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        http_config_id = processor.add_http_action_with_story(http_action_config, user, bot)
+        assert http_config_id is not None
+
+        actual = processor.get_http_action_config_and_intent(bot=bot, user="test_user", action_name=action)
+        actual.intent = intent
+        actual.action_name = action
+
+    def test_get_http_action_config_with_intent_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_get_http_action_config_with_intent_non_existing'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        HttpActionConfig(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        try:
+            processor.get_http_action_config_and_intent(bot=bot, user="test_user", action_name=action)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__(
+                'No intent found for bot test_bot and action test_get_http_action_config_with_intent_non_existing')
+
     def test_get_http_action_config(self):
         processor = MongoProcessor()
         bot = 'test_bot'

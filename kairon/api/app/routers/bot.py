@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
+
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -418,7 +419,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
     """
     Fetches the http and mongo endpoint for the bot
     """
