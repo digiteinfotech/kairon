@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
+
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -418,7 +419,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -528,10 +529,11 @@ async def get_http_action(action: str = Path(default=None, description="action n
     """
     Returns configuration set for the HTTP action
     """
-    http_action_config = mongo_processor.get_http_action_config_and_intent(action_name=action,
+    http_action_config = mongo_processor.get_http_action_config(action_name=action,
                                                                            user=current_user.get_user(),
                                                                            bot=current_user.bot)
-    return Response(data=http_action_config)
+    action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
+    return Response(data=action_config)
 
 
 @router.put("/action/httpaction", response_model=Response)

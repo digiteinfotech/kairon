@@ -234,7 +234,6 @@ class HttpActionParametersResponse(BaseModel):
 
 
 class HttpActionConfigResponse(BaseModel):
-    intent: str
     auth_token: str
     action_name: str
     response: str

@@ -1982,19 +1982,6 @@ class MongoProcessor:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
         Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
 
-    def get_http_action_config_and_intent(self, bot: str, user: str, action_name: str):
-        http_action_config = self.get_http_action_config(action_name=action_name, user=user, bot=bot)
-        try:
-            story = Stories.objects().get(bot=bot, user=user, block_name=action_name, status=True)
-        except DoesNotExist as ex:
-            logging.info(ex)
-            raise AppException("No intent found for bot " + bot + " and action " + action_name)
-        except Exception as e:
-            logging.error(e)
-            raise AppException(e)
-        intent = story.events[0].name
-        action_config = Utility.build_http_response_object(http_action_config, intent, user, bot)
-        return action_config
 
     def get_http_action_config(self, bot: str, user: str, action_name: str):
         """
