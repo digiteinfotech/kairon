@@ -7,7 +7,7 @@ rasa[spacy]==1.10.12
 rasa[convert]==1.10.12
 fastapi>=0.61.1
 mongomock==3.20.0
-pytest==6.0.2
+pytest==6.1.0
 pytest-html==2.1.1
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
