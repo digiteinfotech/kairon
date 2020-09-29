@@ -39,4 +39,4 @@ COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
 
-CMD ["kairon","$BOT","$USER"]
+CMD ["python3","-m","kairon","$BOT","$USER"]
