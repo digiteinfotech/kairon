@@ -4,6 +4,7 @@ from mongoengine import connect
 from smart_config import ConfigLoader
 
 from kairon.train import start_training
+from loguru import logger
 
 
 def create_arg_parser():
@@ -18,6 +19,8 @@ def main():
     arguments = parser.parse_args()
     config = ConfigLoader('./system.yaml').get_config()
     connect(host=config['database']['url'])
+    logger.info(arguments.bot)
+    logger.info(arguments.user)
     start_training(arguments.bot, arguments.user, reload=False)
 
 
