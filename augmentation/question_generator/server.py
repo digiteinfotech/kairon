@@ -1,11 +1,13 @@
+from typing import Any, Text
+
 from fastapi import FastAPI, HTTPException
-from .generator import QuestionGenerator
-from pydantic import BaseModel
-from typing import Any, List, Text
-from loguru import logger as logging
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from loguru import logger as logging
+from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from .generator import QuestionGenerator
 
 
 class Response(BaseModel):

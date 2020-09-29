@@ -1,15 +1,17 @@
 from boto3 import client
 import os
-from json import loads
+import logging
 
 
 def lambda_handler(event, context):
     cluster = os.getenv("CLUSTER", 'default')
+    logging.info(cluster)
     task_definition = os.getenv("TASK_DEFINITION", 'default')
     capacity_provider = os.getenv("CAPACITY_PROVIDER", 'FARGATE_SPOT')
     subnets = os.getenv("SUBNETS", "").split(",")
     region_name = os.getenv("REGION_NAME", 'us-east-1')
-    request_data = loads(event['body'])
+    security_groups = os.getenv('SECURITY_GROUPS').split(",")
+    container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
     try:
         response = ecs.run_task(
@@ -23,24 +25,28 @@ def lambda_handler(event, context):
             cluster=cluster,
             taskDefinition=task_definition,  # replace with your task definition name and revision
             count=1,
-            platformVersion='LATEST',
+            platformVersion='1.4.0',
+            propagateTags="TASK_DEFINITION",
+            tags=[{"key": "Cost", "value": "AI"}],
             networkConfiguration={
                 'awsvpcConfiguration': {
                     'subnets': subnets,
-                    'assignPublicIp': 'DISABLED'
+                    'assignPublicIp': 'DISABLED',
+                    'securityGroups': security_groups
                 }
             },
             overrides={
                 'containerOverrides': [
                     {
+                        "name": container_name,
                         'environment': [
                             {
                                 'name': 'BOT',
-                                'value': request_data['bot']
+                                'value': event['bot']
                             },
                             {
                                 'name': 'USER',
-                                'value': request_data['user']
+                                'value': event['user']
                             }
                         ]
                     },
@@ -49,4 +55,4 @@ def lambda_handler(event, context):
         )
     except Exception as e:
         response = e
-    return str(response)
+    return {"message": str(response)}

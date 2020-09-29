@@ -16,3 +16,7 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
+
+cache:
+  type: ${CACHE_TYPE:inmemory}
+  url: ${CACHE_SERVER_URL:"http://localhost:6379"}

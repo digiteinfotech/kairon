@@ -29,7 +29,7 @@ from rasa.utils.io import read_config_file
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from .cache import InMemoryAgentCache
+from .cache import AgentCache
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -1986,7 +1986,6 @@ class MongoProcessor:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
         Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
 
-
     def get_http_action_config(self, bot: str, user: str, action_name: str):
         """
         Fetches Http action config from collection.
@@ -2008,8 +2007,8 @@ class MongoProcessor:
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
         if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",
-                            name__iexact=slot_value['name'], bot=bot,
-                            status=True):
+                                name__iexact=slot_value['name'], bot=bot,
+                                status=True):
             slot_value['user'] = user
             slot_value['bot'] = bot
             return (Slots(**slot_value)
@@ -2022,7 +2021,7 @@ class AgentProcessor:
     """
 
     mongo_processor = MongoProcessor()
-    cache_provider = InMemoryAgentCache()
+    cache_provider: AgentCache  = Utility.create_cache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:

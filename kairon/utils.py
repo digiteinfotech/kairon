@@ -47,14 +47,14 @@ from validators import email as mail_check
 from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .exceptions import AppException
-
+from kairon.data_processor.cache import InMemoryAgentCache, RedisAgentCache
 
 class Utility:
     """Class contains logic for various utilities"""
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-    environment = None
+    environment = {}
     password_policy = PasswordPolicy.from_names(
         length=8,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -62,7 +62,7 @@ class Utility:
         special=1,  # need min. 1 special characters
     )
     markdown_reader = MarkdownReader()
-    email_conf = None
+    email_conf = {}
 
     @staticmethod
     def check_empty_string(value: str):
@@ -706,3 +706,10 @@ class Utility:
             bot=bot
         )
         return response
+
+    @staticmethod
+    def create_cache():
+        if Utility.environment.get('cache'):
+            if str(Utility.environment['cache'].get('type')).lower() == "redis":
+                return RedisAgentCache(host=Utility.environment['cache']['url'])
+        return InMemoryAgentCache()

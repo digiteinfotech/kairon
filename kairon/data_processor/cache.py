@@ -1,6 +1,7 @@
 from typing import Text
 from rasa.core.agent import Agent
 from cachetools.lru import LRUCache
+from redis import Redis
 
 
 class AgentCache:
@@ -34,7 +35,9 @@ class AgentCache:
 
 
 class InMemoryAgentCache(AgentCache):
-    cache = LRUCache(maxsize=100)
+
+    def __init__(self):
+        self.cache = LRUCache(maxsize=100)
 
     def set(self, bot: Text, agent: Agent):
         """
@@ -44,9 +47,9 @@ class InMemoryAgentCache(AgentCache):
         :param agent:  bot agent
         :return: None
         """
-        if bot in InMemoryAgentCache.cache.keys():
-            InMemoryAgentCache.cache.pop(bot)
-        InMemoryAgentCache.cache.__setitem__(bot, agent)
+        if bot in self.cache.keys():
+            self.cache.pop(bot)
+        self.cache.__setitem__(bot, agent)
 
     def get(self, bot: Text) -> Agent:
         """
@@ -55,7 +58,7 @@ class InMemoryAgentCache(AgentCache):
         :param bot: bot id
         :return: Agent object
         """
-        return InMemoryAgentCache.cache.get(bot)
+        return self.cache.get(bot)
 
     def is_exists(self, bot: Text) -> bool:
         """
@@ -64,4 +67,40 @@ class InMemoryAgentCache(AgentCache):
         :param bot: bot id
         :return: True/False
         """
-        return bot in InMemoryAgentCache.cache.keys()
+        return bot in self.cache.keys()
+
+
+class RedisAgentCache(AgentCache):
+
+    def __init__(self, host, db="kairon-agent"):
+        self.cache = Redis(host=host, db=db)
+
+    def set(self, bot: Text, agent: Agent):
+        """
+        loads bot agent in redis cache
+
+        :param bot: bot id
+        :param agent:  bot agent
+        :return: None
+        """
+        if bot in self.cache.keys():
+            self.cache.delete(bot)
+        self.cache.set(bot, agent)
+
+    def get(self, bot: Text) -> Agent:
+        """
+        fetches bot agent from redis cache
+
+        :param bot: bot id
+        :return: Agent object
+        """
+        return self.cache.get(bot)
+
+    def is_exists(self, bot: Text) -> bool:
+        """
+        checks if bot agent exist in redis cache
+
+        :param bot: bot id
+        :return: True/False
+        """
+        return self.cache.exists(bot)
