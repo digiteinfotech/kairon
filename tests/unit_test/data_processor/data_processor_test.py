@@ -1,7 +1,8 @@
 import asyncio
 import os
 from typing import List
-
+from mock import patch
+from mockredis.redis import mock_redis_client
 import pytest
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
@@ -25,6 +26,8 @@ from kairon.data_processor.processor import MongoProcessor, AgentProcessor, Mode
 from kairon.exceptions import AppException
 from kairon.train import train_model_from_mongo, start_training
 from kairon.utils import Utility
+import responses
+
 
 class TestMongoProcessor:
     @pytest.fixture(autouse=True)
@@ -722,14 +725,10 @@ class TestMongoProcessor:
         assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
-        with pytest.raises(AppException) as exp:
-            assert start_training("test", "testUser")
-
-        assert str(exp.value) == "Training data does not exists!"
-
+        start_training("test", "testUser")
         model_training = ModelTraining.objects(bot="test", status="Fail")
         assert model_training.__len__() == 1
-        assert model_training.first().exception in str(exp.value)
+        assert model_training.first().exception in str("Training data does not exists!")
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -929,6 +928,18 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
 
+    @responses.activate
+    def test_start_training_done_using_event(self, monkeypatch):
+        responses.add(
+            responses.POST,
+            "http://localhost/train",
+            status=200
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
+        model_path = start_training("tests", "testUser")
+        assert model_path is None
+        monkeypatch.setitem(Utility.environment['model']['train'], ".event_url", None)
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
@@ -949,6 +960,22 @@ class TestAgentProcessor:
         with pytest.raises(AppException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
+
+    @patch('redis.Redis')
+    @patch.object(Utility, "get_local_mongo_store")
+    def test_get_agent_from_redis(self, monkeypatch, test_get_local_mongo_store):
+        def mongo_store(*arge, **kwargs):
+            return None
+
+        test_get_local_mongo_store.return_value = None
+        monkeypatch.setitem(Utility.environment['cache'], "type", "redis")
+        monkeypatch.setitem(Utility.environment['cache'], "url", "http://localhost:6379")
+        AgentProcessor.cache_provider = Utility.create_cache()
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+        monkeypatch.setitem(Utility.environment['cache'], "type", "inmemory")
+        monkeypatch.setitem(Utility.environment['cache'], "url", None)
+        AgentProcessor.cache_provider = Utility.create_cache()
 
 
 class TestModelProcessor:
@@ -1031,17 +1058,17 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model'], "training_limit_per_day", 5)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 5)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 
@@ -1164,7 +1191,6 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e).__contains__("Story, bot and user are required")
 
-
     def test_prepare_and_add_story_no_user(self):
         processor = MongoProcessor()
         bot = "bot"
@@ -1189,7 +1215,6 @@ class TestModelProcessor:
             assert False
         except AppException as e:
             assert str(e).__contains__("Story, bot and user are required")
-
 
     def test_delete_story(self):
         processor = MongoProcessor()
@@ -1228,7 +1253,6 @@ class TestModelProcessor:
             processor.delete_story(story='test_action1', user=user, bot=bot)
         except AppException:
             assert True
-
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()
@@ -1602,7 +1626,6 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e) == "No HTTP action found for bot test_bot and action action"
 
-
     def test_update_story_non_existing(self):
         processor = MongoProcessor()
         user = "test_user"
@@ -1620,7 +1643,6 @@ class TestModelProcessor:
             processor.update_story(story="story", intent=intent, user=user, bot=bot)
         except AppException as ex:
             assert str(ex) == 'Story story does not exists'
-
 
     def test_update_story(self):
         processor = MongoProcessor()

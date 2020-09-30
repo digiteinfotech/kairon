@@ -12,7 +12,9 @@ augmentation:
   question_generation_url: ${QUESTION_GENERATION_URL:"http://localhost:8000/questions"}
 
 model:
-  training_limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
+  train:
+    limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
+    event_url: ${TRAIN_EVENT_URL}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}

@@ -19,7 +19,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.exceptions import AppException
 from .routers import auth, bot, augment, history, user, account
-#  deepcode ignore W0404: Response model different from fastapi.Response
 from kairon.api.models import Response
 from kairon.api.processor import AccountProcessor
 from fastapi.middleware.cors import CORSMiddleware

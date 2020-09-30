@@ -141,26 +141,30 @@ def start_training(bot: str, user: str, reload=True):
     exception = None
     model_file = None
     training_status = None
-
-    ModelProcessor.set_training_status(
-        bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-    )
-    try:
-        model_file = train_model_for_bot(bot)
-        training_status = MODEL_TRAINING_STATUS.DONE.value
-    except Exception as e:
-        logging.exception(e)
-        training_status = MODEL_TRAINING_STATUS.FAIL.value
-        exception = str(e)
-        raise AppException(exception)
-    finally:
-        ModelProcessor.set_training_status(
-            bot=bot,
-            user=user,
-            status=training_status,
-            model_path=model_file,
-            exception=exception,
-        )
-    if reload:
-        AgentProcessor.reload(bot)
+    print(Utility.environment['model']['train'].get('event_url'))
+    if Utility.environment['model']['train'].get('event_url'):
+        Utility.train_model_event(bot, user)
+    else:
+        try:
+            ModelProcessor.is_training_inprogress(bot)
+            ModelProcessor.is_daily_training_limit_exceeded(bot)
+            ModelProcessor.set_training_status(
+                bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+            )
+            model_file = train_model_for_bot(bot)
+            training_status = MODEL_TRAINING_STATUS.DONE.value
+            if reload:
+                AgentProcessor.reload(bot)
+        except Exception as e:
+            logging.exception(e)
+            training_status = MODEL_TRAINING_STATUS.FAIL.value
+            exception = str(e)
+        finally:
+            ModelProcessor.set_training_status(
+                bot=bot,
+                user=user,
+                status=training_status,
+                model_path=model_file,
+                exception=exception,
+            )
     return model_file

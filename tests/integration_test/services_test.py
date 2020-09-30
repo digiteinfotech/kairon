@@ -598,6 +598,7 @@ def test_get_utterance_from_not_exist_intent():
     assert actual["data"]["type"] is None
     assert Utility.check_empty_string(actual["message"])
 
+
 def test_train(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -628,11 +629,16 @@ def test_train_inprogress(mock_is_training_inprogress_exception):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"] is False
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
-    assert actual["message"] == "Previous model training in progress."
-
+    assert actual["message"] == "Model training started."
+    response = client.get(
+        "/api/bot/train/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data']['training_history'][0]['exception'] == "Previous model training in progress."
 
 @pytest.fixture
 def mock_is_training_inprogress(monkeypatch):
@@ -648,10 +654,16 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"] is False
-    assert actual["error_code"] == 422
+    assert actual["success"]
+    assert actual["error_code"] == 0
     assert actual["data"] is None
-    assert actual["message"] == "Daily model training limit exceeded."
+    assert actual["message"] == "Model training started."
+    response = client.get(
+        "/api/bot/train/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data']['training_history'][0]['exception'] == "Daily model training limit exceeded."
 
 def test_get_model_training_history():
     response = client.get(

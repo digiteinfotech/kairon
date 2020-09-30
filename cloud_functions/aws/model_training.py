@@ -11,7 +11,7 @@ def lambda_handler(event, context):
     capacity_provider = os.getenv("CAPACITY_PROVIDER", 'FARGATE_SPOT')
     subnets = os.getenv("SUBNETS", "").split(",")
     region_name = os.getenv("REGION_NAME", 'us-east-1')
-    security_groups = os.getenv('SECURITY_GROUPS').split(",")
+    security_groups = os.getenv('SECURITY_GROUPS','').split(",")
     container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
     body = json.loads(event['body'])

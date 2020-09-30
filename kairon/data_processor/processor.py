@@ -2021,7 +2021,7 @@ class AgentProcessor:
     """
 
     mongo_processor = MongoProcessor()
-    cache_provider: AgentCache  = Utility.create_cache()
+    cache_provider: AgentCache = Utility.create_cache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
@@ -2105,8 +2105,10 @@ class ModelProcessor:
             doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
-            doc.status = MODEL_TRAINING_STATUS.INPROGRESS.value
+            doc.status = status
             doc.start_timestamp = datetime.utcnow()
+            if status == MODEL_TRAINING_STATUS.FAIL.value:
+                doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user
@@ -2150,7 +2152,7 @@ class ModelProcessor:
         doc_count = ModelTraining.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['model']["training_limit_per_day"]:
+        if doc_count >= Utility.environment['model']['train']["limit_per_day"]:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
             else:

@@ -49,6 +49,7 @@ from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .exceptions import AppException
 from kairon.data_processor.cache import InMemoryAgentCache, RedisAgentCache
 
+
 class Utility:
     """Class contains logic for various utilities"""
 
@@ -152,7 +153,7 @@ class Utility:
 
     @staticmethod
     def is_exist(
-        document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
+            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
         """
         check if document exist
@@ -236,12 +237,12 @@ class Utility:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         url = endpoint["bot_endpoint"].get("url")
         if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get(
-            "token"
+                "token"
         ):
             headers["Authorization"] = (
-                endpoint["bot_endpoint"].get("token_type")
-                + " "
-                + endpoint["bot_endpoint"].get("token")
+                    endpoint["bot_endpoint"].get("token_type")
+                    + " "
+                    + endpoint["bot_endpoint"].get("token")
             )
         try:
             model_file = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
@@ -330,7 +331,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-        nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
     ):
         """
         adds training files to zip
@@ -573,7 +574,6 @@ class Utility:
 
         configuration.load(config)
 
-
     @staticmethod
     def load_email_configuration():
         """
@@ -582,7 +582,6 @@ class Utility:
         """
 
         Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
-
 
     @staticmethod
     async def validate_and_send_mail(email: str, subject: str, body: str):
@@ -598,8 +597,8 @@ class Utility:
             raise AppException("Please check if email is valid")
 
         if (
-            Utility.check_empty_string(subject)
-            or Utility.check_empty_string(body)
+                Utility.check_empty_string(subject)
+                or Utility.check_empty_string(body)
         ):
             raise ValidationError(
                 "Subject and body of the mail cannot be empty or blank space"
@@ -616,7 +615,8 @@ class Utility:
         :param body: the body of the mail
         :return: None
         """
-        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"], port=Utility.email_conf["email"]["sender"]["port"])
+        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"],
+                    port=Utility.email_conf["email"]["sender"]["port"])
         smtp.connect(Utility.email_conf["email"]["sender"]["service"], Utility.email_conf["email"]["sender"]["port"])
         if Utility.email_conf["email"]["sender"]["tls"]:
             smtp.starttls()
@@ -713,3 +713,9 @@ class Utility:
             if str(Utility.environment['cache'].get('type')).lower() == "redis":
                 return RedisAgentCache(host=Utility.environment['cache']['url'])
         return InMemoryAgentCache()
+
+    @staticmethod
+    def train_model_event(bot: str, user: str):
+        event_url = Utility.environment['model']['train']['event_url']
+        response = requests.post(event_url, headers={'content-type': 'application/json'}, data={'bot': bot, user: user})
+        return response.content.decode('utf8')
