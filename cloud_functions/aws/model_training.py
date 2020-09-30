@@ -1,6 +1,7 @@
 from boto3 import client
 import os
 import logging
+import json
 
 
 def lambda_handler(event, context):
@@ -13,8 +14,10 @@ def lambda_handler(event, context):
     security_groups = os.getenv('SECURITY_GROUPS').split(",")
     container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
+    body = json.loads(event['body'])
+    print(body)
     try:
-        response = ecs.run_task(
+        task_response = ecs.run_task(
             capacityProviderStrategy=[
                 {
                     'capacityProvider': capacity_provider,
@@ -26,12 +29,10 @@ def lambda_handler(event, context):
             taskDefinition=task_definition,  # replace with your task definition name and revision
             count=1,
             platformVersion='1.4.0',
-            propagateTags="TASK_DEFINITION",
-            tags=[{"key": "Cost", "value": "AI"}],
             networkConfiguration={
                 'awsvpcConfiguration': {
                     'subnets': subnets,
-                    'assignPublicIp': 'DISABLED',
+                    'assignPublicIp': 'ENABLED',
                     'securityGroups': security_groups
                 }
             },
@@ -42,17 +43,29 @@ def lambda_handler(event, context):
                         'environment': [
                             {
                                 'name': 'BOT',
-                                'value': event['bot']
+                                'value': body['bot']
                             },
                             {
                                 'name': 'USER',
-                                'value': event['user']
+                                'value': body['user']
                             }
                         ]
                     },
                 ]
             },
         )
+        print(task_response)
+        response = "success"
     except Exception as e:
-        response = e
-    return {"message": str(response)}
+        response = str(e)
+
+    output = {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": {
+            "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": response
+    }
+    return output

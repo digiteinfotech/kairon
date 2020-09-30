@@ -11,6 +11,7 @@ def create_arg_parser():
     parser = ArgumentParser()
     parser.add_argument('bot', help="Bot id for which training needs to trigger")
     parser.add_argument('user', help="User who is training")
+    parser.add_argument('reload', default=True, help="User who is training")
     return parser
 
 
@@ -21,7 +22,7 @@ def main():
     connect(host=config['database']['url'])
     logger.info(arguments.bot)
     logger.info(arguments.user)
-    start_training(arguments.bot, arguments.user, reload=False)
+    start_training(arguments.bot, arguments.user, arguments.reload)
 
 
 if __name__ == "__main__":
