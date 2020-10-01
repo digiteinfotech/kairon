@@ -18,9 +18,3 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
-
-cache:
-  type: ${CACHE_TYPE:inmemory}
-  host: ${CACHE_SERVER_URL:"localhost"}
-  port: ${CACHE_SERVER_PORT:6379}
-  timeout: ${CACHE_TIMEOUT_SECONDS:3600}

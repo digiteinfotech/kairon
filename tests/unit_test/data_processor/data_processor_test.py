@@ -961,23 +961,6 @@ class TestAgentProcessor:
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
 
-    @patch('redis.Redis')
-    @patch.object(Utility, "get_local_mongo_store")
-    def test_get_agent_from_redis(self, monkeypatch, test_get_local_mongo_store):
-        def mongo_store(*arge, **kwargs):
-            return None
-
-        test_get_local_mongo_store.return_value = None
-        monkeypatch.setitem(Utility.environment['cache'], "type", "redis")
-        monkeypatch.setitem(Utility.environment['cache'], "url", "http://localhost:6379")
-        AgentProcessor.cache_provider = Utility.create_cache()
-        agent = AgentProcessor.get_agent("tests")
-        assert isinstance(agent, Agent)
-        monkeypatch.setitem(Utility.environment['cache'], "type", "inmemory")
-        monkeypatch.setitem(Utility.environment['cache'], "url", None)
-        AgentProcessor.cache_provider = Utility.create_cache()
-
-
 class TestModelProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
