@@ -711,8 +711,8 @@ class Utility:
     def create_cache():
         if Utility.environment.get('cache'):
             if str(Utility.environment['cache'].get('type')).lower() == "redis":
-                logger.info("using redis cache from "+Utility.environment['cache']['url'])
-                return RedisAgentCache(host=Utility.environment['cache']['url'])
+                logger.info("loading redis cache")
+                return RedisAgentCache(host=Utility.environment['cache']['url'], port=Utility.environment['cache']['port'])
         logger.info("loading in memory cache")
         return InMemoryAgentCache()
 
