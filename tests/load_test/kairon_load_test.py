@@ -11,9 +11,10 @@ from smart_config import ConfigLoader
 from tests.load_test.data_objects import User, Account, Bot
 
 USERS_INFO = []
+USER_INDEX = 1
 
 
-def create_test_data(num_users=1000):
+def create_test_data(num_users):
     global USERS_INFO
     logging.info('Creating test data..')
     USERS_INFO = []
@@ -27,18 +28,12 @@ def create_test_data(num_users=1000):
         USERS_INFO.append((email, first_name, last_name, password, account, bot))
 
 
-@events.test_start.add_listener
-def on_test_start(**kwargs):
-    global USERS_INFO
-    if len(USERS_INFO) == 0:
-        create_test_data(2)
-
-
-def stop_user():
-    raise StopUser()
-
-
 class ExecuteTask(SequentialTaskSet):
+    """
+    Load test for kairon.
+
+    locust -f tests/load_test/kairon_load_test.py --headless -u 1000 -r 100 --host=http://localhost:8080
+    """
     wait_time = between(1, 2)
 
     @task
@@ -46,19 +41,14 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def register(self):
-            user_info = USERS_INFO.pop()
-            self.user.username = user_info[0]
-            self.user.password = user_info[3]
-            self.user.account = user_info[4]
-            self.user.bot = user_info[5]
             request_body = {
-                "email": user_info[0],
-                "first_name": user_info[1],
-                "last_name": user_info[2],
-                "password": user_info[3],
-                "confirm_password": user_info[3],
-                "account": user_info[4],
-                "bot": user_info[5],
+                "email": self.user.email,
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
+                "password": self.user.password,
+                "confirm_password": self.user.password,
+                "account": self.user.account,
+                "bot": self.user.bot,
             }
             with self.client.post("/api/account/registration",
                                   json=request_body,
@@ -631,8 +621,23 @@ class KaironUser(HttpUser):
 
     auth_token = None
     username = None
+    email = None
+    first_name = None
+    last_name = None
+    password = None
     account = None
     bot = None
+
+    def on_start(self):
+        global USER_INDEX
+        self.email = 'user{0}@demo.ai'.format(USER_INDEX)
+        self.username = self.email
+        self.first_name = 'load'
+        self.last_name = 'test'
+        self.password = 'Welcome@1'
+        self.account = 'user{0}'.format(USER_INDEX)
+        self.bot = 'user{0}'.format(USER_INDEX)
+        USER_INDEX += 1
 
     def on_stop(self):
         logging.info("Cleaning up database..")
@@ -648,4 +653,3 @@ class KaironUser(HttpUser):
             disconnect()
         except Exception as e:
             logging.error(e)
-
