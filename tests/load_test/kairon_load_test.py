@@ -1,11 +1,14 @@
 import inspect
 import logging
+import os
 
 from locust import HttpUser, between, SequentialTaskSet, events, task, runners
 from locust.exception import StopUser
+from mongoengine import connect, disconnect
 from rasa.utils.io import read_config_file
+from smart_config import ConfigLoader
 
-from tests.load_test.data_objects import User
+from tests.load_test.data_objects import User, Account, Bot
 
 USERS_INFO = []
 
@@ -31,29 +34,23 @@ def on_test_start(**kwargs):
         create_test_data(2)
 
 
-@events.test_stop.add_listener
-def on_test_stop(**kwargs):
-    create_test_data()
-    try:
-        User.objects(first_name='load', last_name='test').delete()
-    except Exception as e:
-        logging.error(e)
-
-
 def stop_user():
     raise StopUser()
 
 
 class ExecuteTask(SequentialTaskSet):
+    wait_time = between(1, 2)
+
     @task
     class Register(SequentialTaskSet):
 
         @task
         def register(self):
-            #cnt = self.user.environment.runner.user_count
             user_info = USERS_INFO.pop()
             self.user.username = user_info[0]
             self.user.password = user_info[3]
+            self.user.account = user_info[4]
+            self.user.bot = user_info[5]
             request_body = {
                 "email": user_info[0],
                 "first_name": user_info[1],
@@ -625,7 +622,7 @@ class ExecuteTask(SequentialTaskSet):
                     if not response_data["success"]:
                         logging.error(inspect.stack()[0][3] + " Failed: " + response_data['message'])
                         response.failure(inspect.stack()[0][3] + " Failed: " + response_data['message'])
-            stop_user()
+            raise StopUser()
 
 
 class KaironUser(HttpUser):
@@ -634,3 +631,21 @@ class KaironUser(HttpUser):
 
     auth_token = None
     username = None
+    account = None
+    bot = None
+
+    def on_stop(self):
+        logging.info("Cleaning up database..")
+        try:
+            os.environ["system_file"] = "./tests/testing_data/system.yaml"
+            env = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
+            logging.info("Connecting to: " + env['database']["load_test"])
+            connect(host=env['database']["load_test"])
+            User.objects(email=self.username).delete()
+            Bot.objects(name=self.bot).delete()
+            Account.objects(name=self.account).delete()
+            logging.info("Cleanup complete")
+            disconnect()
+        except Exception as e:
+            logging.error(e)
+
