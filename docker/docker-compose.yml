@@ -55,6 +55,9 @@ services:
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
+# uncomment below if you want to unable redis cache
+#      CACHE_TYPE: redis
+#      CACHE_SERVER_URL: http://kairon-cache:6379
 
   kairon-ui:
     image: digite/kairon-ui:latest
@@ -89,6 +92,16 @@ services:
       - 5055:5055
     networks:
       - chatbotnetwork
+	  
+# uncomment below to unable redis cache
+#  kairon-cache:
+#    image: redis:latest
+#    container_name: kairon-cache
+#    hostname: kairon-cache
+#    ports:
+#      - 6379:6379
+#    networks:
+#      - chatbotnetwork
 
 networks:
   chatbotnetwork:
