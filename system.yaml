@@ -22,3 +22,4 @@ action:
 cache:
   type: ${CACHE_TYPE:inmemory}
   url: ${CACHE_SERVER_URL:"http://localhost:6379"}
+  timeout: ${CACHE_TIMEOUT_SECONDS:3600}

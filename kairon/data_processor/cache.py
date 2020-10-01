@@ -83,9 +83,10 @@ class RedisAgentCache(AgentCache):
         :param agent:  bot agent
         :return: None
         """
+        from kairon.utils import Utility
         if bot in self.cache.keys():
             self.cache.delete(bot)
-        self.cache.set(bot, agent)
+        self.cache.set(bot, agent, ex=Utility.environment['cache']['timeout'], keepttl=True)
 
     def get(self, bot: Text) -> Agent:
         """
