@@ -72,8 +72,8 @@ class InMemoryAgentCache(AgentCache):
 
 class RedisAgentCache(AgentCache):
 
-    def __init__(self, host, port=6379,db="kairon-agent"):
-        self.cache = Redis(host=host, port=port,db=db)
+    def __init__(self, host, port=6379):
+        self.cache = Redis(host=host, port=port)
 
     def set(self, bot: Text, agent: Agent):
         """
