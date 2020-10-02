@@ -146,7 +146,6 @@ def start_training(bot: str, user: str, reload=False):
         Utility.train_model_event(bot, user)
     else:
         try:
-            Utility.is_exist(Bot, id=bot, exp_message="Invalid Bot!")
             ModelProcessor.is_training_inprogress(bot)
             ModelProcessor.is_daily_training_limit_exceeded(bot)
             ModelProcessor.set_training_status(
