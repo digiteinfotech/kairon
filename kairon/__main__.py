@@ -11,7 +11,7 @@ def create_arg_parser():
     parser = ArgumentParser()
     parser.add_argument('bot', help="Bot id for which training needs to trigger")
     parser.add_argument('user', help="User who is training")
-    parser.add_argument('reload', default=True, help="User who is training")
+    parser.add_argument('reload', default=False, help="User who is training")
     return parser
 
 
