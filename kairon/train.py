@@ -2,6 +2,7 @@ import os
 import tempfile
 from contextlib import ExitStack
 from typing import Text, Optional, Dict
+from kairon.api.data_objects import Bot
 
 import yaml
 from loguru import logger as logging
@@ -128,7 +129,7 @@ def train_model_for_bot(bot: str):
     return model
 
 
-def start_training(bot: str, user: str, reload=True):
+def start_training(bot: str, user: str, reload=False):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
@@ -141,11 +142,11 @@ def start_training(bot: str, user: str, reload=True):
     exception = None
     model_file = None
     training_status = None
-    print(Utility.environment['model']['train'].get('event_url'))
-    if Utility.environment['model']['train'].get('event_url'):
+    if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
         Utility.train_model_event(bot, user)
     else:
         try:
+            Utility.is_exist(Bot, id=bot, exp_message="Invalid Bot!")
             ModelProcessor.is_training_inprogress(bot)
             ModelProcessor.is_daily_training_limit_exceeded(bot)
             ModelProcessor.set_training_status(

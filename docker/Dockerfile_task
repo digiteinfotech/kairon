@@ -41,6 +41,5 @@ COPY email.yaml ${RASA_NLU_HOME}/
 
 ENV BOT default
 ENV USER default
-ENV RELOAD false
 
-CMD ["sh","-c","python -m kairon ${BOT} ${USER} ${RELOAD}"]
+CMD ["sh","-c","python -m kairon ${BOT} ${USER}"]
