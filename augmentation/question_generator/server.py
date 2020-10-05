@@ -1,11 +1,13 @@
+from typing import Any, Text
+
 from fastapi import FastAPI, HTTPException
-from .generator import QuestionGenerator
-from pydantic import BaseModel
-from typing import Any, List, Text
-from loguru import logger as logging
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from loguru import logger as logging
+from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from .generator import QuestionGenerator
 
 
 class Response(BaseModel):
@@ -16,6 +18,12 @@ class Response(BaseModel):
     message: str = None
     data: Any
     error_code: int = 0
+
+
+class Request(BaseModel):
+    """ This class defines the variables (and their types) that will be defined in the request
+            message"""
+    data: str
 
 
 app = FastAPI()
@@ -54,7 +62,7 @@ async def http_exception_handler(request, exc):
 
 
 @app.post("/questions", response_model=Response)
-async def questions(request_data: Text):
-    """Generates variations for given list of sentences/questions"""
-    response = await QuestionGenerator.generate(request_data)
+async def questions(request_data: Request):
+    """Generates variations for given list of passage"""
+    response = QuestionGenerator.generate(request_data.data)
     return {"data": {"questions": response}}

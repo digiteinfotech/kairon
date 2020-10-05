@@ -15,7 +15,7 @@ test:
     - python3.7 -m pip install --upgrade pip
     - python3.7 -m pip install -r requirements.txt
     - python3.7 -m pip install git+https://github.com/sfahad1414/question_generation.git
-    - python3.7 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html
+    - python3.7 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/load_test/
 
 build:
   tags:
@@ -28,3 +28,4 @@ build:
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
     -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .
     -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
+    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .

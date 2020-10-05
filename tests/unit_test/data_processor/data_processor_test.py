@@ -1,7 +1,8 @@
 import asyncio
 import os
 from typing import List
-
+from mock import patch
+from mockredis.redis import mock_redis_client
 import pytest
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
@@ -12,7 +13,7 @@ from rasa.nlu.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE
+from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -25,6 +26,8 @@ from kairon.data_processor.processor import MongoProcessor, AgentProcessor, Mode
 from kairon.exceptions import AppException
 from kairon.train import train_model_from_mongo, start_training
 from kairon.utils import Utility
+import responses
+
 
 class TestMongoProcessor:
     @pytest.fixture(autouse=True)
@@ -722,14 +725,10 @@ class TestMongoProcessor:
         assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
-        with pytest.raises(AppException) as exp:
-            assert start_training("test", "testUser")
-
-        assert str(exp.value) == "Training data does not exists!"
-
+        start_training("test", "testUser")
         model_training = ModelTraining.objects(bot="test", status="Fail")
         assert model_training.__len__() == 1
-        assert model_training.first().exception in str(exp.value)
+        assert model_training.first().exception in str("Training data does not exists!")
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -929,6 +928,18 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
 
+    @responses.activate
+    def test_start_training_done_using_event(self, monkeypatch):
+        responses.add(
+            responses.POST,
+            "http://localhost/train",
+            status=200
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
+        model_path = start_training("tests", "testUser")
+        assert model_path is None
+        monkeypatch.setitem(Utility.environment['model']['train'], ".event_url", None)
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
@@ -949,7 +960,6 @@ class TestAgentProcessor:
         with pytest.raises(AppException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
-
 
 class TestModelProcessor:
     @pytest.fixture(autouse=True)
@@ -1031,17 +1041,17 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model'], "training_limit_per_day", 5)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 5)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment, "model.training_limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 
@@ -1164,7 +1174,6 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e).__contains__("Story, bot and user are required")
 
-
     def test_prepare_and_add_story_no_user(self):
         processor = MongoProcessor()
         bot = "bot"
@@ -1189,7 +1198,6 @@ class TestModelProcessor:
             assert False
         except AppException as e:
             assert str(e).__contains__("Story, bot and user are required")
-
 
     def test_delete_story(self):
         processor = MongoProcessor()
@@ -1229,11 +1237,9 @@ class TestModelProcessor:
         except AppException:
             assert True
 
-
     def test_add_http_action_config(self):
         processor = MongoProcessor()
         intent = "greet"
-        story_event = StoryEventRequest(name=intent, type="user")
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_action'
@@ -1270,6 +1276,9 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param2"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=CUSTOM_ACTIONS.HTTP_ACTION_NAME)
 
     def test_add_http_action_delete_story_on_add_failure(self):
         processor = MongoProcessor()
@@ -1600,7 +1609,6 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e) == "No HTTP action found for bot test_bot and action action"
 
-
     def test_update_story_non_existing(self):
         processor = MongoProcessor()
         user = "test_user"
@@ -1618,7 +1626,6 @@ class TestModelProcessor:
             processor.update_story(story="story", intent=intent, user=user, bot=bot)
         except AppException as ex:
             assert str(ex) == 'Story story does not exists'
-
 
     def test_update_story(self):
         processor = MongoProcessor()

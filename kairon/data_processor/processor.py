@@ -29,7 +29,7 @@ from rasa.utils.io import read_config_file
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from .cache import InMemoryAgentCache
+from .cache import AgentCache
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -1286,27 +1286,32 @@ class MongoProcessor:
         entities = Entities.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(entities, "name"))
 
-    def add_action(self, name: Text, bot: Text, user: Text):
+    def add_action(self, name: Text, bot: Text, user: Text, raise_exception=True):
         """
         adds action
         :param name: action name
         :param bot: bot id
         :param user: user id
+        :param raise_exception: default is True to raise exception if Entity already exists
         :return: action id
         """
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
-        Utility.is_exist(
-            Actions,
-            exp_message="Entity already exists!",
-            name__iexact=name.strip(),
-            bot=bot,
-            status=True,
-        )
-        action = (
-            Actions(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
-        )
-        return action["_id"].__str__()
+
+        if not Utility.is_exist(
+                Actions,
+                raise_error=raise_exception,
+                exp_message="Action exists!",
+                name__iexact=name.strip(),
+                bot=bot,
+                status=True
+        ):
+            action = (
+                Actions(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
+            )
+            return action["_id"].__str__()
+        else:
+            return None
 
     def get_actions(self, bot: Text):
         """
@@ -1828,16 +1833,19 @@ class MongoProcessor:
         """
         if Utility.check_empty_string(story) or Utility.check_empty_string(bot) or Utility.check_empty_string(user):
             raise AppException("Story, bot and user are required")
-        try:
-            Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
-                             events__name__iexact=intent)
-        except Exception as e:
-            logging.error(e)
-            raise AppException(e)
+
+        Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
+                         events__name__iexact=intent)
+
         story_event_list = [{"name": intent, "type": "user"},
                             {"name": "bot", "type": StoryEventType.slot, "value": bot},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
+
+        self.add_slot({"name":"bot", "type": "unfeaturized"}, bot, user, raise_exception=False)
+        self.add_slot({"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": "unfeaturized"}, bot, user, raise_exception=False)
+        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+
         return self.add_story(story, story_event_list, bot, user)
 
     def delete_story(self, story: str, user: str, bot: str):
@@ -1943,13 +1951,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        try:
-            Utility.is_exist(HttpActionConfig, exp_message="Action exists",
-                             action_name__iexact=http_action_config.action_name, bot=bot,
-                             status=True)
-        except Exception as ex:
-            logging.error(str(ex))
-            raise AppException(ex)
+        Utility.is_exist(HttpActionConfig, exp_message="Action exists",
+                         action_name__iexact=http_action_config.action_name, bot=bot,
+                         status=True)
         http_action_params = [
             HttpActionRequestBody(
                 key=param.key,
@@ -1982,7 +1986,6 @@ class MongoProcessor:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
         Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
 
-
     def get_http_action_config(self, bot: str, user: str, action_name: str):
         """
         Fetches Http action config from collection.
@@ -2002,6 +2005,15 @@ class MongoProcessor:
             raise AppException(e)
         return http_config_dict
 
+    def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
+        if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",
+                                name__iexact=slot_value['name'], bot=bot,
+                                status=True):
+            slot_value['user'] = user
+            slot_value['bot'] = bot
+            return (Slots(**slot_value)
+                    .save().to_mongo().to_dict()['_id'].__str__())
+
 
 class AgentProcessor:
     """
@@ -2009,7 +2021,7 @@ class AgentProcessor:
     """
 
     mongo_processor = MongoProcessor()
-    cache_provider = InMemoryAgentCache()
+    cache_provider: AgentCache = Utility.create_cache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
@@ -2048,7 +2060,7 @@ class AgentProcessor:
             action_endpoint = (
                 EndpointConfig(url=endpoint["action_endpoint"]["url"])
                 if endpoint and endpoint.get("action_endpoint")
-                else None
+                else Utility.environment['action'].get('url')
             )
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
@@ -2093,8 +2105,10 @@ class ModelProcessor:
             doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
-            doc.status = MODEL_TRAINING_STATUS.INPROGRESS.value
+            doc.status = status
             doc.start_timestamp = datetime.utcnow()
+            if status == MODEL_TRAINING_STATUS.FAIL.value:
+                doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user
@@ -2138,7 +2152,7 @@ class ModelProcessor:
         doc_count = ModelTraining.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['model']["training_limit_per_day"]:
+        if doc_count >= Utility.environment['model']['train']["limit_per_day"]:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
             else:

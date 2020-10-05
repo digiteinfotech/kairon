@@ -47,16 +47,15 @@ from validators import email as mail_check
 from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .exceptions import AppException
-
+from kairon.data_processor.cache import InMemoryAgentCache, RedisAgentCache
+from loguru import logger
 
 class Utility:
-    """
-    Class contains logic for various utilities
-    """
+    """Class contains logic for various utilities"""
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-    environment = None
+    environment = {}
     password_policy = PasswordPolicy.from_names(
         length=8,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -64,7 +63,7 @@ class Utility:
         special=1,  # need min. 1 special characters
     )
     markdown_reader = MarkdownReader()
-    email_conf = None
+    email_conf = {}
 
     @staticmethod
     def check_empty_string(value: str):
@@ -120,7 +119,7 @@ class Utility:
         :return: dict
         """
         with open(file) as fp:
-            return yaml.load(fp, yaml.FullLoader)
+            return yaml.safe_load(fp)
 
     @staticmethod
     def load_evironment():
@@ -154,7 +153,7 @@ class Utility:
 
     @staticmethod
     def is_exist(
-        document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
+            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
         """
         check if document exist
@@ -238,12 +237,12 @@ class Utility:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         url = endpoint["bot_endpoint"].get("url")
         if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get(
-            "token"
+                "token"
         ):
             headers["Authorization"] = (
-                endpoint["bot_endpoint"].get("token_type")
-                + " "
-                + endpoint["bot_endpoint"].get("token")
+                    endpoint["bot_endpoint"].get("token_type")
+                    + " "
+                    + endpoint["bot_endpoint"].get("token")
             )
         try:
             model_file = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
@@ -266,7 +265,7 @@ class Utility:
                         result = None
                 else:
                     result = None
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError:
             raise AppException("Host is not reachable")
         except Exception as e:
             raise AppException(e)
@@ -332,7 +331,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-        nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
     ):
         """
         adds training files to zip
@@ -526,14 +525,14 @@ class Utility:
                     Utility.__extract_response_button(value[RESPONSE.BUTTONS.value])
                 )
             data = response_text
-            type = "text"
+            response_type = "text"
         elif RESPONSE.CUSTOM.value in value:
             data = ResponseCustom._from_son(
                 {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
             )
-            type = "custom"
+            response_type = "custom"
 
-        return type, data
+        return response_type, data
 
     @staticmethod
     def list_directories(path: Text):
@@ -546,7 +545,7 @@ class Utility:
         return list(os.listdir(path))
 
     @staticmethod
-    def list_files(path: Text, extensions=["yml", "yaml"]):
+    def list_files(path: Text, extensions=None):
         """
         list all the files in directory
 
@@ -554,6 +553,8 @@ class Utility:
         :param extensions: extension to search
         :return: file list
         """
+        if extensions is None:
+            extensions = ["yml", "yaml"]
         files = [glob(os.path.join(path, "*." + extension)) for extension in extensions]
         return sum(files, [])
 
@@ -573,7 +574,6 @@ class Utility:
 
         configuration.load(config)
 
-
     @staticmethod
     def load_email_configuration():
         """
@@ -582,7 +582,6 @@ class Utility:
         """
 
         Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
-
 
     @staticmethod
     async def validate_and_send_mail(email: str, subject: str, body: str):
@@ -598,8 +597,8 @@ class Utility:
             raise AppException("Please check if email is valid")
 
         if (
-            Utility.check_empty_string(subject)
-            or Utility.check_empty_string(body)
+                Utility.check_empty_string(subject)
+                or Utility.check_empty_string(body)
         ):
             raise ValidationError(
                 "Subject and body of the mail cannot be empty or blank space"
@@ -616,7 +615,8 @@ class Utility:
         :param body: the body of the mail
         :return: None
         """
-        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"], port=Utility.email_conf["email"]["sender"]["port"])
+        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"],
+                    port=Utility.email_conf["email"]["sender"]["port"])
         smtp.connect(Utility.email_conf["email"]["sender"]["service"], Utility.email_conf["email"]["sender"]["port"])
         if Utility.email_conf["email"]["sender"]["tls"]:
             smtp.starttls()
@@ -706,3 +706,18 @@ class Utility:
             bot=bot
         )
         return response
+
+    @staticmethod
+    def create_cache():
+        if Utility.environment.get('cache'):
+            if str(Utility.environment['cache'].get('type')).lower() == "redis":
+                logger.info("loading redis cache")
+                return RedisAgentCache(host=Utility.environment['cache']['url'], port=Utility.environment['cache']['port'])
+        logger.info("loading in memory cache")
+        return InMemoryAgentCache()
+
+    @staticmethod
+    def train_model_event(bot: str, user: str):
+        event_url = Utility.environment['model']['train']['event_url']
+        response = requests.post(event_url, headers={'content-type': 'application/json'}, data={'bot': bot, user: user})
+        return response.content.decode('utf8')

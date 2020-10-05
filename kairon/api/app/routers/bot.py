@@ -293,8 +293,6 @@ async def train(
     """
     Trains the chatbot
     """
-    ModelProcessor.is_training_inprogress(current_user.get_bot())
-    ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
     background_tasks.add_task(
         start_training, current_user.get_bot(), current_user.get_user()
     )

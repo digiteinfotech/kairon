@@ -1,9 +1,9 @@
 from argparse import ArgumentParser
 
 from mongoengine import connect
-from smart_config import ConfigLoader
-
+from kairon.utils import Utility
 from kairon.train import start_training
+from loguru import logger
 
 
 def create_arg_parser():
@@ -16,9 +16,11 @@ def create_arg_parser():
 def main():
     parser = create_arg_parser()
     arguments = parser.parse_args()
-    config = ConfigLoader('./system.yaml').get_config()
-    connect(host=config['database']['url'])
-    start_training(arguments.bot, arguments.user, reload=False)
+    Utility.load_evironment()
+    connect(host=Utility.environment['database']['url'])
+    logger.info(arguments.bot)
+    logger.info(arguments.user)
+    start_training(arguments.bot, arguments.user)
 
 
 if __name__ == "__main__":

@@ -1,18 +1,23 @@
 from boto3 import client
 import os
-from json import loads
+import logging
+import json
 
 
 def lambda_handler(event, context):
     cluster = os.getenv("CLUSTER", 'default')
+    logging.info(cluster)
     task_definition = os.getenv("TASK_DEFINITION", 'default')
     capacity_provider = os.getenv("CAPACITY_PROVIDER", 'FARGATE_SPOT')
     subnets = os.getenv("SUBNETS", "").split(",")
     region_name = os.getenv("REGION_NAME", 'us-east-1')
-    request_data = loads(event['body'])
+    security_groups = os.getenv('SECURITY_GROUPS','').split(",")
+    container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
+    body = json.loads(event['body'])
+    print(body)
     try:
-        response = ecs.run_task(
+        task_response = ecs.run_task(
             capacityProviderStrategy=[
                 {
                     'capacityProvider': capacity_provider,
@@ -23,30 +28,44 @@ def lambda_handler(event, context):
             cluster=cluster,
             taskDefinition=task_definition,  # replace with your task definition name and revision
             count=1,
-            platformVersion='LATEST',
+            platformVersion='1.4.0',
             networkConfiguration={
                 'awsvpcConfiguration': {
                     'subnets': subnets,
-                    'assignPublicIp': 'DISABLED'
+                    'assignPublicIp': 'ENABLED',
+                    'securityGroups': security_groups
                 }
             },
             overrides={
                 'containerOverrides': [
                     {
+                        "name": container_name,
                         'environment': [
                             {
                                 'name': 'BOT',
-                                'value': request_data['bot']
+                                'value': body['bot']
                             },
                             {
                                 'name': 'USER',
-                                'value': request_data['user']
+                                'value': body['user']
                             }
                         ]
                     },
                 ]
             },
         )
+        print(task_response)
+        response = "success"
     except Exception as e:
-        response = e
-    return str(response)
+        response = str(e)
+
+    output = {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": {
+            "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": response
+    }
+    return output
