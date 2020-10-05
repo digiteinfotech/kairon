@@ -2,13 +2,13 @@ import inspect
 import logging
 import os
 
-from locust import HttpUser, between, SequentialTaskSet, events, task, runners
+from locust import HttpUser, between, SequentialTaskSet, task
 from locust.exception import StopUser
 from mongoengine import connect, disconnect
 from rasa.utils.io import read_config_file
 from smart_config import ConfigLoader
 
-from tests.load_test.data_objects import User, Account, Bot
+from stress_test.data_objects import User, Bot, Account
 
 USERS_INFO = []
 USER_INDEX = 1
@@ -32,7 +32,14 @@ class ExecuteTask(SequentialTaskSet):
     """
     Load test for kairon.
 
-    locust -f tests/load_test/kairon_load_test.py --headless -u 1000 -r 100 --host=http://localhost:8080
+    locust -f stress_test/kairon_stress_test.py --headless -u 1000 -r 100 --host=http://localhost:8080
+    u: number of users
+    r: rate at which users are spawned
+    host: base url where requests are hit
+    headless: run with CLI only
+
+    To run from UI:
+    locust -f stress_test/kairon_stress_test.py -u 1000 -r 100 --host=http://localhost:8080
     """
     wait_time = between(1, 2)
 
@@ -644,8 +651,8 @@ class KaironUser(HttpUser):
         try:
             os.environ["system_file"] = "./tests/testing_data/system.yaml"
             env = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
-            logging.info("Connecting to: " + env['database']["load_test"])
-            connect(host=env['database']["load_test"])
+            logging.info("Connecting to: " + env['database']["stress_test"])
+            connect(host=env['database']["stress_test"])
             User.objects(email=self.username).delete()
             Bot.objects(name=self.bot).delete()
             Account.objects(name=self.account).delete()
