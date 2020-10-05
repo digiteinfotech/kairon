@@ -11,7 +11,7 @@ auth = Authentication()
 
 
 @router.post("/paraphrases", response_model=Response)
-async def questions(
+async def paraphrases(
     request_data: ListData, current_user: User = Depends(auth.get_current_user)
 ):
     """

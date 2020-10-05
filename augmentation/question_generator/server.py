@@ -20,6 +20,12 @@ class Response(BaseModel):
     error_code: int = 0
 
 
+class Request(BaseModel):
+    """ This class defines the variables (and their types) that will be defined in the request
+            message"""
+    data: str
+
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -56,7 +62,7 @@ async def http_exception_handler(request, exc):
 
 
 @app.post("/questions", response_model=Response)
-async def questions(request_data: Text):
-    """Generates variations for given list of sentences/questions"""
-    response = await QuestionGenerator.generate(request_data)
+async def questions(request_data: Request):
+    """Generates variations for given list of passage"""
+    response = QuestionGenerator.generate(request_data.data)
     return {"data": {"questions": response}}

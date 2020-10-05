@@ -5,5 +5,5 @@ class QuestionGenerator:
     nlp = pipeline('e2e-qg')
 
     @staticmethod
-    def generate(self,text: str):
+    def generate(text: str):
         return QuestionGenerator.nlp(text)
