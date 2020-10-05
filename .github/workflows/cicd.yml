@@ -34,7 +34,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
+        python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
       if: failure()

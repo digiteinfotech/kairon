@@ -31,4 +31,5 @@ transformers>=3.1.0
 smart-config==0.1.3
 moto
 redis
-mockredis
+mockredislocust
+greenlet==0.4.16
