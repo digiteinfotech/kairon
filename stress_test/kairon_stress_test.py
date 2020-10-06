@@ -674,11 +674,14 @@ class KaironUser(HttpUser):
 
     def on_start(self):
         global USER_INDEX
+
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        env = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
         self.email = 'user{0}@demo.ai'.format(USER_INDEX)
         self.username = self.email
         self.first_name = 'load'
         self.last_name = 'test'
-        self.password = 'Welcome@1'
+        self.password = env['security']['test_user_password']
         self.account = 'user{0}'.format(USER_INDEX)
         self.bot = 'user{0}'.format(USER_INDEX)
         USER_INDEX += 1
