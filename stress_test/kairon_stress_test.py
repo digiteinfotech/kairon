@@ -46,6 +46,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Register(SequentialTaskSet):
 
+        """
+        Task to register user.
+        """
         @task
         def register(self):
             request_body = {
@@ -74,6 +77,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Login(SequentialTaskSet):
 
+        """
+        Task for user login.
+        """
         @task
         def login(self):
             header = {"username": self.user.username, "password": self.user.password}
@@ -96,6 +102,10 @@ class ExecuteTask(SequentialTaskSet):
 
     @task
     class HttpAction(SequentialTaskSet):
+
+        """
+        Task to add/get/update/delete http action.
+        """
 
         @task
         def add_http_action(self):
@@ -191,6 +201,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Intents(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete intents.
+        """
         @task
         def add_intents(self):
             with self.client.post("/api/bot/intents",
@@ -240,6 +253,10 @@ class ExecuteTask(SequentialTaskSet):
 
     @task
     class TrainingExamples(SequentialTaskSet):
+
+        """
+        Task to add/get/update/delete training examples.
+        """
 
         @task
         def add_training_example(self):
@@ -336,6 +353,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Responses(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete responses.
+        """
+
         @task
         def add_response(self):
             with self.client.post("/api/bot/response/utter_greet",
@@ -429,6 +450,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Stories(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete stories.
+        """
         @task
         def add_story(self):
             request = {
@@ -486,6 +510,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Endpoint(SequentialTaskSet):
 
+        """
+        Task to add/get endpoints.
+        """
         @task
         def set_endpoint(self):
             with self.client.put("/api/bot/endpoint",
@@ -523,6 +550,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Configurations(SequentialTaskSet):
 
+        """
+        Task to add/get configurations.
+        """
         @task
         def set_config(self):
             with self.client.put("/api/bot/config",
@@ -558,6 +588,9 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Templates(SequentialTaskSet):
 
+        """
+        Task to add/get templates.
+        """
         @task
         def set_templates(self):
             with self.client.post("/api/bot/templates/use-case",
@@ -623,6 +656,10 @@ class ExecuteTask(SequentialTaskSet):
 
 
 class KaironUser(HttpUser):
+
+    """
+    Test user.
+    """
     tasks = [ExecuteTask]
     wait_time = between(1, 2)
 

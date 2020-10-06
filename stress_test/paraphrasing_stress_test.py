@@ -6,6 +6,7 @@ from locust.exception import StopUser
 
 
 class ExecuteTask(SequentialTaskSet):
+
     """
     Load test for Paraphrasing.
 
