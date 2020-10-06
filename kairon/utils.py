@@ -719,5 +719,6 @@ class Utility:
     @staticmethod
     def train_model_event(bot: str, user: str):
         event_url = Utility.environment['model']['train']['event_url']
-        response = requests.post(event_url, headers={'content-type': 'application/json'}, data={'bot': bot, user: user})
-        return response.content.decode('utf8')
+        logger.info("model training event started")
+        response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, user: user})
+        logger.info("model training event completed"+response.content.decode('utf8'))
