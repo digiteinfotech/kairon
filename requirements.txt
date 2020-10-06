@@ -33,4 +33,4 @@ moto
 redis
 mockredis
 locust
-greenlet==0.4.17
+greenlet==0.4.16
