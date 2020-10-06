@@ -10,21 +10,7 @@ from smart_config import ConfigLoader
 
 from stress_test.data_objects import User, Bot, Account
 
-USERS_INFO = []
 USER_INDEX = 1
-
-
-def create_test_data(num_users):
-    global USERS_INFO
-    logging.info('Creating test data..')
-    USERS_INFO = []
-    for i in range(1, num_users):
-        email = 'user{0}@demo.ai'.format(i)
-        first_name = 'load'
-        last_name = 'test'
-        account = 'user{0}'.format(i)
-        bot = 'user{0}'.format(i)
-        USERS_INFO.append((email, first_name, last_name, password, account, bot))
 
 
 class ExecuteTask(SequentialTaskSet):
@@ -48,6 +34,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to register user.
         """
+
         @task
         def register(self):
             request_body = {
@@ -79,6 +66,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task for user login.
         """
+
         @task
         def login(self):
             header = {"username": self.user.username, "password": self.user.password}
@@ -203,6 +191,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to add/get/update/delete intents.
         """
+
         @task
         def add_intents(self):
             with self.client.post("/api/bot/intents",
@@ -452,6 +441,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to add/get/update/delete stories.
         """
+
         @task
         def add_story(self):
             request = {
@@ -512,6 +502,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to add/get endpoints.
         """
+
         @task
         def set_endpoint(self):
             with self.client.put("/api/bot/endpoint",
@@ -552,6 +543,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to add/get configurations.
         """
+
         @task
         def set_config(self):
             with self.client.put("/api/bot/config",
@@ -590,6 +582,7 @@ class ExecuteTask(SequentialTaskSet):
         """
         Task to add/get templates.
         """
+
         @task
         def set_templates(self):
             with self.client.post("/api/bot/templates/use-case",
@@ -655,7 +648,6 @@ class ExecuteTask(SequentialTaskSet):
 
 
 class KaironUser(HttpUser):
-
     """
     Test user.
     """
