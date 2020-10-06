@@ -22,7 +22,6 @@ def create_test_data(num_users):
         email = 'user{0}@demo.ai'.format(i)
         first_name = 'load'
         last_name = 'test'
-        password = 'Welcome@1'
         account = 'user{0}'.format(i)
         bot = 'user{0}'.format(i)
         USERS_INFO.append((email, first_name, last_name, password, account, bot))
