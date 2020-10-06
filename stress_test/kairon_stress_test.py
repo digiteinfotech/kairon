@@ -2,42 +2,38 @@ import inspect
 import logging
 import os
 
-from locust import HttpUser, between, SequentialTaskSet, events, task, runners
+from locust import HttpUser, between, SequentialTaskSet, task
 from locust.exception import StopUser
 from mongoengine import connect, disconnect
 from rasa.utils.io import read_config_file
 from smart_config import ConfigLoader
 
-from tests.load_test.data_objects import User, Account, Bot
+from stress_test.data_objects import User, Bot, Account
 
-USERS_INFO = []
 USER_INDEX = 1
-
-
-def create_test_data(num_users):
-    global USERS_INFO
-    logging.info('Creating test data..')
-    USERS_INFO = []
-    for i in range(1, num_users):
-        email = 'user{0}@demo.ai'.format(i)
-        first_name = 'load'
-        last_name = 'test'
-        password = 'Welcome@1'
-        account = 'user{0}'.format(i)
-        bot = 'user{0}'.format(i)
-        USERS_INFO.append((email, first_name, last_name, password, account, bot))
 
 
 class ExecuteTask(SequentialTaskSet):
     """
     Load test for kairon.
 
-    locust -f tests/load_test/kairon_load_test.py --headless -u 1000 -r 100 --host=http://localhost:8080
+    locust -f stress_test/kairon_stress_test.py --headless -u 1000 -r 100 --host=http://localhost:8080
+    u: number of users
+    r: rate at which users are spawned
+    host: base url where requests are hit
+    headless: run with CLI only
+
+    To run from UI:
+    locust -f stress_test/kairon_stress_test.py -u 1000 -r 100 --host=http://localhost:8080
     """
     wait_time = between(1, 2)
 
     @task
     class Register(SequentialTaskSet):
+
+        """
+        Task to register user.
+        """
 
         @task
         def register(self):
@@ -67,6 +63,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Login(SequentialTaskSet):
 
+        """
+        Task for user login.
+        """
+
         @task
         def login(self):
             header = {"username": self.user.username, "password": self.user.password}
@@ -89,6 +89,10 @@ class ExecuteTask(SequentialTaskSet):
 
     @task
     class HttpAction(SequentialTaskSet):
+
+        """
+        Task to add/get/update/delete http action.
+        """
 
         @task
         def add_http_action(self):
@@ -184,6 +188,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Intents(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete intents.
+        """
+
         @task
         def add_intents(self):
             with self.client.post("/api/bot/intents",
@@ -233,6 +241,10 @@ class ExecuteTask(SequentialTaskSet):
 
     @task
     class TrainingExamples(SequentialTaskSet):
+
+        """
+        Task to add/get/update/delete training examples.
+        """
 
         @task
         def add_training_example(self):
@@ -329,6 +341,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Responses(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete responses.
+        """
+
         @task
         def add_response(self):
             with self.client.post("/api/bot/response/utter_greet",
@@ -422,6 +438,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Stories(SequentialTaskSet):
 
+        """
+        Task to add/get/update/delete stories.
+        """
+
         @task
         def add_story(self):
             request = {
@@ -479,6 +499,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Endpoint(SequentialTaskSet):
 
+        """
+        Task to add/get endpoints.
+        """
+
         @task
         def set_endpoint(self):
             with self.client.put("/api/bot/endpoint",
@@ -516,6 +540,10 @@ class ExecuteTask(SequentialTaskSet):
     @task
     class Configurations(SequentialTaskSet):
 
+        """
+        Task to add/get configurations.
+        """
+
         @task
         def set_config(self):
             with self.client.put("/api/bot/config",
@@ -550,6 +578,10 @@ class ExecuteTask(SequentialTaskSet):
 
     @task
     class Templates(SequentialTaskSet):
+
+        """
+        Task to add/get templates.
+        """
 
         @task
         def set_templates(self):
@@ -616,6 +648,9 @@ class ExecuteTask(SequentialTaskSet):
 
 
 class KaironUser(HttpUser):
+    """
+    Test user.
+    """
     tasks = [ExecuteTask]
     wait_time = between(1, 2)
 
@@ -630,11 +665,14 @@ class KaironUser(HttpUser):
 
     def on_start(self):
         global USER_INDEX
+
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        env = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
         self.email = 'user{0}@demo.ai'.format(USER_INDEX)
         self.username = self.email
         self.first_name = 'load'
         self.last_name = 'test'
-        self.password = 'Welcome@1'
+        self.password = env['security']['test_user_password']
         self.account = 'user{0}'.format(USER_INDEX)
         self.bot = 'user{0}'.format(USER_INDEX)
         USER_INDEX += 1
@@ -644,8 +682,8 @@ class KaironUser(HttpUser):
         try:
             os.environ["system_file"] = "./tests/testing_data/system.yaml"
             env = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
-            logging.info("Connecting to: " + env['database']["load_test"])
-            connect(host=env['database']["load_test"])
+            logging.info("Connecting to: " + env['database']["stress_test"])
+            connect(host=env['database']["stress_test"])
             User.objects(email=self.username).delete()
             Bot.objects(name=self.bot).delete()
             Account.objects(name=self.account).delete()
