@@ -1,9 +1,8 @@
-import asyncio
 import os
 from typing import List
-from mock import patch
-from mockredis.redis import mock_redis_client
+
 import pytest
+import responses
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
@@ -26,7 +25,6 @@ from kairon.data_processor.processor import MongoProcessor, AgentProcessor, Mode
 from kairon.exceptions import AppException
 from kairon.train import train_model_from_mongo, start_training
 from kairon.utils import Utility
-import responses
 
 
 class TestMongoProcessor:
@@ -36,32 +34,31 @@ class TestMongoProcessor:
         Utility.load_evironment()
         connect(host=Utility.environment["database"]['url'])
 
-    def test_load_from_path(self):
+    @pytest.mark.asyncio
+    async def test_load_from_path(self):
         processor = MongoProcessor()
-        loop = asyncio.new_event_loop()
-        assert (
-                loop.run_until_complete(
+        result = await (
                     processor.save_from_path(
                         "./tests/testing_data/initial", bot="tests", user="testUser"
                     )
                 )
-                is None
-        )
+        assert result is None
 
-    def test_load_from_path_error(self):
+
+    @pytest.mark.asyncio
+    async def test_load_from_path_error(self):
         processor = MongoProcessor()
-        loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(
+            await (
                 processor.save_from_path(
                     "./tests/testing_data/error", bot="tests", user="testUser"
                 )
             )
 
-    def test_load_from_path_all_sccenario(self):
+    @pytest.mark.asyncio
+    async def test_load_from_path_all_sccenario(self):
         processor = MongoProcessor()
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(
+        await (
             processor.save_from_path("./tests/testing_data/all", "all", user="testUser")
         )
         training_data = processor.load_nlu("all")
@@ -88,10 +85,10 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "unfeaturized"
 
-    def test_load_from_path_all_sccenario_append(self):
+    @pytest.mark.asyncio
+    async def test_load_from_path_all_sccenario_append(self):
         processor = MongoProcessor()
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(
+        await (
             processor.save_from_path("./tests/testing_data/all",
                                      "all",
                                      overwrite=False,
@@ -702,15 +699,15 @@ class TestMongoProcessor:
         )
         assert id_add
 
-    def test_train_model(self):
-        loop = asyncio.new_event_loop()
-        model = loop.run_until_complete(train_model_from_mongo("tests"))
+    @pytest.mark.asyncio
+    async def test_train_model(self):
+        model = await (train_model_from_mongo("tests"))
         assert model
 
-    def test_train_model_empty_data(self):
-        loop = asyncio.new_event_loop()
+    @pytest.mark.asyncio
+    async def test_train_model_empty_data(self):
         with pytest.raises(AppException):
-            model = loop.run_until_complete(train_model_from_mongo("test"))
+            model = await (train_model_from_mongo("test"))
             assert model
 
     def test_start_training_done(self, monkeypatch):
@@ -938,7 +935,6 @@ class TestMongoProcessor:
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("tests", "testUser")
         assert model_path is None
-        monkeypatch.setitem(Utility.environment['model']['train'], ".event_url", None)
 
 
 # pylint: disable=R0201

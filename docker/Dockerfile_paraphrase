@@ -13,7 +13,6 @@ RUN python3 -m pip install numpy
 RUN python3 -m pip install matplotlib
 RUN python3 -m pip install requests
 RUN python3 -m pip install torch
-RUN python3 -m pip install nlpaug
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
 

@@ -600,6 +600,7 @@ def test_get_utterance_from_not_exist_intent():
 
 
 def test_train(monkeypatch):
+    import time
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -613,13 +614,12 @@ def test_train(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
-
+    time.sleep(180)
 
 @pytest.fixture
 def mock_is_training_inprogress_exception(monkeypatch):
     def _inprogress_execption_response(*args, **kwargs):
         raise AppException("Previous model training in progress.")
-
     monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_execption_response)
 
 
@@ -629,16 +629,10 @@ def test_train_inprogress(mock_is_training_inprogress_exception):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
+    assert actual["success"] == False
+    assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    response = client.get(
-        "/api/bot/train/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual['data']['training_history'][0]['exception'] == "Previous model training in progress."
+    assert actual["message"] == "Previous model training in progress."
 
 @pytest.fixture
 def mock_is_training_inprogress(monkeypatch):
@@ -654,16 +648,11 @@ def test_train_daily_limit_exceed(mock_is_training_inprogress):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    response = client.get(
-        "/api/bot/train/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual['data']['training_history'][0]['exception'] == "Daily model training limit exceeded."
+    assert actual["message"] == "Daily model training limit exceeded."
 
 def test_get_model_training_history():
     response = client.get(
@@ -688,6 +677,7 @@ def test_chat(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]

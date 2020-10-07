@@ -15,6 +15,7 @@ from kairon.api.models import (
     Config,
     HttpActionConfigRequest
 )
+from kairon.data_processor.constant import MODEL_TRAINING_STATUS
 from kairon.data_processor.data_objects import TrainingExamples, Responses
 from kairon.data_processor.processor import (
     MongoProcessor,
@@ -293,6 +294,11 @@ async def train(
     """
     Trains the chatbot
     """
+    ModelProcessor.is_training_inprogress(current_user.get_bot())
+    ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
+    ModelProcessor.set_training_status(
+        bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+    )
     background_tasks.add_task(
         start_training, current_user.get_bot(), current_user.get_user()
     )
