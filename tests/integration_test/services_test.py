@@ -614,7 +614,6 @@ def test_train(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
-    time.sleep(180)
 
 @pytest.fixture
 def mock_is_training_inprogress_exception(monkeypatch):

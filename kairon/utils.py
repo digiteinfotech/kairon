@@ -47,7 +47,7 @@ from validators import email as mail_check
 from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .exceptions import AppException
-from kairon.data_processor.cache import InMemoryAgentCache, RedisAgentCache
+from kairon.data_processor.cache import InMemoryAgentCache
 from loguru import logger
 
 class Utility:
@@ -709,11 +709,6 @@ class Utility:
 
     @staticmethod
     def create_cache():
-        if Utility.environment.get('cache'):
-            if str(Utility.environment['cache'].get('type')).lower() == "redis":
-                logger.info("loading redis cache")
-                return RedisAgentCache(host=Utility.environment['cache']['url'], port=Utility.environment['cache']['port'])
-        logger.info("loading in memory cache")
         return InMemoryAgentCache()
 
     @staticmethod

@@ -1,7 +1,7 @@
 from typing import Text
-from rasa.core.agent import Agent
+
 from cachetools.lru import LRUCache
-from redis import Redis
+from rasa.core.agent import Agent
 
 
 class AgentCache:
@@ -68,40 +68,3 @@ class InMemoryAgentCache(AgentCache):
         :return: True/False
         """
         return bot in self.cache.keys()
-
-
-class RedisAgentCache(AgentCache):
-
-    def __init__(self, host, port=6379):
-        self.cache = Redis(host=host, port=port)
-
-    def set(self, bot: Text, agent: Agent):
-        """
-        loads bot agent in redis cache
-
-        :param bot: bot id
-        :param agent:  bot agent
-        :return: None
-        """
-        from kairon.utils import Utility
-        if bot in self.cache.keys():
-            self.cache.delete(bot)
-        self.cache.set(bot, agent, ex=Utility.environment['cache']['timeout'], keepttl=True)
-
-    def get(self, bot: Text) -> Agent:
-        """
-        fetches bot agent from redis cache
-
-        :param bot: bot id
-        :return: Agent object
-        """
-        return self.cache.get(bot)
-
-    def is_exists(self, bot: Text) -> bool:
-        """
-        checks if bot agent exist in redis cache
-
-        :param bot: bot id
-        :return: True/False
-        """
-        return self.cache.exists(bot)

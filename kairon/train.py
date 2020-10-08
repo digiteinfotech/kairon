@@ -145,7 +145,6 @@ def start_training(bot: str, user: str,reload=False):
         Utility.train_model_event(bot, user)
     else:
         try:
-            ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=True)
             model_file = train_model_for_bot(bot)
             training_status = MODEL_TRAINING_STATUS.DONE.value
             if reload:
