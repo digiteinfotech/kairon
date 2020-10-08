@@ -937,6 +937,19 @@ class TestMongoProcessor:
         assert model_path is None
 
 
+    @responses.activate
+    def test_start_training_done_reload_event(self, monkeypatch):
+        responses.add(
+            responses.GET,
+            "http://localhost/api/bot/reload",
+            json={"message": "Reloading Model!"},
+            status=200
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
+        model_path = start_training("tests", "testUser")
+        assert model_path
+
+
 # pylint: disable=R0201
 class TestAgentProcessor:
 
@@ -968,7 +981,6 @@ class TestModelProcessor:
     def test_set_training_status_inprogress(self):
         ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
         model_training = ModelTraining.objects(bot="tests", status="Inprogress")
-
         return model_training
 
     def test_set_training_status_Done(self, test_set_training_status_inprogress):
@@ -984,13 +996,14 @@ class TestModelProcessor:
                                            model_path="model_path"
                                            )
         model_training = ModelTraining.objects(bot="tests", status="Done")
-
-        assert model_training.count() == 2
-        assert model_training[1].id == training_status_inprogress_id
-        assert model_training[1].bot == "tests"
-        assert model_training[1].user == "testUser"
-        assert model_training[1].status == "Done"
-        assert model_training[1].model_path == "model_path"
+        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
+        index = ids.index(training_status_inprogress_id)
+        assert model_training.count() == 3
+        assert training_status_inprogress_id in ids
+        assert model_training[index].bot == "tests"
+        assert model_training[index].user == "testUser"
+        assert model_training[index].status == "Done"
+        assert model_training[index].model_path == "model_path"
         assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
 
     def test_set_training_status_Fail(self, test_set_training_status_inprogress):
@@ -1037,7 +1050,7 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 5)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 6)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 

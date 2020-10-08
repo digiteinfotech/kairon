@@ -2099,7 +2099,7 @@ class ModelProcessor:
         """
         try:
             doc = ModelTraining.objects(bot=bot).get(
-                status=MODEL_TRAINING_STATUS.INPROGRESS.value
+                status=MODEL_TRAINING_STATUS.INPROGRESS
             )
             doc.status = status
             doc.end_timestamp = datetime.utcnow()
@@ -2107,13 +2107,14 @@ class ModelProcessor:
             doc = ModelTraining()
             doc.status = status
             doc.start_timestamp = datetime.utcnow()
-            if status == MODEL_TRAINING_STATUS.FAIL.value:
+            if status in [MODEL_TRAINING_STATUS.FAIL, MODEL_TRAINING_STATUS.DONE]:
                 doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user
         doc.model_path = model_path
         doc.exception = exception
+        print(doc.to_mongo().to_dict())
         doc.save()
 
     @staticmethod

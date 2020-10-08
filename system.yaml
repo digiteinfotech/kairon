@@ -15,6 +15,7 @@ model:
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
     event_url: ${TRAIN_EVENT_URL}
+    agent_url: ${AGENT_URL}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}

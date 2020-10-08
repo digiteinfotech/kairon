@@ -17,6 +17,9 @@ from kairon.data_processor.processor import AgentProcessor, ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
+from kairon.api.auth import Authentication
+from kairon.api.processor import AccountProcessor
+from urllib.parse import urljoin
 
 
 async def train_model(
@@ -128,7 +131,7 @@ def train_model_for_bot(bot: str):
     return model
 
 
-def start_training(bot: str, user: str,reload=False):
+def start_training(bot: str, user: str, reload=False):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
@@ -147,8 +150,15 @@ def start_training(bot: str, user: str,reload=False):
         try:
             model_file = train_model_for_bot(bot)
             training_status = MODEL_TRAINING_STATUS.DONE.value
-            if reload:
-                AgentProcessor.reload(bot)
+            if Utility.environment['model']['train'].get('event_url'):
+                auth = Authentication()
+                user_details = AccountProcessor.get_complete_user_details(user)
+                token = auth.generate_integration_token(bot,user_details['account'])
+                agent_url = Utility.environment['model']['train']['AGENT_URL']
+                Utility.agent_reload_event('get', urljoin(agent_url, "/api/bot/reload"), token, user)
+            else:
+                if reload:
+                    AgentProcessor.reload(bot)
         except Exception as e:
             logging.exception(e)
             training_status = MODEL_TRAINING_STATUS.FAIL.value

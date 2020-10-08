@@ -717,3 +717,10 @@ class Utility:
         logger.info("model training event started")
         response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user})
         logger.info("model training event completed"+response.content.decode('utf8'))
+
+
+    @staticmethod
+    def agent_reload_event(url: str, token: str, user: str, method: str):
+        logger.info("agent event started "+url)
+        response = requests.request(method, url, headers={'content-type': 'application/json', 'Authorization': 'Bearer'+token, 'X-USER': user})
+        logger.info("agent event started completed" + response.content.decode('utf8'))
