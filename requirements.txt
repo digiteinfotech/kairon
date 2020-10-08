@@ -1,7 +1,7 @@
 pyyaml
 torch
 tensorflow-text==2.1.1
-rasa==1.10.14
+rasa==2.0.0
 rasa[transformers]==1.10.14
 rasa[spacy]==1.10.14
 rasa[convert]==1.10.14
