@@ -34,3 +34,4 @@ redis
 mockredis
 locust
 greenlet==0.4.16
+passlib>=1.7.3 # not directly required, pinned by Snyk to avoid a vulnerability
