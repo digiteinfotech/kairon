@@ -294,13 +294,15 @@ async def train(
     """
     Trains the chatbot
     """
+
     ModelProcessor.is_training_inprogress(current_user.get_bot())
     ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
     ModelProcessor.set_training_status(
         bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
     )
+    token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user()
+        start_training, current_user.get_bot(), current_user.get_user(), token
     )
     return {"message": "Model training started."}
 

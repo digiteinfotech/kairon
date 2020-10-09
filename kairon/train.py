@@ -23,12 +23,12 @@ from urllib.parse import urljoin
 
 
 async def train_model(
-    data_importer: TrainingDataImporter,
-    output_path: Text,
-    force_training: bool = False,
-    fixed_model_name: Optional[Text] = None,
-    persist_nlu_training_data: bool = False,
-    additional_arguments: Optional[Dict] = None,
+        data_importer: TrainingDataImporter,
+        output_path: Text,
+        force_training: bool = False,
+        fixed_model_name: Optional[Text] = None,
+        persist_nlu_training_data: bool = False,
+        additional_arguments: Optional[Dict] = None,
 ):
     """
     trains the bot, overridden the function from rasa
@@ -62,11 +62,11 @@ async def train_model(
 
 
 async def train_model_from_mongo(
-    bot: str,
-    force_training: bool = False,
-    fixed_model_name: Optional[Text] = None,
-    persist_nlu_training_data: bool = False,
-    additional_arguments: Optional[Dict] = None,
+        bot: str,
+        force_training: bool = False,
+        fixed_model_name: Optional[Text] = None,
+        persist_nlu_training_data: bool = False,
+        additional_arguments: Optional[Dict] = None,
 ):
     """
     trains the bot from loading the data from mongo
@@ -131,13 +131,14 @@ def train_model_for_bot(bot: str):
     return model
 
 
-def start_training(bot: str, user: str, reload=False):
+def start_training(bot: str, user: str, token: str = None, reload=False):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
 
     :param reload: whether to reload model in the cache
     :param bot: bot id
+    :param token: JWT token for remote model reload
     :param user: user id
     :return: model path
     """
@@ -145,21 +146,19 @@ def start_training(bot: str, user: str, reload=False):
     model_file = None
     training_status = None
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
-        Utility.train_model_event(bot, user)
+        Utility.train_model_event(bot, user, token)
     else:
         try:
             model_file = train_model_for_bot(bot)
             training_status = MODEL_TRAINING_STATUS.DONE.value
-            if Utility.environment['model']['train'].get('event_url'):
-                auth = Authentication()
-                user_details = AccountProcessor.get_complete_user_details(user)
-                token = auth.generate_integration_token(bot,user_details['account'])
-                agent_url = Utility.environment['model']['train']['AGENT_URL']
-                Utility.agent_reload_event('get', urljoin(agent_url, "/api/bot/reload"), token, user)
+            agent_url = Utility.environment['model']['train'].get('agent_url')
+            if agent_url:
+                Utility.http_request('get', urljoin(agent_url, "/api/bot/reload"), token, user)
             else:
                 if reload:
                     AgentProcessor.reload(bot)
         except Exception as e:
+            print(e)
             logging.exception(e)
             training_status = MODEL_TRAINING_STATUS.FAIL.value
             exception = str(e)

@@ -2114,7 +2114,6 @@ class ModelProcessor:
         doc.user = user
         doc.model_path = model_path
         doc.exception = exception
-        print(doc.to_mongo().to_dict())
         doc.save()
 
     @staticmethod

@@ -712,15 +712,18 @@ class Utility:
         return InMemoryAgentCache()
 
     @staticmethod
-    def train_model_event(bot: str, user: str):
+    def train_model_event(bot: str, user: str, token: str = None):
         event_url = Utility.environment['model']['train']['event_url']
         logger.info("model training event started")
-        response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user})
+        response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user, 'token': token})
         logger.info("model training event completed"+response.content.decode('utf8'))
 
 
     @staticmethod
-    def agent_reload_event(url: str, token: str, user: str, method: str):
+    def http_request(method: str, url: str, token: str, user: str):
         logger.info("agent event started "+url)
-        response = requests.request(method, url, headers={'content-type': 'application/json', 'Authorization': 'Bearer'+token, 'X-USER': user})
+        headers = {'content-type': 'application/json', 'X-USER': user}
+        if token:
+            headers['Authorization'] = 'Bearer '+token
+        response = requests.request(method, url, headers=headers)
         logger.info("agent event started completed" + response.content.decode('utf8'))
