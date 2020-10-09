@@ -1,6 +1,6 @@
 pyyaml
 torch
-rasa[full]==1.10.14
+rasa[full]==2.0.0
 #tensorflow-text==2.1.1
 tensorflow==2.1.0
 tensorflow-addons==0.9.1
