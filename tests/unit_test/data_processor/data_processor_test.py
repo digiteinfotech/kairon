@@ -941,7 +941,7 @@ class TestMongoProcessor:
     def test_start_training_done_reload_event(self, monkeypatch):
         responses.add(
             responses.GET,
-            "http://localhost/api/bot/reload",
+            "http://localhost/api/bot/model/reload",
             json={"message": "Reloading Model!"},
             status=200
         )

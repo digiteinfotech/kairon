@@ -158,7 +158,6 @@ def start_training(bot: str, user: str, token: str = None, reload=False):
                 if reload:
                     AgentProcessor.reload(bot)
         except Exception as e:
-            print(e)
             logging.exception(e)
             training_status = MODEL_TRAINING_STATUS.FAIL.value
             exception = str(e)

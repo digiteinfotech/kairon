@@ -720,10 +720,11 @@ class Utility:
 
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str):
+    def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
         logger.info("agent event started "+url)
         headers = {'content-type': 'application/json', 'X-USER': user}
         if token:
             headers['Authorization'] = 'Bearer '+token
-        response = requests.request(method, url, headers=headers)
+        response = requests.request(method, url, headers=headers, json=json)
         logger.info("agent event completed" + response.content.decode('utf8'))
+        return response.content.decode('utf8')

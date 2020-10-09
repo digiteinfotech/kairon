@@ -25,6 +25,7 @@ from kairon.data_processor.processor import (
 from kairon.exceptions import AppException
 from kairon.train import start_training
 from kairon.utils import Utility
+from urllib.parse import urljoin
 
 router = APIRouter()
 auth = Authentication()
@@ -279,11 +280,17 @@ async def chat(
     Fetches a bot response for a given text/query.
     It is basically used to test the chat functionality of the agent
     """
-    model = AgentProcessor.get_agent(current_user.get_bot())
-    response = await model.handle_text(
-        request_data.data, sender_id=current_user.get_user()
-    )
-    return {"data": {"response": response}}
+    if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
+        agent_url = Utility.environment['model']['train'].get('agent_url')
+        token = auth.create_access_token(data={"sub": current_user.email})
+        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'), current_user.get_user(), json={'data': request_data.data})
+    else:
+        model = AgentProcessor.get_agent(current_user.get_bot())
+        response = await model.handle_text(
+            request_data.data, sender_id=current_user.get_user()
+        )
+        response = {"data": {"response": response}}
+    return response
 
 
 @router.post("/train", response_model=Response)
