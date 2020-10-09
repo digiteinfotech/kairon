@@ -15,9 +15,23 @@ def lambda_handler(event, context):
     container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
     body = json.loads(event['body'])
-    print(body)
     if 'user' in body and 'bot' in body:
         try:
+            env_data = [
+                {
+                    'name': 'BOT',
+                    'value': body['bot']
+                },
+                {
+                    'name': 'USER',
+                    'value': body['user']
+                }
+            ]
+            if body.get('token'):
+                env_data.append({
+                    'name': 'TOKEN',
+                    'value': body.get('token')
+                })
             task_response = ecs.run_task(
                 capacityProviderStrategy=[
                     {
@@ -41,16 +55,7 @@ def lambda_handler(event, context):
                     'containerOverrides': [
                         {
                             "name": container_name,
-                            'environment': [
-                                {
-                                    'name': 'BOT',
-                                    'value': body['bot']
-                                },
-                                {
-                                    'name': 'USER',
-                                    'value': body['user']
-                                }
-                            ]
+                            'environment': env_data
                         },
                     ]
                 },

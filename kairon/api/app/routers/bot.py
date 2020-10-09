@@ -302,7 +302,7 @@ async def train(
     )
     token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user(), token
+        start_training, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
     )
     return {"message": "Model training started."}
 
