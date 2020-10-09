@@ -2086,3 +2086,22 @@ def test_delete_http_action_non_existing():
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
+
+
+@responses.activate
+def test_train_using_event(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/train",
+        status=200
+    )
+    monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."

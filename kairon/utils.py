@@ -726,4 +726,4 @@ class Utility:
         if token:
             headers['Authorization'] = 'Bearer '+token
         response = requests.request(method, url, headers=headers)
-        logger.info("agent event started completed" + response.content.decode('utf8'))
+        logger.info("agent event completed" + response.content.decode('utf8'))

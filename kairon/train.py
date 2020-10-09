@@ -153,7 +153,7 @@ def start_training(bot: str, user: str, token: str = None, reload=False):
             training_status = MODEL_TRAINING_STATUS.DONE.value
             agent_url = Utility.environment['model']['train'].get('agent_url')
             if agent_url:
-                Utility.http_request('get', urljoin(agent_url, "/api/bot/reload"), token, user)
+                Utility.http_request('get', urljoin(agent_url, "/api/bot/model/reload"), token, user)
             else:
                 if reload:
                     AgentProcessor.reload(bot)
