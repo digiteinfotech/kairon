@@ -257,3 +257,4 @@ See also the list of [contributors](https://github.com/digiteinfotech/kairon/gra
 ## License
 Licensed under the Apache License, Version 2.0. [Copy of the license](LICENSE.txt)
 
+A list of the Licenses of the dependencies of the project can be found at the [Link](https://www.digite.com/kairon/libraries/)

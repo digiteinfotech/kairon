@@ -407,14 +407,15 @@ class Utility:
         :return: NONE
         """
         for document in documents:
-            doc_list = document.objects(bot=bot, status=True, **kwargs)
-            if doc_list:
-                for doc in doc_list:
-                    if "status" in document._db_field_map:
-                        doc.status = False
-                    doc.user = user
-                    doc.timestamp = datetime.utcnow()
-                    doc.save(validate=False)
+            filter = {'bot': bot}
+            update = {'user': user, 'timestamp': datetime.utcnow()}
+            if "status" in document._db_field_map:
+                filter['status'] = True
+                update['status'] = False
+            count = document.objects(**filter).count()
+            if count > 0:
+                document._collection.update_many(filter=filter, update={'$set': update})
+
 
     @staticmethod
     def extract_user_password(uri: str):

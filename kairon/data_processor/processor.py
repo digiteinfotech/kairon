@@ -232,7 +232,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.delete_document(
-            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], user, bot
+            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], user=user, bot=bot
         )
 
     def load_nlu(self, bot: Text) -> TrainingData:
@@ -279,7 +279,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.delete_document(
-            [Intents, Entities, Forms, Actions, Responses, Slots], bot, user
+            [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
     def load_domain(self, bot: Text) -> Domain:
@@ -319,7 +319,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([Stories], bot, user)
+        Utility.delete_document([Stories], bot=bot, user=user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """
@@ -989,7 +989,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([Configs], bot, user)
+        Utility.delete_document([Configs], bot=bot, user=user)
 
     def fetch_configs(self, bot: Text):
         """
