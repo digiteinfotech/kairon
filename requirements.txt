@@ -2,7 +2,7 @@ pyyaml
 torch
 rasa[full]==1.10.14
 tensorflow-text
-tensorflow==2.1.0
+tensorflow==2.1.2
 tensorflow-addons==0.9.1
 fastapi>=0.61.1
 mongomock==3.21.0
