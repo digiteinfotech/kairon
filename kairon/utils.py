@@ -407,14 +407,14 @@ class Utility:
         :return: NONE
         """
         for document in documents:
-            filter = {'bot': bot}
+            kwargs['bot'] = bot
             update = {'user': user, 'timestamp': datetime.utcnow()}
             if "status" in document._db_field_map:
-                filter['status'] = True
+                kwargs['status'] = True
                 update['status'] = False
-            count = document.objects(**filter).count()
-            if count > 0:
-                document._collection.update_many(filter=filter, update={'$set': update})
+            fetched_documents = document.objects().filter(**kwargs)
+            if fetched_documents.count() > 0:
+                fetched_documents.update(set__status=False, set__user=user, set__timestamp=datetime.now())
 
 
     @staticmethod
