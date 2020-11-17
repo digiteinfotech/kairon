@@ -22,8 +22,8 @@ jobs:
         python-version: 3.7
     - name: Install dependencies
       run: |
-        python3.6 -m pip install flake8
-        python3.6 -m pip install wheel
+        python -m pip install flake8
+        python -m pip install wheel
         chmod 777 ./setup.sh
         ./setup.sh
     - name: Lint with flake8
@@ -34,7 +34,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python3.6 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
+        python -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
       if: failure()
