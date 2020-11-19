@@ -2,9 +2,8 @@ from question_generation import pipeline
 
 
 class QuestionGenerator:
-    """
-    Class loads pipeline for generating questions from text
-    """
+    """Class loads pipeline for generating questions from text"""
+    
     nlp = pipeline('e2e-qg')
 
     @staticmethod
