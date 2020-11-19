@@ -10,7 +10,7 @@ class QuestionGenerator:
     def generate(text: str):
         """
         generates questions
-         for given text
+        for given text
 
         :param text: sentence or paragraph for question generation
         :return: list of questions

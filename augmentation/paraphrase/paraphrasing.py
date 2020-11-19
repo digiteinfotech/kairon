@@ -14,7 +14,7 @@ class ParaPhrasing:
     def paraphrases(input_text, num_return_sequences=10, num_beams=10):
         """
         generates variations for
-         a given sentence/text
+        a given sentence/text
 
         :param input_text: sentence or text
         :param num_return_sequences: Number of variations to be returned
