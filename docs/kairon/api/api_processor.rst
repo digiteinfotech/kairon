@@ -1,7 +1,7 @@
 Account Management
 ===================
 
-.. automodule:: bot_trainer.api.processor
+.. automodule:: kairon.api.processor
     :members:
     :undoc-members:
     :show-inheritance:

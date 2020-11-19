@@ -1,7 +1,7 @@
 Main
 ====
 
-.. automodule:: bot_trainer.api.app.main
+.. automodule:: kairon.api.app.main
     :members:
     :undoc-members:
     :show-inheritance:

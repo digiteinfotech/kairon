@@ -1,7 +1,7 @@
-Augment
+actions
 =======
 
-.. automodule:: bot_trainer.api.app.routers.augment
+.. automodule:: kairon.action_server.actions
     :members:
     :undoc-members:
     :show-inheritance:

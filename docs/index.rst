@@ -11,7 +11,7 @@ Welcome to Kairon's documentation!
    :caption: Contents:
 
    augmentation/index
-   bot_trainer/index
+   kairon/index
 
 
 Indices and tables

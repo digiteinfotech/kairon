@@ -7,3 +7,4 @@ data_processor
     history
     importer
     processor
+    cache
