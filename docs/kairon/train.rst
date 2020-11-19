@@ -1,7 +1,7 @@
 Model Training
 ==============
 
-.. automodule:: bot_trainer.train
+.. automodule:: kairon.train
     :members:
     :undoc-members:
     :show-inheritance:
