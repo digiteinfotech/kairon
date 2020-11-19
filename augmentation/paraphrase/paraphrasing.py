@@ -3,8 +3,8 @@ from transformers import PegasusForConditionalGeneration, PegasusTokenizer
 
 
 class ParaPhrasing:
-    """Class loads pegasus model for text augmentation"""
 
+    """Class loads pegasus model for text augmentation"""
     model_name = 'tuner007/pegasus_paraphrase'
     torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
     tokenizer = PegasusTokenizer.from_pretrained(model_name)
@@ -13,7 +13,8 @@ class ParaPhrasing:
     @staticmethod
     def paraphrases(input_text, num_return_sequences=10, num_beams=10):
         """
-        generates variations for a given sentence/text
+        generates variations for
+         a given sentence/text
 
         :param input_text: sentence or text
         :param num_return_sequences: Number of variations to be returned
