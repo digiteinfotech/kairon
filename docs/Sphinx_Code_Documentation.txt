@@ -30,7 +30,7 @@ Page Title
 )
 
 6. Add the names of the .rst files created, in the index.rst file.
-7. Once the changes are made, run the "set system_file=../system.yaml" command and then the 'make html' command to generate the html files (The html pages will be in _build\html).
+7. Once the changes are made, run the "set system_file=../system.yaml" and "set EMAIl_CONF=../email.yaml" command and then the 'make html' command to generate the html files (The html pages will be in _build\html).
 8. For subsequent changes in the project, we need to first run the 'make clean' command before the 'make html' command, to effect the changes made.
 
 

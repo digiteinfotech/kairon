@@ -49,6 +49,7 @@ jobs:
         # sphinx-quickstart
         # set system_file=../system.yaml
         export system_file=../system.yaml
+        export EMAIl_CONF=../email.yaml
         make html
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
