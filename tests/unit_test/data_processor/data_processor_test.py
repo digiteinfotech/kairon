@@ -23,7 +23,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 )
 from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
 from kairon.exceptions import AppException
-from kairon.train import train_model_from_mongo, start_training
+from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
 
 
@@ -688,9 +688,8 @@ class TestMongoProcessor:
         )
         assert id_add
 
-    @pytest.mark.asyncio
     async def test_train_model(self):
-        model = await (train_model_from_mongo("tests"))
+        model = train_model_for_bot("tests")
         assert model
 
     @pytest.mark.asyncio
