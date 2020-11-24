@@ -17,7 +17,7 @@ from kairon.data_processor.data_objects import Stories
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from rasa.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -221,7 +221,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 22
+    assert len(actual["data"]) == 27
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -606,7 +606,6 @@ def test_get_utterance_from_not_exist_intent():
 
 
 def test_train(monkeypatch):
-    import time
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -679,6 +678,7 @@ def test_chat(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -696,6 +696,7 @@ def test_chat_fetch_from_cache(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.post(
         "/api/bot/chat",
         json={"data": "Hi"},
@@ -911,7 +912,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 23
+    assert len(actual["data"]) == 28
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -964,8 +965,9 @@ def test_integration_token_missing_x_user():
 
 
 @mongomock.patch(servers=(('localhost', 27019),))
-def test_predict_intent():
-    Utility.environment['database']["url"] = "mongodb://localhost:27019"
+def test_predict_intent(monkeypatch):
+    monkeypatch.setitem(Utility.environment['database'], "url", "mongodb://localhost:27019")
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.post(
         "/api/bot/intents/predict",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1120,7 +1122,7 @@ def test_save_endpoint(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.put(
         "/api/bot/endpoint",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1191,7 +1193,7 @@ def test_reload_model(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.get(
         "/api/bot/model/reload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1301,8 +1303,7 @@ def test_set_config_pipeline_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual[
-               'message'] == """Cannot find class 'TestFeaturizer' from global namespace. Please check that there is no typo in the class name and that you have imported the class into the global namespace."""
+    assert str(actual['message']).__contains__("Failed to load the component 'TestFeaturizer")
     assert not actual['success']
 
 

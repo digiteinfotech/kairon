@@ -34,7 +34,8 @@ class AccountProcessor:
             name__iexact=name,
             status=True,
         )
-        return Account(name=name.strip(), user=user).save().to_mongo().to_dict()
+        license = {"bots": 2, "intents": 10, "examples": 50, "training": 3, "augmentation": 5}
+        return Account(name=name.strip(), user=user, license=license).save().to_mongo().to_dict()
 
     @staticmethod
     def get_account(account: int):

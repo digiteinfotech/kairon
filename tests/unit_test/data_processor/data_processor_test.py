@@ -6,9 +6,9 @@ import responses
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
-from rasa.core.training.structures import StoryGraph
-from rasa.importers.rasa import Domain
-from rasa.nlu.training_data import TrainingData
+from rasa.shared.core.training_data.structures import StoryGraph
+from rasa.shared.importers.rasa import Domain
+from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
@@ -56,10 +56,10 @@ class TestMongoProcessor:
             )
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_sccenario(self):
+    async def test_load_from_path_all_scenario(self):
         processor = MongoProcessor()
         await (
-            processor.save_from_path("./tests/testing_data/all", "all", user="testUser")
+            processor.save_from_path("./tests/testing_data/all", bot="all", user="testUser")
         )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
@@ -76,8 +76,8 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 21
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 32
-        assert domain.intents.__len__() == 22
+        assert domain.user_actions.__len__() == 34
+        assert domain.intents.__len__() == 27
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -86,7 +86,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "unfeaturized"
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_sccenario_append(self):
+    async def test_load_from_path_all_scenario_append(self):
         processor = MongoProcessor()
         await (
             processor.save_from_path("./tests/testing_data/all",
@@ -109,8 +109,8 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 21
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 32
-        assert domain.intents.__len__() == 22
+        assert domain.user_actions.__len__() == 34
+        assert domain.intents.__len__() == 27
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -136,7 +136,7 @@ class TestMongoProcessor:
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 6
-        assert domain.intents.__len__() == 7
+        assert domain.intents.__len__() == 12
 
     def test_load_stories(self):
         processor = MongoProcessor()
@@ -152,19 +152,8 @@ class TestMongoProcessor:
 
     def test_get_intents(self):
         processor = MongoProcessor()
-        expected = [
-            "affirm",
-            "bot_challenge",
-            "deny",
-            "goodbye",
-            "greet",
-            "mood_great",
-            "mood_unhappy",
-            "greeting",
-        ]
         actual = processor.get_intents("tests")
-        assert actual.__len__() == expected.__len__()
-        assert all(item["name"] in expected for item in actual)
+        assert actual.__len__() == 13
 
     def test_add_intent_with_underscore(self):
         processor = MongoProcessor()

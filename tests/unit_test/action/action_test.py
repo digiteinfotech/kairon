@@ -203,6 +203,9 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
+            match=[
+                responses.json_params_matcher(request_params)
+            ]
         )
 
         response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
@@ -335,7 +338,7 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param2", value="", parameter_type="slot")]
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         actual_request_body = ActionUtility.prepare_request(tracker=tracker,
                                                             http_action_config_params=http_action_config_params)
         assert actual_request_body
@@ -348,7 +351,7 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param3", value="", parameter_type="slot")]
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         try:
             ActionUtility.prepare_request(tracker=tracker, http_action_config_params=http_action_config_params)
             assert False
@@ -360,7 +363,7 @@ class TestActions:
         events: List[Dict] = None
         http_action_config_params: List[HttpActionRequestBody] = None
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         actual_request_body = ActionUtility.prepare_request(tracker=tracker,
                                                             http_action_config_params=http_action_config_params)
         #  deepcode ignore C1801: empty request body for http request with no request body params
@@ -494,7 +497,7 @@ class TestActions:
         ).save()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpAction().run(dispatcher, tracker, domain)
         str(dispatcher.messages[0]['text']).__contains__(
@@ -505,7 +508,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
@@ -519,7 +522,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
@@ -533,7 +536,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
@@ -567,7 +570,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="",
@@ -607,7 +610,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="",
@@ -628,7 +631,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="",
@@ -660,7 +663,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_form=None, latest_action_name=None)
+                          followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="",

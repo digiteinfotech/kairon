@@ -5,6 +5,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
+    DictField
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
@@ -57,6 +58,7 @@ class Account(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    license = DictField()
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):

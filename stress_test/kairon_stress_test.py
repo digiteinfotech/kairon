@@ -5,7 +5,7 @@ import os
 from locust import HttpUser, between, SequentialTaskSet, task
 from locust.exception import StopUser
 from mongoengine import connect, disconnect
-from rasa.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file
 from smart_config import ConfigLoader
 
 from stress_test.data_objects import User, Bot, Account

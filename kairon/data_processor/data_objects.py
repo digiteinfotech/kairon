@@ -16,7 +16,7 @@ from mongoengine import (
 )
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import parse_uri
-from rasa.core.slots import (
+from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
     UnfeaturizedSlot,
@@ -272,6 +272,7 @@ class Slots(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    influence_conversation = BooleanField(default=True)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(

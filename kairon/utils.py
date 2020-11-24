@@ -10,7 +10,7 @@ from io import BytesIO
 from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
-
+from rasa.utils.endpoints import EndpointConfig
 import requests
 import yaml
 from fastapi.security import OAuth2PasswordBearer
@@ -29,17 +29,18 @@ from pymongo.uri_parser import (
     SRV_SCHEME,
     parse_userinfo,
 )
-from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-from rasa.constants import DEFAULT_MODELS_PATH
+from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.shared.constants import DEFAULT_MODELS_PATH
+from rasa.shared.nlu.constants import TEXT
 from rasa.core import config as configuration
 from rasa.core.tracker_store import MongoTrackerStore
-from rasa.core.training.structures import StoryGraph
-from rasa.importers.rasa import Domain
+from rasa.shared.core.training_data.structures import StoryGraph
+from rasa.shared.importers.rasa import Domain
 from rasa.nlu.components import ComponentBuilder
 from rasa.nlu.config import RasaNLUModelConfig
-from rasa.nlu.training_data import TrainingData
-from rasa.nlu.training_data.formats.markdown import MarkdownReader
-from rasa.nlu.training_data.formats.markdown import entity_regex
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.nlu.training_data.formats.markdown import MarkdownReader
+from rasa.shared.nlu.training_data import entities_parser
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
@@ -408,13 +409,13 @@ class Utility:
         """
         for document in documents:
             kwargs['bot'] = bot
-            update = {'user': user, 'timestamp': datetime.utcnow()}
+            update = {'set__user': user, 'set__timestamp': datetime.utcnow()}
             if "status" in document._db_field_map:
                 kwargs['status'] = True
-                update['status'] = False
-            fetched_documents = document.objects().filter(**kwargs)
+                update['set__status'] = False
+            fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
-                fetched_documents.update(set__status=False, set__user=user, set__timestamp=datetime.now())
+                fetched_documents.update(**update)
 
 
     @staticmethod
@@ -486,9 +487,8 @@ class Utility:
         :param text: markdown intent example
         :return: plain intent, list of extracted entities
         """
-        example = re.sub(entity_regex, lambda m: m.groupdict()["entity_text"], text)
-        entities = Utility.markdown_reader._find_entities_in_training_example(text)
-        return example, entities
+        example = entities_parser.parse_training_example(text)
+        return example.get(TEXT), example.get('entities',[])
 
     @staticmethod
     def __extract_response_button(buttons: Dict):
@@ -532,7 +532,9 @@ class Utility:
                 {RESPONSE.CUSTOM.value: value[RESPONSE.CUSTOM.value]}
             )
             response_type = "custom"
-
+        else:
+            response_type = None
+            data =None
         return response_type, data
 
     @staticmethod
@@ -729,3 +731,12 @@ class Utility:
         response = requests.request(method, url, headers=headers, json=json)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
+
+    @staticmethod
+    def get_action_url(endpoint):
+        if endpoint and endpoint.get("action_endpoint"):
+            return EndpointConfig(url=endpoint["action_endpoint"]["url"])
+        elif Utility.environment['action'].get('url'):
+            return EndpointConfig(url=Utility.environment['action'].get('url'))
+        else:
+            return None

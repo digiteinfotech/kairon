@@ -1,11 +1,11 @@
 from typing import Optional, Text, Dict
 
-from rasa.importers.importer import TrainingDataImporter
-from rasa.nlu.training_data import TrainingData
-from rasa.core.domain import Domain
-from rasa.core.training.structures import StoryGraph
+from rasa.shared.importers.importer import TrainingDataImporter
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.core.domain import Domain
+from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter, RegexInterpreter
+from rasa.shared.core.training_data.structures import StoryGraph
 from .processor import MongoProcessor
-from rasa.core.interpreter import RegexInterpreter, NaturalLanguageInterpreter
 from kairon.exceptions import AppException
 
 

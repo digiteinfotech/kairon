@@ -1,5 +1,4 @@
 import os
-from json import dumps
 
 import moto
 from boto3 import client

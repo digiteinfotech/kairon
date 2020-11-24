@@ -9,26 +9,25 @@ from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
-from rasa.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
 from rasa.core.agent import Agent
-from rasa.core.constants import INTENT_MESSAGE_PREFIX
-from rasa.core.domain import InvalidDomain
-from rasa.core.domain import SessionConfig
-from rasa.core.events import Form, ActionExecuted, UserUttered
-from rasa.core.slots import CategoricalSlot, FloatSlot
-from rasa.core.training.structures import Checkpoint
-from rasa.core.training.structures import STORY_START
-from rasa.core.training.structures import StoryGraph, StoryStep, SlotSet
-from rasa.data import get_core_nlu_files
-from rasa.importers import utils
-from rasa.importers.rasa import Domain, StoryFileReader
-from rasa.nlu.training_data import Message, TrainingData
+from rasa.shared.core.domain import InvalidDomain
+from rasa.shared.core.domain import SessionConfig
+from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
+from rasa.shared.core.slots import CategoricalSlot, FloatSlot
+from rasa.shared.core.training_data.structures import Checkpoint
+from rasa.shared.core.training_data.structures import STORY_START
+from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
+from rasa.shared.core.events import SlotSet
+from rasa.shared.importers.rasa import Domain
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.utils.endpoints import EndpointConfig
-from rasa.utils.io import read_config_file
-
+from rasa.shared.utils.io import read_config_file
+from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
+from rasa.shared.nlu.constants import TEXT
 from .cache import AgentCache
 from .constant import (
     DOMAIN,
@@ -126,20 +125,22 @@ class MongoProcessor:
         :return: None
         """
         try:
-            story_files, nlu_files = get_core_nlu_files(
-                os.path.join(path, DEFAULT_DATA_PATH)
-            )
-            nlu = utils.training_data_from_paths(nlu_files, "en")
-            domain = Domain.from_file(os.path.join(path, DEFAULT_DOMAIN_PATH))
-            domain.check_missing_templates()
-            story_steps = await StoryFileReader.read_from_files(story_files, domain)
-            config = read_config_file(os.path.join(path, DEFAULT_CONFIG_PATH))
+            domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
+            training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
+            config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            importer = RasaFileImporter(config_file=config_path,
+                                        domain_path=domain_path,
+                                        training_data_paths=training_data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
 
             if overwrite:
                 self.delete_bot_data(bot, user)
 
             self.save_domain(domain, bot, user)
-            self.save_stories(story_steps, bot, user)
+            self.save_stories(story_graph.story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
         except InvalidDomain as e:
@@ -351,12 +352,12 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if str(training_example.text).lower() not in saved_training_examples:
+            if str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
                 ]
-                training_data.text = training_example.text
+                training_data.text = training_example.data['text']
                 training_data.bot = bot
                 training_data.user = user
                 if "entities" in training_example.data:
@@ -420,8 +421,8 @@ class MongoProcessor:
         """
         trainingExamples = TrainingExamples.objects(bot=bot, status=status)
         for trainingExample in trainingExamples:
-            message = Message(trainingExample.text)
-            message.data = {TRAINING_EXAMPLE.INTENT.value: trainingExample.intent}
+            message = Message()
+            message.data = {TRAINING_EXAMPLE.INTENT.value: trainingExample.intent, TEXT: trainingExample.text}
             if trainingExample.entities:
                 message.data[TRAINING_EXAMPLE.ENTITIES.value] = list(
                     self.__prepare_entities(trainingExample.entities)
@@ -851,10 +852,10 @@ class MongoProcessor:
     def __extract_story_events(self, events):
         for event in events:
             if isinstance(event, UserUttered):
-                yield StoryEvents(type=event.type_name, name=event.text)
+                yield StoryEvents(type=event.type_name, name=event.intent_name)
             elif isinstance(event, ActionExecuted):
                 yield StoryEvents(type=event.type_name, name=event.action_name)
-            elif isinstance(event, Form):
+            elif isinstance(event, ActiveLoop):
                 yield StoryEvents(type=event.type_name, name=event.name)
             elif isinstance(event, SlotSet):
                 yield StoryEvents(
@@ -920,8 +921,8 @@ class MongoProcessor:
                 )
             elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
-            elif event.type == Form.type_name:
-                yield Form(name=event.name, timestamp=timestamp)
+            elif event.type == ActiveLoop.type_name:
+                yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
@@ -2057,11 +2058,7 @@ class AgentProcessor:
             endpoint = AgentProcessor.mongo_processor.get_endpoints(
                 bot, raise_exception=False
             )
-            action_endpoint = (
-                EndpointConfig(url=endpoint["action_endpoint"]["url"])
-                if endpoint and endpoint.get("action_endpoint")
-                else Utility.environment['action'].get('url')
-            )
+            action_endpoint = Utility.get_action_url(endpoint)
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
@@ -2070,7 +2067,7 @@ class AgentProcessor:
             )
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Bot has not been trained yet !")
 
 
