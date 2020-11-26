@@ -6,9 +6,9 @@ import spacy
 from rasa.nlu.components import Component
 from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.extractors.extractor import EntityExtractor
-from rasa.nlu.training_data import TrainingData
+from rasa.shared.nlu.training_data.training_data import TrainingData
 from spacy.matcher import Matcher
-from .spacy_utils import SpacyNLP
+from rasa.nlu.utils.spacy_utils import SpacyNLP
 
 if TYPE_CHECKING:
     from rasa.nlu.model import Metadata

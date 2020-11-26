@@ -2,6 +2,7 @@ import os
 import tempfile
 from contextlib import ExitStack
 from typing import Text, Optional, Dict
+from urllib.parse import urljoin
 
 import yaml
 from loguru import logger as logging
@@ -17,9 +18,6 @@ from kairon.data_processor.processor import AgentProcessor, ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from kairon.api.auth import Authentication
-from kairon.api.processor import AccountProcessor
-from urllib.parse import urljoin
 
 
 async def train_model(
