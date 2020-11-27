@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS
+from .constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -413,3 +413,21 @@ class ModelDeployment(Document):
     url = StringField(default=None)
     status = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class TrainingDataGeneratorResponse(EmbeddedDocument):
+    intent = StringField(required=True)
+    training_examples = ListField(StringField(), required=True)
+    response = StringField(required=True)
+
+
+class TrainingDataGenerator(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    document_path = StringField(default=None)
+    status = StringField(default=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
+    start_timestamp = DateTimeField(default=None)
+    last_update_timestamp = DateTimeField(default=None)
+    end_timestamp = DateTimeField(default=None)
+    response = ListField(EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None)
+    exception = StringField(default=None)

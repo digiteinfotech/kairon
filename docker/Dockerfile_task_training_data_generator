@@ -1,0 +1,34 @@
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+
+SHELL ["/bin/bash", "-c"]
+
+ENV KG_HOME=/app
+
+WORKDIR ${RASA_NLU_HOME}
+
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install pyyaml
+RUN python3 -m pip install mongoengine==0.20.0
+python -m pip install git+https://github.com/sfahad1414/question_generation.git
+RUN python3 -m pip install pyjwt
+RUN python3 -m pip install python-multipart
+RUN python3 -m pip install passlib[bcrypt]
+RUN python3 -m pip install validators
+RUN python3 -m pip install loguru
+RUN python3 -m pip install smart-config==0.1.3
+RUN python3 -m pip install python-docx
+RUN python3 -m pip install PyMuPDF
+RUN mkdir ssl
+RUN chmod 777 -R /tmp
+
+COPY kairon ${KG_HOME}/kairon
+COPY system.yaml ${KG_HOME}/
+COPY template ${KG_HOME}/template
+COPY custom ${KG_HOME}/custom
+COPY email.yaml ${KG_HOME}/
+
+ENV BOT default
+ENV USER default
+ENV TOKEN default
+
+CMD ["sh","-c","python -m kairon generate-training-data ${BOT} ${USER} ${TOKEN}"]

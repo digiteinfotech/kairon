@@ -721,6 +721,14 @@ class Utility:
         response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user, 'token': token})
         logger.info("model training event completed"+response.content.decode('utf8'))
 
+    @staticmethod
+    def trigger_knowledge_graph_event(bot: str, user: str, kairon_url: str = None, token: str = None):
+        event_url = Utility.environment['knowledge_graph']['event_url']
+        logger.info("Training data generator event started")
+        response = requests.post(event_url, headers={'content-type': 'application/json'},
+                                 json={'bot': bot, 'user': user, 'kairon_url': kairon_url, 'token': token})
+        logger.info("Training data generator event completed" + response.content.decode('utf8'))
+
 
     @staticmethod
     def http_request(method: str, url: str, token: str, user: str, json: Dict = None):

@@ -13,14 +13,14 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
-    HttpActionConfigRequest
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS
 from kairon.data_processor.data_objects import TrainingExamples, Responses
 from kairon.data_processor.processor import (
     MongoProcessor,
     AgentProcessor,
-    ModelProcessor,
+    ModelProcessor, TrainingDataGenerationProcessor,
 )
 from kairon.exceptions import AppException
 from kairon.train import start_training
@@ -283,7 +283,8 @@ async def chat(
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
         agent_url = Utility.environment['model']['train'].get('agent_url')
         token = auth.create_access_token(data={"sub": current_user.email})
-        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'), current_user.get_user(), json={'data': request_data.data})
+        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'),
+                                        current_user.get_user(), json={'data': request_data.data})
     else:
         model = AgentProcessor.get_agent(current_user.get_bot())
         response = await model.handle_text(
@@ -432,7 +433,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -543,8 +544,8 @@ async def get_http_action(action: str = Path(default=None, description="action n
     Returns configuration set for the HTTP action
     """
     http_action_config = mongo_processor.get_http_action_config(action_name=action,
-                                                                           user=current_user.get_user(),
-                                                                           bot=current_user.bot)
+                                                                user=current_user.get_user(),
+                                                                bot=current_user.bot)
     action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
     return Response(data=action_config)
 
@@ -577,3 +578,31 @@ async def delete_http_action(action: str = Path(default=None, description="actio
         raise AppException(e)
     message = "HTTP action deleted"
     return Response(message=message)
+
+
+@router.post("/training-data", response_model=Response)
+async def add_training_data(
+        request_data: BulkTrainingDataAddRequest, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Adds intents, training examples and responses along with story against the responses
+    """
+    status = mongo_processor.add_training_data(
+        training_data=request_data.training_data,
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        is_integration=current_user.get_integration_status()
+    )
+    return {"message": "Training data added successfully!", "data": status}
+
+
+@router.put("/processing-status", response_model=Response)
+async def update_training_data_generator_status(
+        request_data: TrainingDataGeneratorStatusModel, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Update training data generator status
+    """
+    TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
+                                                                     current_user.get_user())
+    return {"message": "Status updated successfully!"}

@@ -21,3 +21,7 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
+
+knowledge_graph:
+  event_url: ${EVENT_URL}
+  kairon_url: ${KAIRON_URL}

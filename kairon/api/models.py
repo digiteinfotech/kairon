@@ -2,6 +2,9 @@ from enum import Enum
 from typing import List, Any, Dict
 
 import validators
+
+from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
+
 ValidationFailure = validators.ValidationFailure
 
 from pydantic import BaseModel, validator, SecretStr
@@ -105,8 +108,8 @@ class RegisterAccount(BaseModel):
     @validator("confirm_password")
     def validate_confirm_password(cls, v, values, **kwargs):
         if (
-            "password" in values
-            and v.get_secret_value() != values["password"].get_secret_value()
+                "password" in values
+                and v.get_secret_value() != values["password"].get_secret_value()
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
@@ -242,3 +245,25 @@ class HttpActionConfigResponse(BaseModel):
     params_list: List[HttpActionParametersResponse]
     bot: str
     user: str
+
+
+class TrainingData(BaseModel):
+    intent: str
+    training_examples: List[str]
+    response: str
+
+
+class BulkTrainingDataAddRequest(BaseModel):
+    training_data: List[TrainingData]
+
+
+class TrainingDataGeneratorResponseModel(BaseModel):
+    intent: str
+    training_examples: List[str]
+    response: str
+
+
+class TrainingDataGeneratorStatusModel(BaseModel):
+    status: TRAINING_DATA_GENERATOR_STATUS
+    response: List[TrainingDataGeneratorResponseModel]
+    exception: str

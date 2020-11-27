@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Text, Dict, List
 
 from loguru import logger as logging
-from mongoengine import Document
+from mongoengine import Document, Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
@@ -39,7 +39,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS,
+    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS,
 )
 from .data_objects import (
     Responses,
@@ -62,9 +62,10 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
-    ModelDeployment,
+    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse,
 )
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
+from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
 
@@ -1023,6 +1024,65 @@ class MongoProcessor:
             if key in ["language", "pipeline", "policies"]
         }
 
+    def add_training_data(self, training_data: List[models.TrainingData], bot: Text, user: Text, is_integration: bool):
+        """
+        adds a list of intents
+
+        :param intents: intents list to be added
+        :param bot: bot id
+        :param user: user id
+        :param is_integration: integration status
+        :return: intent id
+        """
+        overall_response = [{}]
+        for data in training_data:
+            status = {}
+            try:
+                intent_id = self.add_intent(
+                    text=data.intent.strip(),
+                    bot=bot,
+                    user=user,
+                    is_integration=is_integration
+                )
+                status[data.intent] = intent_id
+            except Exception as e:
+                status[data.intent] = str(e)
+
+            story_name = "path_" + data.intent
+            utterance = "utter_" + data.intent
+            events = [
+                {"name": data.intent, "type": "user"},
+                {"name": utterance, "type": "action"}]
+            try:
+                id = self.add_story(
+                    story_name,
+                    events=events,
+                    bot=bot,
+                    user=user,
+                )
+                status['story'] = id
+            except Exception as e:
+                status['story'] = str(e)
+            try:
+                status_message = list(
+                    self.add_training_example(
+                        data.training_examples, data.intent, bot, user,
+                        is_integration)
+                )
+                status['training_examples'] = status_message
+            except Exception as e:
+                status['training_examples'] = str(e)
+
+            try:
+                utterance_id = self.add_text_response(
+                    data.response, utterance, bot, user
+                )
+                status['responses'] = utterance_id
+            except Exception as e:
+                status['responses'] = str(e)
+            overall_response.append(status)
+        return overall_response
+
     def add_intent(self, text: Text, bot: Text, user: Text, is_integration: bool):
         """
         adds new intent
@@ -1843,8 +1903,9 @@ class MongoProcessor:
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
 
-        self.add_slot({"name":"bot", "type": "unfeaturized"}, bot, user, raise_exception=False)
-        self.add_slot({"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": "unfeaturized"}, bot, user, raise_exception=False)
+        self.add_slot({"name": "bot", "type": "unfeaturized"}, bot, user, raise_exception=False)
+        self.add_slot({"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": "unfeaturized"}, bot, user,
+                      raise_exception=False)
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
 
         return self.add_story(story, story_event_list, bot, user)
@@ -2166,6 +2227,139 @@ class ModelProcessor:
         :return: yield dict of training history
         """
         for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
+            item = value.to_mongo().to_dict()
+            item.pop("bot")
+            item["_id"] = item["_id"].__str__()
+            yield item
+
+
+class TrainingDataGenerationProcessor:
+    """
+    Class contains logic for adding/updating training data generator status and history
+    """
+
+    @staticmethod
+    def retreive_response_and_set_status(request_data, bot, user):
+        training_data_list = None
+        if request_data.response:
+            training_data_list = [TrainingDataGeneratorResponse]
+            for training_data in request_data.response:
+                training_data_list.append(TrainingDataGeneratorResponse(
+                    intent=training_data.intent,
+                    training_examples=training_data.training_examples,
+                    response=training_data.response
+                ))
+        TrainingDataGenerationProcessor.set_status(
+            status=request_data.status,
+            response=training_data_list,
+            exception=request_data.exception,
+            bot=bot,
+            user=user
+        )
+
+    @staticmethod
+    def set_status(
+            bot: Text,
+            user: Text,
+            status: Text,
+            document_path=None,
+            response=None,
+            exception: Text = None,
+    ):
+        """
+        add or update training data generator status
+
+        :param bot: bot id
+        :param user: user id
+        :param status: InProgress, Done, Fail
+        :param response: knowledge graph processing response
+        :param exception: exception while training
+        :return: None
+        """
+        try:
+            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
+                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
+                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+            doc.status = status
+        except DoesNotExist:
+            doc = TrainingDataGenerator()
+            doc.status = TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+            doc.document_path = document_path
+            doc.start_timestamp = datetime.utcnow()
+
+        doc.last_update_timestamp = datetime.utcnow()
+        if status in [TRAINING_DATA_GENERATOR_STATUS.FAIL, TRAINING_DATA_GENERATOR_STATUS.COMPLETED]:
+            doc.end_timestamp = datetime.utcnow()
+            doc.last_update_timestamp = doc.end_timestamp
+        doc.bot = bot
+        doc.user = user
+        doc.response = response
+        doc.exception = exception
+        doc.save()
+
+    @staticmethod
+    def fetch_latest_workload(
+            bot: Text,
+            user: Text,
+    ):
+        """
+        fetch latest training data generator task
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        try:
+            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
+                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
+                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+        except DoesNotExist:
+            doc = None
+        return doc
+
+    @staticmethod
+    def is_in_progress(bot: Text, raise_exception=True):
+        """
+        checks if there is any training data generation in progress
+
+        :param bot: bot id
+        :param raise_exception: whether to raise an exception, default is True
+        :return: None
+        :raises: AppException
+        """
+        if TrainingDataGenerator.objects.filter(
+                Q(bot=bot) and (
+                        Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
+                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
+                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
+            if raise_exception:
+                raise AppException("Previous knowledge graph processing not completed")
+            else:
+                return True
+        else:
+            return False
+
+    @staticmethod
+    def get_training_data_generator_history(bot: Text):
+        """
+        fetches training data generator history
+
+        :param bot: bot id
+        :return: yield dict of training history
+        """
+        return list(TrainingDataGenerationProcessor.__get_all_history(bot))
+
+    @staticmethod
+    def __get_all_history(bot: Text):
+        """
+        fetches training data generator history
+
+        :param bot: bot id
+        :return: yield dict of training history
+        """
+        for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
             item.pop("bot")
             item["_id"] = item["_id"].__str__()
