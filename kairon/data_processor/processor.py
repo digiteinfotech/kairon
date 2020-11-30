@@ -1045,7 +1045,7 @@ class MongoProcessor:
                     is_integration=is_integration
                 )
                 status[data.intent] = intent_id
-            except Exception as e:
+            except AppException as e:
                 status[data.intent] = str(e)
 
             story_name = "path_" + data.intent
@@ -1054,14 +1054,14 @@ class MongoProcessor:
                 {"name": data.intent, "type": "user"},
                 {"name": utterance, "type": "action"}]
             try:
-                id = self.add_story(
+                doc_id = self.add_story(
                     story_name,
                     events=events,
                     bot=bot,
                     user=user,
                 )
-                status['story'] = id
-            except Exception as e:
+                status['story'] = doc_id
+            except AppException as e:
                 status['story'] = str(e)
             try:
                 status_message = list(
@@ -1070,7 +1070,7 @@ class MongoProcessor:
                         is_integration)
                 )
                 status['training_examples'] = status_message
-            except Exception as e:
+            except AppException as e:
                 status['training_examples'] = str(e)
 
             try:
@@ -1078,7 +1078,7 @@ class MongoProcessor:
                     data.response, utterance, bot, user
                 )
                 status['responses'] = utterance_id
-            except Exception as e:
+            except AppException as e:
                 status['responses'] = str(e)
             overall_response.append(status)
         return overall_response
@@ -2242,7 +2242,7 @@ class TrainingDataGenerationProcessor:
     def retreive_response_and_set_status(request_data, bot, user):
         training_data_list = None
         if request_data.response:
-            training_data_list = [TrainingDataGeneratorResponse]
+            training_data_list = []
             for training_data in request_data.response:
                 training_data_list.append(TrainingDataGeneratorResponse(
                     intent=training_data.intent,
@@ -2362,6 +2362,7 @@ class TrainingDataGenerationProcessor:
         for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
             item.pop("bot")
+            item.pop("user")
             item["_id"] = item["_id"].__str__()
             yield item
 

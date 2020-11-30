@@ -609,12 +609,15 @@ async def add_training_data(
     """
     Adds intents, training examples and responses along with story against the responses
     """
-    status = mongo_processor.add_training_data(
-        training_data=request_data.training_data,
-        bot=current_user.get_bot(),
-        user=current_user.get_user(),
-        is_integration=current_user.get_integration_status()
-    )
+    try:
+        status = mongo_processor.add_training_data(
+            training_data=request_data.training_data,
+            bot=current_user.get_bot(),
+            user=current_user.get_user(),
+            is_integration=current_user.get_integration_status()
+        )
+    except Exception as e:
+        raise AppException(e)
     return {"message": "Training data added successfully!", "data": status}
 
 
@@ -625,8 +628,11 @@ async def update_training_data_generator_status(
     """
     Update training data generator status
     """
-    TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
-                                                                     current_user.get_user())
+    try:
+        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
+                                                                         current_user.get_user())
+    except Exception as e:
+        raise AppException(e)
     return {"message": "Status updated successfully!"}
 
 

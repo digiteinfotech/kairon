@@ -260,5 +260,5 @@ class TrainingDataGeneratorResponseModel(BaseModel):
 
 class TrainingDataGeneratorStatusModel(BaseModel):
     status: TRAINING_DATA_GENERATOR_STATUS
-    response: List[TrainingDataGeneratorResponseModel]
-    exception: str
+    response: List[TrainingData] = None
+    exception: str = None

@@ -4,7 +4,7 @@ import json
 import requests
 from boto3 import client
 
-
+# file deepcode ignore W0703: Any Exception should be updated as status for Training Data processor
 def lambda_handler(event, context):
     cluster = os.getenv("CLUSTER", 'default')
     logging.info(cluster)

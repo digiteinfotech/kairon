@@ -9,11 +9,11 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-from kairon.api.models import StoryEventType
+from kairon.api.models import StoryEventType, TrainingData, TrainingDataGeneratorStatusModel
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
-from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE
-from kairon.data_processor.data_objects import Stories
+from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses, TrainingDataGenerator
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -2117,3 +2117,178 @@ def test_train_using_event(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+
+
+def test_add_training_data(monkeypatch):
+    training_data = {"training_data": [{
+        "intent": "intent1_test_add_training_data",
+        "training_examples": ["example1", "example2"],
+        "response": "response1"},
+        {"intent": "intent2_test_add_training_data",
+         "training_examples": ["example3", "example4"],
+         "response": "response2"}]}
+    response = client.post(
+        "/api/bot/training-data",
+        json=training_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is not None
+    assert actual["message"] == "Training data added successfully!"
+
+    assert Intents.objects(name="intent1_test_add_training_data").get() is not None
+    assert Intents.objects(name="intent2_test_add_training_data").get() is not None
+    training_examples = list(TrainingExamples.objects(intent="intent1_test_add_training_data"))
+    assert training_examples is not None
+    assert len(training_examples) == 2
+    training_examples = list(TrainingExamples.objects(intent="intent2_test_add_training_data"))
+    assert len(training_examples) == 2
+    assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
+    assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
+    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent1_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent1_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
+    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent2_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent2_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
+
+
+def test_update_training_data_generator_status(monkeypatch):
+    TrainingDataGenerator(
+        bot='5fc4d977dfae0e7780ace4cf',
+        user="sysadmin",
+        status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value,
+        document_path='document/doc.pdf',
+        start_timestamp=datetime.utcnow()
+    ).save()
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED
+    }
+    response = client.put(
+        "/api/bot/processing-status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Status updated successfully!"
+
+
+def test_get_training_data_history(monkeypatch):
+    response = client.get(
+        "/api/bot/train_data/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    response =  actual["data"]
+    assert response is not None
+    response['status'] = 'Task Spawned'
+    assert actual["message"] is None
+
+def test_update_training_data_generator_status_completed(monkeypatch):
+    training_data = [{
+        "intent": "intent1_test_add_training_data",
+        "training_examples": ["example1", "example2"],
+        "response": "response1"},
+        {"intent": "intent2_test_add_training_data",
+         "training_examples": ["example3", "example4"],
+         "response": "response2"}]
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.COMPLETED,
+        "response": training_data
+    }
+    response = client.put(
+        "/api/bot/processing-status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Status updated successfully!"
+
+
+def test_get_training_data_history_1(monkeypatch):
+    response = client.get(
+        "/api/bot/train_data/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    training_data = actual["data"]['training_history'][0]
+
+    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+    end_timestamp = training_data['end_timestamp']
+    assert end_timestamp is not None
+    assert training_data['last_update_timestamp'] == end_timestamp
+    response = training_data['response']
+    assert response is not None
+    assert response[0]['intent'] == 'intent1_test_add_training_data'
+    assert response[0]['training_examples'] == ["example1", "example2"]
+    assert response[0]['response'] == 'response1'
+    assert response[1]['intent'] == 'intent2_test_add_training_data'
+    assert response[1]['training_examples'] == ["example3", "example4"]
+    assert response[1]['response'] == 'response2'
+
+
+def test_update_training_data_generator_status_exception(monkeypatch):
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+    }
+    response = client.put(
+        "/api/bot/processing-status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Status updated successfully!"
+
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.FAIL,
+        "exception": 'Exception message'
+    }
+    response = client.put(
+        "/api/bot/processing-status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Status updated successfully!"
+
+
+def test_get_training_data_history_2(monkeypatch):
+    response = client.get(
+        "/api/bot/train_data/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    training_data = actual["data"]['training_history'][0]
+    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.FAIL.value
+    end_timestamp = training_data['end_timestamp']
+    assert end_timestamp is not None
+    assert training_data['last_update_timestamp'] == end_timestamp
+    assert training_data['exception'] == 'Exception message'

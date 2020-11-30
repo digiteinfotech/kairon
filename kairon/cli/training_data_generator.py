@@ -6,7 +6,7 @@ from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.processor import TrainingDataGenerationProcessor
 from kairon.utils import Utility
 
-
+# file deepcode ignore W0703: Any Exception should be updated as status for Training Data processor
 def parse_document_and_generate_training_data(bot: str, user: str, token: str):
     """
     Function to parse pdf or docx documents and retrieve intents, responses and training examples from it
