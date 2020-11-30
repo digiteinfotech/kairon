@@ -90,7 +90,7 @@ def lambda_handler(event, context):
         },
         "body": response
     }
-    if body.get('kairon_url') & body.get('token'):
+    if body.get('kairon_url') and body.get('token'):
         status = {"status": response}
         headers = {
             'content-type': 'application/json',
