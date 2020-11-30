@@ -1,8 +1,8 @@
-import requests
-from boto3 import client
 import os
 import logging
 import json
+import requests
+from boto3 import client
 
 
 def lambda_handler(event, context):

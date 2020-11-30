@@ -1,9 +1,9 @@
 from operator import itemgetter
-from collections import deque, Counter
 import collections
+from collections import deque, Counter
+import re
 import fitz
 from docx import Document
-import re
 
 
 class DocumentParser:
@@ -11,6 +11,7 @@ class DocumentParser:
     @staticmethod
     def fonts(doc, granularity=False):
         """Extracts fonts and their usage in PDF documents.
+
         :param doc: PDF document to iterate through
         :type doc: <class 'fitz.fitz.Document'>
         :param granularity: also use 'font', 'flags' and 'color' to discriminate text
@@ -40,7 +41,7 @@ class DocumentParser:
 
         font_counts = sorted(font_counts.items(), key=itemgetter(1), reverse=True)
 
-        if len(font_counts) < 1:
+        if not font_counts:
             raise ValueError("Zero discriminating fonts found!")
 
         return font_counts, styles
@@ -48,6 +49,7 @@ class DocumentParser:
     @staticmethod
     def font_tags(font_counts, styles):
         """Returns dictionary with font sizes as keys and tags as value.
+
         :param font_counts: (font_size, count) for all fonts occuring in document
         :type font_counts: list
         :param styles: all styles found in the document
@@ -82,6 +84,7 @@ class DocumentParser:
     @staticmethod
     def headers_paragraphs(doc, size_tag):
         """Scrapes headers & paragraphs from PDF and return texts with element tags.
+
         :param doc: PDF document to iterate through
         :type doc: <class 'fitz.fitz.Document'>
         :param size_tag: textual element tags for each size
@@ -89,7 +92,6 @@ class DocumentParser:
         :rtype: list
         :return: texts with pre-prended element tags
         """
-
         header_para = []  # list with headers and paragraphs
         first = True  # boolean operator for first header
         previous_s = {}  # previous span
@@ -179,8 +181,8 @@ class DocumentParser:
         # remove consecutive duplicates
         reducedoclist = []
         preValue = -1
-        for i in range(len(docsize_list)):
-            value = docsize_list[i]
+        for element_n in docsize_list:
+            value = element_n
             if value != 1:
                 reducedoclist.append(value)
             else:
@@ -218,11 +220,11 @@ class DocumentParser:
         treedict = {}
         helperstack.append(thislist[arrSize - 1])
         helperid.append(arrSize - 1)
-        while len(helperstack):
+        while helperstack:
             value = thislist[arrSize - index - 1]
             if value > helperstack[-1]:
                 treedict[arrSize - index - 1] = []
-                while len(helperstack) and (value > helperstack[-1]):
+                while helperstack and (value > helperstack[-1]):
                     helperstack.pop()
                     treedict[arrSize - index - 1].append(helperid.pop())
             helperstack.append(value)
@@ -266,20 +268,18 @@ class DocumentParser:
         docsize_list = []
         for p in doc.paragraphs:
             size = p.style.font.size
-            try:
+            if size in size_dict:
                 text = p.text.strip()
                 if text != '':
                     tag = size_dict[size]
                     doc_list.append(tag + " " + text)
                     docsize_list.append(sizeorder_dict[size])
-            except:
-                pass
 
         # remove consecutive duplicates
         reducedoclist = []
         preValue = -1
-        for i in range(len(docsize_list)):
-            value = docsize_list[i]
+        for element_n in docsize_list:
+            value = element_n
             if value != 1:
                 reducedoclist.append(value)
             else:
@@ -317,11 +317,11 @@ class DocumentParser:
         tree_struct = {}
         helperstack.append(thislist[arrSize - 1])
         helperid.append(arrSize - 1)
-        while len(helperstack):
+        while helperstack:
             value = thislist[arrSize - index - 1]
             if value > helperstack[-1]:
                 tree_struct[arrSize - index - 1] = []
-                while len(helperstack) and (value > helperstack[-1]):
+                while helperstack and (value > helperstack[-1]):
                     helperstack.pop()
                     tree_struct[arrSize - index - 1].append(helperid.pop())
             helperstack.append(value)

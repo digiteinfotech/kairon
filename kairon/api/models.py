@@ -1,15 +1,10 @@
 from enum import Enum
 from typing import List, Any, Dict
-
 import validators
-
 from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
-
-ValidationFailure = validators.ValidationFailure
-
-from pydantic import BaseModel, validator, SecretStr
-
 from kairon.exceptions import AppException
+ValidationFailure = validators.ValidationFailure
+from pydantic import BaseModel, validator, SecretStr
 
 
 class Token(BaseModel):

@@ -4,6 +4,7 @@ from kairon.data_processor.data_objects import TrainingDataGeneratorResponse
 
 
 class TrainingDataGenerator:
+
     """
     Class contains logic to retrieve intents, training examples and responses
     from pdf and docx documents
@@ -44,10 +45,10 @@ class TrainingDataGenerator:
         value_out = TrainingDataGenerator.find_intents(0, 'root', treedict, newlist)
         helper_list = TrainingDataGenerator.helper_intent(0, 'root', treedict, newlist)
         training_data = [TrainingDataGeneratorResponse]
-        for ind in range(len(helper_list)):
-            key = value_out[ind][0]
-            value = value_out[ind][1]
-            if helper_list[ind][1][0:3] == '<p>':
+        for i, element in enumerate(helper_list):
+            key = value_out[i][0]
+            value = value_out[i][1]
+            if element[1][0:3] == '<p>':
                 training_data.append(TrainingDataGeneratorResponse(
                     intent=key,
                     response=value[0],

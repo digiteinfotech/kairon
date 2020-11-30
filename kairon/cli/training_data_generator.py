@@ -1,4 +1,3 @@
-import json
 from urllib.parse import urljoin
 
 from augmentation.knowledge_graph.document_parser import DocumentParser

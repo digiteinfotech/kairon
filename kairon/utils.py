@@ -6,6 +6,7 @@ import tempfile
 from datetime import datetime, timedelta
 from glob import glob, iglob
 from html import escape
+from pathlib import Path
 from io import BytesIO
 from secrets import choice
 from smtplib import SMTP
@@ -748,3 +749,13 @@ class Utility:
             return EndpointConfig(url=Utility.environment['action'].get('url'))
         else:
             return None
+
+    @staticmethod
+    async def upload_document(doc):
+        folder_path = 'data_generator'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        destination = os.path.join(folder_path, doc.filename)
+        with Path(destination).open("wb") as buffer:
+            shutil.copyfileobj(doc.file, buffer)
+        return destination

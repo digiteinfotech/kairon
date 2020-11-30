@@ -13,12 +13,10 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from augmentation.knowledge_graph import training_data_generator
 from augmentation.knowledge_graph.document_parser import DocumentParser
-from augmentation.knowledge_graph.training_data_generator import TrainingDataGenerator
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
 from kairon.cli.training_data_generator import parse_document_and_generate_training_data
-from kairon.data_processor import data_objects
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
@@ -2139,3 +2137,20 @@ class TestTrainingDataProcessor:
     def test_get_training_data_processor_history(self):
         history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
         assert len(history) == 1
+
+    def test_daily_file_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 4)
+        actual_response = TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests")
+        assert actual_response is False
+
+    def test_daily_file_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 1)
+        actual_response = TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests", False)
+        assert actual_response is True
+
+    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests")
+
+        assert str(exp.value) == "Daily file processing limit exceeded."

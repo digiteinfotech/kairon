@@ -2364,3 +2364,27 @@ class TrainingDataGenerationProcessor:
             item.pop("bot")
             item["_id"] = item["_id"].__str__()
             yield item
+
+    @staticmethod
+    def is_daily_file_limit_exceeded(bot: Text, raise_exception=True):
+        """
+        checks if daily training data generation limit is exhausted
+
+        :param bot: bot id
+        :param raise_exception: whether to raise and exception
+        :return: boolean
+        :raises: AppException
+        """
+        today = datetime.today()
+
+        today_start = today.replace(hour=0, minute=0, second=0)
+        doc_count = TrainingDataGenerator.objects(
+            bot=bot, start_timestamp__gte=today_start
+        ).count()
+        if doc_count >= Utility.environment['knowledge_graph']["limit_per_day"]:
+            if raise_exception:
+                raise AppException("Daily file processing limit exceeded.")
+            else:
+                return True
+        else:
+            return False

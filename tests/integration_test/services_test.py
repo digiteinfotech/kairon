@@ -672,6 +672,17 @@ def test_get_model_training_history():
     assert actual["data"]
     assert "training_history" in actual["data"]
 
+def test_get_file_training_history():
+    response = client.get(
+        "/api/bot/train_data/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert "training_history" in actual["data"]
+
 
 def test_chat(monkeypatch):
     def mongo_store(*arge, **kwargs):
