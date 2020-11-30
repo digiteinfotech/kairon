@@ -10,7 +10,8 @@ class DocumentParser:
 
     @staticmethod
     def fonts(doc, granularity=False):
-        """Extracts fonts and their usage in PDF documents.
+        """
+        Extracts fonts and their usage in PDF documents
 
         :param doc: PDF document to iterate through
         :type doc: <class 'fitz.fitz.Document'>
@@ -48,7 +49,8 @@ class DocumentParser:
 
     @staticmethod
     def font_tags(font_counts, styles):
-        """Returns dictionary with font sizes as keys and tags as value.
+        """
+        Returns dictionary with font sizes as keys and tags as value
 
         :param font_counts: (font_size, count) for all fonts occuring in document
         :type font_counts: list
@@ -83,7 +85,8 @@ class DocumentParser:
 
     @staticmethod
     def headers_paragraphs(doc, size_tag):
-        """Scrapes headers & paragraphs from PDF and return texts with element tags.
+        """
+        Scrapes headers & paragraphs from PDF and return texts with element tags
 
         :param doc: PDF document to iterate through
         :type doc: <class 'fitz.fitz.Document'>

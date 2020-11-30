@@ -9,8 +9,12 @@ from kairon.utils import Utility
 
 def parse_document_and_generate_training_data(bot: str, user: str, token: str):
     """
-    Function to parse pdf or docx documents and retrieve intents, responses and
-    training examples from it
+    Function to parse pdf or docx documents and retrieve intents, responses and training examples from it
+
+    :param bot: bot id
+    :param user: user id
+    :param token: token for user authentication
+    :return: None
     """
     kairon_url = None
     try:
