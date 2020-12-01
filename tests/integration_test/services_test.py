@@ -2162,15 +2162,8 @@ def test_add_training_data(monkeypatch):
 
 
 def test_update_training_data_generator_status(monkeypatch):
-    TrainingDataGenerator(
-        bot='5fc4d977dfae0e7780ace4cf',
-        user="sysadmin",
-        status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value,
-        document_path='document/doc.pdf',
-        start_timestamp=datetime.utcnow()
-    ).save()
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED
+        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
     }
     response = client.put(
         "/api/bot/processing-status",
@@ -2192,9 +2185,9 @@ def test_get_training_data_history(monkeypatch):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    response =  actual["data"]
+    response = actual["data"]
     assert response is not None
-    response['status'] = 'Task Spawned'
+    response['status'] = 'Initiated'
     assert actual["message"] is None
 
 def test_update_training_data_generator_status_completed(monkeypatch):
