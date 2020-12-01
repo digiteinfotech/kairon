@@ -31,5 +31,5 @@ mockredis
 locust
 greenlet==0.4.17
 gevent==20.9.0
-python-docx
+python-docx==0.8.10
 PyMuPDF==1.18.0
