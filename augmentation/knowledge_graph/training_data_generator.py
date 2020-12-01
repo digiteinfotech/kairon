@@ -4,6 +4,7 @@ from kairon.data_processor.data_objects import TrainingDataGeneratorResponse
 
 
 class TrainingDataGenerator:
+
     """Class contains logic to retrieve intents, training examples and responses from pdf and docx documents"""
 
     nlp = pipeline('e2e-qg')

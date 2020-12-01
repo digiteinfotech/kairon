@@ -752,6 +752,8 @@ class Utility:
 
     @staticmethod
     async def upload_document(doc):
+        if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
+            raise AppException("Invalid File Format")
         folder_path = 'data_generator'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)

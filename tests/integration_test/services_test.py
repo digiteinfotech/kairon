@@ -9,12 +9,13 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
-from kairon.api.models import StoryEventType, TrainingData, TrainingDataGeneratorStatusModel
+from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
+from kairon.cli import training_data_generator
 from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
-from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses, TrainingDataGenerator
-from kairon.data_processor.processor import MongoProcessor, ModelProcessor
+from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses
+from kairon.data_processor.processor import MongoProcessor, ModelProcessor, TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.utils.io import read_config_file
@@ -2285,3 +2286,81 @@ def test_get_training_data_history_2(monkeypatch):
     assert end_timestamp is not None
     assert training_data['last_update_timestamp'] == end_timestamp
     assert training_data['exception'] == 'Exception message'
+
+
+async def mock_upload(doc):
+    if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
+        raise AppException("Invalid File Format")
+
+
+@pytest.fixture
+def mock_file_upload(monkeypatch):
+    def _in_progress_mock(*args, **kwargs):
+        return None
+    def _daily_limit_mock(*args, **kwargs):
+        return None
+    def _set_status_mock(*args, **kwargs):
+        return None
+    def _train_data_gen(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(TrainingDataGenerationProcessor, "is_in_progress", _in_progress_mock)
+    monkeypatch.setattr(TrainingDataGenerationProcessor, "is_daily_file_limit_exceeded", _daily_limit_mock)
+    monkeypatch.setattr(TrainingDataGenerationProcessor, "set_status", _set_status_mock)
+    monkeypatch.setattr(training_data_generator, "parse_document_and_generate_training_data", _train_data_gen)
+
+
+def test_file_upload_docx(mock_file_upload,monkeypatch):
+    monkeypatch.setattr(Utility,"upload_document",mock_upload)
+
+
+    response = client.post(
+        "/api/bot/upload/data_generation/file",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": (
+            "tests/testing_data/file_data/sample1.docx",
+            open("tests/testing_data/file_data/sample1.docx", "rb"))})
+
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_file_upload_pdf(mock_file_upload,monkeypatch):
+    monkeypatch.setattr(Utility,"upload_document",mock_upload)
+
+
+    response = client.post(
+        "/api/bot/upload/data_generation/file",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": (
+            "tests/testing_data/file_data/sample1.pdf",
+            open("tests/testing_data/file_data/sample1.pdf", "rb"))})
+
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_file_upload_error(mock_file_upload,monkeypatch):
+    monkeypatch.setattr(Utility,"upload_document",mock_upload)
+
+
+    response = client.post(
+        "/api/bot/upload/data_generation/file",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": (
+            "tests/testing_data/all/data/nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"))})
+
+
+    actual = response.json()
+    assert actual["message"] == "Invalid File Format"
+    assert actual["error_code"] == 422
+    assert not actual["success"]

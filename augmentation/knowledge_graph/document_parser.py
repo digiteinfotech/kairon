@@ -14,11 +14,8 @@ class DocumentParser:
         Extracts fonts and their usage in PDF documents
 
         :param doc: PDF document to iterate through
-        :type doc: <class 'fitz.fitz.Document'>
         :param granularity: also use 'font', 'flags' and 'color' to discriminate text
-        :type granularity: bool
-        :rtype: [(font_size, count), (font_size, count}], dict
-        :return: most used fonts sorted by count, font style information
+        :return: list of most used fonts sorted by count, font style information
         """
         styles = {}
         font_counts = {}
@@ -53,10 +50,7 @@ class DocumentParser:
         Returns dictionary with font sizes as keys and tags as value
 
         :param font_counts: (font_size, count) for all fonts occuring in document
-        :type font_counts: list
         :param styles: all styles found in the document
-        :type styles: dict
-        :rtype: dict
         :return: all element tags based on font-sizes
         """
         p_style = styles[font_counts[0][0]]  # get style for most used font by count (paragraph)
@@ -89,11 +83,8 @@ class DocumentParser:
         Scrapes headers & paragraphs from PDF and return texts with element tags
 
         :param doc: PDF document to iterate through
-        :type doc: <class 'fitz.fitz.Document'>
         :param size_tag: textual element tags for each size
-        :type size_tag: dict
-        :rtype: list
-        :return: texts with pre-prended element tags
+        :return: list of texts with pre-prended element tags
         """
         header_para = []  # list with headers and paragraphs
         first = True  # boolean operator for first header
@@ -142,6 +133,12 @@ class DocumentParser:
 
     @staticmethod
     def pdf(path):
+        """
+        Accepts the path of the pdf file and processes it
+
+        :param path: Path of the pdf file
+        :return: list of sentences and dictionary structure of the document
+        """
         document = path
         doc = fitz.open(document)
 
@@ -240,6 +237,12 @@ class DocumentParser:
 
     @staticmethod
     def docx(path):
+        """
+        Accepts the path of the docx file and processes it
+
+        :param path: Path of the docx file
+        :return: list of sentences and dictionary structure of the document
+        """
         doc = Document(path)
         size_list = [p.style.font.size for p in doc.paragraphs]
 
