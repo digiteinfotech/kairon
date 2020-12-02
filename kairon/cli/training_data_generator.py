@@ -18,11 +18,11 @@ def parse_document_and_generate_training_data(bot: str, user: str, token: str):
     """
     kairon_url = None
     try:
-        if Utility.environment.get('knowledge_graph') and Utility.environment['knowledge_graph'].get('event_url'):
-            Utility.trigger_knowledge_graph_event(bot, user, token)
+        if Utility.environment.get('data_generation') and Utility.environment['data_generation'].get('event_url'):
+            Utility.trigger_data_generation_event(bot, user, token)
         else:
-            if Utility.environment.get('knowledge_graph') and Utility.environment['knowledge_graph'].get('kairon_url'):
-                kairon_url = Utility.environment['knowledge_graph'].get('kairon_url')
+            if Utility.environment.get('data_generation') and Utility.environment['data_generation'].get('kairon_url'):
+                kairon_url = Utility.environment['data_generation'].get('kairon_url')
 
             if kairon_url:
                 status = {"status": TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value}

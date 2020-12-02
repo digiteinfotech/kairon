@@ -675,7 +675,7 @@ def test_get_model_training_history():
 
 def test_get_file_training_history():
     response = client.get(
-        "/api/bot/train_data/history",
+        "/api/bot/data/generation/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2129,7 +2129,7 @@ def test_add_training_data(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]}
     response = client.post(
-        "/api/bot/training-data",
+        "/api/bot/data/bulk",
         json=training_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2167,7 +2167,7 @@ def test_update_training_data_generator_status(monkeypatch):
         "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
     }
     response = client.put(
-        "/api/bot/processing-status",
+        "/api/bot/update/data/generator/status",
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2180,7 +2180,7 @@ def test_update_training_data_generator_status(monkeypatch):
 
 def test_get_training_data_history(monkeypatch):
     response = client.get(
-        "/api/bot/train_data/history",
+        "/api/bot/data/generation/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2204,7 +2204,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
         "response": training_data
     }
     response = client.put(
-        "/api/bot/processing-status",
+        "/api/bot/update/data/generator/status",
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2217,7 +2217,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
 
 def test_get_training_data_history_1(monkeypatch):
     response = client.get(
-        "/api/bot/train_data/history",
+        "/api/bot/data/generation/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2245,7 +2245,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
         "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
     }
     response = client.put(
-        "/api/bot/processing-status",
+        "/api/bot/update/data/generator/status",
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2260,7 +2260,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
         "exception": 'Exception message'
     }
     response = client.put(
-        "/api/bot/processing-status",
+        "/api/bot/update/data/generator/status",
         json=request_body,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2273,7 +2273,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
 
 def test_get_training_data_history_2(monkeypatch):
     response = client.get(
-        "/api/bot/train_data/history",
+        "/api/bot/data/generation/history",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2305,7 +2305,7 @@ def mock_file_upload(monkeypatch):
         return None
 
     monkeypatch.setattr(TrainingDataGenerationProcessor, "is_in_progress", _in_progress_mock)
-    monkeypatch.setattr(TrainingDataGenerationProcessor, "is_daily_file_limit_exceeded", _daily_limit_mock)
+    monkeypatch.setattr(TrainingDataGenerationProcessor, "check_data_generation_limit", _daily_limit_mock)
     monkeypatch.setattr(TrainingDataGenerationProcessor, "set_status", _set_status_mock)
     monkeypatch.setattr(training_data_generator, "parse_document_and_generate_training_data", _train_data_gen)
 

@@ -1959,7 +1959,7 @@ class TestTrainingDataProcessor:
             "http://localhost/knowledge-graph",
             status=200
         )
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "event_url", "http://localhost/knowledge-graph")
+        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
         parse_document_and_generate_training_data("tests", "testUser", "testtoken")
 
     @responses.activate
@@ -1992,9 +1992,9 @@ class TestTrainingDataProcessor:
             start_timestamp=datetime.utcnow()
         ).save()
 
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "event_url", "http://localhost/knowledge-graph")
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "kairon_url", "http://localhost:5000")
-        monkeypatch.setattr(Utility, "trigger_knowledge_graph_event", raise_exception)
+        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
+        monkeypatch.setitem(Utility.environment['data_generation'], "kairon_url", "http://localhost:5000")
+        monkeypatch.setattr(Utility, "trigger_data_generation_event", raise_exception)
         parse_document_and_generate_training_data("tests", "testUser", "testtoken")
         status = TrainingDataGenerator.objects(
             bot="tests",
@@ -2139,18 +2139,18 @@ class TestTrainingDataProcessor:
         assert len(history) == 1
 
     def test_daily_file_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 4)
-        actual_response = TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests")
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
         assert actual_response is False
 
     def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 1)
-        actual_response = TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests", False)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
         assert actual_response is True
 
     def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['knowledge_graph'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
         with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.is_daily_file_limit_exceeded("tests")
+            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
 
         assert str(exp.value) == "Daily file processing limit exceeded."

@@ -9,20 +9,20 @@ from loguru import logger
 def create_arg_parser():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='functions')
-    kb_parser = subparsers.add_parser('generate-training-data', help="Initiate training data generation")
-    kb_parser.add_argument('bot', help="Bot id for which training data is to be generated", action='store',
+    data_generation = subparsers.add_parser('generate-training-data', help="Initiate training data generation")
+    data_generation.add_argument('bot', help="Bot id for which training data is to be generated", action='store',
                            nargs=1, type=str)
-    kb_parser.add_argument('user', help="User who is initiating training data generation", action='store', nargs=1,
+    data_generation.add_argument('user', help="User who is initiating training data generation", action='store', nargs=1,
                            type=str)
-    kb_parser.add_argument('token', help="JWT token for updating processing status", action='store', nargs=1, type=str)
-    kb_parser.set_defaults(which='kb_parser')
+    data_generation.add_argument('token', help="JWT token for updating processing status", action='store', nargs=1, type=str)
+    data_generation.set_defaults(which='data_generation')
 
-    training_parser = subparsers.add_parser('train', help="Initiate model training")
-    training_parser.add_argument('bot', help="Bot id for which training needs to trigger", action='store', nargs=1,
+    training = subparsers.add_parser('train', help="Initiate model training")
+    training.add_argument('bot', help="Bot id for which training needs to trigger", action='store', nargs=1,
                                  type=str)
-    training_parser.add_argument('user', help="User who is training", action='store', nargs=1, type=str)
-    training_parser.add_argument('token', help="JWT token for remote agent reload", action='store', nargs=1, type=str)
-    training_parser.set_defaults(which='training_parser')
+    training.add_argument('user', help="User who is training", action='store', nargs=1, type=str)
+    training.add_argument('token', help="JWT token for remote agent reload", action='store', nargs=1, type=str)
+    training.set_defaults(which='training')
     return parser
 
 
@@ -33,10 +33,10 @@ def main():
     connect(host=Utility.environment['database']['url'])
     logger.info(arguments.bot)
     logger.info(arguments.user)
-    if arguments.which == 'training_parser':
+    if arguments.which == 'training':
         logger.info(arguments.token)
         start_training(arguments.bot, arguments.user, arguments.token)
-    elif arguments.which == 'kb_parser':
+    elif arguments.which == 'data_generation':
         parse_document_and_generate_training_data(arguments.bot, arguments.user, arguments.token)
 
 

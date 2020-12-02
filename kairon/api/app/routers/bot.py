@@ -284,8 +284,7 @@ async def chat(
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
         agent_url = Utility.environment['model']['train'].get('agent_url')
         token = auth.create_access_token(data={"sub": current_user.email})
-        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'),
-                                        current_user.get_user(), json={'data': request_data.data})
+        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'), current_user.get_user(), json={'data': request_data.data})
     else:
         model = AgentProcessor.get_agent(current_user.get_bot())
         response = await model.handle_text(
@@ -402,7 +401,7 @@ async def upload_file(
     Uploads document for training data generation and triggers event for intent creation
     """
     TrainingDataGenerationProcessor.is_in_progress(current_user.get_bot())
-    TrainingDataGenerationProcessor.is_daily_file_limit_exceeded(current_user.get_bot())
+    TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
     file_path = await Utility.upload_document(doc)
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
           user=current_user.get_user(), status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value, document_path=file_path)
@@ -455,7 +454,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(auth.get_current_user), ):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user),):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -566,8 +565,8 @@ async def get_http_action(action: str = Path(default=None, description="action n
     Returns configuration set for the HTTP action
     """
     http_action_config = mongo_processor.get_http_action_config(action_name=action,
-                                                                user=current_user.get_user(),
-                                                                bot=current_user.bot)
+                                                                           user=current_user.get_user(),
+                                                                           bot=current_user.bot)
     action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
     return Response(data=action_config)
 
@@ -602,7 +601,7 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     return Response(message=message)
 
 
-@router.post("/training-data", response_model=Response)
+@router.post("/data/bulk", response_model=Response)
 async def add_training_data(
         request_data: BulkTrainingDataAddRequest, current_user: User = Depends(auth.get_current_user)
 ):
@@ -621,7 +620,7 @@ async def add_training_data(
     return {"message": "Training data added successfully!", "data": status}
 
 
-@router.put("/processing-status", response_model=Response)
+@router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
         request_data: TrainingDataGeneratorStatusModel, current_user: User = Depends(auth.get_current_user)
 ):
@@ -636,7 +635,7 @@ async def update_training_data_generator_status(
     return {"message": "Status updated successfully!"}
 
 
-@router.get("/train_data/history", response_model=Response)
+@router.get("/data/generation/history", response_model=Response)
 async def get_trainData_history(
         current_user: User = Depends(auth.get_current_user),
 ):

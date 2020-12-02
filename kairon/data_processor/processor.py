@@ -2272,7 +2272,7 @@ class TrainingDataGenerationProcessor:
         :param bot: bot id
         :param user: user id
         :param status: InProgress, Done, Fail
-        :param response: knowledge graph processing response
+        :param response: data generation response
         :param exception: exception while training
         :return: None
         """
@@ -2335,7 +2335,7 @@ class TrainingDataGenerationProcessor:
                         | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
                         | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
             if raise_exception:
-                raise AppException("Previous knowledge graph processing not completed")
+                raise AppException("Previous data generation process not completed")
             else:
                 return True
         else:
@@ -2367,7 +2367,7 @@ class TrainingDataGenerationProcessor:
             yield item
 
     @staticmethod
-    def is_daily_file_limit_exceeded(bot: Text, raise_exception=True):
+    def check_data_generation_limit(bot: Text, raise_exception=True):
         """
         checks if daily training data generation limit is exhausted
 
@@ -2382,7 +2382,7 @@ class TrainingDataGenerationProcessor:
         doc_count = TrainingDataGenerator.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['knowledge_graph']["limit_per_day"]:
+        if doc_count >= Utility.environment['data_generation']["limit_per_day"]:
             if raise_exception:
                 raise AppException("Daily file processing limit exceeded.")
             else:
