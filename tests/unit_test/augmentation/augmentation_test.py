@@ -57,8 +57,7 @@ class TestQuestionGeneration:
         assert all(text in expected for text in actual)
 
 
-
-class TestFileData:
+class TestDocumentParser:
 
     def test_doc_structure_pdf(self):
         structure, list_sentences = DocumentParser.parse(pdf_file)
