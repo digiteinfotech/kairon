@@ -1,4 +1,5 @@
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
+from augmentation.question_generator.generator import QuestionGenerator
 from augmentation.knowledge_graph.document_parser import DocumentParser
 from augmentation.knowledge_graph.training_data_generator import TrainingDataGenerator
 pdf_file = "./tests/testing_data/file_data/sample1.pdf"
@@ -6,7 +7,7 @@ docx_file = "./tests/testing_data/file_data/sample1.docx"
 
 class TestQuestionGeneration:
 
-    def test_generate_questions(self):
+    def test_generate_paraphrases(self):
         expected = ['Where is digite located?',
                     'Where is digite?',
                     'What is the location of digite?',
@@ -20,7 +21,7 @@ class TestQuestionGeneration:
         actual = ParaPhrasing.paraphrases('where is digite located?')
         assert any(text in expected for text in actual)
 
-    def test_generate_questions_token(self):
+    def test_generate_praraphrases_from_token(self):
         expected = ['A friend.',
                     'A friend of mine.',
                     'a friend',
@@ -34,7 +35,7 @@ class TestQuestionGeneration:
         actual = ParaPhrasing.paraphrases('friend')
         assert any(text in expected for text in actual)
 
-    def test_generate_questions_token_special(self):
+    def test_generate_paraphrases_from_token_special(self):
         expected = ['A friend!',
                     "I'm a friend!",
                     'I am a friend!',
@@ -48,6 +49,14 @@ class TestQuestionGeneration:
 
         actual = ParaPhrasing.paraphrases('friend! @#.')
         assert any(text in expected for text in actual)
+
+    def test_generate_questions_from_passage(self):
+        actual = QuestionGenerator.generate("Python is a programming language. Created by Guido van Rossum and first released in 1991.")
+        print(actual)
+        expected = ["Who created Python?", "When was Python first released?"]
+        assert all(text in expected for text in actual)
+
+
 
 class TestFileData:
 

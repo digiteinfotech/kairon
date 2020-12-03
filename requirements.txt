@@ -1,8 +1,8 @@
 pyyaml
 torch
-rasa[full]==2.1.0
+rasa[full]==2.1.2
 tensorflow-text
-fastapi>=0.61.2
+fastapi>=0.62.0
 mongomock==3.21.0
 pytest==6.1.2
 pytest-html==3.0.0
@@ -23,13 +23,10 @@ secure==0.2.1
 password-strength==0.0.3.post2
 loguru
 nltk==3.5
-transformers==3.5.1
+transformers==4.0.0
 smart-config==0.1.3
 moto
-redis
-mockredis
 locust
 greenlet==0.4.17
-gevent==20.9.0
 python-docx==0.8.10
 PyMuPDF==1.18.0

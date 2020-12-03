@@ -24,7 +24,7 @@ class ParaPhrasing:
         if isinstance(input_text, str):
             input_text = [input_text]
         batch = ParaPhrasing.tokenizer.prepare_seq2seq_batch(input_text, truncation=True, padding='longest',
-                                                             max_length=60).to(
+                                                             max_length=60, return_tensors="pt").to(
             ParaPhrasing.torch_device)
         translated = ParaPhrasing.model.generate(**batch, max_length=60, num_beams=num_beams,
                                                  num_return_sequences=num_return_sequences, temperature=1.5)
