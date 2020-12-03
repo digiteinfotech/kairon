@@ -30,3 +30,4 @@ locust
 greenlet==0.4.17
 python-docx==0.8.10
 PyMuPDF==1.18.0
+sentencepiece

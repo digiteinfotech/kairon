@@ -1,4 +1,4 @@
-from argparse import ArgumentParser, ArgumentTypeError
+from argparse import ArgumentParser
 from mongoengine import connect
 from kairon.cli.training_data_generator import parse_document_and_generate_training_data
 from kairon.utils import Utility

@@ -5,6 +5,7 @@ from augmentation.knowledge_graph.training_data_generator import TrainingDataGen
 pdf_file = "./tests/testing_data/file_data/sample1.pdf"
 docx_file = "./tests/testing_data/file_data/sample1.docx"
 
+
 class TestQuestionGeneration:
 
     def test_generate_paraphrases(self):
