@@ -77,7 +77,7 @@ class TestMongoProcessor:
         assert training_data.lookup_tables.__len__() == 1
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
-        assert story_graph.story_steps.__len__() == 13
+        assert story_graph.story_steps.__len__() == 14
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
@@ -110,7 +110,7 @@ class TestMongoProcessor:
         assert training_data.lookup_tables.__len__() == 1
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
-        assert story_graph.story_steps.__len__() == 13
+        assert story_graph.story_steps.__len__() == 14
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
