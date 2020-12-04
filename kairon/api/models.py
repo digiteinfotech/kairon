@@ -262,8 +262,3 @@ class TrainingDataGeneratorStatusModel(BaseModel):
     status: TRAINING_DATA_GENERATOR_STATUS
     response: List[TrainingData] = None
     exception: str = None
-
-
-class RemoveResponses(BaseModel):
-    utterance_id: str
-    intent: str

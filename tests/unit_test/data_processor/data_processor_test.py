@@ -1022,20 +1022,19 @@ class TestMongoProcessor:
         story = "path_" + intent
         bot = "testBot"
         user = "testUser"
-        processor.add_intent(intent, bot, user, False)
         story_events = [{"name": intent, "type": "user"}, {"name": utterance, "type": "action"}]
         processor.add_story(story, story_events, bot, user)
         utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
         utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 2
-        processor.delete_response(intent, utter_intentA_1_id, bot, user)
+        processor.delete_response(utter_intentA_1_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
         stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
         assert len(list(resp)) == 0
         assert len(list(stories)) == 1
-        processor.delete_response(intent, utter_intentA_2_id, bot, user)
+        processor.delete_response(utter_intentA_2_id, bot, user)
         resp = processor.get_response(utterance, bot)
         stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
         assert len(list(resp)) == 0
@@ -1044,18 +1043,17 @@ class TestMongoProcessor:
     def test_delete_response_with_story_exception_1(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_response("utter_intentA_1_id", "test_delete_response_with_story", "testBot",
+            processor.delete_response("0123456789ab0123456789ab", "testBot",
                                       "testUser")
 
     def test_delete_response_with_story_exception_2(self):
         processor = MongoProcessor()
-        story_events = [{"name": "test_delete_response_with_story_exception_2", "type": "user"},
-                        {"name": "utter_test_delete_response_with_story_exception_2", "type": "action"}]
-        processor.add_intent('test_delete_response_with_story_exception_2', 'testBot', 'testUser', False)
-        processor.add_story("path_test_delete_response_with_story_exception_2", story_events, "testBot", "testUser")
+        utterance = "test_delete_response_with_story_exception_2"
+        bot = "testBot"
+        user = "testUser"
+        utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
         with pytest.raises(AppException):
-            processor.delete_response("test_delete_response_with_story_exception_2", "utter_test_delete_response_with_story_exception_2", "testBot",
-                                      "testUser")
+            processor.delete_response(utter_intentA_1_id, "testBot", "testUser")
 
     def test_delete_response_with_story_http_action(self):
         processor = MongoProcessor()
@@ -1082,14 +1080,13 @@ class TestMongoProcessor:
             http_params_list=http_params_list
         )
 
-        processor.add_intent(intent, bot, user, False)
         story_events = [{"name": intent, "type": "user"},
                         {"name": utterance, "type": "action"}]
         processor.add_story(story, story_events, bot, user)
         utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
-        processor.delete_response(intent, utter_intentA_1_id,bot, user)
+        processor.delete_response(utter_intentA_1_id,bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
         stories = Stories.objects(bot=bot, status=True, events__name__iexact=intent)

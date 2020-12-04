@@ -13,7 +13,7 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
-    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, RemoveResponses
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples, Responses
@@ -220,17 +220,14 @@ async def edit_responses(
 
 @router.delete("/response", response_model=Response)
 async def remove_responses(
-        request_data: RemoveResponses, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Deletes existing utterance value
     """
-    try:
-        mongo_processor.delete_response(
-            request_data.intent, request_data.utterance_id, current_user.get_bot(), current_user.get_user()
-        )
-    except Exception as e:
-        raise AppException(str(e))
+    mongo_processor.remove_document(
+        Responses, request_data.data, current_user.get_bot(), current_user.get_user()
+    )
     return {
         "message": "Utterance removed!",
     }

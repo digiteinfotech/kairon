@@ -454,7 +454,7 @@ def test_remove_response():
     assert len(training_examples["data"]) == 2
     response = client.delete(
         "/api/bot/response",
-        json={"intent": "greet", "utterance_id": training_examples["data"][0]["_id"]},
+        json={"data": training_examples["data"][0]["_id"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -472,7 +472,7 @@ def test_remove_response():
 def test_remove_response_empty_id():
     response = client.delete(
         "/api/bot/response",
-        json={"intent": "greet", "utterance_id": ""},
+        json={"data": ""},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -588,7 +588,7 @@ def test_get_utterance_from_intent():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]["name"] == "utter_greet"
+    assert actual["data"]["name"] == "utter_offer_help"
     assert actual["data"]["type"] == UTTERANCE_TYPE.BOT
     assert Utility.check_empty_string(actual["message"])
 

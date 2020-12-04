@@ -1883,19 +1883,18 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_response(self, intent: str, utterance_id: str, bot: str, user: str):
+    def delete_response(self, utterance_id: str, bot: str, user: str):
         try:
-            utterance_name, type = self.get_utterance_from_intent(intent, bot)
-            if utterance_name is None:
+            responses = Responses.objects(bot=bot, status=True).get(id=utterance_id)
+            if responses is None:
                 raise DoesNotExist()
-            responses = Responses.objects(bot=bot, status=True, name__iexact=utterance_name)
+            utterance_name = responses['name']
             story = Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name).get()
-            responses = list(responses)
-            if story is None or len(responses) == 0:
+            if story is None:
                 raise DoesNotExist()
             self.remove_document(Responses, utterance_id, bot, user)
-
-            if len(responses) <= 1:
+            responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
+            if len(responses) <= 0:
                 story.status = False
                 story.save()
         except DoesNotExist:
