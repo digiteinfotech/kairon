@@ -1015,6 +1015,90 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="path_intent3").get()
         assert story is not None
 
+    def test_delete_response_with_story(self):
+        processor = MongoProcessor()
+        intent = "test_delete_response_with_story"
+        utterance = "utter_" + intent
+        story = "path_" + intent
+        bot = "testBot"
+        user = "testUser"
+        processor.add_intent(intent, bot, user, False)
+        story_events = [{"name": intent, "type": "user"}, {"name": utterance, "type": "action"}]
+        processor.add_story(story, story_events, bot, user)
+        utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
+        utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
+        resp = processor.get_response(utterance, bot)
+        assert len(list(resp)) == 2
+        processor.delete_response(intent, utter_intentA_1_id, bot, user)
+        resp = processor.get_response(utterance, bot)
+        assert len(list(resp)) == 1
+        stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
+        assert len(list(resp)) == 0
+        assert len(list(stories)) == 1
+        processor.delete_response(intent, utter_intentA_2_id, bot, user)
+        resp = processor.get_response(utterance, bot)
+        stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
+        assert len(list(resp)) == 0
+        assert len(list(stories)) == 0
+
+    def test_delete_response_with_story_exception_1(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_response("utter_intentA_1_id", "test_delete_response_with_story", "testBot",
+                                      "testUser")
+
+    def test_delete_response_with_story_exception_2(self):
+        processor = MongoProcessor()
+        story_events = [{"name": "test_delete_response_with_story_exception_2", "type": "user"},
+                        {"name": "utter_test_delete_response_with_story_exception_2", "type": "action"}]
+        processor.add_intent('test_delete_response_with_story_exception_2', 'testBot', 'testUser', False)
+        processor.add_story("path_test_delete_response_with_story_exception_2", story_events, "testBot", "testUser")
+        with pytest.raises(AppException):
+            processor.delete_response("test_delete_response_with_story_exception_2", "utter_test_delete_response_with_story_exception_2", "testBot",
+                                      "testUser")
+
+    def test_delete_response_with_story_http_action(self):
+        processor = MongoProcessor()
+        intent = "test_delete_response_with_story_http_action"
+        utterance = "utter_test_delete_response_with_story_http_action"
+        story = "path_test_delete_response_with_story_http_action"
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_delete_response_with_story_http_action'
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            intent=intent,
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+
+        processor.add_intent(intent, bot, user, False)
+        story_events = [{"name": intent, "type": "user"},
+                        {"name": utterance, "type": "action"}]
+        processor.add_story(story, story_events, bot, user)
+        utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
+        resp = processor.get_response(utterance, bot)
+        assert len(list(resp)) == 1
+        processor.delete_response(intent, utter_intentA_1_id,bot, user)
+        resp = processor.get_response(utterance, bot)
+        assert len(list(resp)) == 0
+        stories = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
+        assert len(list(stories)) == 0
+        processor.add_http_action_with_story(http_action_config, user, bot)
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action)
+        assert actual_http_action is not None
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
