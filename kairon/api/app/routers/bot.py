@@ -13,15 +13,16 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
-    HttpActionConfigRequest
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel
 )
-from kairon.data_processor.constant import MODEL_TRAINING_STATUS
+from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples, Responses
 from kairon.data_processor.processor import (
     MongoProcessor,
     AgentProcessor,
-    ModelProcessor,
+    ModelProcessor, TrainingDataGenerationProcessor,
 )
+from kairon.cli.training_data_generator import parse_document_and_generate_training_data
 from kairon.exceptions import AppException
 from kairon.train import start_training
 from kairon.utils import Utility
@@ -390,6 +391,27 @@ async def upload_Files(
     return {"message": "Data uploaded successfully!"}
 
 
+@router.post("/upload/data_generation/file", response_model=Response)
+async def upload_file(
+    background_tasks: BackgroundTasks,
+    doc: UploadFile = File(...),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Uploads document for training data generation and triggers event for intent creation
+    """
+    TrainingDataGenerationProcessor.is_in_progress(current_user.get_bot())
+    TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
+    file_path = await Utility.upload_document(doc)
+    TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
+          user=current_user.get_user(), status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value, document_path=file_path)
+    token = auth.create_access_token(data={"sub": current_user.email})
+    background_tasks.add_task(
+        parse_document_and_generate_training_data, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
+    )
+    return {"message": "File uploaded successfully and training data generation has begun"}
+
+
 @router.get("/download/data")
 async def download_data(
         background_tasks: BackgroundTasks,
@@ -577,3 +599,48 @@ async def delete_http_action(action: str = Path(default=None, description="actio
         raise AppException(e)
     message = "HTTP action deleted"
     return Response(message=message)
+
+
+@router.post("/data/bulk", response_model=Response)
+async def add_training_data(
+        request_data: BulkTrainingDataAddRequest, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Adds intents, training examples and responses along with story against the responses
+    """
+    try:
+        status = mongo_processor.add_training_data(
+            training_data=request_data.training_data,
+            bot=current_user.get_bot(),
+            user=current_user.get_user(),
+            is_integration=current_user.get_integration_status()
+        )
+    except Exception as e:
+        raise AppException(e)
+    return {"message": "Training data added successfully!", "data": status}
+
+
+@router.put("/update/data/generator/status", response_model=Response)
+async def update_training_data_generator_status(
+        request_data: TrainingDataGeneratorStatusModel, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Update training data generator status
+    """
+    try:
+        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
+                                                                         current_user.get_user())
+    except Exception as e:
+        raise AppException(e)
+    return {"message": "Status updated successfully!"}
+
+
+@router.get("/data/generation/history", response_model=Response)
+async def get_trainData_history(
+        current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Fetches File Data Generation history, when and who initiated the process
+    """
+    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot())
+    return {"data": {"training_history": file_history}}

@@ -19,3 +19,8 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
+
+data_generation:
+  limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
+  event_url: ${EVENT_URL}
+  kairon_url: ${KAIRON_URL}

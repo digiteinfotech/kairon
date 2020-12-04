@@ -1,12 +1,10 @@
 from enum import Enum
 from typing import List, Any, Dict
-
 import validators
-ValidationFailure = validators.ValidationFailure
-
-from pydantic import BaseModel, validator, SecretStr
-
+from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from kairon.exceptions import AppException
+ValidationFailure = validators.ValidationFailure
+from pydantic import BaseModel, validator, SecretStr
 
 
 class Token(BaseModel):
@@ -242,3 +240,25 @@ class HttpActionConfigResponse(BaseModel):
     params_list: List[HttpActionParametersResponse]
     bot: str
     user: str
+
+
+class TrainingData(BaseModel):
+    intent: str
+    training_examples: List[str]
+    response: str
+
+
+class BulkTrainingDataAddRequest(BaseModel):
+    training_data: List[TrainingData]
+
+
+class TrainingDataGeneratorResponseModel(BaseModel):
+    intent: str
+    training_examples: List[str]
+    response: str
+
+
+class TrainingDataGeneratorStatusModel(BaseModel):
+    status: TRAINING_DATA_GENERATOR_STATUS
+    response: List[TrainingData] = None
+    exception: str = None

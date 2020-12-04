@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import List
 
 import pytest
@@ -10,27 +11,35 @@ from rasa.shared.core.training_data.structures import StoryGraph
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
+from augmentation.knowledge_graph import training_data_generator
+from augmentation.knowledge_graph.document_parser import DocumentParser
 from kairon.action_server.data_objects import HttpActionConfig
+from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS
+from kairon.cli.training_data_generator import parse_document_and_generate_training_data
+from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
                                                 Intents,
                                                 Actions,
                                                 Responses,
-                                                ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText
+                                                ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
+                                                TrainingDataGenerator, TrainingDataGeneratorResponse
                                                 )
-from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor
+from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
+    TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
 
 
 class TestMongoProcessor:
+
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        os.environ["system_file"] = "./tests/testing_d" \
+                                    "ata/system.yaml"
         Utility.load_evironment()
         connect(host=Utility.environment["database"]['url'])
 
@@ -38,12 +47,11 @@ class TestMongoProcessor:
     async def test_load_from_path(self):
         processor = MongoProcessor()
         result = await (
-                    processor.save_from_path(
-                        "./tests/testing_data/initial", bot="tests", user="testUser"
-                    )
-                )
+            processor.save_from_path(
+                "./tests/testing_data/initial", bot="tests", user="testUser"
+            )
+        )
         assert result is None
-
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -924,7 +932,6 @@ class TestMongoProcessor:
         model_path = start_training("tests", "testUser")
         assert model_path is None
 
-
     @responses.activate
     def test_start_training_done_reload_event(self, monkeypatch):
         responses.add(
@@ -936,6 +943,77 @@ class TestMongoProcessor:
         monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
         model_path = start_training("tests", "testUser")
         assert model_path
+
+    def test_add_training_data(self):
+        training_data = [
+            models.TrainingData(intent="intent1",
+                                training_examples=["example1", "example2"],
+                                response="response1"),
+            models.TrainingData(intent="intent2",
+                                training_examples=["example3", "example4"],
+                                response="response2")
+        ]
+        processor = MongoProcessor()
+        processor.add_training_data(training_data, "training_bot", "training_user", False)
+        assert Intents.objects(name="intent1").get() is not None
+        assert Intents.objects(name="intent2").get() is not None
+        training_examples = list(TrainingExamples.objects(intent="intent1"))
+        assert training_examples is not None
+        assert len(training_examples) == 2
+        training_examples = list(TrainingExamples.objects(intent="intent2"))
+        assert len(training_examples) == 2
+        assert Responses.objects(name="utter_intent1") is not None
+        assert Responses.objects(name="utter_intent2") is not None
+        story = Stories.objects(block_name="path_intent1").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent1'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent1"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent2").get()
+        assert story is not None
+
+    def test_add_training_data_with_invalid_training_example(self):
+        training_data = [
+            models.TrainingData(intent="intent3",
+                                training_examples=[" ", "example"],
+                                response="response3")]
+        processor = MongoProcessor()
+        processor.add_training_data(training_data, "training_bot", "training_user", False)
+        assert Intents.objects(name="intent3").get() is not None
+        training_examples = list(TrainingExamples.objects(intent="intent3"))
+        assert training_examples is not None
+        assert len(training_examples) == 1
+        assert Responses.objects(name="utter_intent3") is not None
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent3'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent3"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
+
+    def test_add_training_data_with_intent_exists(self):
+        training_data = [
+            models.TrainingData(intent="intent3",
+                                training_examples=["example for intent3"],
+                                response="response3")]
+        processor = MongoProcessor()
+        processor.add_training_data(training_data, "training_bot", "training_user", False)
+        assert Intents.objects(name="intent3").get() is not None
+        training_examples = list(TrainingExamples.objects(intent="intent3"))
+        assert training_examples is not None
+        assert len(training_examples) == 2
+        assert Responses.objects(name="utter_intent3") is not None
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent3'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent3"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
 
 
 # pylint: disable=R0201
@@ -957,6 +1035,7 @@ class TestAgentProcessor:
         with pytest.raises(AppException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
+
 
 class TestModelProcessor:
     @pytest.fixture(autouse=True)
@@ -1863,3 +1942,215 @@ class TestModelProcessor:
         processor.add_intent("TestingDelGreeting2", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
                                 delete_dependencies=False)
+
+
+class TestTrainingDataProcessor:
+
+    @pytest.fixture(autouse=True)
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_evironment()
+        connect(host=Utility.environment["database"]['url'])
+
+    @responses.activate
+    def test_training_data_processor_using_event(self, monkeypatch):
+        responses.add(
+            responses.POST,
+            "http://localhost/knowledge-graph",
+            status=200
+        )
+        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
+        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
+
+    @responses.activate
+    def test_training_data_processor_using_event_failure(self, monkeypatch):
+        responses.add(
+            responses.POST,
+            "http://localhost/knowledge-graph",
+            status=500
+        )
+
+        def raise_exception(*args, **kwargs):
+            raise Exception("exception msg")
+
+        responses.add(
+            responses.PUT,
+            "http://localhost:5000/api/bot/processing-status",
+            status=200,
+            match=[
+                responses.urlencoded_params_matcher({
+                    "status": TRAINING_DATA_GENERATOR_STATUS.FAIL,
+                    "exception": "exception msg"
+                })
+            ]
+        )
+        TrainingDataGenerator(
+            bot="tests",
+            user="testUser",
+            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
+            document_path='document/doc.pdf',
+            start_timestamp=datetime.utcnow()
+        ).save()
+
+        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
+        monkeypatch.setitem(Utility.environment['data_generation'], "kairon_url", "http://localhost:5000")
+        monkeypatch.setattr(Utility, "trigger_data_generation_event", raise_exception)
+        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
+        status = TrainingDataGenerator.objects(
+            bot="tests",
+            user="testUser",
+            status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
+        ).get()
+        assert status is not None
+        assert status['end_timestamp'] is not None
+        assert status['start_timestamp'] is not None
+        assert status['exception'] == 'exception msg'
+
+    def test_training_data_processor_db(self, monkeypatch):
+        def generate_tree_struct_and_sentences(*args, **kwargs):
+            return {"heading": ["para"]}, ["sentence1", "sentence2"]
+
+        def generate_intent(*args, **kwargs):
+            return [TrainingDataGeneratorResponse(
+                intent="intent",
+                training_examples=["example1", "example2"],
+                response="this is response"
+            )]
+
+        monkeypatch.setattr(DocumentParser, "parse", generate_tree_struct_and_sentences)
+        monkeypatch.setattr(training_data_generator.TrainingDataGenerator, "generate_intent", generate_intent)
+
+        TrainingDataGenerator(
+            bot="tests",
+            user="testUser",
+            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
+            document_path='document/doc.pdf',
+            start_timestamp=datetime.utcnow()
+        ).save()
+        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
+        status = TrainingDataGenerator.objects.get(
+            bot="tests",
+            user="testUser",
+            status=TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value)
+        assert status['response'] is not None
+        assert status['response'][0]['intent'] is not None
+        assert status['response'][0]['training_examples'] == ["example1", "example2"]
+        assert status['response'][0]['response'] == "this is response"
+        assert status['end_timestamp'] is not None
+
+    def test_training_data_processor_db_fail(self, monkeypatch):
+        def raise_exc(*args, **kwargs):
+            raise Exception("exception message")
+
+        monkeypatch.setattr(DocumentParser, "parse", raise_exc)
+
+        TrainingDataGenerator(
+            bot="tests1",
+            user="testUser1",
+            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
+            document_path='document/doc.pdf',
+            start_timestamp=datetime.utcnow()
+        ).save()
+        parse_document_and_generate_training_data("tests1", "testUser1", "testtoken")
+        status = TrainingDataGenerator.objects.get(
+            bot="tests1",
+            user="testUser1",
+            status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value)
+        assert status['response'] is None
+        assert status['exception'] == 'exception message'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+
+    def test_set_status_new_status(self):
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            document_path='document/doc.pdf',
+            status=''
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_fetch_latest_workload(self):
+        status = TrainingDataGenerationProcessor.fetch_latest_workload(
+            bot="tests2",
+            user="testUser2"
+        )
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_is_in_progress_true(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert status
+
+    def test_is_in_progress_exception(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.is_in_progress(
+                bot="tests2",
+            )
+
+    def test_set_status_update_status(self):
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            status=TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value,
+            response=[TrainingDataGeneratorResponse(
+                intent="intent",
+                training_examples=["example1", "example2"],
+                response="this is response"
+            )]
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        assert status['response'] is not None
+
+    def test_is_in_progress_false(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert not status
+
+    def test_get_training_data_processor_history(self):
+        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
+        assert len(history) == 1
+
+    def test_daily_file_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+        assert actual_response is False
+
+    def test_daily_file_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
+        assert actual_response is True
+
+    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+
+        assert str(exp.value) == "Daily file processing limit exceeded."

@@ -6,6 +6,7 @@ import tempfile
 from datetime import datetime, timedelta
 from glob import glob, iglob
 from html import escape
+from pathlib import Path
 from io import BytesIO
 from secrets import choice
 from smtplib import SMTP
@@ -721,6 +722,14 @@ class Utility:
         response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user, 'token': token})
         logger.info("model training event completed"+response.content.decode('utf8'))
 
+    @staticmethod
+    def trigger_data_generation_event(bot: str, user: str, kairon_url: str = None, token: str = None):
+        event_url = Utility.environment['data_generation']['event_url']
+        logger.info("Training data generator event started")
+        response = requests.post(event_url, headers={'content-type': 'application/json'},
+                                 json={'bot': bot, 'user': user, 'kairon_url': kairon_url, 'token': token})
+        logger.info("Training data generator event completed" + response.content.decode('utf8'))
+
 
     @staticmethod
     def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
@@ -740,3 +749,15 @@ class Utility:
             return EndpointConfig(url=Utility.environment['action'].get('url'))
         else:
             return None
+
+    @staticmethod
+    async def upload_document(doc):
+        if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
+            raise AppException("Invalid File Format")
+        folder_path = 'data_generator'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        destination = os.path.join(folder_path, doc.filename)
+        with Path(destination).open("wb") as buffer:
+            shutil.copyfileobj(doc.file, buffer)
+        return destination

@@ -76,3 +76,11 @@ class CUSTOM_ACTIONS(str, Enum):
     HTTP_ACTION_NAME = "kairon_http_action"
     HTTP_ACTION_CONFIG = "http_action_config"
 
+
+class TRAINING_DATA_GENERATOR_STATUS(str, Enum):
+    INITIATED = "Initiated"
+    TASKSPAWNED = "Task Spawned"
+    INPROGRESS = "Inprogress"
+    PARSE = "Task Spawned"
+    COMPLETED = "Completed"
+    FAIL = "Fail"

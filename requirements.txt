@@ -28,3 +28,6 @@ smart-config==0.1.3
 moto
 locust
 greenlet==0.4.17
+python-docx==0.8.10
+PyMuPDF==1.18.0
+sentencepiece
