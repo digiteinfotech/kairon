@@ -225,8 +225,8 @@ async def remove_responses(
     """
     Deletes existing utterance value
     """
-    mongo_processor.remove_document(
-        Responses, request_data.data, current_user.get_bot(), current_user.get_user()
+    mongo_processor.delete_response(
+        request_data.data, current_user.get_bot(), current_user.get_user()
     )
     return {
         "message": "Utterance removed!",
