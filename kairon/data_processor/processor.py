@@ -1884,6 +1884,8 @@ class MongoProcessor:
             raise AppException("Unable to remove document" + str(ex))
 
     def delete_response(self, utterance_id: str, bot: str, user: str):
+        if not (utterance_id and utterance_id.strip()):
+            raise AppException("Utterance Id cannot be empty or spaces")
         try:
             responses = Responses.objects(bot=bot, status=True).get(id=utterance_id)
             if responses is None:
