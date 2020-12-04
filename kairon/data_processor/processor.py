@@ -1883,6 +1883,25 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
+    def delete_response(self, utterance_id: str, bot: str, user: str):
+        if not (utterance_id and utterance_id.strip()):
+            raise AppException("Utterance Id cannot be empty or spaces")
+        try:
+            responses = Responses.objects(bot=bot, status=True).get(id=utterance_id)
+            if responses is None:
+                raise DoesNotExist()
+            utterance_name = responses['name']
+            story = Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name).get()
+            if story is None:
+                raise DoesNotExist()
+            self.remove_document(Responses, utterance_id, bot, user)
+            responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
+            if len(responses) <= 0:
+                story.status = False
+                story.save()
+        except DoesNotExist:
+            raise AppException("Unable to remove document")
+
     def prepare_and_add_story(self, story: str, intent: str, bot: str, user: str):
         """
         Creates story events from intent for related Http action and adds it to the stories collection.

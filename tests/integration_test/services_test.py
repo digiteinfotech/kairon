@@ -478,7 +478,7 @@ def test_remove_response_empty_id():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Unable to remove document"
+    assert actual["message"] == "Utterance Id cannot be empty or spaces"
 
 
 def test_remove_response_():
