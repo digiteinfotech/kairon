@@ -1082,7 +1082,7 @@ class TestMongoProcessor:
         utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
-        processor.delete_response(utter_intentA_1_id, bot, user)
+        processor.delete_response(utter_intentA_1_id,bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
         stories = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
