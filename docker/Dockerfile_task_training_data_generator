@@ -8,7 +8,6 @@ WORKDIR ${KG_HOME}
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
-RUN python3 -m pip install mongoengine==0.20.0
 RUN python3 -m pip install cython
 RUN python3 -m pip install pyjwt
 RUN python3 -m pip install passlib[bcrypt]
@@ -23,19 +22,20 @@ RUN python3 -m pip install loguru
 RUN python3 -m pip install smart-config==0.1.3
 RUN python3 -m pip install python-docx
 RUN python3 -m pip install PyMuPDF
+RUN python3 -m pip install sentencepiece
+RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp
 
-COPY kairon ${KG_HOME}/kairon
-COPY augmentation/knowledge_graph ${KG_HOME}/augmentation/knowledge_graph
+COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/
 COPY template ${KG_HOME}/template
 COPY custom ${KG_HOME}/custom
 COPY email.yaml ${KG_HOME}/
 
-ENV BOT default
+ENV KAIRON_URL default
 ENV USER default
 ENV TOKEN default
 
-CMD ["sh","-c","python -m kairon --generate-training-data ${BOT} ${USER} ${TOKEN}"]
+CMD ["sh","-c","python -m augmentation --generate-training-data ${KAIRON_URL} ${USER} ${TOKEN}"]

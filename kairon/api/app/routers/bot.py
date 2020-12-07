@@ -16,13 +16,12 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
-from kairon.data_processor.data_objects import TrainingExamples, Responses
+from kairon.data_processor.data_objects import TrainingExamples
 from kairon.data_processor.processor import (
     MongoProcessor,
     AgentProcessor,
     ModelProcessor, TrainingDataGenerationProcessor,
 )
-from kairon.cli.training_data_generator import parse_document_and_generate_training_data
 from kairon.exceptions import AppException
 from kairon.train import start_training
 from kairon.utils import Utility
@@ -407,7 +406,7 @@ async def upload_file(
           user=current_user.get_user(), status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value, document_path=file_path)
     token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        parse_document_and_generate_training_data, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
+        Utility.trigger_data_generation_event, current_user.get_user(), token.decode('utf8')
     )
     return {"message": "File uploaded successfully and training data generation has begun"}
 
@@ -644,3 +643,14 @@ async def get_trainData_history(
     """
     file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot())
     return {"data": {"training_history": file_history}}
+
+
+@router.get("/data/generation/latest", response_model=Response)
+async def get_latest_data_generation_status(
+        current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Fetches status for latest data generation request
+    """
+    latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(), current_user.get_user())
+    return {"data": latest_data_generation_status}

@@ -80,7 +80,7 @@ class CUSTOM_ACTIONS(str, Enum):
 class TRAINING_DATA_GENERATOR_STATUS(str, Enum):
     INITIATED = "Initiated"
     TASKSPAWNED = "Task Spawned"
-    INPROGRESS = "Inprogress"
+    INPROGRESS = "In progress"
     PARSE = "Task Spawned"
     COMPLETED = "Completed"
     FAIL = "Fail"
