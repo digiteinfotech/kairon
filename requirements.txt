@@ -17,7 +17,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.5
 py3dns==3.2.1
 black
-uvicorn==0.12.3
+uvicorn==0.13.0
 validators
 secure==0.2.1
 password-strength==0.0.3.post2
