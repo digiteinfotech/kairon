@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from typing import List
 
 import pytest
@@ -11,12 +10,9 @@ from rasa.shared.core.training_data.structures import StoryGraph
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
-from augmentation.knowledge_graph import training_data_generator
-from augmentation.knowledge_graph.document_parser import DocumentParser
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
-from kairon.cli.training_data_generator import parse_document_and_generate_training_data
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
@@ -2033,116 +2029,6 @@ class TestTrainingDataProcessor:
         Utility.load_evironment()
         connect(host=Utility.environment["database"]['url'])
 
-    @responses.activate
-    def test_training_data_processor_using_event(self, monkeypatch):
-        responses.add(
-            responses.POST,
-            "http://localhost/knowledge-graph",
-            status=200
-        )
-        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
-        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
-
-    @responses.activate
-    def test_training_data_processor_using_event_failure(self, monkeypatch):
-        responses.add(
-            responses.POST,
-            "http://localhost/knowledge-graph",
-            status=500
-        )
-
-        def raise_exception(*args, **kwargs):
-            raise Exception("exception msg")
-
-        responses.add(
-            responses.PUT,
-            "http://localhost:5000/api/bot/processing-status",
-            status=200,
-            match=[
-                responses.urlencoded_params_matcher({
-                    "status": TRAINING_DATA_GENERATOR_STATUS.FAIL,
-                    "exception": "exception msg"
-                })
-            ]
-        )
-        TrainingDataGenerator(
-            bot="tests",
-            user="testUser",
-            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
-            document_path='document/doc.pdf',
-            start_timestamp=datetime.utcnow()
-        ).save()
-
-        monkeypatch.setitem(Utility.environment['data_generation'], "event_url", "http://localhost/knowledge-graph")
-        monkeypatch.setitem(Utility.environment['data_generation'], "kairon_url", "http://localhost:5000")
-        monkeypatch.setattr(Utility, "trigger_data_generation_event", raise_exception)
-        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
-        status = TrainingDataGenerator.objects(
-            bot="tests",
-            user="testUser",
-            status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
-        ).get()
-        assert status is not None
-        assert status['end_timestamp'] is not None
-        assert status['start_timestamp'] is not None
-        assert status['exception'] == 'exception msg'
-
-    def test_training_data_processor_db(self, monkeypatch):
-        def generate_tree_struct_and_sentences(*args, **kwargs):
-            return {"heading": ["para"]}, ["sentence1", "sentence2"]
-
-        def generate_intent(*args, **kwargs):
-            return [TrainingDataGeneratorResponse(
-                intent="intent",
-                training_examples=["example1", "example2"],
-                response="this is response"
-            )]
-
-        monkeypatch.setattr(DocumentParser, "parse", generate_tree_struct_and_sentences)
-        monkeypatch.setattr(training_data_generator.TrainingDataGenerator, "generate_intent", generate_intent)
-
-        TrainingDataGenerator(
-            bot="tests",
-            user="testUser",
-            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
-            document_path='document/doc.pdf',
-            start_timestamp=datetime.utcnow()
-        ).save()
-        parse_document_and_generate_training_data("tests", "testUser", "testtoken")
-        status = TrainingDataGenerator.objects.get(
-            bot="tests",
-            user="testUser",
-            status=TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value)
-        assert status['response'] is not None
-        assert status['response'][0]['intent'] is not None
-        assert status['response'][0]['training_examples'] == ["example1", "example2"]
-        assert status['response'][0]['response'] == "this is response"
-        assert status['end_timestamp'] is not None
-
-    def test_training_data_processor_db_fail(self, monkeypatch):
-        def raise_exc(*args, **kwargs):
-            raise Exception("exception message")
-
-        monkeypatch.setattr(DocumentParser, "parse", raise_exc)
-
-        TrainingDataGenerator(
-            bot="tests1",
-            user="testUser1",
-            status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value,
-            document_path='document/doc.pdf',
-            start_timestamp=datetime.utcnow()
-        ).save()
-        parse_document_and_generate_training_data("tests1", "testUser1", "testtoken")
-        status = TrainingDataGenerator.objects.get(
-            bot="tests1",
-            user="testUser1",
-            status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value)
-        assert status['response'] is None
-        assert status['exception'] == 'exception message'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-
     def test_set_status_new_status(self):
         TrainingDataGenerationProcessor.set_status(
             bot="tests2",
@@ -2221,6 +2107,8 @@ class TestTrainingDataProcessor:
 
     def test_daily_file_limit_exceeded_False(self, monkeypatch):
         monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
+        TrainingDataGenerationProcessor.set_status(
+            "tests", "testUser", "Initiated")
         actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
         assert actual_response is False
 

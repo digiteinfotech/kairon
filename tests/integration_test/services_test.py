@@ -12,7 +12,6 @@ from mongoengine import connect
 from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
-from kairon.cli import training_data_generator
 from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor, TrainingDataGenerationProcessor
@@ -2288,6 +2287,28 @@ def test_get_training_data_history_2(monkeypatch):
     assert training_data['exception'] == 'Exception message'
 
 
+def test_fetch_latest(monkeypatch):
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+    }
+    response = client.put(
+        "/api/bot/update/data/generator/status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.get(
+        "/api/bot/data/generation/latest",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    assert actual["data"]['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+    assert actual["message"] is None
+
+
 async def mock_upload(doc):
     if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
         raise AppException("Invalid File Format")
@@ -2307,7 +2328,7 @@ def mock_file_upload(monkeypatch):
     monkeypatch.setattr(TrainingDataGenerationProcessor, "is_in_progress", _in_progress_mock)
     monkeypatch.setattr(TrainingDataGenerationProcessor, "check_data_generation_limit", _daily_limit_mock)
     monkeypatch.setattr(TrainingDataGenerationProcessor, "set_status", _set_status_mock)
-    monkeypatch.setattr(training_data_generator, "parse_document_and_generate_training_data", _train_data_gen)
+    monkeypatch.setattr(Utility, "trigger_data_generation_event", _train_data_gen)
 
 
 def test_file_upload_docx(mock_file_upload,monkeypatch):

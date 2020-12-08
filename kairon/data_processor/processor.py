@@ -2333,7 +2333,8 @@ class TrainingDataGenerationProcessor:
             doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
                     Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
                 status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get().to_mongo().to_dict()
+            doc.pop('_id')
         except DoesNotExist:
             doc = None
         return doc
