@@ -723,11 +723,12 @@ class Utility:
         logger.info("model training event completed"+response.content.decode('utf8'))
 
     @staticmethod
-    def trigger_data_generation_event(bot: str, user: str, kairon_url: str = None, token: str = None):
+    def trigger_data_generation_event(user: str, token: str):
         event_url = Utility.environment['data_generation']['event_url']
+        kairon_url = Utility.environment['data_generation']['kairon_url']
         logger.info("Training data generator event started")
         response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                 json={'bot': bot, 'user': user, 'kairon_url': kairon_url, 'token': token})
+                                 json={'user': user, 'kairon_url': kairon_url, 'token': token})
         logger.info("Training data generator event completed" + response.content.decode('utf8'))
 
 
