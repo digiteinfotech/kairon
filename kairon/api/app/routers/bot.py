@@ -608,12 +608,13 @@ async def add_training_data(
     Adds intents, training examples and responses along with story against the responses
     """
     try:
-        status = mongo_processor.add_training_data(
+        status, training_data_added = mongo_processor.add_training_data(
             training_data=request_data.training_data,
             bot=current_user.get_bot(),
             user=current_user.get_user(),
             is_integration=current_user.get_integration_status()
         )
+        TrainingDataGenerationProcessor.update_is_persisted_flag(request_data.history_id, training_data_added)
     except Exception as e:
         raise AppException(e)
     return {"message": "Training data added successfully!", "data": status}

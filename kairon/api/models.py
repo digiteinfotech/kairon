@@ -249,6 +249,7 @@ class TrainingData(BaseModel):
 
 
 class BulkTrainingDataAddRequest(BaseModel):
+    history_id: str
     training_data: List[TrainingData]
 
 
