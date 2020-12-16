@@ -23,7 +23,7 @@ services:
       - ./paraphrase_tmp:/root/.cache/
 
   kairon-question-generation:
-    image: digite/kairon-question-generation:latest
+    image: digite/kairon-qg:latest
     networks:
       - chatbotnetwork
     container_name: kairon-question-generation
