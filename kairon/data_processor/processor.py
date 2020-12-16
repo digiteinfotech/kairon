@@ -62,7 +62,7 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
-    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse,
+    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator,
 )
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
 from ..api import models
@@ -1035,6 +1035,7 @@ class MongoProcessor:
         :return: intent id
         """
         overall_response = [{}]
+        training_data_added = {}
         for data in training_data:
             status = {}
             try:
@@ -1070,6 +1071,11 @@ class MongoProcessor:
                         is_integration)
                 )
                 status['training_examples'] = status_message
+                training_examples = []
+                for training_data_add_status in status_message:
+                    if training_data_add_status['_id']:
+                        training_examples.append(training_data_add_status['text'])
+                training_data_added[data.intent] = training_examples
             except AppException as e:
                 status['training_examples'] = str(e)
 
@@ -1081,7 +1087,7 @@ class MongoProcessor:
             except AppException as e:
                 status['responses'] = str(e)
             overall_response.append(status)
-        return overall_response
+        return overall_response, training_data_added
 
     def add_intent(self, text: Text, bot: Text, user: Text, is_integration: bool):
         """
@@ -2263,11 +2269,20 @@ class TrainingDataGenerationProcessor:
         if request_data.response:
             training_data_list = []
             for training_data in request_data.response:
-                training_data_list.append(TrainingDataGeneratorResponse(
-                    intent=training_data.intent,
-                    training_examples=training_data.training_examples,
-                    response=training_data.response
-                ))
+                training_examples = []
+                for example in training_data.training_examples:
+                    training_examples.append(
+                        TrainingExamplesTrainingDataGenerator(
+                            training_example=example
+                        )
+                    )
+
+                training_data_list.append(
+                    TrainingDataGeneratorResponse(
+                        intent=training_data.intent,
+                        training_examples=training_examples,
+                        response=training_data.response
+                    ))
         TrainingDataGenerationProcessor.set_status(
             status=request_data.status,
             response=training_data_list,
@@ -2409,3 +2424,43 @@ class TrainingDataGenerationProcessor:
                 return True
         else:
             return False
+
+    @staticmethod
+    def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
+        history = TrainingDataGenerator.objects().get(id=doc_id)
+        updated_training_data_with_flag = []
+        for training_data in history.response:
+            intent = training_data.intent
+            response = training_data.response
+            existing_training_examples = [example.training_example for example in training_data.training_examples]
+            training_examples = []
+
+            if persisted_training_data.get(intent) is not None:
+                examples_added = persisted_training_data.get(training_data.intent)
+                examples_not_added = list(set(existing_training_examples) - set(examples_added))
+
+                for example in examples_not_added:
+                    training_examples.append(
+                        TrainingExamplesTrainingDataGenerator(
+                            training_example=example
+                        )
+                    )
+
+                for example in examples_added:
+                    training_examples.append(
+                        TrainingExamplesTrainingDataGenerator(
+                            training_example=example,
+                            is_persisted=True
+                        )
+                    )
+            else:
+                training_examples = existing_training_examples
+
+            updated_training_data_with_flag.append(
+                TrainingDataGeneratorResponse(
+                    intent=intent,
+                    training_examples=training_examples,
+                    response=response
+                ))
+        history.response = updated_training_data_with_flag
+        history.save()

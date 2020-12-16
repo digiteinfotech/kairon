@@ -2119,48 +2119,6 @@ def test_train_using_event(monkeypatch):
     assert actual["message"] == "Model training started."
 
 
-def test_add_training_data(monkeypatch):
-    training_data = {"training_data": [{
-        "intent": "intent1_test_add_training_data",
-        "training_examples": ["example1", "example2"],
-        "response": "response1"},
-        {"intent": "intent2_test_add_training_data",
-         "training_examples": ["example3", "example4"],
-         "response": "response2"}]}
-    response = client.post(
-        "/api/bot/data/bulk",
-        json=training_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is not None
-    assert actual["message"] == "Training data added successfully!"
-
-    assert Intents.objects(name="intent1_test_add_training_data").get() is not None
-    assert Intents.objects(name="intent2_test_add_training_data").get() is not None
-    training_examples = list(TrainingExamples.objects(intent="intent1_test_add_training_data"))
-    assert training_examples is not None
-    assert len(training_examples) == 2
-    training_examples = list(TrainingExamples.objects(intent="intent2_test_add_training_data"))
-    assert len(training_examples) == 2
-    assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
-    assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
-    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
-    assert story is not None
-    assert story['events'][0]['name'] == 'intent1_test_add_training_data'
-    assert story['events'][0]['type'] == StoryEventType.user
-    assert story['events'][1]['name'] == "utter_intent1_test_add_training_data"
-    assert story['events'][1]['type'] == StoryEventType.action
-    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
-    assert story is not None
-    assert story['events'][0]['name'] == 'intent2_test_add_training_data'
-    assert story['events'][0]['type'] == StoryEventType.user
-    assert story['events'][1]['name'] == "utter_intent2_test_add_training_data"
-    assert story['events'][1]['type'] == StoryEventType.action
-
-
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
         "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
@@ -2214,6 +2172,63 @@ def test_update_training_data_generator_status_completed(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
 
+def test_add_training_data(monkeypatch):
+    response = client.get(
+        "/api/bot/data/generation/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    response = actual["data"]
+    assert response is not None
+    response['status'] = 'Initiated'
+    assert actual["message"] is None
+    print(response)
+    doc_id = response['training_history'][0]['_id']
+    training_data = {
+        "history_id": doc_id,
+        "training_data": [{
+        "intent": "intent1_test_add_training_data",
+        "training_examples": ["example1", "example2"],
+        "response": "response1"},
+        {"intent": "intent2_test_add_training_data",
+         "training_examples": ["example3", "example4"],
+         "response": "response2"}]}
+    response = client.post(
+        "/api/bot/data/bulk",
+        json=training_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is not None
+    assert actual["message"] == "Training data added successfully!"
+
+    assert Intents.objects(name="intent1_test_add_training_data").get() is not None
+    assert Intents.objects(name="intent2_test_add_training_data").get() is not None
+    training_examples = list(TrainingExamples.objects(intent="intent1_test_add_training_data"))
+    assert training_examples is not None
+    assert len(training_examples) == 2
+    training_examples = list(TrainingExamples.objects(intent="intent2_test_add_training_data"))
+    assert len(training_examples) == 2
+    assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
+    assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
+    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent1_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent1_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
+    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent2_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent2_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
+
+
 def test_get_training_data_history_1(monkeypatch):
     response = client.get(
         "/api/bot/data/generation/history",
@@ -2232,10 +2247,16 @@ def test_get_training_data_history_1(monkeypatch):
     response = training_data['response']
     assert response is not None
     assert response[0]['intent'] == 'intent1_test_add_training_data'
-    assert response[0]['training_examples'] == ["example1", "example2"]
+    assert response[0]['training_examples'][0]['training_example'] == "example1"
+    assert response[0]['training_examples'][0]['is_persisted']
+    assert response[0]['training_examples'][1]['training_example'] == "example2"
+    assert response[0]['training_examples'][1]['is_persisted']
     assert response[0]['response'] == 'response1'
     assert response[1]['intent'] == 'intent2_test_add_training_data'
-    assert response[1]['training_examples'] == ["example3", "example4"]
+    assert response[1]['training_examples'][0]['training_example'] == "example3"
+    assert response[1]['training_examples'][0]['is_persisted']
+    assert response[1]['training_examples'][1]['training_example'] == "example4"
+    assert response[1]['training_examples'][1]['is_persisted']
     assert response[1]['response'] == 'response2'
 
 
