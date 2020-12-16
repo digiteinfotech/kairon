@@ -415,9 +415,14 @@ class ModelDeployment(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
 
+class TrainingExamplesTrainingDataGenerator(EmbeddedDocument):
+    training_example = StringField(required=True)
+    is_persisted = BooleanField(default=False)
+
+
 class TrainingDataGeneratorResponse(EmbeddedDocument):
     intent = StringField(required=True)
-    training_examples = ListField(StringField(), required=True)
+    training_examples = ListField(EmbeddedDocumentField(TrainingExamplesTrainingDataGenerator), required=True)
     response = StringField(required=True)
 
 

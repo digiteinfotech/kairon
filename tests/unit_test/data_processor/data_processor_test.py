@@ -21,7 +21,8 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Actions,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
-                                                TrainingDataGenerator, TrainingDataGeneratorResponse
+                                                TrainingDataGenerator, TrainingDataGeneratorResponse,
+                                                TrainingExamplesTrainingDataGenerator
                                                 )
 from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
     TrainingDataGenerationProcessor
@@ -2072,15 +2073,25 @@ class TestTrainingDataProcessor:
             )
 
     def test_set_status_update_status(self):
+        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
+        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
         TrainingDataGenerationProcessor.set_status(
             bot="tests2",
             user="testUser2",
             status=TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value,
             response=[TrainingDataGeneratorResponse(
-                intent="intent",
-                training_examples=["example1", "example2"],
-                response="this is response"
-            )]
+                intent="intent1",
+                training_examples=training_examples1,
+                response="this is response1"
+            ),
+                TrainingDataGeneratorResponse(
+                    intent="intent2",
+                    training_examples=training_examples2,
+                    response="this is response2"
+                )
+            ]
         )
         status = TrainingDataGenerator.objects(
             bot="tests2",
@@ -2093,6 +2104,39 @@ class TestTrainingDataProcessor:
         assert status['last_update_timestamp'] is not None
         assert status['end_timestamp'] is not None
         assert status['response'] is not None
+
+    def test_update_is_persisted_flag(self):
+        training_data = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        doc_id = training_data['id']
+        persisted_training_examples = {
+            "intent1": ["example1"],
+            "intent2": ["example3", "example4"]
+        }
+        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        response = status['response']
+        assert response is not None
+        assert response[0]['intent'] == 'intent1'
+        assert response[0]['training_examples'][0]['training_example'] == 'example2'
+        assert not response[0]['training_examples'][0]['is_persisted']
+        assert response[0]['training_examples'][1]['training_example'] == 'example1'
+        assert response[0]['training_examples'][1]['is_persisted']
+        assert response[1]['intent'] == 'intent2'
+        assert response[1]['training_examples'][0]['training_example'] == 'example3'
+        assert response[1]['training_examples'][0]['is_persisted']
+        assert response[1]['training_examples'][1]['training_example'] == 'example4'
+        assert response[1]['training_examples'][1]['is_persisted']
 
     def test_is_in_progress_false(self):
         status = TrainingDataGenerationProcessor.is_in_progress(
