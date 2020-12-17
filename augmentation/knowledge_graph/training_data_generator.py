@@ -1,6 +1,6 @@
 from question_generation import pipeline
 
-from kairon.data_processor.data_objects import TrainingDataGeneratorResponse
+from kairon.data_processor.data_objects import TrainingDataGeneratorResponse,TrainingExamplesTrainingDataGenerator
 
 
 class TrainingDataGenerator:
@@ -46,10 +46,11 @@ class TrainingDataGenerator:
         for i, element in enumerate(helper_list):
             key = value_out[i][0]
             value = value_out[i][1]
+            train_examples = [TrainingExamplesTrainingDataGenerator(training_example=sentence) for sentence in value[1]]
             if element[1][0:3] == '<p>':
                 training_data.append(TrainingDataGeneratorResponse(
                     intent=key,
                     response=value[0],
-                    training_examples=value[1]
+                    training_examples=train_examples
                 ))
         return training_data
