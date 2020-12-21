@@ -1,7 +1,5 @@
 from question_generation import pipeline
 
-from kairon.data_processor.data_objects import TrainingDataGeneratorResponse,TrainingExamplesTrainingDataGenerator
-
 
 class TrainingDataGenerator:
 
@@ -42,15 +40,15 @@ class TrainingDataGenerator:
     def generate_intent(treedict, newlist):
         value_out = TrainingDataGenerator.find_intents(0, 'root', treedict, newlist)
         helper_list = TrainingDataGenerator.helper_intent(0, 'root', treedict, newlist)
-        training_data = [TrainingDataGeneratorResponse]
+        training_data = []
         for i, element in enumerate(helper_list):
             key = value_out[i][0]
             value = value_out[i][1]
-            train_examples = [TrainingExamplesTrainingDataGenerator(training_example=sentence) for sentence in value[1]]
+            train_examples = [sentence for sentence in value[1]]
             if element[1][0:3] == '<p>':
-                training_data.append(TrainingDataGeneratorResponse(
-                    intent=key,
-                    response=value[0],
-                    training_examples=train_examples
-                ))
+                training_data.append({
+                    "intent": key,
+                    "response": value[0],
+                    "training_examples": train_examples
+                })
         return training_data
