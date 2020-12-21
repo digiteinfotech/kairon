@@ -8,6 +8,7 @@ ENV RASA_NLU_DOCKER="YES" \
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install nltk
 RUN python3 -m pip install transformers==4.0.0
+RUN python3 -m pip install sentencepiece
 RUN python3 -m pip install loguru
 RUN python3 -m pip install numpy
 RUN python3 -m pip install matplotlib
