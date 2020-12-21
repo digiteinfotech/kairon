@@ -49,7 +49,6 @@ from validators import email as mail_check
 from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
-from .data_processor.processor import TrainingDataGenerationProcessor
 from .exceptions import AppException
 from kairon.data_processor.cache import InMemoryAgentCache
 from loguru import logger
@@ -734,6 +733,7 @@ class Utility:
                                      json={'user': user, 'kairon_url': kairon_url, 'token': token})
             logger.info("Training data generator event completed" + response.content.decode('utf8'))
         except Exception as e:
+            from .data_processor.processor import TrainingDataGenerationProcessor
             TrainingDataGenerationProcessor.set_status(bot=bot,
                                                        user=user,
                                                        status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
