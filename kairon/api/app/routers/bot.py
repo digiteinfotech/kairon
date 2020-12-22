@@ -406,7 +406,7 @@ async def upload_file(
           user=current_user.get_user(), status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value, document_path=file_path)
     token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        Utility.trigger_data_generation_event, current_user.get_user(), token.decode('utf8')
+        Utility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
     )
     return {"message": "File uploaded successfully and training data generation has begun"}
 

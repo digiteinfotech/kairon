@@ -48,6 +48,7 @@ from validators import email as mail_check
 
 from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
+from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
 from kairon.data_processor.cache import InMemoryAgentCache
 from loguru import logger
@@ -723,13 +724,20 @@ class Utility:
         logger.info("model training event completed"+response.content.decode('utf8'))
 
     @staticmethod
-    def trigger_data_generation_event(user: str, token: str):
-        event_url = Utility.environment['data_generation']['event_url']
-        kairon_url = Utility.environment['data_generation']['kairon_url']
-        logger.info("Training data generator event started")
-        response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                 json={'user': user, 'kairon_url': kairon_url, 'token': token})
-        logger.info("Training data generator event completed" + response.content.decode('utf8'))
+    def trigger_data_generation_event(bot: str, user: str, token: str):
+        try:
+            event_url = Utility.environment['data_generation']['event_url']
+            kairon_url = Utility.environment['data_generation']['kairon_url']
+            logger.info("Training data generator event started")
+            response = requests.post(event_url, headers={'content-type': 'application/json'},
+                                     json={'user': user, 'kairon_url': kairon_url, 'token': token})
+            logger.info("Training data generator event completed" + response.content.decode('utf8'))
+        except Exception as e:
+            from .data_processor.processor import TrainingDataGenerationProcessor
+            TrainingDataGenerationProcessor.set_status(bot=bot,
+                                                       user=user,
+                                                       status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
+                                                       exception=str(e))
 
 
     @staticmethod

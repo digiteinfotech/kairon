@@ -71,16 +71,16 @@ class TestDocumentParser:
         assert structure[31] == [32]
         assert list_sentences[0] == '<h1> 1 Introducing  ONEPOINT Projects'
         final_list = training_data_generator.TrainingDataGenerator.generate_intent(structure, list_sentences)
-        expected = ['root_1-Introducing--ONEPOINT-Projects_1.3-Basic-Concepts_1.3.8-Open-Design']
-        assert any(item.intent in expected for item in final_list)
+        expected = 'root_1-Introducing--ONEPOINT-Projects_1.3-Basic-Concepts_1.3.8-Open-Design'
+        assert any(item['intent'] == expected for item in final_list)
 
     def test_doc_structure_docx(self):
         structure, list_sentences = DocumentParser.parse(docx_file)
         assert structure[23] == [24, 25]
         assert list_sentences[0] == '<h0> Demonstration of DOCX support in calibre'
         final_list = training_data_generator.TrainingDataGenerator.generate_intent(structure, list_sentences)
-        expected = ['root_Demonstration-of-DOCX-support-in-calibre']
-        assert any(item.intent in expected for item in final_list)
+        expected = 'root_Demonstration-of-DOCX-support-in-calibre'
+        assert any(item['intent'] == expected for item in final_list)
 
 
 class TestCli:
@@ -92,7 +92,7 @@ class TestCli:
 
         responses.add(
             responses.PUT,
-            "http://localhost:5000/api/bot/processing-status",
+            "http://localhost:5000/api/bot/update/data/generator/status",
             status=200,
             json={"success":True, "data":None, "message":None, "error_code":0}
         )
@@ -104,7 +104,7 @@ class TestCli:
     def test_parse_document_and_generate_training_data_no_doc_path(self, monkeypatch):
         responses.add(
             responses.PUT,
-            "http://localhost:5000/api/bot/processing-status",
+            "http://localhost:5000/api/bot/update/data/generator/status",
             status=200,
             json={"success": True, "data": None, "message": None, "error_code": 0}
         )
@@ -145,7 +145,7 @@ class TestCli:
     def test_set_training_data_status(self, monkeypatch):
         responses.add(
             responses.PUT,
-            "http://localhost:5000/api/bot/processing-status",
+            "http://localhost:5000/api/bot/update/data/generator/status",
             status=200,
             json={"error_code": 0}
         )

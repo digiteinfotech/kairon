@@ -6,11 +6,9 @@ from loguru import logger
 def create_arg_parser():
     parser = ArgumentParser()
     parser.add_argument('--generate-training-data', '-g', action='store_const', const='-g', help="Initiate training data generation")
-    parser.add_argument('kairon_url', help="Http url to access kairon APIs", action='store',
-                           nargs=1, type=str)
-    parser.add_argument('user', help="Kairon user who is initiating the command", action='store', nargs=1,
-                           type=str)
-    parser.add_argument('token', help="JWT token for the user", action='store', nargs=1, type=str)
+    parser.add_argument('kairon_url', help="Http url to access kairon APIs", action='store')
+    parser.add_argument('user', help="Kairon user who is initiating the command", action='store')
+    parser.add_argument('token', help="JWT token for the user", action='store')
     return parser
 
 

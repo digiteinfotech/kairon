@@ -8,11 +8,9 @@ from loguru import logger
 def create_arg_parser():
     parser = ArgumentParser()
     parser.add_argument('--train', '-t', action='store_const', const='-t', help="Initiate model training")
-    parser.add_argument('bot', help="Bot id for which command is executed", action='store',
-                           nargs=1, type=str)
-    parser.add_argument('user', help="Kairon user who is initiating the command", action='store', nargs=1,
-                           type=str)
-    parser.add_argument('token', help="JWT token for the user", action='store', nargs=1, type=str)
+    parser.add_argument('bot', help="Bot id for which command is executed", action='store')
+    parser.add_argument('user', help="Kairon user who is initiating the command", action='store')
+    parser.add_argument('token', help="JWT token for the user", action='store')
     return parser
 
 
