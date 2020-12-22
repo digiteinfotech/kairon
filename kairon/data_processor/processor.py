@@ -2435,7 +2435,7 @@ class TrainingDataGenerationProcessor:
             existing_training_examples = [example.training_example for example in training_data.training_examples]
             training_examples = []
 
-            if persisted_training_data.get(intent) is not None and len(persisted_training_data.get(intent)) != 0:
+            if persisted_training_data.get(intent):
                 examples_added = persisted_training_data.get(training_data.intent)
                 examples_not_added = list(set(existing_training_examples) - set(examples_added))
 
