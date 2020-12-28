@@ -129,7 +129,7 @@ def train_model_for_bot(bot: str):
     return model
 
 
-def start_training(bot: str, user: str, token: str = None, reload=False):
+def start_training(bot: str, user: str, token: str = None, reload=True):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
