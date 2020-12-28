@@ -2401,7 +2401,8 @@ class TrainingDataGenerationProcessor:
         """
         for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
-            item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
+            if item.get('document_path'):
+                item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
             item.pop("bot")
             item.pop("user")
             item["_id"] = item["_id"].__str__()
