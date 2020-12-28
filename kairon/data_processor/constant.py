@@ -1,6 +1,9 @@
 from enum import Enum
 
 
+TRAINING_DATA_GENERATOR_DIR = 'data_generator'
+
+
 class RESPONSE(str, Enum):
     Text = "text"
     CUSTOM = "custom"

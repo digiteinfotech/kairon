@@ -39,7 +39,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS,
+    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, TRAINING_DATA_GENERATOR_DIR,
 )
 from .data_objects import (
     Responses,
@@ -926,6 +926,7 @@ class MongoProcessor:
                 yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
+                ## metadata={"type": Any, "initial_value": event.value})
 
     def fetch_stories(self, bot: Text, status=True):
         """
@@ -1923,14 +1924,18 @@ class MongoProcessor:
         Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
                          events__name__iexact=intent)
 
+        http_action_config_slot = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
         story_event_list = [{"name": intent, "type": "user"},
                             {"name": "bot", "type": StoryEventType.slot, "value": bot},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
 
-        self.add_slot({"name": "bot", "type": "unfeaturized"}, bot, user, raise_exception=False)
-        self.add_slot({"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": "unfeaturized"}, bot, user,
+        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                       raise_exception=False)
+        self.add_slot(
+            {"name": http_action_config_slot, "type": "any", "initial_value": story, "influence_conversation": False},
+            bot, user,
+            raise_exception=False)
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
 
         return self.add_story(story, story_event_list, bot, user)
@@ -2396,6 +2401,7 @@ class TrainingDataGenerationProcessor:
         """
         for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
+            item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
             item.pop("bot")
             item.pop("user")
             item["_id"] = item["_id"].__str__()

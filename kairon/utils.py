@@ -733,6 +733,7 @@ class Utility:
                                      json={'user': user, 'kairon_url': kairon_url, 'token': token})
             logger.info("Training data generator event completed" + response.content.decode('utf8'))
         except Exception as e:
+            logger.error(str(e))
             from .data_processor.processor import TrainingDataGenerationProcessor
             TrainingDataGenerationProcessor.set_status(bot=bot,
                                                        user=user,
