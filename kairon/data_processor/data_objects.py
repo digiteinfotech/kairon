@@ -22,7 +22,7 @@ from rasa.shared.core.slots import (
     UnfeaturizedSlot,
     ListSlot,
     TextSlot,
-    BooleanSlot,
+    BooleanSlot, AnySlot,
 )
 from validators import url, ValidationFailure
 
@@ -260,6 +260,7 @@ class Slots(Document):
             ListSlot.type_name,
             TextSlot.type_name,
             BooleanSlot.type_name,
+            AnySlot.type_name
         ],
     )
     initial_value = DynamicField()

@@ -370,7 +370,7 @@ class TestActions:
         assert len(actual_request_body) == 0
 
     def test_name(self):
-        assert HttpAction().name() == "http_action"
+        assert HttpAction().name() == "kairon_http_action"
 
     def test_is_empty(self):
         assert ActionUtility.is_empty("")
@@ -504,43 +504,42 @@ class TestActions:
             "I have failed to process your request: No HTTP action found for bot")
 
     def test_run_no_bot(self):
-        slots = {"bot": None, "http_action_config": "new_http_action", "param2": "param2value"}
+        slots = {"bot": None, "http_action_config_http_action": "new_http_action", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
         assert actual[0]['name'] is not None
-        assert isinstance(actual[0]['name'], HttpActionFailure)
-        assert str(actual[0][
-                       'name']) == 'I have failed to process your request: Bot id and HTTP action configuration name not found in slot'
+        assert str(actual[0]['name']) == 'I have failed to process your request'
 
     def test_run_no_http_action(self):
-        slots = {"bot": "jhgfsjgfausyfgus", "http_action_config": None, "param2": "param2value"}
+        slots = {"bot": "jhgfsjgfausyfgus", "http_action_config_http_action": None, "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
         assert actual[0]['name'] is not None
-        assert isinstance(actual[0]['name'],HttpActionFailure)
-        assert str(actual[0][
-                       'name']) == 'I have failed to process your request: Bot id and HTTP action configuration name not found in slot'
+        assert str(actual[0]['name']) == 'I have failed to process your request'
 
     def test_run(self):
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run", "param2": "param2value"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config_test_run": "http_action", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
             auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
-            action_name="test_run",
+            action_name="http_action",
             response="This should be response",
             http_url="http://www.google.com",
             request_method="GET",
@@ -566,10 +565,11 @@ class TestActions:
             status=200,
         )
 
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run_with_post"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config_test_run": "test_run_with_post"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
@@ -606,10 +606,11 @@ class TestActions:
             status=200,
         )
 
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run_with_post"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config_test_run": "test_run_with_post"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
@@ -627,10 +628,11 @@ class TestActions:
         assert str(actual[0]['name']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     def test_run_no_connection(self):
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config": "test_run_with_post"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "http_action_config_test_run": "test_run_with_post"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
@@ -645,7 +647,7 @@ class TestActions:
         ).save()
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
-        assert str(actual[0]['name']).__contains__('I have failed to process your request: Failed to execute the url')
+        assert str(actual[0]['name']).__contains__('I have failed to process your request')
 
     @responses.activate
     def test_run_with_get_placeholder_vs_string_response(self):
@@ -659,10 +661,11 @@ class TestActions:
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
-                 "http_action_config": "test_run_with_get_string_http_response_placeholder_required"}
+                 "http_action_config_test_run": "test_run_with_get_string_http_response_placeholder_required"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         HttpActionConfig(
@@ -678,7 +681,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
         assert str(
-            actual[0]['name']) == 'I have failed to process your request: Could not find value for keys in response'
+            actual[0]['name']) == 'I have failed to process your request'
 
     def test_attach_response_no_placeholder(self):
         output = ActionUtility.attach_response("This has no placeholder", {"a": "b"})
