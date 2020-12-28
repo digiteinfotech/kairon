@@ -186,12 +186,12 @@ class HttpActionParameters(BaseModel):
 
 class HttpActionConfigRequest(BaseModel):
     intent: str
-    auth_token: str
+    auth_token: str = None
     action_name: str
     response: str
     http_url: str
     request_method: str
-    http_params_list: List[HttpActionParameters]
+    http_params_list: List[HttpActionParameters] = None
 
     def get_http_params(self):
         return [param.dict() for param in self.http_params_list]
