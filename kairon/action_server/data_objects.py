@@ -29,10 +29,10 @@ class HttpActionRequestBody(EmbeddedDocument):
 class HttpActionConfig(Document):
     auth_token = StringField(default=None)
     action_name = StringField(required=True)
-    response = StringField(required=False)
+    response = StringField(required=True)
     http_url = StringField(required=True)
     request_method = StringField(required=True)
-    params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), default=None)
+    params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

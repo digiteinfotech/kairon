@@ -191,7 +191,7 @@ class HttpActionConfigRequest(BaseModel):
     response: str
     http_url: str
     request_method: str
-    http_params_list: List[HttpActionParameters] = None
+    http_params_list: List[HttpActionParameters]
 
     def get_http_params(self):
         return [param.dict() for param in self.http_params_list]
