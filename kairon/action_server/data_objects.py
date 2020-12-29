@@ -27,7 +27,7 @@ class HttpActionRequestBody(EmbeddedDocument):
 
 
 class HttpActionConfig(Document):
-    auth_token = StringField(default=None)
+    auth_token = StringField(default="")
     action_name = StringField(required=True)
     response = StringField(required=True)
     http_url = StringField(required=True)

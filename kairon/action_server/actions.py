@@ -31,7 +31,7 @@ class ActionUtility:
         :param auth_token: auth token to be sent with request in case of token based authentication
         :return: JSON/string response
         """
-        header = {}
+        header = {"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}
         response = ""
 
         if request_body is None:
@@ -51,7 +51,12 @@ class ActionUtility:
                 response = requests.put(http_url, json=request_body, headers=header)
             elif request_method.upper() == 'DELETE':
                 response = requests.delete(http_url, json=request_body, headers=header)
+            logger.debug("raw response: "+ str(response.text))
+
+            if response.status_code != 200:
+                raise HttpActionFailure("Got non-200 status code")
         except Exception as e:
+            logger.error(str(e))
             raise HttpActionFailure("Failed to execute the url: " + str(e))
 
         try:
