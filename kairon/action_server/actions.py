@@ -4,6 +4,7 @@ import os
 from typing import Dict, Any, Text, List
 
 import requests
+from loguru import logger
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
@@ -223,7 +224,7 @@ class HttpAction(Action):
 
         :return: Returns literal "http_action".
         """
-        return "http_action"
+        return "kairon_http_action"
 
     def run(self,
             dispatcher: CollectingDispatcher,
@@ -239,8 +240,11 @@ class HttpAction(Action):
         """
         response = {}
         try:
+            logger.debug(tracker.current_slot_values())
+            intent = tracker.get_intent_of_latest_message()
+            logger.debug("intent: " + str(intent))
             bot_id = tracker.get_slot("bot")
-            action = tracker.get_slot("http_action_config")
+            action = tracker.get_slot("http_action_config" + "_" + intent)
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
                 raise HttpActionFailure("Bot id and HTTP action configuration name not found in slot")
 
@@ -256,7 +260,8 @@ class HttpAction(Action):
             response = ActionUtility.prepare_response(http_action_config['response'], http_response)
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
-            response = HttpActionFailure("I have failed to process your request: " + str(e))
+            logger.error(str(e))
+            response = "I have failed to process your request"
 
         dispatcher.utter_message(response)
         return [SlotSet(response)]
