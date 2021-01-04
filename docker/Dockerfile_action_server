@@ -10,6 +10,7 @@ python -m pip install validators
 
 
 COPY kairon/action_server /app/actions/
+COPY system.yaml /app/actions/system.yaml
 
 USER 1001
 EXPOSE 5055

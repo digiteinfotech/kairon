@@ -186,7 +186,7 @@ class HttpActionParameters(BaseModel):
 
 class HttpActionConfigRequest(BaseModel):
     intent: str
-    auth_token: str
+    auth_token: str = None
     action_name: str
     response: str
     http_url: str

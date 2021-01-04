@@ -1879,9 +1879,14 @@ class MongoProcessor:
                 )
                 utterance_name, utterance_type = self.get_utterance_from_intent(intent, bot)
                 if utterance_name:
-                    Utility.delete_document(
-                        [Responses], bot=bot, user=user, name__iexact=utterance_name
-                    )
+                    if utterance_type == UTTERANCE_TYPE.HTTP:
+                        Utility.delete_document(
+                            [HttpActionConfig], bot=bot, user=user, action_name__iexact=utterance_name
+                        )
+                    else:
+                        Utility.delete_document(
+                            [Responses], bot=bot, user=user, name__iexact=utterance_name
+                        )
                 Utility.delete_document(
                     [Stories], bot=bot, user=user, events__name__iexact=intent
                 )
@@ -1995,11 +2000,6 @@ class MongoProcessor:
         except AppException as e:
             if str(e).__contains__("No HTTP action found for bot"):
                 raise e
-        try:
-            self.update_story(story=request_data.action_name, intent=request_data.intent,
-                              user=user, bot=bot)
-        except AppException as e:
-            raise e
 
         http_params = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
                        for param in request_data.http_params_list]

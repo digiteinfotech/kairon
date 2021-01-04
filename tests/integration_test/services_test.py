@@ -1947,61 +1947,6 @@ def test_update_http_action():
     assert actual["success"]
 
 
-def test_update_http_action_story():
-    action_name = 'test_update_http_action_story'
-    request_body = {
-        "intent": "happy_test_update_http_action_story",
-        "auth_token": "",
-        "action_name": action_name,
-        "response": "",
-        "http_url": "http://www.google.com",
-        "request_method": "GET",
-        "http_params_list": [{
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
-        }]
-    }
-
-    response = client.post(
-        url="/api/bot/action/httpaction",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    request_body = {
-        "intent": "greet_test_update_http_action_story",
-        "auth_token": "",
-        "action_name": action_name,
-        "response": "",
-        "http_url": "http://www.google.com",
-        "request_method": "GET",
-        "http_params_list": [{
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
-        }]
-    }
-
-    response = client.put(
-        url="/api/bot/action/httpaction",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    story = Stories.objects(block_name=action_name, status=True).get(block_name__iexact=action_name)
-    assert story is not None
-    assert story['events'][0]['name'] == 'greet_test_update_http_action_story'
-    assert story['events'][0]['type'] == 'user'
-    assert story['events'][0]['value'] is None
-    assert story['events'][1]['name'] == 'bot'
-    assert story['events'][1]['type'] == 'slot'
-    assert story['events'][2]['name'] == 'http_action_config'
-    assert story['events'][2]['type'] == 'slot'
-    assert story['events'][2]['value'] == action_name
-    assert story['events'][3]['name'] == 'kairon_http_action'
-    assert story['events'][3]['type'] == 'action'
-
-
 def test_update_http_action_non_existing():
     request_body = {
         "intent": "greet",
