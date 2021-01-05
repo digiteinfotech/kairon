@@ -1093,6 +1093,30 @@ class TestMongoProcessor:
             action_name__iexact=action)
         assert actual_http_action is not None
 
+    def test_add_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "unfeaturized", "influence_conversation": True}, bot, user,
+                      raise_exception=False)
+        slot = Slots.objects(name__iexact='bot',bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'unfeaturized'
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
+        processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot,
+                           user, raise_exception=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'any'
+        assert slot['initial_value'] == bot
+        assert not slot['influence_conversation']
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
+            assert msg ==  'Slot exists'
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
