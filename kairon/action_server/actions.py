@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Dict, Any, Text, List
 
 import requests
@@ -30,7 +31,7 @@ class ActionUtility:
         :param auth_token: auth token to be sent with request in case of token based authentication
         :return: JSON/string response
         """
-        header = {}
+        header = {"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}
         response = ""
 
         if request_body is None:
@@ -50,7 +51,12 @@ class ActionUtility:
                 response = requests.put(http_url, json=request_body, headers=header)
             elif request_method.upper() == 'DELETE':
                 response = requests.delete(http_url, json=request_body, headers=header)
+            logger.debug("raw response: " + str(response.text))
+
+            if response.status_code != 200:
+                raise HttpActionFailure("Got non-200 status code")
         except Exception as e:
+            logger.error(str(e))
             raise HttpActionFailure("Failed to execute the url: " + str(e))
 
         try:
@@ -72,8 +78,7 @@ class ActionUtility:
         :return: Request body for the HTTP request
         """
         request_body = {}
-        #  deepcode ignore C1801: Handling empty lists from collection
-        if http_action_config_params is None or len(http_action_config_params) == 0:
+        if not http_action_config_params:
             return request_body
 
         for param in http_action_config_params:
@@ -105,7 +110,8 @@ class ActionUtility:
         Fetches MongoDB URL defined in system.yaml file
         :return: MongoDB connection URL
         """
-        environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
+        system_yml_parent_dir = str(Path(os.path.realpath(__file__)).parent)
+        environment = ConfigLoader(os.getenv("system_file", system_yml_parent_dir + "/system.yaml")).get_config()
         return environment['database']["url"]
 
     @staticmethod
@@ -126,6 +132,7 @@ class ActionUtility:
             connect(host=db_url)
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name).to_mongo().to_dict()
+            logger.debug("http_action_config: " + str(http_config_dict))
             if dict is None:
                 raise DoesNotExist
         except DoesNotExist:
@@ -184,7 +191,7 @@ class ActionUtility:
         """
         value_mapping = {}
         parsed_output = ActionUtility.attach_response(response_template, http_response)
-        keys_with_placeholders = [term for term in response_template.split(" ") if term.startswith("${") and term.endswith("}")]
+        keys_with_placeholders = [term for term in parsed_output.split(" ") if term.startswith("${") and term.endswith("}")]
         #  deepcode ignore C1801: Length check required in case there are no placeholders
         if keys_with_placeholders is None or len(keys_with_placeholders) == 0:
             if ActionUtility.is_empty(response_template):
@@ -243,6 +250,7 @@ class HttpAction(Action):
             logger.debug(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
             logger.debug("intent: " + str(intent))
+            logger.debug(tracker.latest_message)
             bot_id = tracker.get_slot("bot")
             action = tracker.get_slot("http_action_config" + "_" + intent)
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
@@ -252,12 +260,15 @@ class HttpAction(Action):
             http_action_config: HttpActionConfig = ActionUtility.get_http_action_config(db_url=db_url, bot=bot_id,
                                                                                         action_name=action)
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
+            logger.debug("request_body: " + str(request_body))
             http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
                                                                http_url=http_action_config['http_url'],
                                                                request_method=http_action_config['request_method'],
                                                                request_body=request_body)
+            logger.debug("http response: " + str(http_response))
 
             response = ActionUtility.prepare_response(http_action_config['response'], http_response)
+            logger.debug("response: " + str(response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
             logger.error(str(e))
