@@ -2103,8 +2103,14 @@ class MongoProcessor:
                                 status=True):
             slot_value['user'] = user
             slot_value['bot'] = bot
-            return (Slots(**slot_value)
-                    .save().to_mongo().to_dict()['_id'].__str__())
+            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
+        else:
+            slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            slot['initial_value'] = slot_value.get('initial_value')
+            slot['type'] = slot_value.get('type')
+            slot['influence_conversation'] = slot_value.get('influence_conversation')
+            slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        return slot_id
 
 
 class AgentProcessor:
