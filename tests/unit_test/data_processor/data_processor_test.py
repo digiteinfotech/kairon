@@ -1052,47 +1052,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.delete_response(utter_intentA_1_id, "testBot", "testUser")
 
-    def test_delete_response_with_story_http_action(self):
-        processor = MongoProcessor()
-        intent = "test_delete_response_with_story_http_action"
-        utterance = "utter_test_delete_response_with_story_http_action"
-        story = "path_test_delete_response_with_story_http_action"
-        bot = 'test_bot'
-        http_url = 'http://www.google.com'
-        action = 'test_delete_response_with_story_http_action'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
-        user = 'test_user'
-        response = "json"
-        request_method = 'GET'
-        http_params_list: List[HttpActionParameters] = [
-            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
-        http_action_config = HttpActionConfigRequest(
-            intent=intent,
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            http_params_list=http_params_list
-        )
-
-        story_events = [{"name": intent, "type": "user"},
-                        {"name": utterance, "type": "action"}]
-        processor.add_story(story, story_events, bot, user)
-        utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
-        resp = processor.get_response(utterance, bot)
-        assert len(list(resp)) == 1
-        processor.delete_response(utter_intentA_1_id,bot, user)
-        resp = processor.get_response(utterance, bot)
-        assert len(list(resp)) == 0
-        stories = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
-        assert len(list(stories)) == 0
-        processor.add_http_action_with_story(http_action_config, user, bot)
-        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
-            action_name__iexact=action)
-        assert actual_http_action is not None
-
     def test_add_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'
@@ -1417,7 +1376,6 @@ class TestModelProcessor:
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()
-        intent = "greet"
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_action'
@@ -1430,7 +1388,6 @@ class TestModelProcessor:
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1458,53 +1415,8 @@ class TestModelProcessor:
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=CUSTOM_ACTIONS.HTTP_ACTION_NAME)
 
-    def test_add_http_action_delete_story_on_add_failure(self):
-        processor = MongoProcessor()
-        intent = "greet"
-        bot = 'test_bot'
-        http_url = 'http://www.google.com'
-        action = 'test_add_http_action_delete_story_on_add_failure'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
-        user = 'test_user'
-        response = "json"
-        request_method = 'GET'
-        http_params_list: List[HttpActionParameters] = [
-            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
-        http_action_config = HttpActionConfigRequest(
-            intent=intent,
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            http_params_list=http_params_list
-        )
-
-        HttpActionConfig(
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            bot=bot,
-            user=user
-        ).save()
-
-        try:
-            processor.add_http_action_with_story(http_action_config, user, bot)
-        except AppException as e:
-            assert str(e) == "Action exists"
-        try:
-            Stories.objects(bot=bot, user=user, status=True).get(block_name__iexact=action)
-            assert False
-        except DoesNotExist:
-            assert True
-
     def test_add_http_action_config_existing(self):
         processor = MongoProcessor()
-        intent = "greet"
-        story_event = StoryEventRequest(name=intent, type="user")
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_add_http_action_config_existing'
@@ -1525,7 +1437,6 @@ class TestModelProcessor:
         ).save().to_mongo().to_dict()["_id"].__str__()
 
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1538,126 +1449,6 @@ class TestModelProcessor:
             assert False
         except AppException as ex:
             assert str(ex).__contains__("Action exists")
-
-    def test_add_http_action_wrapper(self):
-        processor = MongoProcessor()
-        intent = "greet"
-        bot = 'test_bot'
-        http_url = 'http://www.google.com'
-        action = 'test_add_http_action_wrapper'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
-        user = 'test_user'
-        response = "json"
-        request_method = 'GET'
-        http_params_list: List[HttpActionParameters] = [
-            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
-        http_action_config = HttpActionConfigRequest(
-            intent=intent,
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            http_params_list=http_params_list
-        )
-        http_config_id = processor.add_http_action_with_story(http_action_config, user, bot)
-        assert http_config_id is not None
-        actual_http_action = HttpActionConfig.objects(bot=bot, user=user, status=True).get(
-            action_name__iexact=action)
-        assert actual_http_action is not None
-        assert actual_http_action['action_name'] == action
-        assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['auth_token'] == auth_token
-        assert actual_http_action['response'] == response
-        assert actual_http_action['request_method'] == request_method
-        assert actual_http_action['params_list'] is not None
-        assert actual_http_action['params_list'][0]['key'] == "param1"
-        assert actual_http_action['params_list'][0]['value'] == "param1"
-        assert actual_http_action['params_list'][0]['parameter_type'] == "slot"
-        assert actual_http_action['params_list'][1]['key'] == "param2"
-        assert actual_http_action['params_list'][1]['value'] == "value2"
-        assert actual_http_action['params_list'][1]['parameter_type'] == "value"
-
-    def test_add_http_action_wrapper_existing_action(self):
-        processor = MongoProcessor()
-        intent = "greet_me"
-        bot = 'test_bot'
-        http_url = 'http://www.google.com'
-        action = 'test_add_http_action_wrapper_existing_action'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
-        user = 'test_user'
-        response = "json"
-        request_method = 'GET'
-        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
-
-        HttpActionConfig(
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            bot=bot,
-            user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
-
-        http_action_config = HttpActionConfigRequest(
-            intent=intent,
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            http_params_list=params
-        )
-        try:
-            processor.add_http_action_with_story(http_action_config, user, bot)
-            assert False
-        except AppException as ex:
-            assert str(ex).__contains__("Action exists")
-
-    def test_add_http_action_wrapper_existing_story(self):
-        processor = MongoProcessor()
-        intent = "greet"
-        bot = 'test_bot'
-        http_url = 'http://www.google.com'
-        action = 'test_add_http_action_wrapper_existing_action'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
-        user = 'test_user'
-        response = "json"
-        request_method = 'GET'
-        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
-
-        Stories(
-            block_name="test_add_http_action_wrapper_existing_action",
-            events=[{"name": "greet", "type": "user"}],
-            bot=bot,
-            user=user
-        ).save(validate=False)
-        HttpActionConfig(
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            bot=bot,
-            user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
-
-        http_action_config = HttpActionConfigRequest(
-            intent=intent,
-            auth_token=auth_token,
-            action_name=action,
-            response=response,
-            http_url=http_url,
-            request_method=request_method,
-            http_params_list=params
-        )
-        try:
-            processor.add_http_action_with_story(http_action_config, user, bot)
-            assert False
-        except AppException as ex:
-            assert str(ex).__contains__("Story already exists")
 
     def test_delete_http_action_config(self):
         processor = MongoProcessor()
@@ -1827,7 +1618,6 @@ class TestModelProcessor:
 
     def test_update_http_config(self):
         processor = MongoProcessor()
-        intent = "greet_test_update_http_config"
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_update_http_config'
@@ -1839,7 +1629,6 @@ class TestModelProcessor:
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1847,9 +1636,8 @@ class TestModelProcessor:
             request_method=request_method,
             http_params_list=http_params_list
         )
-        http_config_id = processor.add_http_action_with_story(http_action_config, user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config, user, bot)
         assert http_config_id is not None
-        intent = "slap_test_update_http_config"
         http_url = 'http://www.alphabet.com'
         auth_token = ""
         response = "string"
@@ -1858,7 +1646,6 @@ class TestModelProcessor:
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1886,7 +1673,6 @@ class TestModelProcessor:
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()
-        intent = "greet"
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_update_http_config_invalid_action'
@@ -1898,7 +1684,6 @@ class TestModelProcessor:
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1908,7 +1693,6 @@ class TestModelProcessor:
         )
         http_config_id = processor.add_http_action_config(http_action_config, user, bot)
         assert http_config_id is not None
-        intent = "slap"
         bot = 'test_bot'
         http_url = 'http://www.alphabet.com'
         action = 'test_update_http_config_invalid'
@@ -1920,7 +1704,6 @@ class TestModelProcessor:
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            intent=intent,
             auth_token=auth_token,
             action_name=action,
             response=response,
@@ -1933,58 +1716,144 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e) == 'No HTTP action found for bot test_bot and action test_update_http_config_invalid'
 
-    def test_get_utterance_from_intent_with_action(self):
+    def test_add_complex_story(self):
         processor = MongoProcessor()
-        user = "testUser"
-        action = "test_get_utterance_from_intent_with_action"
-        bot = "bot"
-        intent = "slap_test_get_utterance_from_intent_with_action"
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        processor.add_complex_story("story with action", steps, "tests", "testUser")
+        story = Stories.objects(block_name="story with action").get()
+        assert len(story.events) == 6
 
-        http_action = HttpActionConfigRequest(
-            intent=intent,
-            auth_token="",
-            action_name=action,
-            response="",
-            http_url="http://www.google.com",
-            request_method="GET",
-            http_params_list=[]
-        )
-        processor.add_http_action_with_story(http_action, user, bot)
-        actual_action = processor.get_utterance_from_intent(intent=intent, bot=bot)
-        assert actual_action[0] == action
-        assert actual_action[1] == UTTERANCE_TYPE.HTTP
-
-    def test_get_utterance_from_intent_event_order(self):
+    def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
-        user = "testuser"
-        action = "test_get_utterance_from_intent_event_order"
-        bot = "tests"
-        intent = "greet_test_get_utterance_from_intent_event_order"
-        action_req = HttpActionConfigRequest(
-            intent=intent,
-            auth_token="",
-            action_name=action,
-            response="",
-            http_url="http://www.google.com",
-            request_method="GET",
-            http_params_list=[]
-        )
-        processor.add_http_action_with_story(action_req, user, bot)
-        actual_story = Stories.objects(bot=bot, user=user).get(block_name__iexact=action)
-        assert actual_story is not None
-        assert actual_story.events is not None
-        assert actual_story.events[0]['name'] == intent
-        assert actual_story.events[0]['type'] == 'user'
-        assert actual_story.events[0]['value'] is None
-        assert actual_story.events[1]['name'] == 'bot'
-        assert actual_story.events[1]['type'] == 'slot'
-        assert actual_story.events[1]['value'] == bot
-        assert actual_story.events[2]['name'] == 'http_action_config'
-        assert actual_story.events[2]['type'] == 'slot'
-        assert actual_story.events[2]['value'] == action
-        assert actual_story.events[3]['name'] == 'kairon_http_action'
-        assert actual_story.events[3]['type'] == 'action'
-        assert actual_story.events[3]['value'] is None
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        with pytest.raises(Exception):
+            processor.add_complex_story("story with action", steps, "tests", "testUser")
+
+    def test_add_none_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.add_complex_story(None, events, "tests", "testUser")
+
+    def test_add_empty_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.add_complex_story("", events, "tests", "testUser")
+
+    def test_add_blank_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.add_complex_story("  ", events, "tests", "testUser")
+
+    def test_add_empty_complex_story_event(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_complex_story("empty path", [], "tests", "testUser")
+
+    def test_update_complex_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        processor.update_complex_story("story with action", steps, "tests", "testUser")
+        story = Stories.objects(block_name="story with action").get()
+        assert story.events[1].name == "utter_nonsense"
+
+    def test_update_non_existing_complex_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        with pytest.raises(Exception):
+            processor.update_complex_story("non existing story", steps, "tests", "testUser")
+
+    def test_update_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.update_complex_story(None, events, "tests", "testUser")
+
+    def test_update_empty_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.update_complex_story("", events, "tests", "testUser")
+
+    def test_update_blank_complex_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        with pytest.raises(AppException):
+            processor.update_complex_story("  ", events, "tests", "testUser")
+
+    def test_update_empty_complex_story_event(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.update_complex_story("empty path", [], "tests", "testUser")
+
+    def test_delete_non_existing_complex_story(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.delete_complex_story("non existing", "tests", "testUser")
+
+    def test_delete_complex_story(self):
+        processor = MongoProcessor()
+        processor.delete_complex_story("story with action", "tests", "testUser")
 
     def test_get_utterance_from_intent_non_existing(self):
         processor = MongoProcessor()

@@ -13,7 +13,7 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
-    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
@@ -233,8 +233,8 @@ async def remove_responses(
 
 
 @router.post("/stories", response_model=Response)
-async def add_stories(
-        story: StoryRequest, current_user: User = Depends(auth.get_current_user)
+async def add_story(
+        story: AddStoryRequest, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Adds a story (conversational flow) in the particular bot
@@ -242,9 +242,29 @@ async def add_stories(
     return {
         "message": "Story added successfully",
         "data": {
-            "_id": mongo_processor.add_story(
+            "_id": mongo_processor.add_complex_story(
                 story.name,
-                story.get_events(),
+                story.get_steps(),
+                current_user.get_bot(),
+                current_user.get_user(),
+            )
+        },
+    }
+
+
+@router.put("/stories", response_model=Response)
+async def update_story(
+        story: AddStoryRequest, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Updates a story (conversational flow) in the particular bot
+    """
+    return {
+        "message": "Story updated successfully",
+        "data": {
+            "_id": mongo_processor.update_complex_story(
+                story.name,
+                story.get_steps(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -258,6 +278,22 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
     Fetches existing list of stories (conversation flows)
     """
     return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
+
+
+@router.delete("/stories/{story}", response_model=Response)
+async def delete_stories(story: str = Path(default=None, description="Story name", example="happy_path"), current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Updates a story (conversational flow) in the particular bot
+    """
+    mongo_processor.delete_complex_story(
+        story,
+        current_user.get_bot(),
+        current_user.get_user(),
+    )
+    return {
+        "message": "Story deleted successfully"
+    }
 
 
 @router.get("/utterance_from_intent/{intent}", response_model=Response)
@@ -550,8 +586,8 @@ async def add_http_action(request_data: HttpActionConfigRequest, current_user: U
     """
     Stores the http action config and story event
     """
-    http_config_id = mongo_processor.add_http_action_with_story(request_data, current_user.get_user(),
-                                                                current_user.get_bot())
+    http_config_id = mongo_processor.add_http_action_config(request_data, current_user.get_user(),
+                                                            current_user.get_bot())
     response = {"http_config_id": http_config_id}
     message = "Http action added!"
     return Response(data=response, message=message)
@@ -592,8 +628,6 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     try:
         mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
                                                   bot=current_user.bot)
-        mongo_processor.delete_story(story=action, user=current_user.get_user(),
-                                     bot=current_user.bot)
     except Exception as e:
         raise AppException(e)
     message = "HTTP action deleted"
