@@ -69,3 +69,48 @@ async def conversation_time(month: HistoryMonth = 1,current_user: User = Depends
     Fetches the duration of the chat that took place between the users and the agent"""
     conversation_time, message = ChatHistory.conversation_time(current_user.get_bot(), month)
     return {"data": conversation_time, "message": message}
+
+
+@router.get("/metrics/engaged_user", response_model=Response)
+async def count_engaged_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+
+    """
+    Fetches the number of engaged users of the bot
+    """
+    engaged_user_count, message = ChatHistory.engaged_users(
+        current_user.get_bot(), month
+    )
+    return {"data": engaged_user_count, "message": message}
+
+
+@router.get("/metrics/new_user", response_model=Response)
+async def count_new_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the number of new users of the bot
+    """
+    user_count, message = ChatHistory.new_users(
+        current_user.get_bot(), month
+    )
+    return {"data": user_count, "message": message}
+
+
+@router.get("/metrics/successful_conversation", response_model=Response)
+async def complete_conversations(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the number of successful conversations of the bot, which had no fallback
+    """
+    conversation_count, message = ChatHistory.successful_conversations(
+        current_user.get_bot(), month
+    )
+    return {"data": conversation_count, "message": message}
+
+
+@router.get("/metrics/user_retentions", response_model=Response)
+async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the user retention percentage of the bot
+    """
+    retention_count, message = ChatHistory.user_retention(
+        current_user.get_bot(), month
+    )
+    return {"data": retention_count, "message": message}
