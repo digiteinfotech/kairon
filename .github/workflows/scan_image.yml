@@ -3,7 +3,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '21 11 * * *'
+    - cron: '30 11 * * *'
 
 jobs:
   scan:
