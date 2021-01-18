@@ -1235,46 +1235,26 @@ class TestModelProcessor:
     def test_delete_intent_no_trainingExamples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
-                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
-                            "tests", "testUser")
-        processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
-        actual = list(processor.get_stories("tests"))
-        assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
-        actual = processor.get_utterance_from_intent("TestingDelGreeting", "tests")
-        assert not actual[0]
-        assert not actual[1]
 
     def test_delete_intent_no_utterance(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
-                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
-                            "tests", "testUser")
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
-        actual = list(processor.get_stories("tests"))
-        assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
 
     def test_delete_intent_with_examples_stories_utterance(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_story("path_TestingDelGreeting", [{"name": "TestingDelGreeting", "type": "user"},
-                                                        {"name": "utter_TestingDelGreeting", "type": "action"}],
-                            "tests", "testUser")
-        processor.add_text_response("Hello!", "utter_TestingDelGreeting", "tests", "testUser")
+        processor.add_training_example(["hello","hi"],"TestingDelGreeting","tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
-        actual = list(processor.get_stories("tests"))
-        assert not any(story['block_name'] == 'TestingDelGreeting' for story in actual)
-        actual = processor.get_utterance_from_intent("TestingDelGreeting", "tests")
-        assert not actual[0]
-        assert not actual[1]
+        actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
+        assert len(actual) == 0
 
     def test_prepare_and_add_story(self):
         processor = MongoProcessor()
