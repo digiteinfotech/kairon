@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
+  url: ${DATABASE_URL:"mongodb://192.168.101.148:27019/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 security:
@@ -18,7 +18,7 @@ model:
     agent_url: ${AGENT_URL}
 
 action:
-  url: ${ACTION_SERVER_URL:"http://kairon-action-server:5055/webhook"}
+  url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
 
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}

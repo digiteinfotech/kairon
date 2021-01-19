@@ -502,9 +502,9 @@ def test_add_story():
         "/api/bot/stories",
         json={
             "name": "test_path",
-            "events": [
-                {"name": "greet", "type": "user"},
-                {"name": "utter_greet", "type": "action"},
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -519,13 +519,31 @@ def test_add_story():
 def test_add_story_empty_event():
     response = client.post(
         "/api/bot/stories",
-        json={"name": "test_path", "events": []},
+        json={"name": "test_add_story_empty_event", "steps": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Stories cannot be empty"
+    assert actual["message"] == "Story steps are required"
+
+
+def test_add_story_consecutive_intents():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_story_consecutive_intents",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "INTENT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Found 2 consecutive intents (type=value_error)"
 
 
 def test_add_story_missing_event_type():
@@ -533,7 +551,7 @@ def test_add_story_missing_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
-            "events": [{"name": "greet"}, {"name": "utter_greet", "type": "action"}],
+            "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -542,7 +560,7 @@ def test_add_story_missing_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> events -> 0 -> type\n  field required (type=value_error.missing)"
+            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  field required (type=value_error.missing)"
     )
 
 
@@ -551,9 +569,9 @@ def test_add_story_invalid_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
-            "events": [
+            "steps": [
                 {"name": "greet", "type": "data"},
-                {"name": "utter_greet", "type": "action"},
+                {"name": "utter_greet", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -563,8 +581,87 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> events -> 0 -> type\n  value is not a valid enumeration member; permitted: 'user', 'action', 'form', 'slot' (type=type_error.enum; enum_values=[<StoryEventType.user: 'user'>, <StoryEventType.action: 'action'>, <StoryEventType.form: 'form'>, <StoryEventType.slot: 'slot'>])"
+            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION' (type=type_error.enum; enum_values=[<StoryStepType.intent: 'INTENT'>, <StoryStepType.bot: 'BOT'>, <StoryStepType.http_action: 'HTTP_ACTION'>])"
     )
+
+
+def test_update_story():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story updated successfully"
+    assert actual["data"]["_id"]
+
+
+def test_update_story_invalid_event_type():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION' (type=type_error.enum; enum_values=[<StoryStepType.intent: 'INTENT'>, <StoryStepType.bot: 'BOT'>, <StoryStepType.http_action: 'HTTP_ACTION'>])"
+    )
+
+
+def test_delete_story():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path1",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story added successfully"
+    assert actual["data"]["_id"]
+
+    response = client.delete(
+        "/api/bot/stories/test_path1",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story deleted successfully"
+
+
+def test_delete_non_existing_story():
+    response = client.delete(
+        "/api/bot/stories/test_path2",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Story does not exists"
 
 
 def test_get_stories():
@@ -1616,37 +1713,8 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert not actual['success']
 
 
-def test_add_http_action_no_intent():
-    request_body = {
-        "intent": "",
-        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
-        "action_name": "test_add_http_action_no_intent",
-        "response": "string",
-        "http_url": "http://www.google.com",
-        "request_method": "GET",
-        "http_params_list": [{
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
-        }]
-    }
-
-    response = client.post(
-        url="/api/bot/action/httpaction",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["message"]
-    assert not actual["success"]
-
-
 def test_add_http_action_malformed_url():
     request_body = {
-        "story_name": "http_story",
-        "intent": "hehhehehe",
         "auth_token": "",
         "action_name": "new_http_action",
         "response": "",
@@ -1672,8 +1740,6 @@ def test_add_http_action_malformed_url():
 
 def test_add_http_action_invalid_req_method():
     request_body = {
-        "story_name": "http_story",
-        "intent": "hehhehehe",
         "auth_token": "",
         "action_name": "new_http_action",
         "response": "",
@@ -1699,7 +1765,6 @@ def test_add_http_action_invalid_req_method():
 
 def test_add_http_action_no_action_name():
     request_body = {
-        "intent": "greet",
         "auth_token": "",
         "action_name": "",
         "response": "string",
@@ -1726,7 +1791,6 @@ def test_add_http_action_no_action_name():
 
 def test_add_http_action_no_token():
     request_body = {
-        "intent": "greet_test_add_http_action_no_token",
         "auth_token": "",
         "action_name": "test_add_http_action_no_token",
         "response": "string",
@@ -1751,9 +1815,8 @@ def test_add_http_action_no_token():
     assert actual["success"]
 
 
-def test_add_http_action_with_token_and_story():
+def test_add_http_action_with_token():
     request_body = {
-        "intent": "greet_test_add_http_action_with_token_and_story",
         "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
         "action_name": "test_add_http_action_with_token_and_story",
         "response": "string",
@@ -1798,24 +1861,9 @@ def test_add_http_action_with_token_and_story():
     assert len(actual['data']["params_list"]) == 3
     assert actual["success"]
 
-    story = Stories.objects(block_name="test_add_http_action_with_token_and_story", status=True).get(
-        block_name__iexact="test_add_http_action_with_token_and_story")
-    assert story
-    assert story['events'][0]['name'] == 'greet_test_add_http_action_with_token_and_story'
-    assert story['events'][0]['type'] == StoryEventType.user
-    assert story['events'][1]['name'] == 'bot'
-    assert story['events'][1]['type'] == StoryEventType.slot
-    assert story['events'][2]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_CONFIG
-    assert story['events'][2]['type'] == StoryEventType.slot
-    assert story['events'][2]['value'] == 'test_add_http_action_with_token_and_story'
-    assert story['events'][3]['name'] == CUSTOM_ACTIONS.HTTP_ACTION_NAME
-    assert story['events'][3]['type'] == StoryEventType.action
-    assert actual["success"]
-
 
 def test_add_http_action_no_params():
     request_body = {
-        "intent": "greet_test_add_http_action_no_params",
         "auth_token": "",
         "action_name": "test_add_http_action_no_params",
         "response": "string",
@@ -1838,7 +1886,6 @@ def test_add_http_action_no_params():
 
 def test_add_http_action_existing():
     request_body = {
-        "intent": "greet_test_add_http_action_existing",
         "auth_token": "",
         "action_name": "test_add_http_action_existing",
         "response": "string",
@@ -1884,7 +1931,6 @@ def test_get_http_action_non_exisitng():
 
 def test_update_http_action():
     request_body = {
-        "intent": "greet_test_update_http_action",
         "auth_token": "",
         "action_name": "test_update_http_action",
         "response": "",
@@ -1906,7 +1952,6 @@ def test_update_http_action():
     assert actual["error_code"] == 0
 
     request_body = {
-        "intent": "slap_test_update_http_action",
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action",
         "response": "json",
@@ -1949,7 +1994,6 @@ def test_update_http_action():
 
 def test_update_http_action_non_existing():
     request_body = {
-        "intent": "greet",
         "auth_token": "",
         "action_name": "test_update_http_action_non_existing",
         "response": "",
@@ -1965,7 +2009,6 @@ def test_update_http_action_non_existing():
     )
 
     request_body = {
-        "intent": "slap",
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action_non_existing_new",
         "response": "json",
@@ -1993,7 +2036,6 @@ def test_update_http_action_non_existing():
 
 def test_delete_http_action():
     request_body = {
-        "intent": "greet_test_delete_http_action",
         "auth_token": "",
         "action_name": "test_delete_http_action",
         "response": "",
@@ -2020,7 +2062,6 @@ def test_delete_http_action():
 
 def test_delete_http_action_non_existing():
     request_body = {
-        "intent": "greet",
         "auth_token": "",
         "action_name": "new_http_action4",
         "response": "",

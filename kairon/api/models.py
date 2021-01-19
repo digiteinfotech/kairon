@@ -3,6 +3,7 @@ from typing import List, Any, Dict
 import validators
 from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from kairon.exceptions import AppException
+
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr
 
@@ -103,8 +104,8 @@ class RegisterAccount(BaseModel):
     @validator("confirm_password")
     def validate_confirm_password(cls, v, values, **kwargs):
         if (
-            "password" in values
-            and v.get_secret_value() != values["password"].get_secret_value()
+                "password" in values
+                and v.get_secret_value() != values["password"].get_secret_value()
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
@@ -159,8 +160,8 @@ class Password(BaseModel):
     @validator("confirm_password")
     def validate_confirm_password(cls, v, values, **kwargs):
         if (
-            "password" in values
-            and v.get_secret_value() != values["password"].get_secret_value()
+                "password" in values
+                and v.get_secret_value() != values["password"].get_secret_value()
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
@@ -174,6 +175,7 @@ class History_Month_Enum(int, Enum):
     Five = 5
     Six = 6
 
+
 class HistoryMonth(BaseModel):
     month: History_Month_Enum
 
@@ -185,7 +187,6 @@ class HttpActionParameters(BaseModel):
 
 
 class HttpActionConfigRequest(BaseModel):
-    intent: str
     auth_token: str = None
     action_name: str
     response: str
@@ -195,14 +196,6 @@ class HttpActionConfigRequest(BaseModel):
 
     def get_http_params(self):
         return [param.dict() for param in self.http_params_list]
-
-    @validator("intent")
-    def validate_story_event(cls, v, values, **kwargs):
-        from kairon.utils import Utility
-
-        if Utility.check_empty_string(v):
-            raise ValueError("Intent is required")
-        return v
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):
@@ -263,3 +256,29 @@ class TrainingDataGeneratorStatusModel(BaseModel):
     status: TRAINING_DATA_GENERATOR_STATUS
     response: List[TrainingData] = None
     exception: str = None
+
+
+class StoryStepType(str, Enum):
+    intent = "INTENT"
+    bot = "BOT"
+    http_action = "HTTP_ACTION"
+
+
+class StoryStepRequest(BaseModel):
+    name: str
+    type: StoryStepType
+
+
+class AddStoryRequest(BaseModel):
+    name: str
+    steps: List[StoryStepRequest]
+
+    def get_steps(self):
+        return [step.dict() for step in self.steps]
+
+    @validator("steps")
+    def validate_request_method(cls, v, values, **kwargs):
+        for i, j in enumerate(range(1, len(v))):
+            if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.intent:
+                raise ValueError("Found 2 consecutive intents")
+        return v
