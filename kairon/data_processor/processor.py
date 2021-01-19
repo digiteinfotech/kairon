@@ -1584,6 +1584,147 @@ class MongoProcessor:
                 .__str__()
         )
 
+    def add_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+        """
+        save story in mongodb
+
+        :param name: story name
+        :param steps: story steps list
+        :param bot: bot id
+        :param user: user id
+        :return: story id
+        :raises: AppException: Story already exist!
+
+        """
+        if Utility.check_empty_string(name):
+            raise AppException("Story path name cannot be empty or blank spaces")
+
+        Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
+                         block_name__iexact=name)
+
+        if not steps:
+            raise AppException("Story steps are required")
+
+        events = []
+        intent = None
+        slots = []
+        for step in steps:
+            if step['type'] == "INTENT":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="user"))
+                intent = step['name']
+            elif step['type'] == "BOT":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="action"))
+            elif step['type'] == "HTTP_ACTION":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="action"))
+                slot = {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + intent, "value": step['name']}
+                slots.append(slot)
+
+        story_id = (
+            Stories(
+                block_name=name.strip(),
+                events=events,
+                bot=bot,
+                user=user,
+                start_checkpoints=[STORY_START],
+            ).save().to_mongo().to_dict()["_id"].__str__()
+        )
+
+        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                      raise_exception=False)
+        for slot in slots:
+            self.add_slot(
+                {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
+                bot, user, raise_exception=False)
+        return story_id
+
+    def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+        """
+        Updates story in mongodb
+
+        :param name: story name
+        :param steps: story steps list
+        :param bot: bot id
+        :param user: user id
+        :return: story id
+        :raises: AppException: Story already exist!
+
+        """
+        if Utility.check_empty_string(name):
+            raise AppException("Story path name cannot be empty or blank spaces")
+
+        if not steps:
+            raise AppException("Story steps are required")
+
+        try:
+            story = Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+        except DoesNotExist:
+            raise AppException("Story does not exists")
+
+        events = []
+        intent = None
+        slots = []
+        for step in steps:
+            if step['type'] == "INTENT":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="user"))
+                intent = step['name']
+            elif step['type'] == "BOT":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="action"))
+            elif step['type'] == "HTTP_ACTION":
+                events.append(StoryEvents(
+                    name=step['name'],
+                    type="action"))
+                slot = {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + intent, "value": step['name']}
+                slots.append(slot)
+
+        story['events'] = events
+
+        story_id = (
+            story.save().to_mongo().to_dict()["_id"].__str__()
+        )
+
+        for slot in slots:
+            self.add_slot(
+                {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
+                bot, user, raise_exception=False)
+        return story_id
+
+    def delete_complex_story(self, name: str, bot: Text, user: Text):
+        """
+        Soft deletes complex story.
+        :param name: Story name
+        :param user: user id
+        :param bot: bot id
+        :return:
+        """
+        try:
+            story = Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+        except DoesNotExist:
+            raise AppException("Story does not exists")
+        slots = []
+        for event in story.events:
+            if event.type == "user":
+                slots.append(CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + event.name)
+        Utility.delete_document(
+            [Stories], bot=bot, user=user, block_name__iexact=name
+        )
+        try:
+            for slot in slots:
+                Utility.delete_document(
+                    [Slots], bot=bot, user=user, name__iexact=slot
+                )
+        except Exception as e:
+            logging.error(e)
+
     def __fetch_list_of_events(self, bot: Text):
         saved_events = list(
             Stories.objects(bot=bot, status=True).aggregate(
@@ -1877,20 +2018,6 @@ class MongoProcessor:
                 Utility.delete_document(
                     [TrainingExamples], bot=bot, user=user, intent__iexact=intent
                 )
-                utterance_name, utterance_type = self.get_utterance_from_intent(intent, bot)
-                if utterance_name:
-                    if utterance_type == UTTERANCE_TYPE.HTTP:
-                        Utility.delete_document(
-                            [HttpActionConfig], bot=bot, user=user, action_name__iexact=utterance_name
-                        )
-                    else:
-                        Utility.delete_document(
-                            [Responses], bot=bot, user=user, name__iexact=utterance_name
-                        )
-                Utility.delete_document(
-                    [Stories], bot=bot, user=user, events__name__iexact=intent
-                )
-
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
@@ -2015,26 +2142,6 @@ class MongoProcessor:
         http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
         return http_config_id
 
-    def add_http_action_with_story(self, request_data: HttpActionConfigRequest, user: str, bot: str):
-        """
-        Wrapper method that adds a story for Http action and then adds configuration for the Http action.
-        :param request_data: HttpActionConfigRequest object containing configuration for the Http action
-        :param user: user id
-        :param bot: bot id
-        :return: Http configuration id for saved Http action config
-        """
-        http_config_id = None
-        self.prepare_and_add_story(story=request_data.action_name, intent=request_data.intent,
-                                   bot=bot, user=user)
-        try:
-            http_config_id = self.add_http_action_config(request_data,
-                                                         user=user,
-                                                         bot=bot)
-        except Exception as e:
-            self.delete_story(story=request_data.action_name, user=user, bot=bot)
-            raise AppException(e)
-        return http_config_id
-
     def add_http_action_config(self, http_action_config: HttpActionConfigRequest, user: str, bot: str):
         """
         Adds a new Http action.
@@ -2053,7 +2160,7 @@ class MongoProcessor:
                 parameter_type=param.parameter_type)
             for param in http_action_config.http_params_list]
 
-        return HttpActionConfig(
+        doc_id = HttpActionConfig(
             auth_token=http_action_config.auth_token,
             action_name=http_action_config.action_name,
             response=http_action_config.response,
@@ -2063,6 +2170,8 @@ class MongoProcessor:
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+        return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):
         """

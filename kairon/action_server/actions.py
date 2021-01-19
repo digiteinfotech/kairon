@@ -250,7 +250,7 @@ class HttpAction(Action):
             logger.debug(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
             logger.debug("intent: " + str(intent))
-            logger.debug(tracker.latest_message)
+            logger.debug("tracker.latest_message: " + str(tracker.latest_message))
             bot_id = tracker.get_slot("bot")
             action = tracker.get_slot("http_action_config" + "_" + intent)
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
