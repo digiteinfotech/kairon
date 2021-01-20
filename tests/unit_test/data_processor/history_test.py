@@ -160,3 +160,48 @@ class TestHistory:
         users, message = ChatHistory.user_with_metrics("tests")
         assert users == []
         assert message is None
+
+    def test_engaged_users_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            engaged_user, message = ChatHistory.engaged_users("tests")
+            assert not engaged_user
+            assert message is None
+
+    def test_engaged_users(self, mock_mongo_client):
+        engaged_user, message = ChatHistory.engaged_users("tests")
+        assert engaged_user['engaged_users'] == 0
+        assert message is None
+
+    def test_new_user_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            count_user, message = ChatHistory.new_users("tests")
+            assert not count_user
+            assert message is None
+
+    def test_new_user(self, mock_mongo_client):
+        count_user, message = ChatHistory.new_users("tests")
+        assert count_user['new_users'] == 0
+        assert message is None
+
+    def test_successful_conversation_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            conversation_steps, message = ChatHistory.successful_conversations("tests")
+            assert not conversation_steps
+            assert message is None
+
+    def test_successful_conversation(self, mock_mongo_client):
+        conversation_steps, message = ChatHistory.successful_conversations("tests")
+        assert conversation_steps['successful_conversations'] == 0
+        assert message is None
+
+    def test_user_retention_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            retention, message = ChatHistory.user_retention("tests")
+            assert not retention
+            assert message is None
+
+    def test_user_retention(self, mock_mongo_client):
+        retention, message = ChatHistory.user_retention("tests")
+        assert retention['user_retention'] == 0
+        assert message is None
+

@@ -190,3 +190,55 @@ def test_user_with_metrics(mock_auth, mock_db_client):
     assert actual["data"]["users"] == []
     assert actual["message"] is None
     assert actual["success"]
+
+
+def test_engaged_users(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/engaged_user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["engaged_users"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_new_users(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/new_user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["new_users"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_successful_conversation(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/successful_conversation",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["successful_conversations"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_user_retention(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/user_retentions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["user_retention"] == 0
+    assert actual["message"] is None
+    assert actual["success"]

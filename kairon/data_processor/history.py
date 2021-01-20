@@ -379,3 +379,214 @@ class ChatHistory:
                                  password=password)
             collection = bot
         return client, db_name, collection, message
+
+    @staticmethod
+    def engaged_users(bot: Text, month: int = 1, conversation_limit: int = 10):
+        """
+        Counts the number of engaged users having a minimum number of conversation steps
+
+        :param bot: bot id
+        :param month: default is current month and max is last 6 months
+        :param conversation_limit: conversation step number to determine engaged users
+        :return: number of engaged users
+        """
+
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            values = []
+            try:
+                values = list(
+                     conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                              {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                                          "events.timestamp": {
+                                                              "$gte": Utility.get_timestamp_previous_month(month)}}
+                                               },
+                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                               "allevents": {"$push": "$events"}}},
+                                              {"$unwind": "$events"},
+                                              {"$project": {
+                                               "_id": 1,
+                                               "events": 1,
+                                               "following_events": {
+                                                 "$arrayElemAt": [
+                                                     "$allevents",
+                                                     {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                                 ]
+                                               }
+                                               }},
+                                              {"$project": {
+                                               "user_event": "$events.event",
+                                               "bot_event": "$following_events.event",
+                                               }},
+                                             {"$match": {"user_event": "user", "bot_event": "bot"}},
+                                             {"$group": {"_id": "$_id", "event": {"$sum": 1}}},
+                                             {"$match": {"event": {"$gte": conversation_limit}}},
+                                             {"$group": {"_id": None, "event": {"$sum": 1}}},
+                                             {"$project": {
+                                              "_id": 0,
+                                              "event": 1,
+                                              }}
+                                              ], allowDiskUse=True)
+                                           )
+            except Exception as e:
+                message = str(e)
+            if not values:
+                event = 0
+            else:
+                event = values[0]['event'] if values[0]['event'] else 0
+            return (
+                {"engaged_users": event},
+                message
+            )
+
+    @staticmethod
+    def new_users(bot: Text, month: int = 1):
+        """
+        Counts the number of new users of the bot
+
+        :param bot: bot id
+        :param month: default is current month and max is last 6 months
+        :return: number of new users
+        """
+
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            values = []
+            try:
+                values = list(
+                     conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                              {"$match": {"events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
+                                              {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
+                                                          "latest_event_time": {"$first": "$latest_event_time"}}},
+                                              {"$match": {"count": {"$lte": 1}}},
+                                              {"$match": {"latest_event_time": {
+                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                              {"$group": {"_id": None, "count": {"$sum": 1}}},
+                                              {"$project": {"_id": 0, "count": 1}}
+                                              ]))
+            except Exception as e:
+                message = str(e)
+            if not values:
+                count = 0
+            else:
+                count = values[0]['count'] if values[0]['count'] else 0
+            return (
+                {"new_users": count},
+                message
+            )
+
+    @staticmethod
+    def successful_conversations(bot: Text, month: int = 1):
+        """
+        Counts the number of successful conversations of the bot
+
+        :param bot: bot id
+        :param month: default is current month and max is last 6 months
+        :return: number of successful conversations
+        """
+
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            total = []
+            fallback_count = []
+            try:
+                total = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {
+                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                             {"$group": {"_id": None, "count": {"$sum": 1}}},
+                                             {"$project": {"_id": 0, "count": 1}}
+                                             ]))
+            except Exception as e:
+                message = str(e)
+
+            try:
+                fallback_count = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {
+                        "$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$unwind": {"path": "$events"}},
+                        {"$match": {"events.name": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                        {"$group": {"_id": "$sender_id"}},
+                        {"$group": {"_id": None, "count": {"$sum": 1}}},
+                        {"$project": {"_id": 0, "count": 1}}
+                    ]))
+
+            except Exception as e:
+                message = str(e)
+
+            if not total:
+                total_count = 0
+            else:
+                total_count = total[0]['count'] if total[0]['count'] else 0
+
+            if not fallback_count:
+                fallbacks_count = 0
+            else:
+                fallbacks_count = fallback_count[0]['count'] if fallback_count[0]['count'] else 0
+
+            return (
+                {"successful_conversations": total_count-fallbacks_count},
+                message
+            )
+
+    @staticmethod
+    def user_retention(bot: Text, month: int = 1):
+        """
+        Computes the user retention percentage of the bot
+
+        :param bot: bot id
+        :param month: default is current month and max is last 6 months
+        :return: user retention percentage
+        """
+
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            total = []
+            repeating_users = []
+            try:
+                total = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {
+                        "$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$group": {"_id": None, "count": {"$sum": 1}}},
+                        {"$project": {"_id": 0, "count": 1}}
+                    ]))
+            except Exception as e:
+                message = str(e)
+
+            try:
+                repeating_users = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                             {"$match": {"events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
+                                             {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
+                                                         "latest_event_time": {"$first": "$latest_event_time"}}},
+                                             {"$match": {"count": {"$gte": 2}}},
+                                             {"$match": {"latest_event_time": {
+                                                 "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                             {"$group": {"_id": None, "count": {"$sum": 1}}},
+                                             {"$project": {"_id": 0, "count": 1}}
+                                             ]))
+
+            except Exception as e:
+                message = str(e)
+
+            if not total:
+                total_count = 1
+            else:
+                total_count = total[0]['count'] if total[0]['count'] else 1
+
+            if not repeating_users:
+                repeat_count = 0
+            else:
+                repeat_count = repeating_users[0]['count'] if repeating_users[0]['count'] else 0
+
+            return (
+                {"user_retention": 100*(repeat_count/total_count)},
+                message
+            )
