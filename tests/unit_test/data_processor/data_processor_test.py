@@ -78,10 +78,10 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert domain.templates.keys().__len__() == 21
+        assert domain.templates.keys().__len__() == 22
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 34
+        assert domain.user_actions.__len__() == 35
         assert domain.intents.__len__() == 27
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -111,10 +111,10 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert domain.templates.keys().__len__() == 21
+        assert domain.templates.keys().__len__() == 22
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 34
+        assert domain.user_actions.__len__() == 35
         assert domain.intents.__len__() == 27
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1012,15 +1012,13 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="path_intent3").get()
         assert story is not None
 
-    def test_delete_response_with_story(self):
+    def test_delete_response(self):
         processor = MongoProcessor()
         intent = "test_delete_response_with_story"
         utterance = "utter_" + intent
         story = "path_" + intent
         bot = "testBot"
         user = "testUser"
-        story_events = [{"name": intent, "type": "user"}, {"name": utterance, "type": "action"}]
-        processor.add_story(story, story_events, bot, user)
         utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
         utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
@@ -1028,29 +1026,76 @@ class TestMongoProcessor:
         processor.delete_response(utter_intentA_1_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
-        stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
-        assert len(list(resp)) == 0
-        assert len(list(stories)) == 1
         processor.delete_response(utter_intentA_2_id, bot, user)
         resp = processor.get_response(utterance, bot)
-        stories = Stories.objects(bot=bot, status=True, events__name__iexact=utterance)
         assert len(list(resp)) == 0
-        assert len(list(stories)) == 0
 
-    def test_delete_response_with_story_exception_1(self):
+    def test_delete_response_non_existing(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.delete_response("0123456789ab0123456789ab", "testBot",
                                       "testUser")
 
-    def test_delete_response_with_story_exception_2(self):
+    def test_delete_response_empty(self):
         processor = MongoProcessor()
-        utterance = "test_delete_response_with_story_exception_2"
+        with pytest.raises(AppException):
+            processor.delete_response(" ", "testBot", "testUser")
+
+    def test_delete_response_attached_to_story(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_response_attached_to_story"
         bot = "testBot"
         user = "testUser"
         utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
+        events = [
+            {"name": "greet", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": utterance, "type": "action"},
+        ]
+        processor.add_story("test path", events, bot, user)
         with pytest.raises(AppException):
-            processor.delete_response(utter_intentA_1_id, "testBot", "testUser")
+            processor.delete_response(utter_intentA_1_id, bot, user)
+
+    def test_delete_utterance(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_utterance"
+        bot = "testBot"
+        user = "testUser"
+        processor.add_response({"text": "demo_response1"}, utterance, bot, user)
+        processor.delete_utterance(utterance, bot, user)
+
+    def test_delete_utterance_attached_to_story(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_utterance_attached_to_story"
+        bot = "testBot"
+        user = "testUser"
+        processor.add_response({"text": "demo_response2"}, utterance, bot, user)
+        events = [
+            {"name": "greet", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": utterance, "type": "action"},
+        ]
+        processor.add_story("test_delete_utterance", events, bot, user)
+        with pytest.raises(Exception):
+            processor.delete_utterance(utterance, bot, user)
+
+    def test_delete_utterance_non_existing(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_utterance_non_existing"
+        bot = "testBot"
+        user = "testUser"
+        with pytest.raises(AppException):
+            processor.delete_utterance(utterance, bot, user)
+
+    def test_delete_utterance_empty(self):
+        processor = MongoProcessor()
+        utterance = " "
+        bot = "testBot"
+        user = "testUser"
+        with pytest.raises(AppException):
+            processor.delete_utterance(utterance, bot, user)
 
     def test_add_slot(self):
         processor = MongoProcessor()
@@ -1231,6 +1276,11 @@ class TestModelProcessor:
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
         actual = len(list(processor.get_training_examples("TestingDelGreeting", "tests")))
         assert not actual
+
+    def test_get_intents_and_training_examples(self):
+        processor = MongoProcessor()
+        actual = processor.get_intents_and_training_examples("tests")
+        assert len(actual) == 15
 
     def test_delete_intent_no_trainingExamples(self):
         processor = MongoProcessor()

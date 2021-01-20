@@ -1242,6 +1242,49 @@ class MongoProcessor:
         for result in results:
             yield {"intent": result.intent, "text": result.text}
 
+    def get_intents_and_training_examples(self, bot: Text):
+        """
+        Gets all the intents and associated training examples
+
+        :param bot: bot id
+        :return: intents and list of training examples against them
+        """
+        intents_and_training_examples_dict = {}
+        intents = self.get_intents(bot)
+        intents_and_training_examples = list(
+            TrainingExamples.objects(bot=bot, status=True).aggregate(
+                [
+                    {
+                        "$group": {
+                            "_id": "$intent",
+                            "training_examples": {
+                                "$push": {
+                                    "text": "$text",
+                                    "_id": {"$toString": "$_id"}
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "intent": "$_id",
+                            "training_examples": 1
+                        }
+                    }
+                ]
+            )
+        )
+        print(intents_and_training_examples)
+        for data in intents_and_training_examples:
+            intents_and_training_examples_dict[data['intent']] = data['training_examples']
+
+        print(intents_and_training_examples_dict)
+        for intent in intents:
+            if not intents_and_training_examples_dict.get(intent['name']):
+                intents_and_training_examples_dict[intent['name']] = None
+        return intents_and_training_examples_dict
+
     def get_training_examples(self, intent: Text, bot: Text):
         """
         fetches training examples
@@ -1535,6 +1578,30 @@ class MongoProcessor:
 
         return saved_items
 
+    def get_all_responses(self, bot: Text, user: Text):
+        responses = list(
+            Responses.objects(bot=bot, user=user, status=True).order_by("-timestamp").aggregate(
+                [
+                    {
+                        "$group": {
+                            "_id": "$name",
+                            "texts": {"$push": "$text"},
+                            "customs": {"$push": "$custom"},
+                        }
+                    },
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "name": "$_id",
+                            "texts": 1,
+                            "customs": 1
+                        }
+                    }
+                ]
+            )
+        )
+        return responses
+
     def __check_response_existence(
             self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
@@ -1620,9 +1687,10 @@ class MongoProcessor:
                     type="action"))
             elif step['type'] == "HTTP_ACTION":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME,
                     type="action"))
-                slot = {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + intent, "value": step['name']}
+                slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
+                slot = {"name": slot_name, "value": step['name']}
                 slots.append(slot)
 
         story_id = (
@@ -2022,24 +2090,39 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
+    def delete_utterance(self, utterance_name: str, bot: str, user: str):
+        if not (utterance_name and utterance_name.strip()):
+            raise AppException("Utterance cannot be empty or spaces")
+        try:
+            responses = list(Responses.objects(name=utterance_name, bot=bot, user=user, status=True))
+            if not responses:
+                raise DoesNotExist("Utterance does not exists")
+            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
+            if not story:
+                for response in responses:
+                    response.status = False
+                    response.save()
+            else:
+                raise AppException("Cannot remove utterance linked to story")
+        except DoesNotExist as e:
+            raise AppException(e)
+
     def delete_response(self, utterance_id: str, bot: str, user: str):
         if not (utterance_id and utterance_id.strip()):
             raise AppException("Utterance Id cannot be empty or spaces")
         try:
-            responses = Responses.objects(bot=bot, status=True).get(id=utterance_id)
-            if responses is None:
+            response = Responses.objects(bot=bot, status=True).get(id=utterance_id)
+            if response is None:
                 raise DoesNotExist()
-            utterance_name = responses['name']
-            story = Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name).get()
-            if story is None:
-                raise DoesNotExist()
-            self.remove_document(Responses, utterance_id, bot, user)
+            utterance_name = response['name']
+            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
             responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
-            if len(responses) <= 0:
-                story.status = False
-                story.save()
-        except DoesNotExist:
-            raise AppException("Unable to remove document")
+
+            if story and len(responses) <= 1:
+                raise AppException("At least one response is required for utterance linked to story")
+            self.remove_document(Responses, utterance_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)
 
     def prepare_and_add_story(self, story: str, intent: str, bot: str, user: str):
         """

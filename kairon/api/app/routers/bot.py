@@ -40,6 +40,14 @@ async def get_intents(current_user: User = Depends(auth.get_current_user)):
     return Response(data=mongo_processor.get_intents(current_user.get_bot())).dict()
 
 
+@router.get("/intents/all", response_model=Response)
+async def get_intents_with_training_examples(current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches list of existing intents and associated training examples for particular bot
+    """
+    return Response(data=mongo_processor.get_intents_and_training_examples(current_user.get_bot())).dict()
+
+
 @router.post("/intents", response_model=Response)
 async def add_intents(
         request_data: TextData, current_user: User = Depends(auth.get_current_user)
@@ -168,6 +176,18 @@ async def remove_training_examples(
     return {"message": "Training Example removed!"}
 
 
+@router.get("/response/all", response_model=Response)
+async def get_all_responses(
+        current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Fetches list of all utterances added.
+    """
+    return {
+        "data": list(mongo_processor.get_all_responses(current_user.get_bot(), current_user.get_user()))
+    }
+
+
 @router.get("/response/{utterance}", response_model=Response)
 async def get_responses(
         utterance: str, current_user: User = Depends(auth.get_current_user)
@@ -217,16 +237,23 @@ async def edit_responses(
     }
 
 
-@router.delete("/response", response_model=Response)
+@router.delete("/response/{delete_utterance}", response_model=Response)
 async def remove_responses(
-        request_data: TextData, current_user: User = Depends(auth.get_current_user)
+        request_data: TextData,
+        delete_utterance: bool = Path(default=False, description="Deletes utterance if True"),
+        current_user: User = Depends(auth.get_current_user)
 ):
     """
-    Deletes existing utterance value
+    Deletes existing utterance completely along with its examples.
     """
-    mongo_processor.delete_response(
-        request_data.data, current_user.get_bot(), current_user.get_user()
-    )
+    if delete_utterance:
+        mongo_processor.delete_utterance(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    else:
+        mongo_processor.delete_response(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
     return {
         "message": "Utterance removed!",
     }

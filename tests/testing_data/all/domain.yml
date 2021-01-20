@@ -233,6 +233,8 @@ responses:
   - text: Ticket has been approved!!
   utter_procurement_rejected:
   - text: Ticket has been rejected!!
+  utter_delete:
+  - text: "I will be deleted."
 
 actions:
 - utter_greet
