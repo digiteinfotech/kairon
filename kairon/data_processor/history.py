@@ -604,8 +604,8 @@ class ChatHistory:
 
         initial_numbers = []
         for i in range(month):
-            get_value, message = ChatHistory.engaged_users(bot=bot, month=i+1, conversation_limit=conversation_limit)
-            initial_numbers.append(get_value['engaged_users'])
+            get_value = ChatHistory.engaged_users(bot=bot, month=i+1, conversation_limit=conversation_limit)
+            initial_numbers.append(get_value[0]['engaged_users'])
         value_range = [initial_numbers[0]]
         for i in range(len(initial_numbers) - 1):
             value_range.append(initial_numbers[i + 1] - initial_numbers[i])
@@ -623,8 +623,8 @@ class ChatHistory:
 
         initial_numbers = []
         for i in range(month):
-            get_value, message = ChatHistory.new_users(bot=bot, month=i+1)
-            initial_numbers.append(get_value['new_users'])
+            get_value = ChatHistory.new_users(bot=bot, month=i+1)
+            initial_numbers.append(get_value[0]['new_users'])
         value_range = [initial_numbers[0]]
         for i in range(len(initial_numbers) - 1):
             value_range.append(initial_numbers[i + 1] - initial_numbers[i])
@@ -642,8 +642,8 @@ class ChatHistory:
 
         initial_numbers = []
         for i in range(month):
-            get_value, message = ChatHistory.successful_conversations(bot=bot, month=i+1)
-            initial_numbers.append(get_value['successful_conversations'])
+            get_value = ChatHistory.successful_conversations(bot=bot, month=i+1)
+            initial_numbers.append(get_value[0]['successful_conversations'])
         value_range = [initial_numbers[0]]
         for i in range(len(initial_numbers) - 1):
             value_range.append(initial_numbers[i + 1] - initial_numbers[i])
@@ -661,8 +661,8 @@ class ChatHistory:
 
         initial_numbers = []
         for i in range(month):
-            get_value, message = ChatHistory.user_retention(bot=bot, month=i+1)
-            initial_numbers.append(get_value['user_retention'])
+            get_value = ChatHistory.user_retention(bot=bot, month=i+1)
+            initial_numbers.append(get_value[0]['user_retention'])
         value_range = [initial_numbers[0]]
         for i in range(len(initial_numbers) - 1):
             value_range.append(initial_numbers[i + 1] - initial_numbers[i])
