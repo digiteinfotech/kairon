@@ -590,3 +590,80 @@ class ChatHistory:
                 {"user_retention": 100*(repeat_count/total_count)},
                 message
             )
+
+    @staticmethod
+    def engaged_users_range(bot: Text, month: int = 6, conversation_limit: int = 10):
+        """
+        Computes the trend for engaged user count
+
+        :param bot: bot id
+        :param month: default is 6 months
+        :param conversation_limit: conversation step number to determine engaged users
+        :return: list of counts of engaged users for the previous months
+        """
+
+        initial_numbers = []
+        for i in range(month):
+            get_value, message = ChatHistory.engaged_users(bot=bot, month=i+1, conversation_limit=conversation_limit)
+            initial_numbers.append(get_value['engaged_users'])
+        value_range = [initial_numbers[0]]
+        for i in range(len(initial_numbers) - 1):
+            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
+        return value_range
+
+    @staticmethod
+    def new_users_range(bot: Text, month: int = 6):
+        """
+        Computes the trend for new user count
+
+        :param bot: bot id
+        :param month: default is 6 months
+        :return: list of counts of new users for the previous months
+        """
+
+        initial_numbers = []
+        for i in range(month):
+            get_value, message = ChatHistory.new_users(bot=bot, month=i+1)
+            initial_numbers.append(get_value['new_users'])
+        value_range = [initial_numbers[0]]
+        for i in range(len(initial_numbers) - 1):
+            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
+        return value_range
+
+    @staticmethod
+    def successful_conversation_range(bot: Text, month: int = 6):
+        """
+        Computes the trend for successful conversation count
+
+        :param bot: bot id
+        :param month: default is 6 months
+        :return: list of counts of successful bot conversations for the previous months
+        """
+
+        initial_numbers = []
+        for i in range(month):
+            get_value, message = ChatHistory.successful_conversations(bot=bot, month=i+1)
+            initial_numbers.append(get_value['successful_conversations'])
+        value_range = [initial_numbers[0]]
+        for i in range(len(initial_numbers) - 1):
+            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
+        return value_range
+
+    @staticmethod
+    def user_retention_range(bot: Text, month: int = 6):
+        """
+        Computes the trend for user retention percentages
+
+        :param bot: bot id
+        :param month: default is 6 months
+        :return: list of user retention percentages for the previous months
+        """
+
+        initial_numbers = []
+        for i in range(month):
+            get_value, message = ChatHistory.user_retention(bot=bot, month=i+1)
+            initial_numbers.append(get_value['user_retention'])
+        value_range = [initial_numbers[0]]
+        for i in range(len(initial_numbers) - 1):
+            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
+        return value_range
