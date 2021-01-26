@@ -3,7 +3,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '30 5 * * 0'
+    - cron: '30 11 * * *'
 
 jobs:
   scan:
@@ -14,12 +14,12 @@ jobs:
         run: |
           docker pull digite/kairon-augment
           docker pull digite/kairon-api
-      - uses: homoluctus/gitrivy@v2
+      - uses: homoluctus/gitrivy@v1.0.0
         name: Scanning augment image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: digite/kairon-augment
-      - uses: homoluctus/gitrivy@v2
+      - uses: homoluctus/gitrivy@v1.0.0
         name: Scanning api image
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
