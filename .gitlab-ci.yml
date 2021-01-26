@@ -12,15 +12,21 @@ test:
     - dspg_dev
   stage: test
   script:
-    - python3.6 -m pip install -r requirements.txt
-    - python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html
+    - python3.7 -m pip install pip==20.2.4
+    - python3.7 -m pip install -r requirements.txt
+    - python3.7 -m pip install git+https://github.com/sfahad1414/question_generation.git
+    - python3.7 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/load_test/
 
 build:
   tags:
-    - chiron
+    - kairon
   only:
     - master
   stage: build
   script:
-    -  docker build -f ./docker/Dockerfile_api -t chiron-api:latest .
-    -  docker build -f ./docker/Dockerfile_augment -t chiron-augment:latest .
+    -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
+    -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
+    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
+    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .
+    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen:latest .

@@ -4,8 +4,11 @@ from typing import Any, Optional, Text, Dict, TYPE_CHECKING
 
 import spacy
 from rasa.nlu.components import Component
+from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.extractors.extractor import EntityExtractor
+from rasa.shared.nlu.training_data.training_data import TrainingData
 from spacy.matcher import Matcher
+from rasa.nlu.utils.spacy_utils import SpacyNLP
 
 if TYPE_CHECKING:
     from rasa.nlu.model import Metadata
@@ -31,7 +34,7 @@ class SpacyPatternNER(EntityExtractor):
     # these values can be overwritten in the pipeline configuration
     # of the model. The component should choose sensible defaults
     # and should be able to create reasonable results with the defaults.
-    defaults = {}
+    defaults = {"model": None}
 
     # Defines what language(s) this component can handle.
     # This attribute is designed for instance method: `can_handle_language`.
@@ -41,15 +44,22 @@ class SpacyPatternNER(EntityExtractor):
 
     def __init__(self, component_config=None, matcher=None):
         super(SpacyPatternNER, self).__init__(component_config)
-        if matcher:
-            self.matcher = matcher
-            self.spacy_nlp = spacy.blank('en')
-            self.spacy_nlp.vocab = self.matcher.vocab
+
+        spacy_model_name = component_config.get("model")
+
+        if spacy_model_name:
+            self.spacy_nlp = SpacyNLP.load_model(spacy_model_name)
         else:
             self.spacy_nlp = spacy.blank('en')
+
+        if matcher:
+            self.matcher = matcher
+        else:
             self.matcher = Matcher(self.spacy_nlp.vocab)
 
-    def train(self, training_data, cfg, **kwargs):
+    def train(self, training_data: TrainingData,
+        config: Optional[RasaNLUModelConfig] = None,
+        **kwargs: Any,):
         """Train this component.
 
         This is the components chance to train itself provided
@@ -140,6 +150,9 @@ class SpacyPatternNER(EntityExtractor):
             self.saveModel(modelFile)
         return {"pattern_ner_file": PATTERN_NER_FILE}
 
+    @classmethod
+    def cache_key(cls, component_meta: Dict[Text, Any], model_metadata: "Metadata") -> Optional[Text]:
+        return cls.name
 
     @classmethod
     def load(
@@ -151,19 +164,24 @@ class SpacyPatternNER(EntityExtractor):
         **kwargs: Any
     ) -> "Component":
         """Load this component from file."""
-
-        file_name = meta.get("pattern_ner_file", PATTERN_NER_FILE)
-        modelFile = os.path.join(model_dir, file_name)
-        if os.path.exists(modelFile):
-            modelLoad = open(modelFile, "rb")
-            matcher = pickle.load(modelLoad)
-            modelLoad.close()
-            return cls(meta, matcher)
+        if cached_component:
+            return cached_component
         else:
-            return cls(meta)
+            file_name = meta.get("pattern_ner_file", PATTERN_NER_FILE)
+            modelFile = os.path.join(model_dir, file_name)
+            if os.path.exists(modelFile):
+                with open(modelFile, "rb") as modelLoad:
+                    matcher = pickle.load(modelLoad)
+                    return cls(meta, matcher)
+            else:
+                return cls(meta)
 
 
     def saveModel(self, modelFile):
         modelSave = open(modelFile, "wb")
         pickle.dump(self.matcher, modelSave)
         modelSave.close()
+
+    def __del__(self):
+        del self.spacy_nlp
+        del self.matcher

@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.6
+    - name: Set up Python 3.7
       uses: actions/setup-python@v1
       with:
-        python-version: 3.6
+        python-version: 3.7
     - name: Install dependencies
       run: |
-        python3.6 -m pip install flake8
-        python3.6 -m pip install wheel
+        python -m pip install flake8
+        python -m pip install wheel
         chmod 777 ./setup.sh
         ./setup.sh
     - name: Lint with flake8
@@ -34,7 +34,7 @@ jobs:
     - name: Test with pytest
       id: pytest
       run: |
-        python3.6 -m pytest --html=report.html --cov=bot_trainer tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/
+        python -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
       if: failure()
@@ -49,6 +49,7 @@ jobs:
         # sphinx-quickstart
         #set system_file=../system.yaml
         export system_file=../system.yaml
+        export EMAIl_CONF=../email.yaml
         make html
     #- name: Configure AWS credentials
     #    uses: aws-actions/configure-aws-credentials@v1

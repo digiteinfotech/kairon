@@ -2,7 +2,7 @@ augmentation
 ============
 
 .. toctree::
-    :maxdepth: 4
+   :maxdepth: 4
 
-    generator
-    server
+   paraphrase/index
+   question_generator/index

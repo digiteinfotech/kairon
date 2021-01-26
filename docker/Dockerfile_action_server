@@ -1,0 +1,18 @@
+FROM rasa/rasa:2.1.2
+
+WORKDIR /app
+USER root
+RUN apt-get update -qq && \
+python -m pip install --upgrade pip && \
+python -m pip install mongoengine==0.20.0 && \
+python -m pip install smart-config==0.1.3 && \
+python -m pip install validators
+
+
+COPY kairon/action_server /app/actions/
+COPY system.yaml /app/actions/system.yaml
+
+USER 1001
+EXPOSE 5055
+CMD ["run","actions"]
+

@@ -1,9 +1,9 @@
-.. Chiron documentation master file, created by
+.. Kairon documentation master file, created by
    sphinx-quickstart on Tue May 12 15:07:00 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Chiron's documentation!
+Welcome to Kairon's documentation!
 =======================================
 
 .. toctree::
@@ -11,7 +11,7 @@ Welcome to Chiron's documentation!
    :caption: Contents:
 
    augmentation/index
-   bot_trainer/index
+   kairon/index
 
 
 Indices and tables

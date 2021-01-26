@@ -9,57 +9,69 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
-	  
-  chiron-augment:
-    image: digite/chiron-augment:latest
+      - ./mongo_data:/data/db
+
+  kairon-paraphrase:
+    image: digite/kairon-paraphrase:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-augment
-    hostname: chiron-augment
-    depends_on:
-      - mongo
+    container_name: kairon-paraphrase
+    hostname: kairon-paraphrase
     ports:
       - 8001:8000
     volumes:
-      - chiron_augment_tmp:/root/.cache/
-    environment:
-      mongo_url: "mongodb://mongo:27017"
+      - ./paraphrase_tmp:/root/.cache/
 
-  chiron-api:
-    image: digite/chiron-api:latest
+  kairon-question-generation:
+    image: digite/kairon-qg:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-api
-    hostname:chiron-api
+    container_name: kairon-question-generation
+    hostname: kairon-question-generation
+    ports:
+      - 8002:8000
+    volumes:
+      - ./question_generation_tmp:/root/.cache/
+
+  kairon-api:
+    image: digite/kairon-api:latest
+    networks:
+      - chatbotnetwork
+    container_name: kairon-api
+    hostname: kairon-api
     depends_on:
       - mongo
-      - chiron-augment
+      - kairon-question-generation
+      - kairon-paraphrase
     ports:
       - 81:80
     volumes:
-      - chiron_models:/app/models
-      - chiron_tmp:/root/.cache/
+      - ./models:/app/models
+      - ./api_tmp:/root/.cache/
     environment:
-      mongo_url: "mongodb://mongo:27017"
-      mongo_db: "chiron"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      augmentation_url: "http://chiron-augment:8001/questions"
-      test_conversation_db: "chiron_conversations"
+      PARAPHRASE_URL: "http://kairon-paraphrase:8001/paraphrases"
+      QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
+      TEST_DB: "kairon_conversations"
+      ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
 
-  chiron-ui:
-    image: digite/chiron-ui:latest
+  kairon-ui:
+    image: digite/kairon-ui:latest
     networks:
       - chatbotnetwork
-    container_name: chiron-ui
-    hostname: chiron-ui
+    container_name: kairon-ui
+    hostname: kairon-ui
     depends_on:
-      - chiron-api
+      - kairon-api
     ports:
       - 80:8080
     environment:
-      server: "http://chiron-api:81/"
-	  
+      server: "http://localhost:81"
+  ## if you want to use google analytics then uncomment trackingid
+  ## and set you google analytics code
+  #      trackingid: ""
+
   duckling:
     image: rasa/duckling
     networks:
@@ -69,11 +81,14 @@ services:
     ports:
       - 8000:8000
 
+  kairon-action-server:
+    image: digite/kairon-action-server:latest
+    container_name: kairon-action-server
+    hostname: kairon-action-server
+    ports:
+      - 5055:5055
+    networks:
+      - chatbotnetwork
+
 networks:
   chatbotnetwork:
-
-volumes:
-  chiron_models:
-  chiron_tmp:
-  chiron_augment_tmp:
-  mongo_data:

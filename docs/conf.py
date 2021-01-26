@@ -9,8 +9,8 @@ html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "collapse_navigation" : False
 }
-html_logo = 'chironlogo.svg'
-html_favicon = 'chironlogo.svg'
+html_logo = 'logo.svg'
+html_favicon = 'logo.svg'
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Bot Trainer'
+project = 'Kairon'
 copyright = '2020, Digite'
 author = 'Fahad Shaikh <shaikhfahad2526@gmail.com>'
 
@@ -63,4 +63,4 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-autodoc_mock_imports = ["pydantic",'starlette','passlib',"fastapi",'validators','slackclient']
+autodoc_mock_imports = ["pydantic",'starlette','passlib',"fastapi",'validators','slackclient','question_generation']

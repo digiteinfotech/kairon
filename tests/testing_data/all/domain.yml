@@ -53,7 +53,7 @@ slots:
   name:
     type: unfeaturized
 
-templates:
+responses:
   utter_greet:
   - text: Hey! How are you?
   utter_cheer_up:
@@ -269,5 +269,12 @@ actions:
 - utter_procurement_rejected
 
 forms:
-- ticket_attributes_form
-- ticket_file_form
+  ticket_attributes_form:
+    priority:
+      - type: from_entity
+        entity: priority
+  ticket_file_form:
+    file:
+      - type: from_entity
+        entity: file
+

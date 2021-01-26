@@ -6,10 +6,12 @@ from mongoengine.errors import ValidationError
 import pytest
 from pydantic import SecretStr
 
-from bot_trainer.api.processor import AccountProcessor
-from bot_trainer.utils import Utility
+from kairon.api.processor import AccountProcessor
+from kairon.utils import Utility
+from kairon.exceptions import AppException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
+
 
 
 def pytest_configure():
@@ -19,7 +21,7 @@ class TestAccountProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
+        connect(host=Utility.environment['database']["url"])
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
@@ -42,15 +44,15 @@ class TestAccountProcessor:
             AccountProcessor.add_account("PayPal", "testAdmin")
 
     def test_add_blank_account(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_account("", "testAdmin")
 
     def test_add_empty_account(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_account(" ", "testAdmin")
 
     def test_add_none_account(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_account(None, "testAdmin")
 
     def test_add_bot(self):
@@ -72,15 +74,15 @@ class TestAccountProcessor:
             AccountProcessor.add_bot("TEST", 1, "testAdmin")
 
     def test_add_blank_bot(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_bot(" ", 1, "testAdmin")
 
     def test_add_empty_bot(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_bot("", 1, "testAdmin")
 
     def test_add_none_bot(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_bot(None, 1, "testAdmin")
 
     def test_add_user(self):
@@ -122,7 +124,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_email(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="",
                 first_name="Fahad Ali",
@@ -134,7 +136,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_email(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email=" ",
                 first_name="Fahad Ali",
@@ -146,7 +148,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_invalid_email(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValidationError):
             AccountProcessor.add_user(
                 email="demo",
                 first_name="Fahad Ali",
@@ -158,7 +160,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_email(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email=None,
                 first_name="Fahad Ali",
@@ -170,7 +172,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_firstname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
@@ -182,7 +184,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_firstname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name=" ",
@@ -194,7 +196,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_firstname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="",
@@ -206,7 +208,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_lastname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -218,7 +220,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_none_lastname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -230,7 +232,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_lastname(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -242,7 +244,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_empty_password(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -254,7 +256,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_blank_password(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -266,7 +268,7 @@ class TestAccountProcessor:
             )
 
     def test_add_user_None_password(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             AccountProcessor.add_user(
                 email="demo@demo.ai",
                 first_name="Fahad Ali",
@@ -299,6 +301,7 @@ class TestAccountProcessor:
                 "status": False,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -329,6 +332,7 @@ class TestAccountProcessor:
                 "status": True,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -361,6 +365,7 @@ class TestAccountProcessor:
                 "status": True,
                 "bot": "support",
                 "account": 2,
+                "is_integration_user": False
             }
 
         def bot_response(*args, **kwargs):
@@ -394,7 +399,7 @@ class TestAccountProcessor:
 
     def test_account_setup_empty_values(self):
         account = {}
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
@@ -406,7 +411,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "welcome@1",
         }
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
@@ -418,7 +423,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": "Welcome@1",
         }
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
@@ -430,7 +435,7 @@ class TestAccountProcessor:
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
         }
-        with pytest.raises(AssertionError):
+        with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
 
@@ -444,7 +449,7 @@ class TestAccountProcessor:
             "password": SecretStr("Welcome@1"),
         }
         loop = asyncio.new_event_loop()
-        actual = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        actual, mail, subject, body = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
         assert actual["role"] == "admin"
         assert actual["_id"]
         assert actual["account"]
@@ -452,5 +457,180 @@ class TestAccountProcessor:
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
-        actual = loop.run_until_complete(AccountProcessor.default_account_setup())
+        actual, mail, subject, body = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual
+
+    async def mock_smtp(self, *args, **kwargs):
+        return None
+
+    def test_validate_and_send_mail(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject='test',body='test'))
+        assert True
+
+    def test_send_false_email_id(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.validate_and_send_mail('..',subject='test',body="test"))
+
+    def test_send_empty_mail_subject(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject=' ',body='test'))
+
+    def test_send_empty_mail_body(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject='test',body=' '))
+
+    def test_valid_token(self):
+        token = Utility.generate_token('integ1@gmail.com')
+        mail = Utility.verify_token(token)
+        assert mail
+
+    def test_invalid_token(self):
+        with pytest.raises(Exception):
+            Utility.verify_token('..')
+
+    def test_new_user_confirm(self,monkeypatch):
+        AccountProcessor.add_user(
+            email="integ2@gmail.com",
+            first_name="inteq",
+            last_name="2",
+            password='Welcome@1',
+            account=1,
+            bot=pytest.bot,
+            user="testAdmin",
+        )
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('integ2@gmail.com')
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.confirm_email(token))
+        assert True
+
+    def test_user_already_confirmed(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        token = Utility.generate_token('integ2@gmail.com')
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.confirm_email(token))
+
+    def test_user_not_confirmed(self):
+        with pytest.raises(Exception):
+            AccountProcessor.is_user_confirmed('sd')
+
+    def test_user_confirmed(self):
+        AccountProcessor.is_user_confirmed('integ2@gmail.com')
+        assert True
+
+    def test_send_empty_token(self):
+        with pytest.raises(Exception):
+            Utility.verify_token(' ')
+
+    def test_reset_link_with_mail(self,monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+        assert True
+
+    def test_reset_link_with_empty_mail(self,monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link(''))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_unregistered_mail(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('sasha.41195@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_overwrite_password_with_invalid_token(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.overwrite_password('fgh',"asdfghj@1"))
+
+    def test_overwrite_password_with_empty_password_string(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.overwrite_password('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20', " "))
+
+    def test_overwrite_password_with_valid_entries(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('integ2@gmail.com')
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.overwrite_password(token,"Welcome@3"))
+        assert True
+
+    def test_send_confirmation_link_with_valid_id(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="integ3@gmail.com",
+            first_name="inteq",
+            last_name="3",
+            password='Welcome@1',
+            account=1,
+            bot=pytest.bot,
+            user="testAdmin",
+        )
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+        assert True
+
+    def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('integ1@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_send_confirmation_link_with_invalid_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link(''))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_send_confirmation_link_with_unregistered_id(self, monkeypatch):
+        AccountProcessor.EMAIL_ENABLED = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('sasha.41195@gmail.com'))
+        AccountProcessor.EMAIL_ENABLED = False
+
+    def test_reset_link_with_mail_not_enabled(self,monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integ1@gmail.com'))
+
+    def test_send_confirmation_link_with_mail_not_enabled(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(Exception):
+            loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))

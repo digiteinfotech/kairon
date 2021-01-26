@@ -1,8 +1,26 @@
-mongo_url: "mongodb://localhost:27017"
-mongo_db: "conversations"
-test_conversation_db: "test_conversations"
-SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-ALGORITHM: "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES: 60
-augmentation_url: "http://localhost:8000/questions"
-MODEL_TRAINING_LIMIT_PER_DAY: 5
+database:
+  url: ${DATABASE_URL:"mongodb://192.168.101.148:27019/conversations"}
+  test_db: ${TEST_DB:"test_conversations"}
+
+security:
+  secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
+  algorithm: "HS256"
+  token_expire: ${TOKEN_EXPIRE:10080}
+
+augmentation:
+  paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrases"}
+  question_generation_url: ${QUESTION_GENERATION_URL:"http://localhost:8000/questions"}
+
+model:
+  train:
+    limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
+    event_url: ${TRAIN_EVENT_URL}
+    agent_url: ${AGENT_URL}
+
+action:
+  url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
+
+data_generation:
+  limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
+  event_url: ${DATA_GENERATION_EVENT_URL}
+  kairon_url: ${KAIRON_URL}

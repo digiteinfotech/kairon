@@ -1,56 +1,33 @@
 import json
+import os
 
 import pytest
 from mongoengine import connect
-from rasa.core.domain import Domain
-from rasa.core.tracker_store import MongoTrackerStore, DialogueStateTracker
+from mongomock import MongoClient
+from rasa.core.tracker_store import MongoTrackerStore
+from rasa.shared.core.domain import Domain
 
-from bot_trainer.data_processor.history import ChatHistory
-from bot_trainer.data_processor.processor import MongoProcessor
-from bot_trainer.utils import Utility
+from kairon.data_processor.history import ChatHistory
+from kairon.data_processor.processor import MongoProcessor
+from kairon.utils import Utility
 
 
 class TestHistory:
     @pytest.fixture(autouse=True)
     def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(Utility.environment["mongo_db"], host=Utility.environment["mongo_url"])
-
-    def tracker_keys(self, *args, **kwargs):
-        return [
-            "5b029887-bed2-4bbb-aa25-bd12fda26244",
-            "b868d6ee-f98f-4c1b-b284-ce034aaad01f",
-            "b868d6ee-f98f-4c1b-b284-ce034aaad61f",
-            "b868d6ee-f98f-4c1b-b284-ce4534aaad61f",
-            "49931985-2b51-4db3-89d5-a50767e6d98e",
-            "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
-            "2fed7769-b647-4088-8ed9-a4f4f3653f25",
-        ]
-
-    def user_history(self, *args, **kwargs):
-        json_data = json.load(open("tests/testing_data/history/conversation.json"))
-        domain = Domain.from_file("tests/testing_data/initial/domain.yml")
-        return (
-            DialogueStateTracker.from_dict(
-                "5e564fbcdcf0d5fad89e3acd", json_data["events"], domain.slots
-            )
-            .as_dialogue()
-            .events
-        )
+        connect(host=Utility.environment['database']["url"])
 
     def history_conversations(self, *args, **kwargs):
         json_data = json.load(
             open("tests/testing_data/history/conversations_history.json")
         )
-        return json_data
-
-    @pytest.fixture
-    def mock_tracker(self, monkeypatch):
-        monkeypatch.setattr(MongoTrackerStore, "keys", self.tracker_keys)
+        return json_data[0]['events'], None
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
-        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019")
+        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019"), None
 
     @pytest.fixture
     def mock_get_tracker_and_domain(self, monkeypatch):
@@ -59,25 +36,27 @@ class TestHistory:
         )
 
     @pytest.fixture
-    def mock_chat_history_empty(self, monkeypatch):
-        def fetch_user_history(*args, **kwargs):
-            return []
+    def mock_mongo_client(self, monkeypatch):
+        def db_client(*args, **kwargs):
+            client = MongoClient()
+            db = client.get_database("conversation")
+            conversations = db.get_collection("conversations")
+            history, _ = self.history_conversations()
+            conversations.insert_many(history)
+            return client, "conversation", "conversations", None
 
-        def get_conversations(*args, **kwargs):
-            return []
-
-        monkeypatch.setattr(ChatHistory, "fetch_user_history", fetch_user_history)
-        monkeypatch.setattr(ChatHistory, "get_conversations", get_conversations)
+        monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
 
     @pytest.fixture
-    def mock_chat_history(self, monkeypatch):
-        monkeypatch.setattr(ChatHistory, "fetch_user_history", self.user_history)
-        monkeypatch.setattr(
-            ChatHistory, "get_conversations", self.history_conversations
-        )
+    def mock_mongo_client_empty(self, monkeypatch):
+        def client(*args, **kwargs):
+            client = MongoClient()
+            return client, "conversation", "conversations", None
+
+        monkeypatch.setattr(ChatHistory, "get_mongo_connection", client)
 
     def endpoint_details(self, *args, **kwargs):
-        return {"tracker_endpoint": {"url": "mongodb://demo", "db": "conversation"}}
+        return {"tracker_endpoint": {"url": "mongodb://localhost:27019", "db": "conversation"}}
 
     @pytest.fixture
     def mock_mongo_processor(self, monkeypatch):
@@ -88,25 +67,40 @@ class TestHistory:
             users = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
 
-    def test_fetch_chat_users_error(self, mock_get_tracker_and_domain):
+    def test_fetch_chat_users(self, mock_mongo_client):
+        users = ChatHistory.fetch_chat_users(bot="tests")
+        assert len(users) == 2
+
+    def test_fetch_chat_users_empty(self, mock_mongo_client_empty):
+        users = ChatHistory.fetch_chat_users(bot="tests")
+        assert len(users) == 2
+
+    def test_fetch_chat_users_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            users = ChatHistory.fetch_chat_users(bot="tests")
+            users, message = ChatHistory.fetch_chat_users(bot="tests")
             assert len(users) == 0
+            assert message is None
 
-    def test_fetch_chat_history_error(self, mock_get_tracker_and_domain):
+    def test_fetch_chat_history_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
+            history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
             assert len(history) == 0
+            assert message is None
 
-    def test_fetch_chat_history_empty(self, mock_chat_history_empty):
-        history = ChatHistory.fetch_chat_history(sender="123", bot="tests")
+    def test_fetch_chat_history_empty(self, mock_mongo_client_empty):
+        history, message = ChatHistory.fetch_chat_history(sender="123", bot="tests")
         assert len(history) == 0
+        assert message is None
 
-    def test_fetch_chat_history(self, mock_chat_history):
-        history = ChatHistory.fetch_chat_history(
+    def test_fetch_chat_history(self, monkeypatch):
+        def events(*args, **kwargs):
+            json_data = json.load(open("tests/testing_data/history/conversation.json"))
+            return json_data['events'], None
+        monkeypatch.setattr(ChatHistory, "fetch_user_history", events)
+
+        history, message = ChatHistory.fetch_chat_history(
             sender="5e564fbcdcf0d5fad89e3acd", bot="tests"
         )
-        print(history)
         assert len(history) == 12
         assert history[0]["event"]
         assert history[0]["time"]
@@ -115,45 +109,134 @@ class TestHistory:
         assert history[0]["is_exists"] == False or history[0]["is_exists"]
         assert history[0]["intent"]
         assert history[0]["confidence"]
+        assert message is None
 
-    def test_visitor_hit_fallback_error(self, mock_get_tracker_and_domain):
+    def test_visitor_hit_fallback_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
+            hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
             assert hit_fall_back["fallback_count"] == 0
             assert hit_fall_back["total_count"] == 0
+            assert message is None
 
-    def test_visitor_hit_fallback_empty(self, mock_chat_history_empty):
-        hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
+    def test_visitor_hit_fallback(self, mock_mongo_client):
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 0
+        assert message is None
 
-    def test_visitor_hit_fallback(self, mock_chat_history):
-        hit_fall_back = ChatHistory.visitor_hit_fallback("tests")
-        assert hit_fall_back["fallback_count"] == 3
-        assert hit_fall_back["total_count"] == 31
-
-    def test_conversation_time_error(self, mock_get_tracker_and_domain):
+    def test_conversation_time_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            conversation_time = ChatHistory.conversation_time("tests")
+            conversation_time, message = ChatHistory.conversation_time("tests")
             assert not conversation_time
+            assert message is None
 
-    def test_conversation_time_empty(self, mock_chat_history_empty):
-        conversation_time = ChatHistory.conversation_time("tests")
+    def test_conversation_time_empty(self, mock_mongo_client_empty):
+        conversation_time, message = ChatHistory.conversation_time("tests")
         assert not conversation_time
+        assert message is None
 
-    def test_conversation_time(self, mock_chat_history):
-        conversation_time = ChatHistory.conversation_time("tests")
-        assert conversation_time
+    def test_conversation_time(self, mock_mongo_client):
+        conversation_time, message = ChatHistory.conversation_time("tests")
+        assert conversation_time == []
+        assert message is None
 
-    def test_conversation_steps_error(self, mock_get_tracker_and_domain):
+    def test_conversation_steps_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            conversation_steps = ChatHistory.conversation_steps("tests")
+            conversation_steps, message = ChatHistory.conversation_steps("tests")
+            assert not conversation_steps
+            assert message is None
+
+    def test_conversation_steps_empty(self, mock_mongo_client_empty):
+        conversation_steps, message = ChatHistory.conversation_steps("tests")
+        assert not conversation_steps
+        assert message is None
+
+    def test_conversation_steps(self, mock_mongo_client):
+        conversation_steps, message = ChatHistory.conversation_steps("tests")
+        assert conversation_steps == []
+        assert message is None
+
+    def test_user_with_metrics(self, mock_mongo_client):
+        users, message = ChatHistory.user_with_metrics("tests")
+        assert users == []
+        assert message is None
+
+    def test_engaged_users_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            engaged_user, message = ChatHistory.engaged_users("tests")
+            assert not engaged_user
+            assert message is None
+
+    def test_engaged_users(self, mock_mongo_client):
+        engaged_user, message = ChatHistory.engaged_users("tests")
+        assert engaged_user['engaged_users'] == 0
+        assert message is None
+
+    def test_new_user_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            count_user, message = ChatHistory.new_users("tests")
+            assert not count_user
+            assert message is None
+
+    def test_new_user(self, mock_mongo_client):
+        count_user, message = ChatHistory.new_users("tests")
+        assert count_user['new_users'] == 0
+        assert message is None
+
+    def test_successful_conversation_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            conversation_steps, message = ChatHistory.successful_conversations("tests")
+            assert not conversation_steps
+            assert message is None
+
+    def test_successful_conversation(self, mock_mongo_client):
+        conversation_steps, message = ChatHistory.successful_conversations("tests")
+        assert conversation_steps['successful_conversations'] == 0
+        assert message is None
+
+    def test_user_retention_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            retention, message = ChatHistory.user_retention("tests")
+            assert not retention
+            assert message is None
+
+    def test_user_retention(self, mock_mongo_client):
+        retention, message = ChatHistory.user_retention("tests")
+        assert retention['user_retention'] == 0
+        assert message is None
+
+    def test_engaged_users_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            engaged_user = ChatHistory.engaged_users_range("tests")
+            assert not engaged_user
+
+    def test_engaged_users_range(self, mock_mongo_client):
+        engaged_user = ChatHistory.engaged_users_range("tests")
+        assert engaged_user == [0, 0, 0, 0, 0, 0]
+
+    def test_new_user_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            count_user = ChatHistory.new_users_range("tests")
+            assert not count_user
+
+    def test_new_user_range(self, mock_mongo_client):
+        count_user = ChatHistory.new_users_range("tests")
+        assert count_user == [0, 0, 0, 0, 0, 0]
+
+    def test_successful_conversation_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            conversation_steps = ChatHistory.successful_conversation_range("tests")
             assert not conversation_steps
 
-    def test_conversation_steps_empty(self, mock_chat_history_empty):
-        conversation_steps = ChatHistory.conversation_steps("tests")
-        assert not conversation_steps
+    def test_successful_conversation_range(self, mock_mongo_client):
+        conversation_steps = ChatHistory.successful_conversation_range("tests")
+        assert conversation_steps == [0, 0, 0, 0, 0, 0]
 
-    def test_conversation_steps(self, mock_chat_history):
-        conversation_steps = ChatHistory.conversation_steps("tests")
-        assert conversation_steps
+    def test_user_retention_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            retention = ChatHistory.user_retention_range("tests")
+            assert not retention
+
+    def test_user_retention_range(self, mock_mongo_client):
+        retention = ChatHistory.user_retention_range("tests")
+        assert retention == [0, 0, 0, 0, 0, 0]
