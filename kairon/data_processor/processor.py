@@ -1822,7 +1822,7 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def get_stories(self, bot: Text):
+    def get_stories(self, bot: Text, user: Text):
         """
         fetches stories 
         
@@ -1831,11 +1831,37 @@ class MongoProcessor:
         """
         for value in Stories.objects(bot=bot, status=True):
             item = value.to_mongo().to_dict()
+            block_name = item.pop("block_name")
+            events = item.pop("events")
             item.pop("bot")
             item.pop("user")
             item.pop("timestamp")
             item.pop("status")
             item["_id"] = item["_id"].__str__()
+
+            steps = []
+            intent = None
+            for event in events:
+                step = {}
+
+                if event['type'] == 'user':
+                    step['name'] = event['name']
+                    step['type'] = 'INTENT'
+                    intent = event['name']
+                elif event['type'] == 'action':
+                    if event['name'] == CUSTOM_ACTIONS.HTTP_ACTION_NAME:
+                        possible_slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
+                        slot = Slots.objects(name=possible_slot_name, bot=bot, user=user, status=True).get()
+                        step['name'] = slot['initial_value']
+                        step['type'] = 'HTTP_ACTION'
+                    else:
+                        step['name'] = event['name']
+                        step['type'] = 'BOT'
+                if step:
+                    steps.append(step)
+
+            item['name'] = block_name
+            item['steps'] = steps
             yield item
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):
@@ -2288,6 +2314,17 @@ class MongoProcessor:
             logging.error(e)
             raise AppException(e)
         return http_config_dict
+
+    def list_http_actions(self, bot: str, user: str):
+        """
+        Fetches all Http actions from collection.
+        :param bot: bot id
+        :param user: user id
+        :return: List of Http actions.
+        """
+        actions = HttpActionConfig.objects(bot=bot, user=user, status=True)
+        return list(self.__prepare_document_list(actions, "action_name"))
+
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
         if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",

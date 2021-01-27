@@ -304,7 +304,7 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches existing list of stories (conversation flows)
     """
-    return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
+    return {"data": list(mongo_processor.get_stories(current_user.get_bot(), current_user.get_user()))}
 
 
 @router.delete("/stories/{story}", response_model=Response)
@@ -631,6 +631,16 @@ async def get_http_action(action: str = Path(default=None, description="action n
                                                                            bot=current_user.bot)
     action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
     return Response(data=action_config)
+
+
+@router.get("/action/httpaction", response_model=Response)
+async def list_http_actions(current_user: User = Depends(auth.get_current_user)):
+    """
+    Returns list of http actions for bot and user.
+    """
+    actions = mongo_processor.list_http_actions(user=current_user.get_user(),
+                                                                           bot=current_user.bot)
+    return Response(data=actions)
 
 
 @router.put("/action/httpaction", response_model=Response)
