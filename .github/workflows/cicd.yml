@@ -35,6 +35,12 @@ jobs:
       id: pytest
       run: |
         python -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
+    - name: Coverage with coveralls
+      id: pytest
+      run: |
+        python -m pip install coveralls
+        coverage run --source=kairon -m pytest tests/
+        coveralls
     - name: Archive pytest results
       uses: actions/upload-artifact@v1
       if: failure()
