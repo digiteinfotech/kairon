@@ -114,3 +114,48 @@ async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depe
         current_user.get_bot(), month
     )
     return {"data": retention_count, "message": message}
+
+
+@router.get("/metrics/engaged_user_range", response_model=Response)
+async def count_engaged_users_range(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+
+    """
+    Fetches the counts of engaged users of the bot for previous months
+    """
+    range_value = ChatHistory.engaged_users_range(
+        current_user.get_bot(), month
+    )
+    return {"data": range_value}
+
+
+@router.get("/metrics/new_user_range", response_model=Response)
+async def count_new_users_range(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the counts of new users of the bot for previous months
+    """
+    range_value = ChatHistory.new_users_range(
+        current_user.get_bot(), month
+    )
+    return {"data": range_value}
+
+
+@router.get("/metrics/successful_conversation_range", response_model=Response)
+async def complete_conversation_range(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the counts of successful conversations of the bot for previous months
+    """
+    range_value = ChatHistory.successful_conversation_range(
+        current_user.get_bot(), month
+    )
+    return {"data": range_value}
+
+
+@router.get("/metrics/user_retention_range", response_model=Response)
+async def calculate_retention_range(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the counts of user retention percentages of the bot for previous months
+    """
+    range_value = ChatHistory.user_retention_range(
+        current_user.get_bot(), month
+    )
+    return {"data": range_value}

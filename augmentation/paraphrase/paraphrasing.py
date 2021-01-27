@@ -29,4 +29,4 @@ class ParaPhrasing:
         translated = ParaPhrasing.model.generate(**batch, max_length=60, num_beams=num_beams,
                                                  num_return_sequences=num_return_sequences, temperature=1.5)
         tgt_text = ParaPhrasing.tokenizer.batch_decode(translated, skip_special_tokens=True)
-        return tgt_text
+        return list(set(tgt_text))
