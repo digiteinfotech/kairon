@@ -227,6 +227,20 @@ def test_get_intents():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_get_all_intents():
+    response = client.get(
+        "/api/bot/intents/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    print(actual['data'])
+    assert len(actual["data"]) == 27
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_add_intents():
     response = client.post(
         "/api/bot/intents",
@@ -401,6 +415,22 @@ def test_get_responses():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_get_all_responses():
+    response = client.get(
+        "/api/bot/response/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["data"])
+    assert len(actual["data"]) == 22
+    assert actual["data"][0]['name']
+    assert actual["data"][0]['texts'][0]['text']
+    assert not actual["data"][0]['customs']
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_add_response():
     response = client.post(
         "/api/bot/response/utter_greet",
@@ -452,7 +482,7 @@ def test_remove_response():
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 2
     response = client.delete(
-        "/api/bot/response",
+        "/api/bot/response/False",
         json={"data": training_examples["data"][0]["_id"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -468,9 +498,72 @@ def test_remove_response():
     assert len(training_examples["data"]) == 1
 
 
+def test_remove_utterance_attached_to_story():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_remove_utterance_attached_to_story",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story added successfully"
+    response = client.delete(
+        "/api/bot/response/True",
+        json={"data": "utter_greet"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Cannot remove utterance linked to story"
+
+
+def test_remove_utterance():
+    response = client.delete(
+        "/api/bot/response/True",
+        json={"data": "utter_delete"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance removed!"
+
+
+def test_remove_utterance_non_existing():
+    response = client.delete(
+        "/api/bot/response/True",
+        json={"data": "utter_delete_non_existing"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Utterance does not exists"
+
+
+def test_remove_utterance_empty():
+    response = client.delete(
+        "/api/bot/response/True",
+        json={"data": " "},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Utterance cannot be empty or spaces"
+
+
 def test_remove_response_empty_id():
     response = client.delete(
-        "/api/bot/response",
+        "/api/bot/response/False",
         json={"data": ""},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -525,7 +618,7 @@ def test_add_story_empty_event():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Story steps are required"
+    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Steps are required to form story (type=value_error)"
 
 
 def test_add_story_consecutive_intents():
@@ -544,6 +637,44 @@ def test_add_story_consecutive_intents():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Found 2 consecutive intents (type=value_error)"
+
+
+def test_add_story_multiple_actions():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_story_consecutive_intents",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  You can have only one Http action against an intent (type=value_error)"
+
+
+def test_add_story_utterance_as_first_step():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_story_consecutive_intents",
+            "steps": [
+                {"name": "greet", "type": "BOT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  First step should be an intent (type=value_error)"
 
 
 def test_add_story_missing_event_type():
