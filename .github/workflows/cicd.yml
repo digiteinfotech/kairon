@@ -43,7 +43,7 @@ jobs:
         COVERALLS_PARALLEL: true
         COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       name: Submit to coveralls
-      run: coveralls
+      run: |
         coveralls
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
