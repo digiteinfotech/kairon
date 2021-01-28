@@ -39,8 +39,7 @@ jobs:
       run: |
         python -m pip install coveralls
         coverage run --source=kairon -m pytest tests/
-    - name: Submit to coveralls
-      run: coveralls
+        coveralls
       env:
         COVERALLS_PARALLEL: true
         COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
