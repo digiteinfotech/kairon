@@ -40,9 +40,6 @@ jobs:
         python -m pip install coveralls
         coverage run --source=kairon -m pytest tests/
         coveralls
-      env:
-        COVERALLS_PARALLEL: true
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
       with:
