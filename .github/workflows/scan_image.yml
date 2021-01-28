@@ -25,4 +25,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: digite/kairon-api
         env:
-          TRIVY_TIMEOUT_SEC: 360s
+          TRIVY_TIMEOUT_SEC: 660s
