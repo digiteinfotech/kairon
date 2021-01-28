@@ -864,8 +864,13 @@ class TestMongoProcessor:
 
     def test_get_stories(self):
         processor = MongoProcessor()
-        stories = list(processor.get_stories("tests"))
+        stories = list(processor.get_stories("tests", "testUser"))
         assert stories.__len__() == 6
+        assert stories[0]['name'] == 'happy path'
+        assert stories[0]['steps'][0]['name'] == 'greet'
+        assert stories[0]['steps'][0]['type'] == 'INTENT'
+        assert stories[0]['steps'][1]['name'] == 'utter_greet'
+        assert stories[0]['steps'][1]['type'] == 'BOT'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -1444,6 +1449,13 @@ class TestModelProcessor:
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=CUSTOM_ACTIONS.HTTP_ACTION_NAME)
+
+    def test_list_http_action(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        actions = processor.list_http_actions(bot, user)
+        assert len(actions) == 1
 
     def test_add_http_action_config_existing(self):
         processor = MongoProcessor()
