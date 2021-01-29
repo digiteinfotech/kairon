@@ -35,6 +35,7 @@ jobs:
       id: pytest
       run: |
         python -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
+    # Coveralls related steps
     - name: Coverage with coveralls
       run: |
         python -m pip install coveralls
