@@ -648,6 +648,7 @@ def test_add_story_consecutive_intents():
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
