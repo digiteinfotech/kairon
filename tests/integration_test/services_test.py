@@ -431,6 +431,22 @@ def test_get_all_responses():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_get_all_responses():
+    response = client.get(
+        "/api/bot/response/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["data"])
+    assert len(actual["data"]) == 22
+    assert actual["data"][0]['name']
+    assert actual["data"][0]['texts'][0]['text']
+    assert not actual["data"][0]['customs']
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_add_response():
     response = client.post(
         "/api/bot/response/utter_greet",
