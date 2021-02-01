@@ -31,3 +31,4 @@ greenlet==0.4.17
 python-docx==0.8.10
 PyMuPDF==1.18.4
 sentencepiece
+rsa>=4.7 # not directly required, pinned by Snyk to avoid a vulnerability
