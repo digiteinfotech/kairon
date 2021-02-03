@@ -1749,9 +1749,10 @@ class MongoProcessor:
                     type="action"))
             elif step['type'] == "HTTP_ACTION":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME,
                     type="action"))
-                slot = {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + intent, "value": step['name']}
+                slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
+                slot = {"name": slot_name, "value": step['name']}
                 slots.append(slot)
 
         story['events'] = events

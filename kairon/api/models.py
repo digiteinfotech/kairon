@@ -283,6 +283,10 @@ class AddStoryRequest(BaseModel):
 
         if v[0].type != StoryStepType.intent:
             raise ValueError("First step should be an intent")
+
+        if v[len(v)-1].type == StoryStepType.intent:
+            raise ValueError("Intent should be followed by utterance or action")
+
         for i, j in enumerate(range(1, len(v))):
             if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.intent:
                 raise ValueError("Found 2 consecutive intents")
