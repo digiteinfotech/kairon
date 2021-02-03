@@ -1,5 +1,6 @@
 ![Python application](https://github.com/digiteinfotech/rasa-dx/workflows/Python%20application/badge.svg)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/036a621f7ae74cecb3db5f01441df65e)](https://app.codacy.com/gh/digiteinfotech/rasa-dx?utm_source=github.com&utm_medium=referral&utm_content=digiteinfotech/rasa-dx&utm_campaign=Badge_Grade_Dashboard)
+[![Coverage](https://coveralls.io/repos/github/digiteinfotech/kairon/badge.svg?branch=master)](https://coveralls.io/github/digiteinfotech/kairon?branch=master)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/digiteinfotech/rasa-dx.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/digiteinfotech/rasa-dx/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/digiteinfotech/rasa-dx.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/digiteinfotech/rasa-dx/context:python)
 
