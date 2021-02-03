@@ -621,6 +621,25 @@ def test_add_story_empty_event():
     assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Steps are required to form story (type=value_error)"
 
 
+def test_add_story_lone_intent():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_story_lone_intent",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "greet_again", "type": "INTENT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Intent should be followed by utterance or action (type=value_error)"
+
+
 def test_add_story_consecutive_intents():
     response = client.post(
         "/api/bot/stories",
@@ -629,6 +648,7 @@ def test_add_story_consecutive_intents():
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
