@@ -3,9 +3,9 @@ Custom component to get fallback action intent
 Reference: https://forum.rasa.com/t/fallback-intents-for-context-sensitive-fallbacks/963
 '''
 
-from rasa.nlu.components import Component
+from rasa.nlu.classifiers.classifier import IntentClassifier
 
-class FallbackIntentFilter(Component):
+class FallbackIntentFilter(IntentClassifier):
 
     # Name of the component to be used when integrating it in a
     # pipeline. E.g. ``[ComponentA, ComponentB]``
@@ -47,14 +47,13 @@ class FallbackIntentFilter(Component):
         self.out_of_scope_intent = out_of_scope_intent
 
     def process(self, message, **kwargs):
+        # type: (Message, **Any) -> None
         message_confidence = message.data['intent']['confidence']
-        print(message_confidence)
         new_intent = None
         if message_confidence <= self.fb_low_threshold:
             new_intent = {'name': self.out_of_scope_intent, 'confidence': message_confidence}
         elif message_confidence <= self.fb_high_threshold:
             new_intent = {'name': self.fallback_intent, 'confidence': message_confidence}
-
         if new_intent is not None:
             message.data['intent'] = new_intent
             message.data['intent_ranking'].insert(0, new_intent)
