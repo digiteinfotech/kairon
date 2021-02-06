@@ -47,7 +47,6 @@ class FallbackIntentFilter(IntentClassifier):
         self.out_of_scope_intent = out_of_scope_intent
 
     def process(self, message, **kwargs):
-        # type: (Message, **Any) -> None
         message_confidence = message.data['intent']['confidence']
         new_intent = None
         if message_confidence <= self.fb_low_threshold:
