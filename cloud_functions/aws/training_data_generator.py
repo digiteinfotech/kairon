@@ -1,5 +1,4 @@
 import os
-import logging
 import json
 import requests
 from boto3 import client
@@ -7,14 +6,15 @@ from boto3 import client
 # file deepcode ignore W0703: Any Exception should be updated as status for Training Data processor
 def lambda_handler(event, context):
     cluster = os.getenv("CLUSTER", 'default')
-    logging.info(cluster)
     task_definition = os.getenv("TASK_DEFINITION", 'default')
     capacity_provider = os.getenv("CAPACITY_PROVIDER", 'FARGATE_SPOT')
     subnets = os.getenv("SUBNETS", "").split(",")
     region_name = os.getenv("REGION_NAME", 'us-east-1')
     security_groups = os.getenv('SECURITY_GROUPS', '').split(",")
     container_name = os.getenv('CONTAINER_NAME')
+    kairon_url = os.getenv('KAIRON_URL')
     ecs = client('ecs', region_name=region_name)
+    print(event)
     body = json.loads(event['body'])
     if 'user' in body and 'bot' in body:
         try:
@@ -33,7 +33,7 @@ def lambda_handler(event, context):
                     'name': 'TOKEN',
                     'value': body.get('token')
                 })
-            if body.get('kairon_url') and body.get('token'):
+            if kairon_url and body.get('token'):
                 status = {"status": "Creating ECS Task"}
                 headers = {
                     'content-type': 'application/json',
@@ -41,7 +41,7 @@ def lambda_handler(event, context):
                     'Authorization': 'Bearer ' + body.get('token')
                 }
                 requests.put(
-                    body.get('kairon_url') + "/api/bot/processing-status",
+                    kairon_url + "/api/bot/processing-status",
                     headers=headers,
                     json=status
                 )
@@ -90,7 +90,7 @@ def lambda_handler(event, context):
         },
         "body": response
     }
-    if body.get('kairon_url') and body.get('token'):
+    if kairon_url and body.get('token'):
         status = {"status": response}
         headers = {
             'content-type': 'application/json',
@@ -98,7 +98,7 @@ def lambda_handler(event, context):
             'Authorization': 'Bearer ' + body.get('token')
         }
         requests.put(
-            body.get('kairon_url') + "/api/bot/processing-status",
+            kairon_url + "/api/bot/processing-status",
             headers=headers,
             json=status
         )
