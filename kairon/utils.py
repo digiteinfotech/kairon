@@ -727,10 +727,9 @@ class Utility:
     def trigger_data_generation_event(bot: str, user: str, token: str):
         try:
             event_url = Utility.environment['data_generation']['event_url']
-            kairon_url = Utility.environment['data_generation']['kairon_url']
             logger.info("Training data generator event started")
             response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                     json={'user': user, 'kairon_url': kairon_url, 'token': token})
+                                     json={'user': user, 'token': token})
             logger.info("Training data generator event completed" + response.content.decode('utf8'))
         except Exception as e:
             logger.error(str(e))
