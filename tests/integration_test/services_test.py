@@ -2237,6 +2237,118 @@ def test_delete_http_action_non_existing():
     assert not actual["success"]
 
 
+def test_add_story_for_action():
+    response = client.post(
+        "/api/bot/intents",
+        json={"data": "test_add_story_for_action_intent"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+    request_body = {
+        "auth_token": "",
+        "action_name": "test_add_story_for_action",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.post(
+        "/api/bot/stories/simple/action",
+        json={
+            "action": "test_add_story_for_action",
+            "intent": "test_add_story_for_action_intent"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story added successfully"
+    assert actual["data"]["_id"]
+
+
+def test_add_story_for_action_get_utterance_from_intent():
+    response = client.get(
+        "/api/bot/utterance_from_intent/test_add_story_for_action_intent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["name"] == "test_add_story_for_action"
+    assert actual["data"]["type"] == UTTERANCE_TYPE.HTTP
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_add_story_for_action_empty_action():
+    response = client.post(
+        "/api/bot/stories/simple/action",
+        json={
+            "action": "",
+            "intent": "test_add_story_for_action_intent"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action and intent cannot be empty"
+
+
+def test_add_story_for_action_empty_intent():
+    response = client.post(
+        "/api/bot/stories/simple/action",
+        json={
+            "action": "",
+            "intent": "test_add_story_for_action_intent"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action and intent cannot be empty"
+
+
+def test_add_story_for_action_delete_action_and_story():
+    response = client.delete(
+        url="/api/bot/action/httpaction/test_add_story_for_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.delete(
+        "/api/bot/stories/test_add_story_for_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story deleted successfully"
+
 @responses.activate
 def test_train_using_event(monkeypatch):
     responses.add(

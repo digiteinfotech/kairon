@@ -305,3 +305,8 @@ class AddStoryRequest(BaseModel):
                     raise ValueError("You can have only one Http action against an intent")
                 action_cnt_for_intent[intent] = num_http_actions + 1
         return v
+
+
+class SimpleStoryRequest(BaseModel):
+    action: str
+    intent: str
