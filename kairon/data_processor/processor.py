@@ -2178,7 +2178,6 @@ class MongoProcessor:
             {"name": http_action_config_slot, "type": "any", "initial_value": story, "influence_conversation": False},
             bot, user,
             raise_exception=False)
-        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
 
         return self.add_story(story, story_event_list, bot, user)
 

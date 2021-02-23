@@ -13,7 +13,8 @@ from kairon.api.models import (
     StoryRequest,
     Endpoint,
     Config,
-    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
+    SimpleStoryRequest
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
@@ -256,6 +257,26 @@ async def remove_responses(
         )
     return {
         "message": "Utterance removed!",
+    }
+
+
+@router.post("/stories/simple/action", response_model=Response)
+async def add_simple_story(
+        request_data: SimpleStoryRequest, current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Adds a story (conversational flow) with just one intent and an http action against it.
+    """
+    if Utility.check_empty_string(request_data.action) or Utility.check_empty_string(request_data.intent):
+        raise AppException("Action and intent cannot be empty")
+    return {
+        "message": "Story added successfully",
+        "data": {
+            "_id": mongo_processor.prepare_and_add_story(story=request_data.action,
+                                                         intent=request_data.intent,
+                                                         bot=current_user.get_bot(),
+                                                         user=current_user.get_user())
+        },
     }
 
 

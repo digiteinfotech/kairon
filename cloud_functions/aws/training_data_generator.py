@@ -2,6 +2,8 @@ import os
 import json
 import requests
 from boto3 import client
+from urllib.parse import urljoin
+
 
 # file deepcode ignore W0703: Any Exception should be updated as status for Training Data processor
 def lambda_handler(event, context):
@@ -16,35 +18,29 @@ def lambda_handler(event, context):
     ecs = client('ecs', region_name=region_name)
     print(event)
     body = json.loads(event['body'])
-    if 'user' in body and 'bot' in body:
+    if 'token' in body:
         try:
             env_data = [
                 {
-                    'name': 'BOT',
-                    'value': body['bot']
+                    'name': 'TOKEN',
+                    'value': body.get('token')
                 },
                 {
                     'name': 'USER',
-                    'value': body['user']
+                    'value': body.get('user')
                 }
             ]
-            if body.get('token'):
-                env_data.append({
-                    'name': 'TOKEN',
-                    'value': body.get('token')
-                })
             if kairon_url and body.get('token'):
                 status = {"status": "Creating ECS Task"}
                 headers = {
                     'content-type': 'application/json',
-                    'X-USER': body['user'],
+                    'X-USER': body.get('user'),
                     'Authorization': 'Bearer ' + body.get('token')
                 }
-                requests.put(
-                    kairon_url + "/api/bot/processing-status",
-                    headers=headers,
-                    json=status
-                )
+                requests.put(urljoin(kairon_url, "/update/data/generator/status"),
+                             headers=headers,
+                             json=status
+                             )
 
             task_response = ecs.run_task(
                 capacityProviderStrategy=[
@@ -79,7 +75,7 @@ def lambda_handler(event, context):
         except Exception as e:
             response = str(e)
     else:
-        response = "Invalid lambda handler request: user and bot are required"
+        response = "Invalid lambda handler request: authentication token is required"
 
     output = {
         "statusCode": 200,
@@ -94,12 +90,11 @@ def lambda_handler(event, context):
         status = {"status": response}
         headers = {
             'content-type': 'application/json',
-            'X-USER': body['user'],
+            'X-USER': body.get('user'),
             'Authorization': 'Bearer ' + body.get('token')
         }
-        requests.put(
-            kairon_url + "/api/bot/processing-status",
-            headers=headers,
-            json=status
-        )
+        requests.put(urljoin(kairon_url, "/update/data/generator/status"),
+                     headers=headers,
+                     json=status
+                     )
     return output
