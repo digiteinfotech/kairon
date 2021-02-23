@@ -32,15 +32,22 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+    # Coveralls related steps
+    - name: Coverage with coveralls
       run: |
-        python -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
-    - name: Archive pytest results
-      uses: actions/upload-artifact@v1
-      if: failure()
+        python -m pip install coveralls
+        coverage run --source=kairon -m pytest tests/
+    - env:
+        COVERALLS_PARALLEL: true
+        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      name: Submit to coveralls.io
+      run: |
+        coveralls --service=github
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
       with:
-        name: pytest-report
-        path: report.html
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
     - name: Generate Sphinx files
       run: |
         pip install -U sphinx
@@ -62,19 +69,3 @@ jobs:
       if: github.ref == 'refs/heads/master'
       run: |
         aws s3 sync docs/_build/html s3://${{ secrets.S3_PATH }}
-    # Coveralls related steps
-    - name: Coverage with coveralls
-      run: |
-        python -m pip install coveralls
-        coverage run --source=kairon -m pytest tests/
-    - env:
-        COVERALLS_PARALLEL: true
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      name: Submit to coveralls.io
-      run: |
-        coveralls --service=github
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
