@@ -110,10 +110,12 @@ async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depe
     """
     Fetches the user retention percentage of the bot
     """
+    """
     retention_count, message = ChatHistory.user_retention(
         current_user.get_bot(), month
     )
-    return {"data": retention_count, "message": message}
+    """
+    return {"data": [], "message": ""}
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
@@ -122,10 +124,12 @@ async def engaged_users_trend(month: HistoryMonth = 6, current_user: User = Depe
     """
     Fetches the counts of engaged users of the bot for previous months
     """
+    """
     range_value = ChatHistory.engaged_users_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    """
+    return {"data": []}
 
 
 @router.get("/metrics/trend/user/new", response_model=Response)
@@ -133,10 +137,12 @@ async def new_users_trend(month: HistoryMonth = 6, current_user: User = Depends(
     """
     Fetches the counts of new users of the bot for previous months
     """
+    """
     range_value = ChatHistory.new_users_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    """
+    return {"data": []}
 
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
@@ -144,10 +150,12 @@ async def complete_conversation_trend(month: HistoryMonth = 6, current_user: Use
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
+    """
     range_value = ChatHistory.successful_conversation_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    """
+    return {"data": []}
 
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
@@ -155,8 +163,10 @@ async def retention_trend(month: HistoryMonth = 6, current_user: User = Depends(
     """
     Fetches the counts of user retention percentages of the bot for previous months
     """
+    """
     range_value = ChatHistory.user_retention_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    """
+    return {"data": []}
 
