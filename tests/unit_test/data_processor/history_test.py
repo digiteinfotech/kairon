@@ -201,10 +201,9 @@ class TestHistory:
             assert message is None
 
     def test_user_retention(self, mock_mongo_client):
-        #retention, message = ChatHistory.user_retention("tests")
-        #assert retention['user_retention'] == 0
-        #assert message is None
-        pass
+        retention, message = ChatHistory.user_retention("tests")
+        assert retention['user_retention'] == 0
+        assert message is None
 
     def test_engaged_users_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
@@ -212,9 +211,8 @@ class TestHistory:
             assert not engaged_user
 
     def test_engaged_users_range(self, mock_mongo_client):
-        #engaged_user = ChatHistory.engaged_users_range("tests")
-        #assert engaged_user == [0, 0, 0, 0, 0, 0]
-        pass
+        engaged_user = ChatHistory.engaged_users_range("tests")
+        assert engaged_user == [0, 0, 0, 0, 0, 0]
 
     def test_new_user_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
@@ -222,9 +220,8 @@ class TestHistory:
             assert not count_user
 
     def test_new_user_range(self, mock_mongo_client):
-        #count_user = ChatHistory.new_users_range("tests")
-        #assert count_user == [0, 0, 0, 0, 0, 0]
-        pass
+        count_user = ChatHistory.new_users_range("tests")
+        assert count_user == [0, 0, 0, 0, 0, 0]
 
     def test_successful_conversation_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
@@ -232,9 +229,8 @@ class TestHistory:
             assert not conversation_steps
 
     def test_successful_conversation_range(self, mock_mongo_client):
-        pass
-        #conversation_steps = ChatHistory.successful_conversation_range("tests")
-        #assert conversation_steps == [0, 0, 0, 0, 0, 0]
+        conversation_steps = ChatHistory.successful_conversation_range("tests")
+        assert conversation_steps == [0, 0, 0, 0, 0, 0]
 
     def test_user_retention_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
@@ -242,6 +238,5 @@ class TestHistory:
             assert not retention
 
     def test_user_retention_range(self, mock_mongo_client):
-        pass
-        #retention = ChatHistory.user_retention_range("tests")
-        #assert retention == [0, 0, 0, 0, 0, 0]
+        retention = ChatHistory.user_retention_range("tests")
+        assert retention == [0, 0, 0, 0, 0, 0]
