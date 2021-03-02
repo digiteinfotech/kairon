@@ -122,10 +122,10 @@ async def engaged_users_trend(month: HistoryMonth = 6, current_user: User = Depe
     """
     Fetches the counts of engaged users of the bot for previous months
     """
-    range_value = ChatHistory.engaged_users_range(
+    range_value, message = ChatHistory.engaged_users_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    return {"data": range_value, "message": message}
 
 
 @router.get("/metrics/trend/user/new", response_model=Response)
@@ -133,10 +133,10 @@ async def new_users_trend(month: HistoryMonth = 6, current_user: User = Depends(
     """
     Fetches the counts of new users of the bot for previous months
     """
-    range_value = ChatHistory.new_users_range(
+    range_value, message = ChatHistory.new_users_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    return {"data": range_value, "message": message}
 
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
@@ -144,10 +144,10 @@ async def complete_conversation_trend(month: HistoryMonth = 6, current_user: Use
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
-    range_value = ChatHistory.successful_conversation_range(
+    range_value, message = ChatHistory.successful_conversation_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    return {"data": range_value, "message": message}
 
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
@@ -155,8 +155,8 @@ async def retention_trend(month: HistoryMonth = 6, current_user: User = Depends(
     """
     Fetches the counts of user retention percentages of the bot for previous months
     """
-    range_value = ChatHistory.user_retention_range(
+    range_value, message = ChatHistory.user_retention_range(
         current_user.get_bot(), month
     )
-    return {"data": range_value}
+    return {"data": range_value, "message": message}
 

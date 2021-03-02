@@ -174,7 +174,7 @@ class ChatHistory:
                                                                   "events": {"$push": "$events"}}},
                                                       {"$unwind": "$events"},
                                                       {"$match": {
-                                                          "events.name": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                                                          "events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
                                                       {"$group": {"_id": None, "total_count": {"$first": "$total_count"},
                                                                   "fallback_count": {"$sum": 1}}},
                                                       {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}
@@ -507,10 +507,10 @@ class ChatHistory:
 
             try:
                 fallback_count = list(
-                    conversations.aggregate([{"$match": {"latest_event_time": {
-                        "$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$unwind": {"path": "$events"}},
-                        {"$match": {"events.name": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$match": {"events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
                         {"$group": {"_id": "$sender_id"}},
                         {"$group": {"_id": None, "count": {"$sum": 1}}},
                         {"$project": {"_id": 0, "count": 1}}
@@ -599,17 +599,60 @@ class ChatHistory:
         :param bot: bot id
         :param month: default is 6 months
         :param conversation_limit: conversation step number to determine engaged users
-        :return: list of counts of engaged users for the previous months
+        :return: dictionary of counts of engaged users for the previous months
         """
 
-        initial_numbers = []
-        for i in range(month):
-            get_value = ChatHistory.engaged_users(bot=bot, month=i+1, conversation_limit=conversation_limit)
-            initial_numbers.append(get_value[0]['engaged_users'])
-        value_range = [initial_numbers[0]]
-        for i in range(len(initial_numbers) - 1):
-            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
-        return value_range
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            engaged = []
+            try:
+                engaged = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                                      "events.timestamp": {
+                                                          "$gte": Utility.get_timestamp_previous_month(month)}}
+                                           },
+
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                                          {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"},
+                                                      "events": {"$push": "$events"},
+                                                      "allevents": {"$push": "$events"}}},
+                                          {"$unwind": "$events"},
+                                          {"$project": {
+                                              "_id": 1,
+                                              "events": 1,
+                                              "following_events": {
+                                                  "$arrayElemAt": [
+                                                      "$allevents",
+                                                      {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                                  ]
+                                              }
+                                          }},
+                                          {"$project": {
+                                              "user_event": "$events.event",
+                                              "bot_event": "$following_events.event",
+                                          }},
+                                          {"$match": {"user_event": "user", "bot_event": "bot"}},
+                                          {"$group": {"_id": "$_id", "event": {"$sum": 1}}},
+                                          {"$match": {"event": {"$gte": conversation_limit}}},
+                                          {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
+                                          {"$project": {
+                                              "_id": 1,
+                                              "count": 1,
+                                          }}
+                                          ], allowDiskUse=True)
+                )
+            except Exception as e:
+                message = str(e)
+            engaged_users = {d['_id']: d['count'] for d in engaged}
+            return (
+                {"engaged_user_range": engaged_users},
+                message
+            )
 
     @staticmethod
     def new_users_range(bot: Text, month: int = 6):
@@ -618,17 +661,38 @@ class ChatHistory:
 
         :param bot: bot id
         :param month: default is 6 months
-        :return: list of counts of new users for the previous months
+        :return: dictionary of counts of new users for the previous months
         """
 
-        initial_numbers = []
-        for i in range(month):
-            get_value = ChatHistory.new_users(bot=bot, month=i+1)
-            initial_numbers.append(get_value[0]['new_users'])
-        value_range = [initial_numbers[0]]
-        for i in range(len(initial_numbers) - 1):
-            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
-        return value_range
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            values = []
+            try:
+                values = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {
+                                              "events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
+                                          {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
+                                                      "latest_event_time": {"$first": "$latest_event_time"}}},
+                                          {"$match": {"count": {"$lte": 1}}},
+                                          {"$match": {"latest_event_time": {
+                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
+
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                          {"$project": {"_id": 1, "count": 1}}
+                                          ]))
+            except Exception as e:
+                message = str(e)
+            new_users = {d['_id']: d['count'] for d in values}
+            return (
+                {"new_user_range": new_users},
+                message
+            )
+
 
     @staticmethod
     def successful_conversation_range(bot: Text, month: int = 6):
@@ -637,17 +701,46 @@ class ChatHistory:
 
         :param bot: bot id
         :param month: default is 6 months
-        :return: list of counts of successful bot conversations for the previous months
+        :return: dictionary of counts of successful bot conversations for the previous months
         """
 
-        initial_numbers = []
-        for i in range(month):
-            get_value = ChatHistory.successful_conversations(bot=bot, month=i+1)
-            initial_numbers.append(get_value[0]['successful_conversations'])
-        value_range = [initial_numbers[0]]
-        for i in range(len(initial_numbers) - 1):
-            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
-        return value_range
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            total = []
+            fallback_count = []
+            try:
+                total = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {
+                        "$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
+                        {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+
+                fallback_count = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$match": {"events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
+                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+            except Exception as e:
+                message = str(e)
+            total_users = {d['_id']: d['count'] for d in total}
+            final_fallback = {d['_id']: d['count'] for d in fallback_count}
+            final_fallback = {k: final_fallback.get(k, 0) for k in total_users.keys()}
+            success = {k: total_users[k] - final_fallback[k] for k in total_users.keys()}
+            return (
+                {"success_conversation_range": success},
+                message
+            )
+
 
     @staticmethod
     def user_retention_range(bot: Text, month: int = 6):
@@ -656,14 +749,44 @@ class ChatHistory:
 
         :param bot: bot id
         :param month: default is 6 months
-        :return: list of user retention percentages for the previous months
+        :return: dictionary of user retention percentages for the previous months
         """
 
-        initial_numbers = []
-        for i in range(month):
-            get_value = ChatHistory.user_retention(bot=bot, month=i+1)
-            initial_numbers.append(get_value[0]['user_retention'])
-        value_range = [initial_numbers[0]]
-        for i in range(len(initial_numbers) - 1):
-            value_range.append(initial_numbers[i + 1] - initial_numbers[i])
-        return value_range
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            total = []
+            repeating_users = []
+            try:
+                total = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {
+                        "$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
+                        {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+
+                repeating_users = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {
+                                              "events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
+                                          {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
+                                                      "latest_event_time": {"$first": "$latest_event_time"}}},
+                                          {"$match": {"count": {"$gte": 2}}},
+                                          {"$match": {"latest_event_time": {
+                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                          {"$project": {"_id": 1, "count": 1}}
+                                          ]))
+            except Exception as e:
+                message = str(e)
+            total_users = {d['_id']: d['count'] for d in total}
+            repeat_users = {d['_id']: d['count'] for d in repeating_users}
+            retention = {k: 100*(repeat_users[k]/total_users[k]) for k in repeat_users.keys()}
+            return (
+                {"retention_range": retention},
+                message
+            )

@@ -252,7 +252,7 @@ def test_engaged_user_range(mock_auth, mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == [0, 0, 0, 0, 0, 0]
+    assert actual["data"]['engaged_user_range'] == {}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -265,7 +265,7 @@ def test_new_user_range(mock_auth, mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == [0, 0, 0, 0, 0, 0]
+    assert actual["data"]['new_user_range'] == {}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -278,7 +278,7 @@ def test_successful_conversation_range(mock_auth, mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == [0, 0, 0, 0, 0, 0]
+    assert actual["data"]["success_conversation_range"] == {}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -291,6 +291,6 @@ def test_user_retention_range(mock_auth, mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == [0, 0, 0, 0, 0, 0]
+    assert actual["data"]["retention_range"] == {}
     assert actual["message"] is None
     assert actual["success"]
