@@ -13,6 +13,8 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
+from kairon.chat_server.exceptions import ChatServerException
+from kairon.chat_server.processor import AgentProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
@@ -24,7 +26,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator
                                                 )
-from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
+from kairon.data_processor.processor import MongoProcessor, ModelProcessor, \
     TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
@@ -1143,7 +1145,7 @@ class TestAgentProcessor:
         assert isinstance(agent, Agent)
 
     def test_get_agent_from_cache_does_not_exists(self):
-        with pytest.raises(AppException):
+        with pytest.raises(ChatServerException):
             agent = AgentProcessor.get_agent("test")
             assert isinstance(agent, Agent)
 

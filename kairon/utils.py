@@ -50,7 +50,6 @@ from .action_server.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
-from kairon.data_processor.cache import InMemoryAgentCache
 from loguru import logger
 
 class Utility:
@@ -711,10 +710,6 @@ class Utility:
             bot=bot
         )
         return response
-
-    @staticmethod
-    def create_cache():
-        return InMemoryAgentCache()
 
     @staticmethod
     def train_model_event(bot: str, user: str, token: str = None):

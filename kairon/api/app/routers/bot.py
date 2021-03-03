@@ -16,11 +16,11 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
     SimpleStoryRequest
 )
+from kairon.chat_server.processor import AgentProcessor
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
 from kairon.data_processor.processor import (
     MongoProcessor,
-    AgentProcessor,
     ModelProcessor, TrainingDataGenerationProcessor,
 )
 from kairon.exceptions import AppException

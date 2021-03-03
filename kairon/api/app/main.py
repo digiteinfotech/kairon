@@ -17,6 +17,7 @@ from mongoengine.errors import (
 )
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from kairon.chat_server.exceptions import ChatServerException
 from kairon.exceptions import AppException
 from .routers import auth, bot, augment, history, user, account
 from kairon.api.models import Response
@@ -215,6 +216,16 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
 
 
 @app.exception_handler(AppException)
+async def app_exception_handler(request, exc):
+    """ logs the AppException error detected and returns the
+            appropriate message and details of the error """
+    logging.debug(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(ChatServerException)
 async def app_exception_handler(request, exc):
     """ logs the AppException error detected and returns the
             appropriate message and details of the error """
