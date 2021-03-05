@@ -615,10 +615,10 @@ class TestMongoProcessor:
     def test_add_duplicate_story(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greet", "type": "user", "entities": []},
-            {"name": "utter_greet", "type": "action", "entities": []},
-            {"name": "mood_great", "type": "user", "entities": []},
-            {"name": "utter_greet", "type": "action", "entities": []},
+            {"name": "greet", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
         ]
         with pytest.raises(Exception):
             processor.add_story("happy path", events, "tests", "testUser")
