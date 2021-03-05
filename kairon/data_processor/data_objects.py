@@ -303,6 +303,7 @@ class StoryEvents(EmbeddedDocument):
     name = StringField()
     type = StringField(required=True, choices=["user", "action", "form", "slot"])
     value = StringField()
+    entities = ListField(EmbeddedDocumentField(Entity))
 
     def validate(self, clean=True):
         if not Utility.check_empty_string(self.value) and self.type != 'slot':

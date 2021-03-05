@@ -21,6 +21,8 @@ intents:
 - file_upload_json
 - small_talk
 - get_procurement_tickets
+- performance_feedback
+- user_feedback
 
 entities:
 - priority
@@ -30,6 +32,7 @@ entities:
 - file_text
 - file
 - file_error
+- fdResponse
 slots:
   category:
     type: unfeaturized
@@ -235,6 +238,12 @@ responses:
   - text: Ticket has been rejected!!
   utter_delete:
   - text: "I will be deleted."
+  utter_feedback:
+  - text: We would love to hear what you have to say.
+  utter_good_feedback:
+  - text: Thanks you for loving us. Keep using.
+  utter_bad_feedback:
+  - text: Thanks you for your feedback. We will train better till next time.
 
 actions:
 - utter_greet
@@ -269,6 +278,9 @@ actions:
 - utter_procurement
 - utter_procurement_approved
 - utter_procurement_rejected
+- utter_feedback
+- utter_good_feedback
+- utter_bad_feedback
 
 forms:
   ticket_attributes_form:

@@ -853,7 +853,12 @@ class MongoProcessor:
     def __extract_story_events(self, events):
         for event in events:
             if isinstance(event, UserUttered):
-                yield StoryEvents(type=event.type_name, name=event.intent_name)
+                entities = [Entity(
+                    start=entity['start'],
+                    end=entity['end'],
+                    value=entity['value'],
+                    entity=entity['entity']) for entity in event.entities]
+                yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
             elif isinstance(event, ActionExecuted):
                 yield StoryEvents(type=event.type_name, name=event.action_name)
             elif isinstance(event, ActiveLoop):
@@ -904,6 +909,11 @@ class MongoProcessor:
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
             if event.type == UserUttered.type_name:
+                entities = [{"start": entity['start'],
+                             "end": entity['end'],
+                             "value": entity['value'],
+                             "entity": entity['entity']} for entity in event.entities]
+
                 intent = {
                     STORY_EVENT.NAME.value: event.name,
                     STORY_EVENT.CONFIDENCE.value: 1.0,
@@ -912,11 +922,12 @@ class MongoProcessor:
                     "text": INTENT_MESSAGE_PREFIX + event.name,
                     "intent": intent,
                     "intent_ranking": [intent],
-                    "entities": [],
+                    "entities": entities,
                 }
                 yield UserUttered(
                     text=event.name,
                     intent=intent,
+                    entities=entities,
                     parse_data=parse_data,
                     timestamp=timestamp,
                 )
@@ -1053,8 +1064,8 @@ class MongoProcessor:
             story_name = "path_" + data.intent
             utterance = "utter_" + data.intent
             events = [
-                {"name": data.intent, "type": "user"},
-                {"name": utterance, "type": "action"}]
+                {"name": data.intent, "type": "user", "entities":[]},
+                {"name": utterance, "type": "action", "entities":[]}]
             try:
                 doc_id = self.add_story(
                     story_name,
@@ -2167,7 +2178,7 @@ class MongoProcessor:
                          events__name__iexact=intent)
 
         http_action_config_slot = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-        story_event_list = [{"name": intent, "type": "user"},
+        story_event_list = [{"name": intent, "type": "user", "entities": []},
                             {"name": "bot", "type": StoryEventType.slot, "value": bot},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
