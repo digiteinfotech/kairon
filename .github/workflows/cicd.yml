@@ -66,7 +66,7 @@ jobs:
     - name: Coverage with coveralls
       run: |
         python -m pip install coveralls
-        coverage run --source=kairon -m pytest tests/
+        coverage run --source=kairon -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
     - env:
         COVERALLS_PARALLEL: true
         COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
