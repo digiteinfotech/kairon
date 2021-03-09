@@ -95,7 +95,19 @@
   - action_small_talk
   - action_restart
   
- ## greet again
+## greet again
 * greet_again
   - utter_greet
   - action_restart
+
+## feedback good
+* performance_feedback
+  - utter_feedback
+* user_feedback{"fdResponse":"like"}
+   - utter_good_feedback
+
+## feedback bad
+* performance_feedback
+  - utter_feedback
+* user_feedback{"fdResponse":"hate"}
+   - utter_bad_feedback
