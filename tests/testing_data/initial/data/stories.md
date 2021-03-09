@@ -29,3 +29,16 @@
 ## bot challenge
 * bot_challenge
   - utter_iamabot
+  
+## feedback good
+* performance_feedback
+  - utter_feedback
+* user_feedback{"fdResponse":"like"}
+   - utter_good_feedback
+
+## feedback bad
+* performance_feedback
+  - utter_feedback
+* user_feedback{"fdResponse":"hate"}
+   - utter_bad_feedback
+  

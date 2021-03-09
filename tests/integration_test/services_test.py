@@ -221,7 +221,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 27
+    assert len(actual["data"]) == 29
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -235,7 +235,7 @@ def test_get_all_intents():
     actual = response.json()
     assert "data" in actual
     print(actual['data'])
-    assert len(actual["data"]) == 27
+    assert len(actual["data"]) == 29
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -422,7 +422,7 @@ def test_get_all_responses():
     )
     actual = response.json()
     print(actual["data"])
-    assert len(actual["data"]) == 22
+    assert len(actual["data"]) == 25
     assert actual["data"][0]['name']
     assert actual["data"][0]['texts'][0]['text']
     assert not actual["data"][0]['customs']
@@ -1171,7 +1171,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 28
+    assert len(actual["data"]) == 30
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])

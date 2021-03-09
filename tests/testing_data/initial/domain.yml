@@ -6,6 +6,8 @@ intents:
   - mood_great
   - mood_unhappy
   - bot_challenge
+  - performance_feedback
+  - user_feedback
 
 responses:
   utter_greet:
@@ -26,6 +28,15 @@ responses:
 
   utter_iamabot:
   - text: "I am a bot, powered by Rasa."
+
+  utter_feedback:
+    - text: We would love to hear what you have to say.
+
+  utter_good_feedback:
+    - text: Thanks you for loving us. Keep using.
+
+  utter_bad_feedback:
+    - text: Thanks you for your feedback. We will train better till next time.
 
 session_config:
   session_expiration_time: 60
