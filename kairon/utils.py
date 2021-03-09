@@ -37,7 +37,7 @@ from rasa.shared.constants import DEFAULT_MODELS_PATH
 from rasa.shared.nlu.constants import TEXT
 from rasa.core import config as configuration
 from rasa.core.tracker_store import MongoTrackerStore
-from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, StoryStep
+from rasa.shared.core.training_data.structures import StoryGraph
 from rasa.shared.importers.rasa import Domain
 from rasa.nlu.components import ComponentBuilder
 from rasa.nlu.config import RasaNLUModelConfig

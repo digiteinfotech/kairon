@@ -221,16 +221,16 @@ def test_upload_yml(monkeypatch):
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     files = {
         "nlu": (
-            "nlu.md",
-            open("tests/testing_data/yml_training_files/data/nlu.md", "rb"),
+            "nlu.yml",
+            open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"),
         ),
         "domain": (
             "domain.yml",
             open("tests/testing_data/yml_training_files/domain.yml", "rb"),
         ),
         "stories": (
-            "stories.md",
-            open("tests/testing_data/yml_training_files/data/stories.md", "rb"),
+            "stories.yml",
+            open("tests/testing_data/yml_training_files/data/stories.yml", "rb"),
         ),
         "config": (
             "config.yml",
@@ -2687,7 +2687,7 @@ def test_file_upload_error(mock_file_upload,monkeypatch):
         "/api/bot/upload/data_generation/file",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"doc": (
-            "tests/testing_data/all/data/nlu.md",
+            "nlu.md",
             open("tests/testing_data/all/data/nlu.md", "rb"))})
 
 

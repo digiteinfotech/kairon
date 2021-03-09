@@ -860,10 +860,10 @@ class MongoProcessor:
         for event in events:
             if isinstance(event, UserUttered):
                 entities = [Entity(
-                    start=entity['start'],
-                    end=entity['end'],
-                    value=entity['value'],
-                    entity=entity['entity']) for entity in event.entities]
+                    start=entity.get('start'),
+                    end=entity.get('end'),
+                    value=entity.get('value'),
+                    entity=entity.get('entity')) for entity in event.entities]
                 yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
             elif isinstance(event, ActionExecuted):
                 yield StoryEvents(type=event.type_name, name=event.action_name)

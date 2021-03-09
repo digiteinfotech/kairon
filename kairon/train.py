@@ -4,7 +4,6 @@ from contextlib import ExitStack
 from typing import Text, Optional, Dict
 from urllib.parse import urljoin
 
-import yaml
 from loguru import logger as logging
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.shared.importers.importer import TrainingDataImporter

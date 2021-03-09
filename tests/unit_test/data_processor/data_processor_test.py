@@ -1,8 +1,10 @@
 import os
+from io import BytesIO
 from typing import List
 
 import pytest
 import responses
+from fastapi import UploadFile
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
@@ -79,13 +81,13 @@ class TestMongoProcessor:
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
@@ -1344,6 +1346,44 @@ class TestMongoProcessor:
         rules = (Rules.objects(bot="test_save_rules_already_present", user="rules_creator", status=True))
         assert not rules
         processor.delete_rules("test_save_rules_already_present", "rules_creator")
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save(self):
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, "test_upload_and_save", "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_rules(self):
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
+        await processor.upload_and_save(nlu, domain, stories, config, rules, "test_upload_and_save", "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
+        assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
 
 
 # pylint: disable=R0201
