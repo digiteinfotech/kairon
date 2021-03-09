@@ -1331,6 +1331,20 @@ class TestMongoProcessor:
         rules = processor.get_rules_for_training("test_get_rules_no_rules_present")
         assert not rules.story_steps
 
+    def test_delete_rules(self):
+        processor = MongoProcessor()
+        rules = (Rules.objects(bot="test_save_rules_already_present", user="rules_creator", status=True))
+        assert rules
+        processor.delete_rules("test_save_rules_already_present", "rules_creator")
+        rules = (Rules.objects(bot="test_save_rules_already_present", user="rules_creator", status=True))
+        assert not rules
+
+    def test_delete_rules_no_rules(self):
+        processor = MongoProcessor()
+        rules = (Rules.objects(bot="test_save_rules_already_present", user="rules_creator", status=True))
+        assert not rules
+        processor.delete_rules("test_save_rules_already_present", "rules_creator")
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:

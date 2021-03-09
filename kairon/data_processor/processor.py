@@ -215,6 +215,7 @@ class MongoProcessor:
         self.delete_stories(bot, user)
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
+        self.delete_rules(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -2403,6 +2404,16 @@ class MongoProcessor:
             new_rules = list(self.__extract_rules(story_steps, bot, user))
             if new_rules:
                 Rules.objects.insert(new_rules)
+
+    def delete_rules(self, bot: Text, user: Text):
+        """
+        soft deletes rules
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document([Rules], bot=bot, user=user)
 
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
