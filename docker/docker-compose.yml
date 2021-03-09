@@ -87,8 +87,11 @@ services:
     hostname: kairon-action-server
     ports:
       - 5055:5055
+    environment:
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
     networks:
       - chatbotnetwork
+
 
 networks:
   chatbotnetwork:

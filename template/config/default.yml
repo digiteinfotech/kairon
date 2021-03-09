@@ -1,4 +1,3 @@
-
 language: en
 pipeline:
   - name: WhitespaceTokenizer

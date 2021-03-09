@@ -1,7 +1,6 @@
 pyyaml
 torch
 rasa[full]==2.1.2
-tensorflow-text==2.4.2
 fastapi>=0.62.0
 mongomock==3.21.0
 pytest==6.1.2
@@ -31,5 +30,3 @@ greenlet==0.4.17
 python-docx==0.8.10
 PyMuPDF==1.18.4
 sentencepiece
-tensorflow==2.3.2
-numpy==1.19.5
