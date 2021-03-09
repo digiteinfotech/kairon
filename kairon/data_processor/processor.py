@@ -267,7 +267,7 @@ class MongoProcessor:
         self.__save_intents(domain.intents, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.form_names, bot, user)
-        self.__save_actions(domain.user_actions, bot, user)
+        self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
