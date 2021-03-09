@@ -121,15 +121,15 @@ def test_api_login():
 def test_upload_missing_data():
     files = {
         "domain": (
-            "tests/testing_data/all/domain.yml",
+            "domain.yml",
             open("tests/testing_data/all/domain.yml", "rb"),
         ),
         "stories": (
-            "tests/testing_data/all/data/stories.md",
+            "stories.md",
             open("tests/testing_data/all/data/stories.md", "rb"),
         ),
         "config": (
-            "tests/testing_data/all/config.yml",
+            "config.yml",
             open("tests/testing_data/all/config.yml", "rb"),
         ),
     }
@@ -150,17 +150,17 @@ def test_upload_missing_data():
 
 def test_upload_error():
     files = {
-        "nlu": ("tests/testing_data/all/data/nlu.md", None),
+        "nlu": ("nlu.md", None),
         "domain": (
-            "tests/testing_data/all/domain.yml",
+            "domain.yml",
             open("tests/testing_data/all/domain.yml", "rb"),
         ),
         "stories": (
-            "tests/testing_data/all/data/stories.md",
+            "stories.md",
             open("tests/testing_data/all/data/stories.md", "rb"),
         ),
         "config": (
-            "tests/testing_data/all/config.yml",
+            "config.yml",
             open("tests/testing_data/all/config.yml", "rb"),
         ),
     }
@@ -186,20 +186,55 @@ def test_upload(monkeypatch):
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     files = {
         "nlu": (
-            "tests/testing_data/all/data/nlu.md",
+            "nlu.md",
             open("tests/testing_data/all/data/nlu.md", "rb"),
         ),
         "domain": (
-            "tests/testing_data/all/domain.yml",
+            "domain.yml",
             open("tests/testing_data/all/domain.yml", "rb"),
         ),
         "stories": (
-            "tests/testing_data/all/data/stories.md",
+            "stories.md",
             open("tests/testing_data/all/data/stories.md", "rb"),
         ),
         "config": (
-            "tests/testing_data/all/config.yml",
+            "config.yml",
             open("tests/testing_data/all/config.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_upload_yml(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    files = {
+        "nlu": (
+            "nlu.md",
+            open("tests/testing_data/yml_training_files/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "domain.yml",
+            open("tests/testing_data/yml_training_files/domain.yml", "rb"),
+        ),
+        "stories": (
+            "stories.md",
+            open("tests/testing_data/yml_training_files/data/stories.md", "rb"),
+        ),
+        "config": (
+            "config.yml",
+            open("tests/testing_data/yml_training_files/config.yml", "rb"),
         ),
     }
     response = client.post(
@@ -857,7 +892,12 @@ def test_train(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
+    def _mock_training_limit(*arge, **kwargs):
+        return False
+
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+
     response = client.post(
         "/api/bot/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

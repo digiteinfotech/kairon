@@ -12,7 +12,7 @@ from mongoengine import (
     DateTimeField,
     BooleanField,
     DictField,
-    DynamicField,
+    DynamicField, IntField,
 )
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import parse_uri
@@ -300,7 +300,7 @@ class Slots(Document):
 
 
 class StoryEvents(EmbeddedDocument):
-    name = StringField()
+    name = StringField(required=True)
     type = StringField(required=True, choices=["user", "action", "form", "slot"])
     value = StringField()
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
@@ -326,6 +326,25 @@ class Stories(Document):
             raise ValidationError("Story path name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("Stories cannot be empty")
+
+
+class Rules(Document):
+    block_name = StringField(required=True)
+    condition_events_indices = ListField(IntField(), default=[])
+    start_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField(), required=True)
+    events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        Utility.validate_document_list(self.events)
+        if Utility.check_empty_string(self.block_name):
+            raise ValidationError("Rule cannot be empty or blank spaces")
+        elif not self.events:
+            raise ValidationError("Rule events cannot be empty")
 
 
 class Configs(Document):

@@ -6,14 +6,15 @@ import responses
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
-from rasa.shared.core.training_data.structures import StoryGraph
+from rasa.shared.core.events import UserUttered, ActionExecuted
+from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -22,7 +23,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator
+                                                TrainingExamplesTrainingDataGenerator, Rules
                                                 )
 from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
     TrainingDataGenerationProcessor
@@ -49,6 +50,60 @@ class TestMongoProcessor:
             )
         )
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_save_from_path_yml(self):
+        processor = MongoProcessor()
+        result = await (
+            processor.save_from_path(
+                "./tests/testing_data/yml_training_files", bot="test_load_yml", user="testUser"
+            )
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_load_from_path_yml_training_files(self):
+        processor = MongoProcessor()
+        await (
+                processor.save_from_path(
+                    "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
+                )
+            )
+        training_data = processor.load_nlu("test_load_from_path_yml_training_files")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("test_load_from_path_yml_training_files")
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = processor.load_domain("test_load_from_path_yml_training_files")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 8
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 38
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "unfeaturized"
+        rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
+        assert len(rules) == 3
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -1148,6 +1203,133 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             msg = processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
             assert msg ==  'Slot exists'
+
+    def test_fetch_rule_block_names(self):
+        processor = MongoProcessor()
+        Rules(
+            block_name="rule1",
+            condition_events_indices=[],
+            start_checkpoints=["START"],
+            end_checkpoints=["END"],
+            events=[StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="action")],
+            bot="test_bot",
+            user="rule_creator",
+        ).save()
+        Rules(
+            block_name="rule2",
+            condition_events_indices=[],
+            start_checkpoints=["START"],
+            end_checkpoints=["END"],
+            events=[StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="action")],
+            bot="test_bot",
+            user="rule_creator",
+        ).save()
+        block_names = processor.fetch_rule_block_names("test_bot")
+        assert block_names[0] == "rule1"
+        assert block_names[1] == "rule2"
+
+    def test_fetch_rule_block_names_no_rules_present(self):
+        processor = MongoProcessor()
+        block_names = processor.fetch_rule_block_names("rule_creator")
+        assert not block_names
+
+    def test_save_rules(self):
+        processor = MongoProcessor()
+        intent = {
+            STORY_EVENT.NAME.value: "greet",
+            STORY_EVENT.CONFIDENCE.value: 1.0,
+        }
+        events = [UserUttered(text="greet", intent=intent),
+                  ActionExecuted(action_name="utter_greet")]
+        story_steps = [RuleStep(block_name="rule1",
+                               start_checkpoints=[Checkpoint("START")],
+                               end_checkpoints=[Checkpoint("END")],
+                               events=events,
+                               condition_events_indices={0}),
+                       RuleStep(block_name="rule2",
+                                start_checkpoints=[Checkpoint("START")],
+                                end_checkpoints=[Checkpoint("END")],
+                                events=events,
+                                condition_events_indices={0})
+                       ]
+        processor.save_rules(story_steps, "test_save_rules", "rules_creator")
+        rules = list(Rules.objects(bot="test_save_rules", user="rules_creator", status=True))
+        assert rules[0]['block_name'] == "rule1"
+        assert rules[0]['condition_events_indices'] == [0]
+        assert rules[0]['start_checkpoints'] == ["START"]
+        assert rules[0]['end_checkpoints'] == ["END"]
+        assert rules[0]['events'][0]['name'] == "greet"
+        assert rules[0]['events'][0]['type'] == "user"
+        assert not rules[0]['events'][0]['value']
+        assert rules[0]['events'][1]['name'] == "utter_greet"
+        assert rules[0]['events'][1]['type'] == "action"
+        assert not rules[0]['events'][1]['value']
+        assert rules[1]['block_name'] == "rule2"
+
+    def test_save_rules_already_present(self):
+        processor = MongoProcessor()
+        events = [UserUttered(text="greet"),
+                  ActionExecuted(action_name="utter_greet")]
+        Rules(block_name="rule2",
+              start_checkpoints=["START"],
+              end_checkpoints=["END"],
+              events=[StoryEvents(name="greet", type="user"),
+                    StoryEvents(name="utter_greet", type="action")],
+              condition_events_indices={0}, bot="test_save_rules_already_present", user="rules_creator").save()
+        story_steps = [RuleStep(block_name="rule1",
+                                start_checkpoints=[Checkpoint("START")],
+                                end_checkpoints=[Checkpoint("END")],
+                                events=events,
+                                condition_events_indices={0}),
+                       RuleStep(block_name="rule2",
+                                start_checkpoints=[Checkpoint("START")],
+                                end_checkpoints=[Checkpoint("END")],
+                                events=events,
+                                condition_events_indices={0})
+                       ]
+        processor.save_rules(story_steps, "test_save_rules_already_present", "rules_creator")
+        rules = list(Rules.objects(bot="test_save_rules_already_present", user="rules_creator", status=True))
+        assert len(rules) == 2
+        assert rules[0]['block_name'] == "rule2"
+        assert rules[0]['condition_events_indices'] == [0]
+        assert rules[0]['start_checkpoints'] == ["START"]
+        assert rules[0]['end_checkpoints'] == ["END"]
+        assert rules[0]['events'][0]['name'] == "greet"
+        assert rules[0]['events'][0]['type'] == "user"
+        assert not rules[0]['events'][0]['value']
+        assert rules[0]['events'][1]['name'] == "utter_greet"
+        assert rules[0]['events'][1]['type'] == "action"
+        assert not rules[0]['events'][1]['value']
+        assert rules[1]['block_name'] == "rule1"
+
+    def test_get_rules_for_training(self):
+        Rules(
+            block_name="rule1",
+            condition_events_indices=[],
+            start_checkpoints=["START"],
+            end_checkpoints=["END"],
+            events=[StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="action")],
+            bot="test_get_rules_for_training",
+            user="rule_creator",
+        ).save()
+        Rules(
+            block_name="rule2",
+            condition_events_indices=[],
+            start_checkpoints=["START"],
+            end_checkpoints=["END"],
+            events=[StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="action")],
+            bot="test_get_rules_for_training",
+            user="rule_creator",
+        ).save()
+        processor = MongoProcessor()
+        rules = processor.get_rules_for_training("test_get_rules_for_training")
+        assert isinstance(rules, StoryGraph)
+        assert len(rules.story_steps) == 2
+
+    def test_get_rules_no_rules_present(self):
+        processor = MongoProcessor()
+        rules = processor.get_rules_for_training("test_get_rules_no_rules_present")
+        assert not rules.story_steps
 
 
 # pylint: disable=R0201
