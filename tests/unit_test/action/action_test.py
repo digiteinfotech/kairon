@@ -815,7 +815,6 @@ class TestActions:
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
