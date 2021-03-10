@@ -2440,6 +2440,24 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
+    @staticmethod
+    def get_existing_slots(bot: Text):
+        """
+        fetches exisitng slots
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of slots
+        """
+        for slot in Slots.objects(bot=bot, status=True):
+            slot = slot.to_mongo().to_dict()
+            slot.pop("bot")
+            slot.pop("user")
+            slot.pop("_id")
+            slot.pop("timestamp")
+            slot.pop("status")
+            yield slot
+
 
 class AgentProcessor:
     """

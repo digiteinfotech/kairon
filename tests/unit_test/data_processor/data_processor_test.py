@@ -1385,6 +1385,38 @@ class TestMongoProcessor:
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
 
+    def test_get_existing_slots(self):
+        Slots(
+            name="location",
+            type="text",
+            initial_value="delhi",
+            bot="test_get_existing_slots",
+            user="bot_user",
+        ).save()
+        Slots(
+            name="email_id",
+            type="text",
+            initial_value="bot_user@digite.com",
+            bot="test_get_existing_slots",
+            user="bot_user",
+        ).save()
+        Slots(
+            name="username",
+            type="text",
+            initial_value="bot_user",
+            bot="test_get_existing_slots",
+            user="bot_user",
+            status=False
+        ).save()
+        slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots"))
+        assert len(slots) == 2
+        assert slots[0]['name'] == 'location'
+        assert slots[1]['name'] == 'email_id'
+
+    def test_get_existing_slots_bot_not_exists(self):
+        slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
+        assert len(slots) == 0
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:

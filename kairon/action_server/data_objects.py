@@ -17,13 +17,13 @@ from datetime import datetime
 class HttpActionRequestBody(EmbeddedDocument):
     key = StringField(required=True)
     value = StringField(default="")
-    parameter_type = StringField(default="value", choices=["value", "slot"])
+    parameter_type = StringField(default="value", choices=["value", "slot", "sender_id"])
 
     def validate(self, clean=True):
         from kairon.action_server.actions import ActionUtility
 
         if self.parameter_type == "value" and ActionUtility.is_empty(self.value):
-            raise ValidationError("Either value for the key should be given or parameter_type should be set to slot")
+            raise ValidationError("Either value for the key should be given or parameter_type should be set to slot or sender_id")
 
 
 class HttpActionConfig(Document):

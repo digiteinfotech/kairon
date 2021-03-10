@@ -13,7 +13,7 @@ from mongoengine import connect, disconnect, DoesNotExist
 from smart_config import ConfigLoader
 
 from .data_objects import HttpActionRequestBody, HttpActionConfig
-from .action_models import ParameterType
+from .action_models import ParameterType, KAIRON_ACTION_RESPONSE_SLOT
 from .exception import HttpActionFailure
 
 
@@ -82,13 +82,14 @@ class ActionUtility:
             return request_body
 
         for param in http_action_config_params:
-            if param['parameter_type'] == ParameterType.slot:
-                value = tracker.get_slot(param['key'])
-                if value is None:
-                    raise HttpActionFailure("Coudn't find value for key " + param['key'] + " from slot")
-                request_body[param['key']] = value
+            if param['parameter_type'] == ParameterType.sender_id:
+                value = tracker.sender_id
+            elif param['parameter_type'] == ParameterType.slot:
+                value = tracker.get_slot(param['value'])
             else:
-                request_body[param['key']] = param['value']
+                value = param['value']
+            request_body[param['key']] = value
+            logger.debug("value for key " + param['key'] + ": " + str(value))
 
         return request_body
 
@@ -191,7 +192,8 @@ class ActionUtility:
         """
         value_mapping = {}
         parsed_output = ActionUtility.attach_response(response_template, http_response)
-        keys_with_placeholders = [term for term in parsed_output.split(" ") if term.startswith("${") and term.endswith("}")]
+        keys_with_placeholders = [term for term in parsed_output.split(" ") if
+                                  term.startswith("${") and term.endswith("}")]
         #  deepcode ignore C1801: Length check required in case there are no placeholders
         if keys_with_placeholders is None or len(keys_with_placeholders) == 0:
             if ActionUtility.is_empty(response_template):
@@ -225,7 +227,7 @@ class HttpAction(Action):
     Executes any HTTP action configured by user
     """
 
-    def name(self) -> Text:
+    async def name(self) -> Text:
         """
         Name of HTTP action.
 
@@ -233,10 +235,10 @@ class HttpAction(Action):
         """
         return "kairon_http_action"
 
-    def run(self,
-            dispatcher: CollectingDispatcher,
-            tracker: Tracker,
-            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+    async def run(self,
+                  dispatcher: CollectingDispatcher,
+                  tracker: Tracker,
+                  domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         """
         Executes GET, PUT, POST, DELETE Http requests and curates and returns the user defined output.
 
@@ -275,4 +277,4 @@ class HttpAction(Action):
             response = "I have failed to process your request"
 
         dispatcher.utter_message(response)
-        return [SlotSet(response)]
+        return [SlotSet(KAIRON_ACTION_RESPONSE_SLOT, response)]
