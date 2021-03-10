@@ -320,6 +320,19 @@
 - get tickets pending my approval
 - All tasks waiting my approval
 
+## intent:performance_feedback
+- i would like to give some feedback for the bot
+- i want to give feedback for bot
+- can i give some feedback?
+- can i say something regarding the bot performance?
+
+## intent:user_feedback
+- i [like](fdResponse) the performance of this bot
+- i [like](fdResponse) the answers given by this bot
+- i [like](fdResponse) this bot
+- i [hate](fdResponse) this bot
+- i [hate](fdResponse) this bot's performance
+
 ## regex:ticketID
 - [azAz09]*
 

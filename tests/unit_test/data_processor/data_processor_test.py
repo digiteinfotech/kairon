@@ -68,21 +68,31 @@ class TestMongoProcessor:
         )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
-        assert training_data.training_examples.__len__() == 283
+        assert training_data.training_examples.__len__() == 292
         assert training_data.entity_synonyms.__len__() == 3
         assert training_data.regex_features.__len__() == 5
         assert training_data.lookup_tables.__len__() == 1
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
-        assert story_graph.story_steps.__len__() == 14
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert domain.templates.keys().__len__() == 22
-        assert domain.entities.__len__() == 7
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 35
-        assert domain.intents.__len__() == 27
+        assert domain.user_actions.__len__() == 38
+        assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -101,21 +111,31 @@ class TestMongoProcessor:
         )
         training_data = processor.load_nlu("all")
         assert isinstance(training_data, TrainingData)
-        assert training_data.training_examples.__len__() == 283
+        assert training_data.training_examples.__len__() == 292
         assert training_data.entity_synonyms.__len__() == 3
         assert training_data.regex_features.__len__() == 5
         assert training_data.lookup_tables.__len__() == 1
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
-        assert story_graph.story_steps.__len__() == 14
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert domain.templates.keys().__len__() == 22
-        assert domain.entities.__len__() == 7
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 35
-        assert domain.intents.__len__() == 27
+        assert domain.user_actions.__len__() == 38
+        assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -127,7 +147,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         training_data = processor.load_nlu("tests")
         assert isinstance(training_data, TrainingData)
-        assert training_data.training_examples.__len__() == 43
+        assert training_data.training_examples.__len__() == 52
         assert training_data.entity_synonyms.__len__() == 0
         assert training_data.regex_features.__len__() == 0
         assert training_data.lookup_tables.__len__() == 0
@@ -137,17 +157,17 @@ class TestMongoProcessor:
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 0
-        assert domain.templates.keys().__len__() == 6
+        assert domain.templates.keys().__len__() == 9
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 6
-        assert domain.intents.__len__() == 12
+        assert domain.user_actions.__len__() == 9
+        assert domain.intents.__len__() == 14
 
     def test_load_stories(self):
         processor = MongoProcessor()
         story_graph = processor.load_stories("tests")
         assert isinstance(story_graph, StoryGraph)
-        assert story_graph.story_steps.__len__() == 5
+        assert story_graph.story_steps.__len__() == 7
 
     def test_add_intent(self):
         processor = MongoProcessor()
@@ -158,7 +178,7 @@ class TestMongoProcessor:
     def test_get_intents(self):
         processor = MongoProcessor()
         actual = processor.get_intents("tests")
-        assert actual.__len__() == 13
+        assert actual.__len__() == 15
 
     def test_add_intent_with_underscore(self):
         processor = MongoProcessor()
@@ -479,6 +499,9 @@ class TestMongoProcessor:
             "utter_priority",
             "utter_did_that_help",
             "utter_iamabot",
+            'utter_feedback',
+            "utter_bad_feedback",
+            "utter_good_feedback"
         ]
         actual = processor.get_actions("tests")
         assert actual.__len__() == expected.__len__()
@@ -865,7 +888,7 @@ class TestMongoProcessor:
     def test_get_stories(self):
         processor = MongoProcessor()
         stories = list(processor.get_stories("tests", "testUser"))
-        assert stories.__len__() == 6
+        assert stories.__len__() == 8
         assert stories[0]['name'] == 'happy path'
         assert stories[0]['steps'][0]['name'] == 'greet'
         assert stories[0]['steps'][0]['type'] == 'INTENT'
@@ -1285,7 +1308,7 @@ class TestModelProcessor:
     def test_get_intents_and_training_examples(self):
         processor = MongoProcessor()
         actual = processor.get_intents_and_training_examples("tests")
-        assert len(actual) == 15
+        assert len(actual) == 17
 
     def test_delete_intent_no_trainingExamples(self):
         processor = MongoProcessor()

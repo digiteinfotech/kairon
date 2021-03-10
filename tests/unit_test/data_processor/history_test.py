@@ -207,36 +207,44 @@ class TestHistory:
 
     def test_engaged_users_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            engaged_user = ChatHistory.engaged_users_range("tests")
+            engaged_user, message = ChatHistory.engaged_users_range("tests")
             assert not engaged_user
+            assert message is None
 
     def test_engaged_users_range(self, mock_mongo_client):
-        engaged_user = ChatHistory.engaged_users_range("tests")
-        assert engaged_user == [0, 0, 0, 0, 0, 0]
+        engaged_user, message = ChatHistory.engaged_users_range("tests")
+        assert engaged_user["engaged_user_range"] == {}
+        assert message is None
 
     def test_new_user_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            count_user = ChatHistory.new_users_range("tests")
+            count_user, message = ChatHistory.new_users_range("tests")
             assert not count_user
+            assert message is None
 
     def test_new_user_range(self, mock_mongo_client):
-        count_user = ChatHistory.new_users_range("tests")
-        assert count_user == [0, 0, 0, 0, 0, 0]
+        count_user, message = ChatHistory.new_users_range("tests")
+        assert count_user['new_user_range'] == {}
+        assert message is None
 
     def test_successful_conversation_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            conversation_steps = ChatHistory.successful_conversation_range("tests")
+            conversation_steps, message = ChatHistory.successful_conversation_range("tests")
             assert not conversation_steps
+            assert message is None
 
     def test_successful_conversation_range(self, mock_mongo_client):
-        conversation_steps = ChatHistory.successful_conversation_range("tests")
-        assert conversation_steps == [0, 0, 0, 0, 0, 0]
+        conversation_steps, message = ChatHistory.successful_conversation_range("tests")
+        assert conversation_steps["success_conversation_range"] == {}
+        assert message is None
 
     def test_user_retention_range_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            retention = ChatHistory.user_retention_range("tests")
+            retention, message = ChatHistory.user_retention_range("tests")
             assert not retention
+            assert message is None
 
     def test_user_retention_range(self, mock_mongo_client):
-        retention = ChatHistory.user_retention_range("tests")
-        assert retention == [0, 0, 0, 0, 0, 0]
+        retention, message = ChatHistory.user_retention_range("tests")
+        assert retention['retention_range'] == {}
+        assert message is None
