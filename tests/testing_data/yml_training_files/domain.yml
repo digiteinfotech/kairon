@@ -341,6 +341,12 @@ actions:
 - ticket_attributes_form
 - ticket_file_form
 forms:
-  ticket_attributes_form: {}
-  ticket_file_form: {}
+  ticket_attributes_form:
+    priority:
+      - type: from_entity
+        entity: priority
+  ticket_file_form:
+    file:
+      - type: from_entity
+        entity: file
 e2e_actions: []

@@ -339,13 +339,6 @@ class Rules(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    def validate(self, clean=True):
-        Utility.validate_document_list(self.events)
-        if Utility.check_empty_string(self.block_name):
-            raise ValidationError("Rule cannot be empty or blank spaces")
-        elif not self.events:
-            raise ValidationError("Rule events cannot be empty")
-
 
 class Configs(Document):
     language = StringField(required=True, default="en")

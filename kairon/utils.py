@@ -288,30 +288,6 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
-        """
-        convert mongo data  to individual files
-
-        :param nlu: nlu data
-        :param domain: domain data
-        :param stories: stories data
-        :param config: config data
-        :return: files path
-        """
-        temp_path = tempfile.mkdtemp()
-        data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
-        os.makedirs(data_path)
-        nlu_path = os.path.join(data_path, "nlu.md")
-        domain_path = os.path.join(temp_path, DEFAULT_DOMAIN_PATH)
-        stories_path = os.path.join(data_path, "stories.md")
-        config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
-        Utility.write_to_file(nlu_path, nlu)
-        Utility.write_to_file(domain_path, domain)
-        Utility.write_to_file(stories_path, stories)
-        Utility.write_to_file(config_path, config)
-        return temp_path
-
-    @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None):
         """
         convert mongo data  to individual files
