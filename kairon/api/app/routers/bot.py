@@ -453,6 +453,7 @@ async def upload_Files(
         domain: UploadFile = File(...),
         stories: UploadFile = File(...),
         config: UploadFile = File(...),
+        rules: UploadFile = File(None),
         overwrite: bool = True,
         current_user: User = Depends(auth.get_current_user),
 ):
@@ -460,14 +461,14 @@ async def upload_Files(
     Uploads training data nlu.md, domain.yml, stories.md and config.yml files
     """
     await mongo_processor.upload_and_save(
-        await nlu.read(),
-        await domain.read(),
-        await stories.read(),
-        await config.read(),
+        nlu,
+        domain,
+        stories,
+        config,
+        rules,
         current_user.get_bot(),
         current_user.get_user(),
-        overwrite,
-    )
+        overwrite)
     background_tasks.add_task(
         start_training, current_user.get_bot(), current_user.get_user()
     )
