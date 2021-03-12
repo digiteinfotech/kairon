@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
+from fastapi import File
 from loguru import logger as logging
 from mongoengine import Document, Q
 from mongoengine.errors import DoesNotExist
@@ -15,7 +16,7 @@ from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.slots import CategoricalSlot, FloatSlot
-from rasa.shared.core.training_data.structures import Checkpoint
+from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 from rasa.shared.core.events import SlotSet
@@ -62,7 +63,7 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
-    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator,
+    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
 )
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
 from ..api import models
@@ -76,10 +77,11 @@ class MongoProcessor:
 
     async def upload_and_save(
             self,
-            nlu: bytes,
-            domain: bytes,
-            stories: bytes,
-            config: bytes,
+            nlu: File,
+            domain: File,
+            stories: File,
+            config: File,
+            rules: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -90,15 +92,16 @@ class MongoProcessor:
         :param nlu: nlu data
         :param domain: domain data
         :param stories: stories data
+        :param rules: rules data
         :param config: config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        data_path = Utility.save_files(nlu, domain, stories, config)
-        await self.save_from_path(data_path, bot, overwrite, user)
-        Utility.delete_directory(data_path)
+        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules)
+        await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
+        Utility.delete_directory(training_file_loc['root'])
 
     def download_files(self, bot: Text):
         """
@@ -111,7 +114,8 @@ class MongoProcessor:
         domain = self.load_domain(bot)
         stories = self.load_stories(bot)
         config = self.load_config(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot)
+        rules = self.get_rules_for_training(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules)
 
     async def save_from_path(
             self, path: Text, bot: Text, overwrite: bool = True, user="default"
@@ -144,6 +148,7 @@ class MongoProcessor:
             self.save_stories(story_graph.story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
+            self.save_rules(story_graph.story_steps, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -210,6 +215,7 @@ class MongoProcessor:
         self.delete_stories(bot, user)
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
+        self.delete_rules(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -854,10 +860,10 @@ class MongoProcessor:
         for event in events:
             if isinstance(event, UserUttered):
                 entities = [Entity(
-                    start=entity['start'],
-                    end=entity['end'],
-                    value=entity['value'],
-                    entity=entity['entity']) for entity in event.entities]
+                    start=entity.get('start'),
+                    end=entity.get('end'),
+                    value=entity.get('value'),
+                    entity=entity.get('entity')) for entity in event.entities]
                 yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
             elif isinstance(event, ActionExecuted):
                 yield StoryEvents(type=event.type_name, name=event.action_name)
@@ -882,7 +888,7 @@ class MongoProcessor:
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         saved_stories = self.__fetch_story_block_names(bot)
         for story_step in story_steps:
-            if story_step.block_name not in saved_stories:
+            if not isinstance(story_step, RuleStep) and story_step.block_name not in saved_stories:
                 story_events = list(self.__extract_story_events(story_step.events))
                 story = Stories(
                     block_name=story_step.block_name,
@@ -2353,6 +2359,86 @@ class MongoProcessor:
             slot['influence_conversation'] = slot_value.get('influence_conversation')
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
+
+    def __extract_rules(self, story_steps, bot: Text, user: Text):
+        saved_rules = self.fetch_rule_block_names(bot)
+
+        for story_step in story_steps:
+            if isinstance(story_step, RuleStep) and story_step.block_name not in saved_rules:
+                rule = self.__extract_rule_events(story_step, bot, user)
+                yield rule
+
+    def __extract_rule_events(self, rule_step, bot: Text, user: Text):
+        rule_events = list(self.__extract_story_events(rule_step.events))
+        rule = Rules(
+            block_name=rule_step.block_name,
+            condition_events_indices=list(rule_step.condition_events_indices),
+            start_checkpoints=[
+                start_checkpoint.name
+                for start_checkpoint in rule_step.start_checkpoints
+            ],
+            end_checkpoints=[
+                end_checkpoint.name
+                for end_checkpoint in rule_step.end_checkpoints
+            ],
+            events=rule_events,
+            bot=bot,
+            user=user
+        )
+        return rule
+
+    @staticmethod
+    def fetch_rule_block_names(bot: Text):
+        saved_stories = list(
+            Rules.objects(bot=bot, status=True).aggregate(
+                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
+            )
+        )
+        result = []
+        if saved_stories:
+            result = saved_stories[0]["block"]
+        return result
+
+    def save_rules(self, story_steps, bot: Text, user: Text):
+        if story_steps:
+            new_rules = list(self.__extract_rules(story_steps, bot, user))
+            if new_rules:
+                Rules.objects.insert(new_rules)
+
+    def delete_rules(self, bot: Text, user: Text):
+        """
+        soft deletes rules
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document([Rules], bot=bot, user=user)
+
+    def __get_rules(self, bot: Text):
+        for rule in Rules.objects(bot=bot, status=True):
+            rule_events = list(
+                self.__prepare_training_story_events(
+                    rule.events, datetime.now().timestamp()
+                )
+            )
+
+            yield RuleStep(
+                block_name=rule.block_name,
+                condition_events_indices=set(rule.condition_events_indices),
+                events=rule_events,
+                start_checkpoints=[
+                    Checkpoint(start_checkpoint)
+                    for start_checkpoint in rule.start_checkpoints
+                ],
+                end_checkpoints=[
+                    Checkpoint(end_checkpoints)
+                    for end_checkpoints in rule.end_checkpoints
+                ],
+            )
+
+    def get_rules_for_training(self, bot: Text):
+        return StoryGraph(list(self.__get_rules(bot)))
 
 
 class AgentProcessor:
