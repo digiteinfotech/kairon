@@ -11,6 +11,8 @@ from io import BytesIO
 from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
+from fastapi import File
+from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.utils.endpoints import EndpointConfig
 import requests
 import yaml
@@ -286,7 +288,7 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    def save_files(nlu: bytes, domain: bytes, stories: bytes, config: bytes):
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None):
         """
         convert mongo data  to individual files
 
@@ -294,19 +296,66 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param rules: rules data
+        :return: files path
+        """
+        training_file_loc = {}
+        tmp_dir = tempfile.mkdtemp()
+        data_path = os.path.join(tmp_dir, DEFAULT_DATA_PATH)
+        os.makedirs(data_path)
+
+        nlu_path = os.path.join(data_path, nlu.filename)
+        domain_path = os.path.join(tmp_dir, domain.filename)
+        stories_path = os.path.join(data_path, stories.filename)
+        config_path = os.path.join(tmp_dir, config.filename)
+
+        Utility.write_to_file(nlu_path, await nlu.read())
+        Utility.write_to_file(domain_path, await domain.read())
+        Utility.write_to_file(stories_path, await stories.read())
+        Utility.write_to_file(config_path, await config.read())
+        if rules and rules.filename:
+            rules_path = os.path.join(data_path, rules.filename)
+            Utility.write_to_file(rules_path, await rules.read())
+            training_file_loc['rules'] = rules_path
+        training_file_loc['nlu'] = nlu_path
+        training_file_loc['config'] = config_path
+        training_file_loc['stories'] = stories_path
+        training_file_loc['domain'] = domain_path
+        training_file_loc['root'] = tmp_dir
+        return training_file_loc
+
+    @staticmethod
+    def write_training_data(nlu: TrainingData, domain: Domain, config: dict,
+                            stories: StoryGraph, rules: StoryGraph = None):
+        """
+        convert mongo data  to individual files
+
+        :param nlu: nlu data
+        :param domain: domain data
+        :param stories: stories data
+        :param config: config data
+        :param rules: rules data
         :return: files path
         """
         temp_path = tempfile.mkdtemp()
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
         os.makedirs(data_path)
-        nlu_path = os.path.join(data_path, "nlu.md")
+        nlu_path = os.path.join(data_path, "nlu.yml")
         domain_path = os.path.join(temp_path, DEFAULT_DOMAIN_PATH)
-        stories_path = os.path.join(data_path, "stories.md")
+        stories_path = os.path.join(data_path, "stories.yml")
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
-        Utility.write_to_file(nlu_path, nlu)
-        Utility.write_to_file(domain_path, domain)
-        Utility.write_to_file(stories_path, stories)
-        Utility.write_to_file(config_path, config)
+        rules_path = os.path.join(data_path, "rules.yml")
+
+        nlu_as_str = nlu.nlu_as_yaml().encode()
+        domain_as_str = domain.as_yaml().encode()
+        config_as_str = yaml.dump(config).encode()
+
+        Utility.write_to_file(nlu_path, nlu_as_str)
+        Utility.write_to_file(domain_path, domain_as_str)
+        Utility.write_to_file(config_path, config_as_str)
+        YAMLStoryWriter().dump(stories_path, stories.story_steps)
+        if rules:
+            YAMLStoryWriter().dump(rules_path, rules.story_steps)
         return temp_path
 
     @staticmethod
@@ -334,7 +383,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text
+            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text, rules: StoryGraph = None
     ):
         """
         adds training files to zip
@@ -346,11 +395,12 @@ class Utility:
         :param bot: bot id
         :return: None
         """
-        directory = Utility.save_files(
-            nlu.nlu_as_markdown().encode(),
-            domain.as_yaml().encode(),
-            stories.as_story_string().encode(),
-            yaml.dump(config).encode(),
+        directory = Utility.write_training_data(
+            nlu,
+            domain,
+            config,
+            stories,
+            rules
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

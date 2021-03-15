@@ -4,7 +4,6 @@ from contextlib import ExitStack
 from typing import Text, Optional, Dict
 from urllib.parse import urljoin
 
-import yaml
 from loguru import logger as logging
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.shared.importers.importer import TrainingDataImporter
@@ -105,12 +104,14 @@ def train_model_for_bot(bot: str):
     domain = processor.load_domain(bot)
     stories = processor.load_stories(bot)
     config = processor.load_config(bot)
+    rules = processor.get_rules_for_training(bot)
 
-    directory = Utility.save_files(
-        nlu.nlu_as_markdown().encode(),
-        domain.as_yaml().encode(),
-        stories.as_story_string().encode(),
-        yaml.dump(config).encode(),
+    directory = Utility.write_training_data(
+        nlu,
+        domain,
+        config,
+        stories,
+        rules
     )
 
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
