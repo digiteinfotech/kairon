@@ -131,7 +131,7 @@ class ActionUtility:
         try:
             connect(host=db_url)
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
-                                                              action_name=action_name).to_mongo().to_dict()
+                                                              action_name=action_name, status=True).to_mongo().to_dict()
             logger.debug("http_action_config: " + str(http_config_dict))
             if dict is None:
                 raise DoesNotExist
