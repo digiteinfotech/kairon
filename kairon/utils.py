@@ -325,7 +325,7 @@ class Utility:
         return training_file_loc
 
     @staticmethod
-    def write_training_data(nlu: TrainingData, domain: Domain, config: dict,
+    def write_training_data(nlu: TrainingData, domain: Dict, config: dict,
                             stories: StoryGraph, rules: StoryGraph = None):
         """
         convert mongo data  to individual files
@@ -347,11 +347,12 @@ class Utility:
         rules_path = os.path.join(data_path, "rules.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
-        domain_as_str = domain.as_yaml().encode()
+        #domain_as_str = domain.as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
 
+        yaml.safe_dump(domain, open(domain_path, "w"))
         Utility.write_to_file(nlu_path, nlu_as_str)
-        Utility.write_to_file(domain_path, domain_as_str)
+        #Utility.write_to_file(domain_path, domain_as_str)
         Utility.write_to_file(config_path, config_as_str)
         YAMLStoryWriter().dump(stories_path, stories.story_steps)
         if rules:
@@ -383,7 +384,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text, rules: StoryGraph = None
+            nlu: TrainingData, domain: Dict, stories: StoryGraph, config: Dict, bot: Text, rules: StoryGraph = None
     ):
         """
         adds training files to zip
