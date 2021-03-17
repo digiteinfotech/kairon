@@ -359,7 +359,7 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if str(training_example.data['text']).lower() not in saved_training_examples:
+            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
