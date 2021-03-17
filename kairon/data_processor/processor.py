@@ -290,7 +290,7 @@ class MongoProcessor:
             [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
-    def load_domain(self, bot: Text) -> Domain:
+    def load_domain(self, bot: Text) -> Dict:
         """
         loads domain data for training
 
