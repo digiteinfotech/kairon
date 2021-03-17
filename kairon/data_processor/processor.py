@@ -133,7 +133,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            importer = TrainingDataImporter.load_from_config(config_path=config_path,
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
             domain = await importer.get_domain()
@@ -306,7 +306,7 @@ class MongoProcessor:
             DOMAIN.FORMS.value: self.__prepare_training_forms(bot),
             DOMAIN.ENTITIES.value: self.__prepare_training_domain_entities(bot),
         }
-        return domain_dict
+        return Domain.from_dict(domain_dict)
 
     def save_stories(self, story_steps: List[StoryStep], bot: Text, user: Text):
         """
