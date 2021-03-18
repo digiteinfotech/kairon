@@ -288,7 +288,7 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None):
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
         """
         convert mongo data  to individual files
 
@@ -297,6 +297,7 @@ class Utility:
         :param stories: stories data
         :param config: config data
         :param rules: rules data
+        :param http_action: http actions data
         :return: files path
         """
         training_file_loc = {}
@@ -317,6 +318,10 @@ class Utility:
             rules_path = os.path.join(data_path, rules.filename)
             Utility.write_to_file(rules_path, await rules.read())
             training_file_loc['rules'] = rules_path
+        if http_action and http_action.filename:
+            http_path = os.path.join(tmp_dir, http_action.filename)
+            Utility.write_to_file(http_path, await http_action.read())
+            training_file_loc['http_action'] = http_path
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
         training_file_loc['stories'] = stories_path
@@ -326,7 +331,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu: TrainingData, domain: Domain, config: dict,
-                            stories: StoryGraph, rules: StoryGraph = None):
+                            stories: StoryGraph, rules: StoryGraph = None, http_action: dict = None):
         """
         convert mongo data  to individual files
 
@@ -335,6 +340,7 @@ class Utility:
         :param stories: stories data
         :param config: config data
         :param rules: rules data
+        :param http_action: http actions data
         :return: files path
         """
         temp_path = tempfile.mkdtemp()
@@ -345,6 +351,7 @@ class Utility:
         stories_path = os.path.join(data_path, "stories.yml")
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
         rules_path = os.path.join(data_path, "rules.yml")
+        http_path = os.path.join(temp_path, "http_action.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
         domain_as_str = domain.as_yaml().encode()
@@ -356,6 +363,9 @@ class Utility:
         YAMLStoryWriter().dump(stories_path, stories.story_steps)
         if rules:
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+        if http_action:
+            http_as_str = yaml.dump(http_action).encode()
+            Utility.write_to_file(http_path, http_as_str)
         return temp_path
 
     @staticmethod
@@ -383,7 +393,8 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text, rules: StoryGraph = None
+            nlu: TrainingData, domain: Domain, stories: StoryGraph, config: Dict, bot: Text, rules: StoryGraph = None,
+            http_action: Dict = None
     ):
         """
         adds training files to zip
@@ -392,6 +403,7 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param http_action: http actions data
         :param bot: bot id
         :return: None
         """
@@ -400,7 +412,8 @@ class Utility:
             domain,
             config,
             stories,
-            rules
+            rules,
+            http_action
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

@@ -236,6 +236,10 @@ def test_upload_yml(monkeypatch):
             "config.yml",
             open("tests/testing_data/yml_training_files/config.yml", "rb"),
         ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/yml_training_files/http_action.yml", "rb"),
+        ),
     }
     response = client.post(
         "/api/bot/upload",
