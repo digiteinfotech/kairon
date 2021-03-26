@@ -2665,10 +2665,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
             doc.status = status
         except DoesNotExist:
             doc = TrainingDataGenerator()
@@ -2699,10 +2699,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get().to_mongo().to_dict()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
             doc.pop('_id')
         except DoesNotExist:
             doc = None
@@ -2718,11 +2718,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         :raises: AppException
         """
-        if TrainingDataGenerator.objects.filter(
-                Q(bot=bot) and (
-                        Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
+        if TrainingDataGenerator.objects(bot=bot).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
             if raise_exception:
                 raise AppException("Previous data generation process not completed")
             else:

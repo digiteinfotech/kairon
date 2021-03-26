@@ -1393,6 +1393,8 @@ class TestMongoProcessor:
     def test_get_action_server_logs(self):
         bot = "test_bot"
         bot_2 = "testing_bot"
+        expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
+                            "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
         HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
                       request_params=request_params, response="Response", bot=bot).save()
@@ -1425,23 +1427,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
-        log = logs[0]
-        assert log['intent'] == "intent13"
-        assert log['action'] == "http_action"
-        assert log['sender'] == "sender_id_13"
-        assert log['request_params'] == request_params
-        assert log['response'] == "Response"
-        assert log['status'] == "FAILURE"
+        assert [log['intent'] in expected_intents for log in logs]
+        assert logs[0]['action'] == "http_action"
+        assert any([log['request_params'] == request_params for log in logs])
+        assert any([log['sender'] == "sender_id_13" for log in logs])
+        assert any([log['response'] == "Response" for log in logs])
+        assert any([log['status'] == "FAILURE" for log in logs])
+        assert any([log['status'] == "SUCCESS" for log in logs])
 
         logs = list(processor.get_action_server_logs(bot_2))
         assert len(logs) == 3
-        log = logs[0]
-        assert log['intent'] == "intent12"
-        assert log['action'] == "http_action"
-        assert log['sender'] == "sender_id"
-        assert log['request_params'] == request_params
-        assert log['response'] == "Response"
-        assert log['status'] == "FAILURE"
 
     def test_get_action_server_logs_start_idx_page_size(self):
         processor = MongoProcessor()

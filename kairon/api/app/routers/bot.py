@@ -698,11 +698,8 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, curren
     """
     Retrieves action server logs for the bot.
     """
-    try:
-        logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
-        return Response(data=logs)
-    except Exception as e:
-        raise AppException(e)
+    logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
+    return Response(data=logs)
 
 
 @router.post("/data/bulk", response_model=Response)

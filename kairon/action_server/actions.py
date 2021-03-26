@@ -134,10 +134,6 @@ class ActionUtility:
                 raise DoesNotExist
         except DoesNotExist:
             raise HttpActionFailure("No HTTP action found for bot " + bot + " and action " + action_name)
-        except Exception as ex:
-            raise HttpActionFailure(ex)
-        finally:
-            disconnect()
 
         return http_config_dict
 
