@@ -13,7 +13,7 @@ from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Chec
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
-from kairon.action_server.data_objects import HttpActionConfig
+from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
@@ -1384,6 +1384,85 @@ class TestMongoProcessor:
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+
+    def test_get_action_server_logs_empty(self):
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs("test_bot"))
+        assert logs == []
+
+    def test_get_action_server_logs(self):
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        request_params = {"key": "value", "key2": "value2"}
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot_2).save()
+        HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot_2).save()
+        HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot).save()
+        HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
+                      request_params=request_params, response="Response", bot=bot_2, status="FAILURE").save()
+        HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
+                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs(bot))
+        assert len(logs) == 10
+        log = logs[0]
+        assert log['intent'] == "intent13"
+        assert log['action'] == "http_action"
+        assert log['sender'] == "sender_id_13"
+        assert log['request_params'] == request_params
+        assert log['response'] == "Response"
+        assert log['status'] == "FAILURE"
+
+        logs = list(processor.get_action_server_logs(bot_2))
+        assert len(logs) == 3
+        log = logs[0]
+        assert log['intent'] == "intent12"
+        assert log['action'] == "http_action"
+        assert log['sender'] == "sender_id"
+        assert log['request_params'] == request_params
+        assert log['response'] == "Response"
+        assert log['status'] == "FAILURE"
+
+    def test_get_action_server_logs_start_idx_page_size(self):
+        processor = MongoProcessor()
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        logs = list(processor.get_action_server_logs(bot, 10, 15))
+        assert len(logs) == 1
+
+        logs = list(processor.get_action_server_logs(bot, 10, 1))
+        assert len(logs) == 1
+
+        logs = list(processor.get_action_server_logs(bot, 0, 5))
+        assert len(logs) == 5
+
+        logs = list(processor.get_action_server_logs(bot_2, 0, 5))
+        assert len(logs) == 3
+
+        logs = list(processor.get_action_server_logs(bot_2, 2, 1))
+        assert len(logs) == 1
+        log = logs[0]
+        assert log['intent'] == "intent1"
 
 
 # pylint: disable=R0201
