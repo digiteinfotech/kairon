@@ -292,7 +292,7 @@ class TestActions:
             user="user"
         ).save().to_mongo().to_dict()
 
-        actual = ActionUtility.get_http_action_config(pytest.db_url, "bot", "http_action")
+        actual = ActionUtility.get_http_action_config("bot", "http_action")
         assert actual is not None
         assert expected['auth_token'] == actual['auth_token']
         assert expected['action_name'] == actual['action_name']
