@@ -1397,33 +1397,33 @@ class TestMongoProcessor:
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
         HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
-        HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
         HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot_2).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
         HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
         HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
         HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot_2).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
         HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
-                      request_params=request_params, response="Response", bot=bot_2, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2, status="FAILURE").save()
         HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
-                      request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
@@ -1431,7 +1431,8 @@ class TestMongoProcessor:
         assert logs[0]['action'] == "http_action"
         assert any([log['request_params'] == request_params for log in logs])
         assert any([log['sender'] == "sender_id_13" for log in logs])
-        assert any([log['response'] == "Response" for log in logs])
+        assert any([log['api_response'] == "Response" for log in logs])
+        assert any([log['bot_response'] == "Bot Response" for log in logs])
         assert any([log['status'] == "FAILURE" for log in logs])
         assert any([log['status'] == "SUCCESS" for log in logs])
 
@@ -1458,6 +1459,16 @@ class TestMongoProcessor:
         assert len(logs) == 1
         log = logs[0]
         assert log['intent'] == "intent1"
+
+    def test_get_action_server_logs_cnt(self):
+        processor = MongoProcessor()
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        cnt = processor.get_row_count(HttpActionLog, bot)
+        assert cnt == 11
+
+        cnt = processor.get_row_count(HttpActionLog, bot_2)
+        assert cnt == 3
 
 
 # pylint: disable=R0201

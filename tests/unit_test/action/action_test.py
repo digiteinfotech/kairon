@@ -606,7 +606,8 @@ class TestActions:
         assert log['timestamp']
         assert log['intent']
         assert log['action']
-        assert log['response']
+        assert log['bot_response']
+        assert log['api_response']
 
     @responses.activate
     def test_run_with_post(self, monkeypatch):
@@ -695,7 +696,8 @@ class TestActions:
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_post"
         assert log['request_params'] == {"key1": "value1", "key2": "value2"}
-        assert log['response'] == 'Data added successfully, id:5000'
+        assert log['api_response'] == '5000'
+        assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @responses.activate
     def test_run_with_get(self, monkeypatch):

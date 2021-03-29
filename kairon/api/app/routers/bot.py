@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
+from kairon.action_server.data_objects import HttpActionLog
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -699,7 +700,12 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, curren
     Retrieves action server logs for the bot.
     """
     logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
-    return Response(data=logs)
+    row_cnt = mongo_processor.get_row_count(HttpActionLog, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.post("/data/bulk", response_model=Response)

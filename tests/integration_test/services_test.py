@@ -2706,9 +2706,8 @@ def test_list_action_server_logs_empty():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
 
     actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["success"]
-    assert actual['data'] == []
+    assert actual['data']['logs'] == []
+    assert actual['data']['total'] == 0
 
 
 def test_list_action_server_logs():
@@ -2718,33 +2717,33 @@ def test_list_action_server_logs():
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
     HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
-    HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+    HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
     HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot_2).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
     HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
     HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
     HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot_2).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
     HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot).save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
-                  request_params=request_params, response="Response", bot=bot_2, status="FAILURE").save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2, status="FAILURE").save()
     HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
-                  request_params=request_params, response="Response", bot=bot, status="FAILURE").save()
+                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
     response = client.get(
         "/api/bot/actions/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -2753,22 +2752,23 @@ def test_list_action_server_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
     print(actual['data'])
-    assert len(actual['data']) == 10
-    assert [log['intent'] in expected_intents for log in actual['data']]
-    assert actual['data'][0]['action'] == "http_action"
-    assert any([log['request_params'] == request_params for log in actual['data']])
-    assert any([log['sender'] == "sender_id_13" for log in actual['data']])
-    assert any([log['response'] == "Response" for log in actual['data']])
-    assert any([log['status'] == "FAILURE" for log in actual['data']])
-    assert any([log['status'] == "SUCCESS" for log in actual['data']])
+    assert len(actual['data']['logs']) == 10
+    assert actual['data']['total'] == 11
+    assert [log['intent'] in expected_intents for log in actual['data']['logs']]
+    assert actual['data']['logs'][0]['action'] == "http_action"
+    assert any([log['request_params'] == request_params for log in actual['data']['logs']])
+    assert any([log['sender'] == "sender_id_13" for log in actual['data']['logs']])
+    assert any([log['bot_response'] == "Bot Response" for log in actual['data']['logs']])
+    assert any([log['api_response'] == "Response" for log in actual['data']['logs']])
+    assert any([log['status'] == "FAILURE" for log in actual['data']['logs']])
+    assert any([log['status'] == "SUCCESS" for log in actual['data']['logs']])
 
     response = client.get(
         "/api/bot/actions/logs?start_idx=0&page_size=15",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
     actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["success"]
-    assert len(actual['data']) == 11
+    assert len(actual['data']['logs']) == 11
+    assert actual['data']['total'] == 11
 
     response = client.get(
         "/api/bot/actions/logs?start_idx=10&page_size=1",
@@ -2776,4 +2776,5 @@ def test_list_action_server_logs():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual['data']) == 1
+    assert len(actual['data']['logs']) == 1
+    assert actual['data']['total'] == 11

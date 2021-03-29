@@ -2361,9 +2361,19 @@ class MongoProcessor:
         return slot_id
 
     @staticmethod
+    def get_row_count(document: Document, bot: str):
+        """
+        Gets the count of rows in a document for a particular bot.
+        :param document: Mongoengine document for which count is to be given
+        :param bot: bot id
+        :return: Count of rows
+        """
+        return document.objects(bot=bot).count()
+
+    @staticmethod
     def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
         """
-        Fetches all Http actions from collection.
+        Fetches all action server logs from collection.
         :param bot: bot id
         :param start_idx: start index in collection
         :param page_size: number of rows

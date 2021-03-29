@@ -239,11 +239,13 @@ class HttpAction(Action):
         :param domain: Rasa provided Domain to specify the intents, entities, slots, and actions your bot should know about.
         :return: Curated Http response for the configured Http URL.
         """
-        response = None
+        bot_response = None
+        http_response = None
         exception = None
         action = None
         request_body = None
         status = "SUCCESS"
+        http_url = None
         try:
             logger.debug(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
@@ -256,6 +258,7 @@ class HttpAction(Action):
 
             http_action_config: HttpActionConfig = ActionUtility.get_http_action_config(bot=bot_id,
                                                                                         action_name=action)
+            http_url = http_action_config['http_url']
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
             logger.debug("request_body: " + str(request_body))
             http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
@@ -264,25 +267,27 @@ class HttpAction(Action):
                                                                request_body=request_body)
             logger.debug("http response: " + str(http_response))
 
-            response = ActionUtility.prepare_response(http_action_config['response'], http_response)
-            logger.debug("response: " + str(response))
+            bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
+            logger.debug("response: " + str(bot_response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
             exception = str(e)
             logger.error(exception)
             status = "FAILURE"
-            response = "I have failed to process your request"
+            bot_response = "I have failed to process your request"
         finally:
-            dispatcher.utter_message(response)
+            dispatcher.utter_message(bot_response)
             HttpActionLog(
                 intent=tracker.get_intent_of_latest_message(),
                 action=action,
                 sender=tracker.sender_id,
+                url=http_url,
                 request_params=request_body,
-                response=response,
+                api_response=str(http_response),
+                bot_response=str(bot_response),
                 exception=exception,
                 bot=tracker.get_slot("bot"),
                 status=status
             ).save()
 
-        return [SlotSet(response)]
+        return [SlotSet(bot_response)]
