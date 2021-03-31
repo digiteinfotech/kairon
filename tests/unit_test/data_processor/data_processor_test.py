@@ -614,6 +614,13 @@ class TestMongoProcessor:
             if "text" in item["value"]
         )
 
+    def test_get_text_response_empty_utterance(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_response("", "tests"))
+        assert actual.__len__() == 0
+        actual = list(processor.get_response(" ", "tests"))
+        assert actual.__len__() == 0
+
     def test_delete_text_response(self):
         processor = MongoProcessor()
         responses = list(processor.get_response(name="utter_happy", bot="tests"))
@@ -994,6 +1001,16 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_happy", "tests"))
         with pytest.raises(AppException):
             processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_greet", bot="tests",
+                                         user="testUser")
+
+    def test_edit_responses_empty_response(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], "", name="utter_happy", bot="tests",
+                                         user="testUser")
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], " ", name="utter_happy", bot="tests",
                                          user="testUser")
 
     def test_edit_responses(self):
@@ -1520,7 +1537,7 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreetingInvalid", "tests", "testUser", is_integration=False)
 
-    def test_delete_empty_Intent(self):
+    def test_delete_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AssertionError):
             processor.delete_intent("", "tests", "testUser", is_integration=False)
@@ -1529,6 +1546,11 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+
+    def test_delete_intent_case_insensitive(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("testingdelgreeting", "tests", "testUser", is_integration=False)
 
     def test_intent_no_stories(self):
         processor = MongoProcessor()
@@ -1546,7 +1568,7 @@ class TestModelProcessor:
         actual = processor.get_intents_and_training_examples("tests")
         assert len(actual) == 17
 
-    def test_delete_intent_no_trainingExamples(self):
+    def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
@@ -1569,6 +1591,18 @@ class TestModelProcessor:
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
         actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
         assert len(actual) == 0
+
+    # def test_search_intent(self):
+    #     processor = MongoProcessor()
+    #     processor.add_intent("TestingSearchGreeting", "tests", "testUser", is_integration=False)
+    #     processor.add_training_example(["hello"], "TestingSearchGreeting", "tests", "testUser", is_integration=False)
+    #     search_items = list(processor.search_training_examples("hello", "tests"))
+    #     assert search_items == [{"intent":"TestingSearchGreeting", "text": "hello"}]
+    #
+    # def test_search_invalid_example(self):
+    #     processor = MongoProcessor()
+    #     search_items = list(processor.search_training_examples("hello there", "tests"))
+    #     assert search_items == [{}]
 
     def test_prepare_and_add_story(self):
         processor = MongoProcessor()
