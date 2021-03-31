@@ -133,7 +133,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            importer = RasaFileImporter(config_file=config_path,
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
             domain = await importer.get_domain()
@@ -290,7 +290,7 @@ class MongoProcessor:
             [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
-    def load_domain(self, bot: Text) -> Domain:
+    def load_domain(self, bot: Text) -> Dict:
         """
         loads domain data for training
 
@@ -359,7 +359,7 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if str(training_example.data['text']).lower() not in saved_training_examples:
+            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
