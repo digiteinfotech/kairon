@@ -314,20 +314,47 @@ class Utility:
         Utility.write_to_file(domain_path, await domain.read())
         Utility.write_to_file(stories_path, await stories.read())
         Utility.write_to_file(config_path, await config.read())
-        if rules and rules.filename:
-            rules_path = os.path.join(data_path, rules.filename)
-            Utility.write_to_file(rules_path, await rules.read())
-            training_file_loc['rules'] = rules_path
-        if http_action and http_action.filename:
-            http_path = os.path.join(tmp_dir, http_action.filename)
-            Utility.write_to_file(http_path, await http_action.read())
-            training_file_loc['http_action'] = http_path
+
+        training_file_loc['rules'] = await Utility.write_rule_data(data_path, rules)
+        training_file_loc['http_action'] = await Utility.write_http_data(tmp_dir, http_action)
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
         training_file_loc['stories'] = stories_path
         training_file_loc['domain'] = domain_path
         training_file_loc['root'] = tmp_dir
         return training_file_loc
+
+    @staticmethod
+    async def write_rule_data(data_path: str, rules: File = None):
+        """
+        writes the rule data to file and returns the file path
+
+        :param data_path: path of the data files
+        :param rules: rules data
+        :return: rule file path
+        """
+        if rules and rules.filename:
+            rules_path = os.path.join(data_path, rules.filename)
+            Utility.write_to_file(rules_path, await rules.read())
+            return rules_path
+        else:
+            return None
+
+    @staticmethod
+    async def write_http_data(temp_path: str, http_action: File = None):
+        """
+       writes the http_actions data to file and returns the file path
+
+       :param temp_path: path of the temporary directory
+       :param http_action: http_action data
+       :return: http_action file path
+       """
+        if http_action and http_action.filename:
+            http_path = os.path.join(temp_path, http_action.filename)
+            Utility.write_to_file(http_path, await http_action.read())
+            return http_path
+        else:
+            return None
 
     @staticmethod
     def write_training_data(nlu: TrainingData, domain: Domain, config: dict,

@@ -214,6 +214,45 @@ def test_upload(monkeypatch):
     assert actual["success"]
 
 
+def test_upload_with_http_error(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    files = {
+        "nlu": (
+            "nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/error/http_action.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Required http action fields not found"
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
 def test_upload_yml(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
