@@ -7,7 +7,7 @@ from mongoengine import (
     StringField,
     DateTimeField,
     BooleanField,
-    ListField,
+    ListField, DictField,
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
@@ -47,3 +47,17 @@ class HttpActionConfig(Document):
             raise ValidationError("URL is malformed")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValidationError("Invalid HTTP method")
+
+
+class HttpActionLog(Document):
+    intent = StringField()
+    action = StringField()
+    sender = StringField()
+    url = StringField()
+    request_params = DictField()
+    api_response = StringField()
+    bot_response = StringField()
+    exception = StringField()
+    bot = StringField()
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = StringField(default="SUCCESS")

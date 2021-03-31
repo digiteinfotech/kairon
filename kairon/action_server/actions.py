@@ -12,7 +12,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from mongoengine import connect, disconnect, DoesNotExist
 from smart_config import ConfigLoader
 
-from .data_objects import HttpActionRequestBody, HttpActionConfig
+from .data_objects import HttpActionRequestBody, HttpActionConfig, HttpActionLog
 from .action_models import ParameterType
 from .exception import HttpActionFailure
 
@@ -105,17 +105,17 @@ class ActionUtility:
         return bool(not value.strip())
 
     @staticmethod
-    def get_db_url():
+    def connect_db():
         """
-        Fetches MongoDB URL defined in system.yaml file
+        Creates connection to database.
         :return: MongoDB connection URL
         """
         system_yml_parent_dir = str(Path(os.path.realpath(__file__)).parent)
         environment = ConfigLoader(os.getenv("system_file", system_yml_parent_dir + "/system.yaml")).get_config()
-        return environment['database']["url"]
+        connect(host=environment['database']["url"])
 
     @staticmethod
-    def get_http_action_config(db_url: str, bot: str, action_name: str):
+    def get_http_action_config(bot: str, action_name: str):
         """
         Fetch HTTP action configuration parameters from the MongoDB database
         :param db_url: MongoDB connection string
@@ -123,13 +123,10 @@ class ActionUtility:
         :param action_name: Action name
         :return: HttpActionConfig object containing configuration for the action
         """
-        if ActionUtility.is_empty(db_url) or ActionUtility.is_empty(
-                bot) or ActionUtility.is_empty(
-            action_name):
-            raise HttpActionFailure("Database url, bot name and action name are required")
+        if ActionUtility.is_empty(bot) or ActionUtility.is_empty(action_name):
+            raise HttpActionFailure("Bot name and action name are required")
 
         try:
-            connect(host=db_url)
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True).to_mongo().to_dict()
             logger.debug("http_action_config: " + str(http_config_dict))
@@ -137,10 +134,6 @@ class ActionUtility:
                 raise DoesNotExist
         except DoesNotExist:
             raise HttpActionFailure("No HTTP action found for bot " + bot + " and action " + action_name)
-        except Exception as ex:
-            raise HttpActionFailure(ex)
-        finally:
-            disconnect()
 
         return http_config_dict
 
@@ -224,6 +217,7 @@ class HttpAction(Action):
     """
     Executes any HTTP action configured by user
     """
+    ActionUtility.connect_db()
 
     def name(self) -> Text:
         """
@@ -245,7 +239,13 @@ class HttpAction(Action):
         :param domain: Rasa provided Domain to specify the intents, entities, slots, and actions your bot should know about.
         :return: Curated Http response for the configured Http URL.
         """
-        response = {}
+        bot_response = None
+        http_response = None
+        exception = None
+        action = None
+        request_body = None
+        status = "SUCCESS"
+        http_url = None
         try:
             logger.debug(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
@@ -256,9 +256,9 @@ class HttpAction(Action):
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
                 raise HttpActionFailure("Bot id and HTTP action configuration name not found in slot")
 
-            db_url = ActionUtility.get_db_url()
-            http_action_config: HttpActionConfig = ActionUtility.get_http_action_config(db_url=db_url, bot=bot_id,
+            http_action_config: HttpActionConfig = ActionUtility.get_http_action_config(bot=bot_id,
                                                                                         action_name=action)
+            http_url = http_action_config['http_url']
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
             logger.debug("request_body: " + str(request_body))
             http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
@@ -267,12 +267,27 @@ class HttpAction(Action):
                                                                request_body=request_body)
             logger.debug("http response: " + str(http_response))
 
-            response = ActionUtility.prepare_response(http_action_config['response'], http_response)
-            logger.debug("response: " + str(response))
+            bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
+            logger.debug("response: " + str(bot_response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
-            logger.error(str(e))
-            response = "I have failed to process your request"
+            exception = str(e)
+            logger.error(exception)
+            status = "FAILURE"
+            bot_response = "I have failed to process your request"
+        finally:
+            dispatcher.utter_message(bot_response)
+            HttpActionLog(
+                intent=tracker.get_intent_of_latest_message(),
+                action=action,
+                sender=tracker.sender_id,
+                url=http_url,
+                request_params=request_body,
+                api_response=str(http_response),
+                bot_response=str(bot_response),
+                exception=exception,
+                bot=tracker.get_slot("bot"),
+                status=status
+            ).save()
 
-        dispatcher.utter_message(response)
-        return [SlotSet(response)]
+        return [SlotSet(bot_response)]
