@@ -65,7 +65,7 @@ from .data_objects import (
     ModelTraining,
     ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
 )
-from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
+from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
@@ -2360,6 +2360,31 @@ class MongoProcessor:
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
 
+    @staticmethod
+    def get_row_count(document: Document, bot: str):
+        """
+        Gets the count of rows in a document for a particular bot.
+        :param document: Mongoengine document for which count is to be given
+        :param bot: bot id
+        :return: Count of rows
+        """
+        return document.objects(bot=bot).count()
+
+    @staticmethod
+    def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
+        """
+        Fetches all action server logs from collection.
+        :param bot: bot id
+        :param start_idx: start index in collection
+        :param page_size: number of rows
+        :return: List of Http actions.
+        """
+        for log in HttpActionLog.objects(bot=bot).order_by("-timestamp").skip(start_idx).limit(page_size):
+            log = log.to_mongo().to_dict()
+            log.pop("bot")
+            log.pop("_id")
+            yield log
+
     def __extract_rules(self, story_steps, bot: Text, user: Text):
         saved_rules = self.fetch_rule_block_names(bot)
 
@@ -2650,10 +2675,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
             doc.status = status
         except DoesNotExist:
             doc = TrainingDataGenerator()
@@ -2684,10 +2709,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get().to_mongo().to_dict()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
             doc.pop('_id')
         except DoesNotExist:
             doc = None
@@ -2703,11 +2728,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         :raises: AppException
         """
-        if TrainingDataGenerator.objects.filter(
-                Q(bot=bot) and (
-                        Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
+        if TrainingDataGenerator.objects(bot=bot).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
             if raise_exception:
                 raise AppException("Previous data generation process not completed")
             else:
