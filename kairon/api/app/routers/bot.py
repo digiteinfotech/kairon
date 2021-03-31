@@ -763,3 +763,14 @@ async def get_latest_data_generation_status(
     """
     latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(), current_user.get_user())
     return {"data": latest_data_generation_status}
+
+
+@router.get("/slots", response_model=Response)
+async def get_latest_data_generation_status(
+        current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Fetches status for latest data generation request
+    """
+    slots = list(mongo_processor.get_existing_slots(current_user.get_bot()))
+    return {"data": slots}

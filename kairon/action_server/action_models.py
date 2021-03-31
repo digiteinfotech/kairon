@@ -1,5 +1,7 @@
 from enum import Enum
 
+KAIRON_ACTION_RESPONSE_SLOT = "KAIRON_ACTION_RESPONSE"
+
 
 class ParameterType(str, Enum):
     user = "user"
@@ -7,4 +9,5 @@ class ParameterType(str, Enum):
     form = "form"
     slot = "slot"
     http = "http"
+    sender_id = "sender_id"
     http_action_config = "http_action_config"
