@@ -100,7 +100,7 @@ async def predict_intent(
 
 
 @router.post("/intents/search", response_model=Response)
-async def search_intent(
+async def search_training_examples(
         request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """

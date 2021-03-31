@@ -659,12 +659,13 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
+        actual: List[Dict[Text, Any]] = await HttpAction().run(dispatcher, tracker, domain)
         assert actual is not None
-        assert actual[0]['name'] == 'Data added successfully, id:5000'
+        assert actual[0]['name'] == 'KAIRON_ACTION_RESPONSE'
+        assert actual[0]['value'] == 'Data added successfully, id:5000'
 
-    @responses.activate
-    def test_run_with_post_and_parameters(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_run_with_post_and_parameters(self, monkeypatch):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
@@ -684,6 +685,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
+        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -720,9 +722,9 @@ class TestActions:
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             auth_token="",
-            action_name="test_run_with_post",
+            action_name="test_run_with_get",
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
-            http_url="http://localhost:8080/mock",
+            http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -760,9 +762,11 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = HttpAction().run(dispatcher, tracker, domain)
+        actual: List[Dict[Text, Any]] = await HttpAction().run(dispatcher, tracker, domain)
+        responses.stop()
         assert actual is not None
-        assert str(actual[0]['name']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
     async def test_run_no_connection(self, monkeypatch):
@@ -770,7 +774,7 @@ class TestActions:
             auth_token="",
             action_name="test_run_with_post",
             response="This should be response",
-            http_url="http://localhost:8081/mock",
+            http_url="http://localhost:8085/mock",
             request_method="GET",
             params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",

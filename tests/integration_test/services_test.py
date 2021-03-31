@@ -2052,6 +2052,33 @@ def test_add_http_action_with_sender_id_parameter_type():
     assert actual["success"]
 
 
+def test_add_http_action_invalid_parameter_type():
+    request_body = {
+        "auth_token": "",
+        "action_name": "test_add_http_action_with_sender_id_parameter_type",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
 def test_add_http_action_with_token():
     request_body = {
         "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",

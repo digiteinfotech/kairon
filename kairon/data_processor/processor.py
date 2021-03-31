@@ -65,6 +65,7 @@ from .data_objects import (
     ModelTraining,
     ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
 )
+from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
@@ -2299,6 +2300,8 @@ class MongoProcessor:
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
+                      raise_exception=False)
         return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):

@@ -9,7 +9,7 @@ from loguru import logger
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
-from mongoengine import connect, disconnect, DoesNotExist
+from mongoengine import connect, DoesNotExist
 from smart_config import ConfigLoader
 
 from .data_objects import HttpActionRequestBody, HttpActionConfig, HttpActionLog
@@ -291,4 +291,4 @@ class HttpAction(Action):
                 status=status
             ).save()
 
-        return [SlotSet(KAIRON_ACTION_RESPONSE_SLOT, response)]
+        return [SlotSet(KAIRON_ACTION_RESPONSE_SLOT, bot_response)]
