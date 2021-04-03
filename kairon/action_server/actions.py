@@ -9,11 +9,11 @@ from loguru import logger
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
-from mongoengine import connect, disconnect, DoesNotExist
+from mongoengine import connect, DoesNotExist
 from smart_config import ConfigLoader
 
 from .data_objects import HttpActionRequestBody, HttpActionConfig, HttpActionLog
-from .action_models import ParameterType
+from .action_models import ParameterType, KAIRON_ACTION_RESPONSE_SLOT
 from .exception import HttpActionFailure
 
 
@@ -82,13 +82,14 @@ class ActionUtility:
             return request_body
 
         for param in http_action_config_params:
-            if param['parameter_type'] == ParameterType.slot:
-                value = tracker.get_slot(param['key'])
-                if value is None:
-                    raise HttpActionFailure("Coudn't find value for key " + param['key'] + " from slot")
-                request_body[param['key']] = value
+            if param['parameter_type'] == ParameterType.sender_id:
+                value = tracker.sender_id
+            elif param['parameter_type'] == ParameterType.slot:
+                value = tracker.get_slot(param['value'])
             else:
-                request_body[param['key']] = param['value']
+                value = param['value']
+            request_body[param['key']] = value
+            logger.debug("value for key " + param['key'] + ": " + str(value))
 
         return request_body
 
@@ -219,7 +220,7 @@ class HttpAction(Action):
     """
     ActionUtility.connect_db()
 
-    def name(self) -> Text:
+    async def name(self) -> Text:
         """
         Name of HTTP action.
 
@@ -227,10 +228,10 @@ class HttpAction(Action):
         """
         return "kairon_http_action"
 
-    def run(self,
-            dispatcher: CollectingDispatcher,
-            tracker: Tracker,
-            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+    async def run(self,
+                  dispatcher: CollectingDispatcher,
+                  tracker: Tracker,
+                  domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         """
         Executes GET, PUT, POST, DELETE Http requests and curates and returns the user defined output.
 
@@ -290,4 +291,4 @@ class HttpAction(Action):
                 status=status
             ).save()
 
-        return [SlotSet(bot_response)]
+        return [SlotSet(KAIRON_ACTION_RESPONSE_SLOT, bot_response)]

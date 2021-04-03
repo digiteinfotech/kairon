@@ -252,6 +252,19 @@ def test_upload_yml(monkeypatch):
     assert actual["success"]
 
 
+def test_get_slots():
+    response = client.get(
+        "/api/bot/slots",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 8
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_get_intents():
     response = client.get(
         "/api/bot/intents",
@@ -2007,6 +2020,63 @@ def test_add_http_action_no_token():
     assert actual["error_code"] == 0
     assert actual["message"]
     assert actual["success"]
+
+
+def test_add_http_action_with_sender_id_parameter_type():
+    request_body = {
+        "auth_token": "",
+        "action_name": "test_add_http_action_with_sender_id_parameter_type",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "sender_id",
+            "value": "testValue1"
+        },{
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue2"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_http_action_invalid_parameter_type():
+    request_body = {
+        "auth_token": "",
+        "action_name": "test_add_http_action_with_sender_id_parameter_type",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
 
 
 def test_add_http_action_with_token():
