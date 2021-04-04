@@ -381,11 +381,14 @@ class Utility:
         http_path = os.path.join(temp_path, "http_action.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
-        domain_as_str = domain.as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
 
+        if isinstance(domain, Domain):
+            domain_as_str = domain.as_yaml().encode()
+            Utility.write_to_file(domain_path, domain_as_str)
+        elif isinstance(domain, Dict):
+            yaml.safe_dump(domain, open(domain_path, "w"))
         Utility.write_to_file(nlu_path, nlu_as_str)
-        Utility.write_to_file(domain_path, domain_as_str)
         Utility.write_to_file(config_path, config_as_str)
         YAMLStoryWriter().dump(stories_path, stories.story_steps)
         if rules:

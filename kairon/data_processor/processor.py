@@ -65,7 +65,8 @@ from .data_objects import (
     ModelTraining,
     ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
 )
-from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
+from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
+from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
@@ -136,7 +137,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            importer = RasaFileImporter(config_file=config_path,
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
             domain = await importer.get_domain()
@@ -309,7 +310,7 @@ class MongoProcessor:
             [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
-    def load_domain(self, bot: Text) -> Domain:
+    def load_domain(self, bot: Text) -> Dict:
         """
         loads domain data for training
 
@@ -378,7 +379,7 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if str(training_example.data['text']).lower() not in saved_training_examples:
+            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
@@ -2318,6 +2319,8 @@ class MongoProcessor:
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
+                      raise_exception=False)
         return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):
@@ -2378,6 +2381,31 @@ class MongoProcessor:
             slot['influence_conversation'] = slot_value.get('influence_conversation')
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
+
+    @staticmethod
+    def get_row_count(document: Document, bot: str):
+        """
+        Gets the count of rows in a document for a particular bot.
+        :param document: Mongoengine document for which count is to be given
+        :param bot: bot id
+        :return: Count of rows
+        """
+        return document.objects(bot=bot).count()
+
+    @staticmethod
+    def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
+        """
+        Fetches all action server logs from collection.
+        :param bot: bot id
+        :param start_idx: start index in collection
+        :param page_size: number of rows
+        :return: List of Http actions.
+        """
+        for log in HttpActionLog.objects(bot=bot).order_by("-timestamp").skip(start_idx).limit(page_size):
+            log = log.to_mongo().to_dict()
+            log.pop("bot")
+            log.pop("_id")
+            yield log
 
     def __extract_rules(self, story_steps, bot: Text, user: Text):
         saved_rules = self.fetch_rule_block_names(bot)
@@ -2531,6 +2559,23 @@ class MongoProcessor:
         http_action = {"http_actions": action_list} if action_list else {}
         return http_action
 
+    @staticmethod
+    def get_existing_slots(bot: Text):
+        """
+        fetches exisitng slots
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of slots
+        """
+        for slot in Slots.objects(bot=bot, status=True):
+            slot = slot.to_mongo().to_dict()
+            slot.pop("bot")
+            slot.pop("user")
+            slot.pop("_id")
+            slot.pop("timestamp")
+            slot.pop("status")
+            yield slot
 
 class AgentProcessor:
     """
@@ -2741,10 +2786,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
             doc.status = status
         except DoesNotExist:
             doc = TrainingDataGenerator()
@@ -2775,10 +2820,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get().to_mongo().to_dict()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
             doc.pop('_id')
         except DoesNotExist:
             doc = None
@@ -2794,11 +2839,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         :raises: AppException
         """
-        if TrainingDataGenerator.objects.filter(
-                Q(bot=bot) and (
-                        Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
+        if TrainingDataGenerator.objects(bot=bot).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
             if raise_exception:
                 raise AppException("Previous data generation process not completed")
             else:
