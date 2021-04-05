@@ -1592,18 +1592,6 @@ class TestModelProcessor:
         actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
         assert len(actual) == 0
 
-    # def test_search_intent(self):
-    #     processor = MongoProcessor()
-    #     processor.add_intent("TestingSearchGreeting", "tests", "testUser", is_integration=False)
-    #     processor.add_training_example(["hello"], "TestingSearchGreeting", "tests", "testUser", is_integration=False)
-    #     search_items = list(processor.search_training_examples("hello", "tests"))
-    #     assert search_items == [{"intent":"TestingSearchGreeting", "text": "hello"}]
-    #
-    # def test_search_invalid_example(self):
-    #     processor = MongoProcessor()
-    #     search_items = list(processor.search_training_examples("hello there", "tests"))
-    #     assert search_items == [{}]
-
     def test_prepare_and_add_story(self):
         processor = MongoProcessor()
         bot = 'test_bot'
