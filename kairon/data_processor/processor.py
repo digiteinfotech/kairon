@@ -1060,23 +1060,23 @@ class MongoProcessor:
             status = {}
             try:
                 intent_id = self.add_intent(
-                    text=data.intent.strip(),
+                    text=data.intent.strip().lower(),
                     bot=bot,
                     user=user,
                     is_integration=is_integration
                 )
-                status[data.intent] = intent_id
+                status[data.intent.strip().lower()] = intent_id
             except AppException as e:
-                status[data.intent] = str(e)
+                status[data.intent.strip().lower()] = str(e)
 
-            story_name = "path_" + data.intent
-            utterance = "utter_" + data.intent
+            story_name = "path_" + data.intent.strip().lower()
+            utterance = "utter_" + data.intent.strip().lower()
             events = [
-                {"name": data.intent, "type": "user"},
-                {"name": utterance, "type": "action"}]
+                {"name": data.intent.strip().lower(), "type": "user"},
+                {"name": utterance.strip().lower(), "type": "action"}]
             try:
                 doc_id = self.add_story(
-                    story_name,
+                    story_name.lower(),
                     events=events,
                     bot=bot,
                     user=user,
@@ -1087,7 +1087,7 @@ class MongoProcessor:
             try:
                 status_message = list(
                     self.add_training_example(
-                        data.training_examples, data.intent, bot, user,
+                        data.training_examples, data.intent.lower(), bot, user,
                         is_integration)
                 )
                 status['training_examples'] = status_message
@@ -1095,7 +1095,7 @@ class MongoProcessor:
                 for training_data_add_status in status_message:
                     if training_data_add_status['_id']:
                         training_examples.append(training_data_add_status['text'])
-                training_data_added[data.intent] = training_examples
+                training_data_added[data.intent.strip().lower()] = training_examples
             except AppException as e:
                 status['training_examples'] = str(e)
 
@@ -1477,7 +1477,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
-            utterances={"text": utterance.strip()}, name=name, bot=bot, user=user
+            utterances={"text": utterance.strip().lower()}, name=name.strip().lower(), bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
@@ -1495,14 +1495,14 @@ class MongoProcessor:
         )
         response = list(
             self.__extract_response_value(
-                values=[utterances], key=name, bot=bot, user=user
+                values=[utterances], key=name.strip().lower(), bot=bot, user=user
             )
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
                 Actions, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Actions(name=name.strip(), bot=bot, user=user).save()
+            Actions(name=name.strip().lower(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -2290,7 +2290,7 @@ class MongoProcessor:
 
         doc_id = HttpActionConfig(
             auth_token=http_action_config.auth_token,
-            action_name=http_action_config.action_name,
+            action_name=http_action_config.action_name.lower(),
             response=http_action_config.response,
             http_url=http_action_config.http_url,
             request_method=http_action_config.request_method,

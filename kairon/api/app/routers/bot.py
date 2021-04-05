@@ -57,7 +57,7 @@ async def add_intents(
     Adds a new intent to the bot
     """
     intent_id = mongo_processor.add_intent(
-        text=request_data.data.strip(),
+        text=request_data.data.strip().lower(),
         bot=current_user.get_bot(),
         user=current_user.get_user(),
         is_integration=current_user.get_integration_status()
@@ -138,7 +138,7 @@ async def add_training_examples(
     """
     results = list(
         mongo_processor.add_training_example(
-            request_data.data, intent, current_user.get_bot(), current_user.get_user(),
+            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user(),
             current_user.get_integration_status()
         )
     )
@@ -272,8 +272,8 @@ async def add_simple_story(
     return {
         "message": "Story added successfully",
         "data": {
-            "_id": mongo_processor.prepare_and_add_story(story=request_data.action,
-                                                         intent=request_data.intent,
+            "_id": mongo_processor.prepare_and_add_story(story=request_data.action.lower(),
+                                                         intent=request_data.intent.lower(),
                                                          bot=current_user.get_bot(),
                                                          user=current_user.get_user())
         },
@@ -291,7 +291,7 @@ async def add_story(
         "message": "Story added successfully",
         "data": {
             "_id": mongo_processor.add_complex_story(
-                story.name,
+                story.name.lower(),
                 story.get_steps(),
                 current_user.get_bot(),
                 current_user.get_user(),
