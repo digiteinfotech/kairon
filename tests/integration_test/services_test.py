@@ -217,6 +217,45 @@ def test_upload(monkeypatch):
     assert actual["success"]
 
 
+def test_upload_with_http_error(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    files = {
+        "nlu": (
+            "nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/error/http_action.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Required http action fields not found"
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
 def test_upload_yml(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -238,6 +277,10 @@ def test_upload_yml(monkeypatch):
         "config": (
             "config.yml",
             open("tests/testing_data/yml_training_files/config.yml", "rb"),
+        ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/yml_training_files/http_action.yml", "rb"),
         ),
     }
     response = client.post(
@@ -2786,7 +2829,7 @@ def test_list_action_server_logs():
     request_params = {"key": "value", "key2": "value2"}
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
-    HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+    HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()

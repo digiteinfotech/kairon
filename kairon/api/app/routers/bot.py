@@ -455,6 +455,7 @@ async def upload_Files(
         stories: UploadFile = File(...),
         config: UploadFile = File(...),
         rules: UploadFile = File(None),
+        http_action: UploadFile = File(None),
         overwrite: bool = True,
         current_user: User = Depends(auth.get_current_user),
 ):
@@ -467,6 +468,7 @@ async def upload_Files(
         stories,
         config,
         rules,
+        http_action,
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)

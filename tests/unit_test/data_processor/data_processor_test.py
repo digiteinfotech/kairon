@@ -96,7 +96,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 39
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -106,6 +106,9 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 3
+        actions = processor.load_http_action("test_load_from_path_yml_training_files")
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -1358,7 +1361,7 @@ class TestMongoProcessor:
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
@@ -1377,13 +1380,67 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_http_action(self):
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        http_action_content = "http_actions:\n- action_name: action_performanceUser1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
+                                        "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
+        assert len(list(HttpActionConfig.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+
+    def test_load_and_delete_http_action(self):
+        HttpActionConfig(
+            action_name="act1",
+            http_url="http://www.alphabet.com",
+            request_method="POST",
+            response='zxcvb',
+            bot="test_http",
+            user="http_creator",
+        ).save()
+        processor = MongoProcessor()
+        actions = processor.load_http_action("test_http")
+        assert actions
+        assert isinstance(actions, dict)
+        assert len(actions["http_actions"]) == 1
+        processor.delete_http_action(bot="test_http", user="http_creator")
+        actions = processor.load_http_action("test_http")
+        assert not actions
+        assert isinstance(actions, dict)
+
+    def test_validate_httpAction_error_duplicate(self):
+        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}, {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_httpAction_error_missing_field(self):
+        test_dict = {'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
 
     def test_get_action_server_logs_empty(self):
         processor = MongoProcessor()

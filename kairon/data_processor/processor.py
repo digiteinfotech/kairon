@@ -24,7 +24,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file, read_yaml_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -83,6 +83,7 @@ class MongoProcessor:
             stories: File,
             config: File,
             rules: File,
+            http_action: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -94,13 +95,14 @@ class MongoProcessor:
         :param domain: domain data
         :param stories: stories data
         :param rules: rules data
+        :param http_action: http_actions data
         :param config: config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules)
+        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules, http_action)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -116,7 +118,8 @@ class MongoProcessor:
         stories = self.load_stories(bot)
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules)
+        http_action = self.load_http_action(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, http_action)
 
     async def save_from_path(
             self, path: Text, bot: Text, overwrite: bool = True, user="default"
@@ -150,6 +153,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
+            self.read_and_save_http_actions(path, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -159,6 +163,20 @@ class MongoProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException(e)
+
+    def read_and_save_http_actions(self, path: str, bot: Text, user="default"):
+        """
+        reads from http_action.yml file and stores data into database
+
+        :param path: data directory path
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        http_action_path = os.path.join(path, 'http_action.yml')
+        if os.path.exists(http_action_path):
+            http_action = self.read_http_file(http_action_path)
+            self.save_http_action(http_action, bot, user)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -217,6 +235,7 @@ class MongoProcessor:
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
         self.delete_rules(bot, user)
+        self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -2443,6 +2462,16 @@ class MongoProcessor:
         """
         Utility.delete_document([Rules], bot=bot, user=user)
 
+    def delete_http_action(self, bot: Text, user: Text):
+        """
+        soft deletes http actions
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document([HttpActionConfig], bot=bot, user=user)
+
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
             rule_events = list(
@@ -2468,6 +2497,75 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
+    def read_http_file(self, path: Text):
+        http_content = read_yaml_file(path)
+        self.validate_http_file(http_content)
+        return http_content
+
+    def validate_http_file(self, content: dict):
+        required_fields = ['action_name', 'response', 'http_url', 'request_method']
+        actions = content['http_actions']
+        action_names = []
+        for http_obj in actions:
+            if all(name in http_obj for name in required_fields):
+                if http_obj['action_name'] not in action_names:
+                    action_names.append(http_obj['action_name'])
+                else:
+                    raise AppException("Duplicate action name found")
+            else:
+                raise AppException("Required http action fields not found")
+
+    def save_http_action(self, http_action: dict, bot: Text, user: Text):
+        """
+        saves http actions data
+        :param http_action: http actions
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+
+        actions_data = http_action['http_actions']
+        for actions in actions_data:
+            http_obj = HttpActionConfig()
+            http_obj.bot = bot
+            http_obj.user = user
+            http_obj.action_name = actions['action_name']
+            http_obj.http_url = actions['http_url']
+            http_obj.response = actions['response']
+            http_obj.request_method = actions['request_method']
+            if actions.get('params_list'):
+                request_body_list = []
+                for parameters in actions['params_list']:
+                    request_body = HttpActionRequestBody()
+                    request_body.key = parameters.get('key')
+                    request_body.value = parameters.get('value')
+                    request_body.parameter_type = parameters.get('parameter_type')
+                    request_body_list.append(request_body)
+                http_obj.params_list = request_body_list
+            if actions.get('auth_token'):
+                http_obj.auth_token = actions['auth_token']
+            http_obj.save()
+        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+
+    def load_http_action(self, bot: Text):
+        """
+        loads the http actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        action_list = []
+        for obj in HttpActionConfig.objects(bot=bot, status=True):
+            item = obj.to_mongo().to_dict()
+            http_dict = {"action_name": item["action_name"], "response": item["response"], "http_url": item["http_url"],
+                         "request_method": item["request_method"]}
+            if item.get('auth_token'):
+                http_dict['auth_token'] = item['auth_token']
+            if item.get('params_list'):
+                http_dict['params_list'] = item['params_list']
+            action_list.append(http_dict)
+        http_action = {"http_actions": action_list} if action_list else {}
+        return http_action
+
     @staticmethod
     def get_existing_slots(bot: Text):
         """
@@ -2485,7 +2583,6 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
-
 
 class AgentProcessor:
     """
