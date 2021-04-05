@@ -2534,7 +2534,14 @@ class MongoProcessor:
             http_obj.response = actions['response']
             http_obj.request_method = actions['request_method']
             if actions.get('params_list'):
-                http_obj.params_list = actions['params_list']
+                request_body_list = []
+                for parameters in actions['params_list']:
+                    request_body = HttpActionRequestBody()
+                    request_body.key = parameters.get('key')
+                    request_body.value = parameters.get('value')
+                    request_body.parameter_type = parameters.get('parameter_type')
+                    request_body_list.append(request_body)
+                http_obj.params_list = request_body_list
             if actions.get('auth_token'):
                 http_obj.auth_token = actions['auth_token']
             http_obj.save()
