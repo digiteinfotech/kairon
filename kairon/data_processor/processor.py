@@ -1477,7 +1477,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
-            utterances={"text": utterance.strip().lower()}, name=name.strip().lower(), bot=bot, user=user
+            utterances={"text": utterance.strip()}, name=name.strip().lower(), bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
