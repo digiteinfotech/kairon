@@ -156,7 +156,7 @@ async def edit_training_examples(
     Updates existing training example
     """
     mongo_processor.edit_training_example(
-        id, request_data.data, intent, current_user.get_bot(), current_user.get_user()
+        id, request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Training Example updated!"}
 
@@ -311,7 +311,7 @@ async def update_story(
         "message": "Story updated successfully",
         "data": {
             "_id": mongo_processor.update_complex_story(
-                story.name,
+                story.name.lower(),
                 story.get_steps(),
                 current_user.get_bot(),
                 current_user.get_user(),
