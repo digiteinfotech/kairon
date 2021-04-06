@@ -520,7 +520,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_entity("file_text", "tests", "testUser")
 
-    def test_add_entity_duplicate_caseinsentive(self):
+    def test_add_entity_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_entity("File_Text", "tests", "testUser")
@@ -569,7 +569,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_action("utter_priority", "tests", "testUser") is None
 
-    def test_add_action_duplicate_caseinsentive(self):
+    def test_add_action_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_action("Utter_Priority", "tests", "testUser") is None
@@ -597,6 +597,11 @@ class TestMongoProcessor:
         ).get()
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
+
+    def test_add_text_response_case_insensitive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_text_response("Great", "Utter_Happy", "tests", "testUser")
 
     def test_add_text_response_duplicate(self):
         processor = MongoProcessor()
@@ -981,6 +986,14 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hey, there" for example in examples)
 
+    def test_edit_training_example_case_insensitive(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="Greet", bot="tests",
+                                        user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "hello, there" for example in examples)
+
     def test_edit_training_example_with_entities(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
@@ -1019,6 +1032,13 @@ class TestMongoProcessor:
         processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
+
+    def test_edit_responses_case_insensitivity(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_happy", "tests"))
+        assert any(response['value']['text'] == "That's Great!" for response in responses if "text" in response['value'])
 
     @responses.activate
     def test_start_training_done_using_event(self, monkeypatch):
