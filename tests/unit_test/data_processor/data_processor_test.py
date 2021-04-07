@@ -1965,7 +1965,7 @@ class TestModelProcessor:
         user = "test_user"
         story = "TEst_update_story"
         bot = "bot"
-        story_event = [StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="BOT)]
+        story_event = [StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="BOT")]
         intent = "slap"
         Stories(
             block_name=story,
@@ -2128,7 +2128,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.add_complex_story(None, events, "tests", "testUser")
@@ -2139,7 +2139,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.add_complex_story("", events, "tests", "testUser")
@@ -2150,7 +2150,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.add_complex_story("  ", events, "tests", "testUser")
@@ -2212,7 +2212,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.update_complex_story(None, events, "tests", "testUser")
@@ -2223,7 +2223,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.update_complex_story("", events, "tests", "testUser")
@@ -2234,7 +2234,7 @@ class TestModelProcessor:
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "utter_greet", "type": "action"}
         ]
         with pytest.raises(AppException):
             processor.update_complex_story("  ", events, "tests", "testUser")
