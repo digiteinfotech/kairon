@@ -1686,6 +1686,11 @@ class TestModelProcessor:
             assert True
 
     def test_delete_story_empty(self):
+
+        processor = MongoProcessor()
+        user = 'test_user'
+        bot = 'test_bot'
+        
         try:
             processor.delete_story(story=None, user=user, bot=bot)
         except AppException:
@@ -1946,26 +1951,6 @@ class TestModelProcessor:
         story = "test_update_story"
         bot = "bot"
         story_event = [StoryEvents(name="greet", type="user")]
-        intent = "slap"
-        Stories(
-            block_name=story,
-            bot=bot,
-            user=user,
-            events=story_event
-        ).save(validate=False).to_mongo()
-        processor.update_story(story=story, intent=intent, user=user, bot=bot)
-        updated = Stories.objects(block_name=story, bot=bot, user=user, status=True).get(block_name__iexact=story)
-        assert updated is not None
-        assert updated.events[0].name == intent
-        assert updated.events[0].type == "user"
-        assert updated.events[0].value is None
-
-    def test_caseinsensitive_update_story(self):
-        processor = MongoProcessor()
-        user = "test_user"
-        story = "TEst_update_story"
-        bot = "bot"
-        story_event = [StoryEvents(name="greet", type="user"), StoryEvents(name="utter_greet", type="BOT")]
         intent = "slap"
         Stories(
             block_name=story,
