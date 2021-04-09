@@ -520,7 +520,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_entity("file_text", "tests", "testUser")
 
-    def test_add_entity_duplicate_caseinsentive(self):
+    def test_add_entity_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_entity("File_Text", "tests", "testUser")
@@ -569,7 +569,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_action("utter_priority", "tests", "testUser") is None
 
-    def test_add_action_duplicate_caseinsentive(self):
+    def test_add_action_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_action("Utter_Priority", "tests", "testUser") is None
@@ -598,6 +598,11 @@ class TestMongoProcessor:
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
 
+    def test_add_text_response_case_insensitive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_text_response("Great", "Utter_Happy", "tests", "testUser")
+
     def test_add_text_response_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
@@ -613,6 +618,13 @@ class TestMongoProcessor:
             for item in actual
             if "text" in item["value"]
         )
+
+    def test_get_text_response_empty_utterance(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_response("", "tests"))
+        assert actual.__len__() == 0
+        actual = list(processor.get_response(" ", "tests"))
+        assert actual.__len__() == 0
 
     def test_delete_text_response(self):
         processor = MongoProcessor()
@@ -680,9 +692,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             processor.add_story("happy path", events, "tests", "testUser")
 
-
-    #added
-    def test_add_duplicate_caseinsensitive_story(self):
+    def test_add_duplicate_case_insensitive_story(self):
         processor = MongoProcessor()
         events = [
             {"name": "greet", "type": "user"},
@@ -692,7 +702,6 @@ class TestMongoProcessor:
         ]
         with pytest.raises(Exception):
             processor.add_story("Happy path", events, "tests", "testUser")
-
 
     def test_add_none_story_name(self):
         processor = MongoProcessor()
@@ -731,9 +740,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
             processor.add_story("happy path", [], "tests", "testUser")
-
-
-    
 
     def test_get_session_config(self):
         processor = MongoProcessor()
@@ -991,6 +997,14 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hey, there" for example in examples)
 
+    def test_edit_training_example_case_insensitive(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="Greet", bot="tests",
+                                        user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "hello, there" for example in examples)
+
     def test_edit_training_example_with_entities(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
@@ -1013,12 +1027,29 @@ class TestMongoProcessor:
             processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_greet", bot="tests",
                                          user="testUser")
 
+    def test_edit_responses_empty_response(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], "", name="utter_happy", bot="tests",
+                                         user="testUser")
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], " ", name="utter_happy", bot="tests",
+                                         user="testUser")
+
     def test_edit_responses(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
         processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
+
+    def test_edit_responses_case_insensitive(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_happy", "tests"))
+        assert any(response['value']['text'] == "That's Great!" for response in responses if "text" in response['value'])
 
     @responses.activate
     def test_start_training_done_using_event(self, monkeypatch):
@@ -1537,7 +1568,7 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreetingInvalid", "tests", "testUser", is_integration=False)
 
-    def test_delete_empty_Intent(self):
+    def test_delete_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AssertionError):
             processor.delete_intent("", "tests", "testUser", is_integration=False)
@@ -1546,6 +1577,11 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+
+    def test_delete_intent_case_insensitive(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("testingdelgreeting", "tests", "testUser", is_integration=False)
 
     def test_intent_no_stories(self):
         processor = MongoProcessor()
@@ -1563,7 +1599,7 @@ class TestModelProcessor:
         actual = processor.get_intents_and_training_examples("tests")
         assert len(actual) == 17
 
-    def test_delete_intent_no_trainingExamples(self):
+    def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
@@ -1696,7 +1732,7 @@ class TestModelProcessor:
         except AppException:
             assert True
 
-    def test_casesensitive_delete_story(self):
+    def test_case_insensitive_delete_story(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         action = 'test_action'
@@ -1965,6 +2001,26 @@ class TestModelProcessor:
         assert updated.events[0].type == "user"
         assert updated.events[0].value is None
 
+    def test_update_story_case_insensitive(self):
+        processor = MongoProcessor()
+        user = "test_user"
+        story = "test_update_story_cs"
+        bot = "bot"
+        story_event = [StoryEvents(name="greet", type="user")]
+        intent = "slap"
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+
+        processor.update_story(story="Test_Update_Story_CS", intent=intent, user=user, bot=bot)
+        updated = Stories.objects(block_name=story, bot=bot, user=user, status=True).get(block_name__iexact=story)
+        assert updated is not None
+        assert updated.events[0].name == intent
+        assert updated.events[0].type == "user"
+        assert updated.events[0].value is None
 
     def test_update_http_config(self):
         processor = MongoProcessor()
@@ -2092,8 +2148,8 @@ class TestModelProcessor:
         ]
         with pytest.raises(Exception):
             processor.add_complex_story("story with action", steps, "tests", "testUser")
-    #added
-    def test_add_duplicate_caseinsensitive_complex_story(self):
+
+    def test_add_duplicate_case_insensitive_complex_story(self):
         processor = MongoProcessor()
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -2106,14 +2162,13 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             processor.add_complex_story("Story with action", steps, "tests", "testUser")
 
-
     def test_add_none_complex_story_name(self):
         processor = MongoProcessor()
         events = [
             {"name": "greeting", "type": "user"},
             {"name": "utter_greet", "type": "action"},
             {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "utter_greet", "type": "action"},
         ]
         with pytest.raises(AppException):
             processor.add_complex_story(None, events, "tests", "testUser")
@@ -2159,8 +2214,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action").get()
         assert story.events[1].name == "utter_nonsense"
 
-
-    def test_caseinsensitive_update_complex_story(self):
+    def test_case_insensitive_update_complex_story(self):
         processor = MongoProcessor()
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -2169,14 +2223,12 @@ class TestModelProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
-            #update with following
             {"name": "greet", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"}
+            {"name": "utter_greet", "type": "BOT"},
         ]
         processor.update_complex_story("STory with action", steps, "tests", "testUser")
         story = Stories.objects(block_name="story with action").get()
         assert story.events[1].name == "utter_nonsense"
-
 
     def test_update_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -2186,7 +2238,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         with pytest.raises(Exception):
             processor.update_complex_story("non existing story", steps, "tests", "testUser")
@@ -2234,14 +2286,12 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             processor.delete_complex_story("non existing", "tests", "testUser")
 
-
     def test_delete_empty_complex_story(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.delete_complex_story(None, "tests", "testUser")
 
-
-    def test_caseinsensitive_delete_complex_story(self):
+    def test_case_insensitive_delete_complex_story(self):
         processor = MongoProcessor()
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -2249,7 +2299,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         processor.add_complex_story("story2", steps, "tests", "testUser")
         processor.delete_complex_story("STory2", "tests", "testUser")
