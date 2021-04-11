@@ -32,7 +32,7 @@ from kairon.data_processor.processor import MongoProcessor, AgentProcessor, Mode
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
-
+import datetime
 
 class TestMongoProcessor:
 
@@ -1086,14 +1086,6 @@ class TestMongoProcessor:
         assert len(training_examples) == 2
         assert Responses.objects(name="utter_intent1") is not None
         assert Responses.objects(name="utter_intent2") is not None
-        story = Stories.objects(block_name="path_intent1").get()
-        assert story is not None
-        assert story['events'][0]['name'] == 'intent1'
-        assert story['events'][0]['type'] == StoryEventType.user
-        assert story['events'][1]['name'] == "utter_intent1"
-        assert story['events'][1]['type'] == StoryEventType.action
-        story = Stories.objects(block_name="path_intent2").get()
-        assert story is not None
 
     def test_add_training_data_with_invalid_training_example(self):
         training_data = [
@@ -1107,14 +1099,6 @@ class TestMongoProcessor:
         assert training_examples is not None
         assert len(training_examples) == 1
         assert Responses.objects(name="utter_intent3") is not None
-        story = Stories.objects(block_name="path_intent3").get()
-        assert story is not None
-        assert story['events'][0]['name'] == 'intent3'
-        assert story['events'][0]['type'] == StoryEventType.user
-        assert story['events'][1]['name'] == "utter_intent3"
-        assert story['events'][1]['type'] == StoryEventType.action
-        story = Stories.objects(block_name="path_intent3").get()
-        assert story is not None
 
     def test_add_training_data_with_intent_exists(self):
         training_data = [
@@ -1128,14 +1112,6 @@ class TestMongoProcessor:
         assert training_examples is not None
         assert len(training_examples) == 2
         assert Responses.objects(name="utter_intent3") is not None
-        story = Stories.objects(block_name="path_intent3").get()
-        assert story is not None
-        assert story['events'][0]['name'] == 'intent3'
-        assert story['events'][0]['type'] == StoryEventType.user
-        assert story['events'][1]['name'] == "utter_intent3"
-        assert story['events'][1]['type'] == StoryEventType.action
-        story = Stories.objects(block_name="path_intent3").get()
-        assert story is not None
 
     def test_delete_response(self):
         processor = MongoProcessor()
@@ -1490,11 +1466,11 @@ class TestMongoProcessor:
         expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp=datetime.datetime(2021, 4, 11, 11, 39, 48, 376000),
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp=datetime.datetime(2021, 4, 11, 11, 39, 48, 376000),
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
         HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
