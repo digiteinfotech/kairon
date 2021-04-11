@@ -544,6 +544,36 @@ def test_add_response():
     assert len(actual["data"]) == 2
 
 
+def test_add_response_upper_case():
+    response = client.post(
+        "/api/bot/response/Utter_Greet",
+        json={"data": "Upper Greet Response"},
+        headers={"Authorization": pytest.token_type + " " +pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance added!"
+
+
+def test_get_response_upper_case():
+    response = client.get(
+        "/api/bot/response/Utter_Greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 3
+
+    response_lower = client.get(
+        "/api/bot/response/utter_greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual_lower = response_lower.json()
+    assert len(actual_lower["data"]) == 3
+    assert actual_lower["data"] == actual["data"]
+
+
 def test_add_response_duplicate():
     response = client.post(
         "/api/bot/response/utter_greet",
@@ -574,7 +604,7 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    assert len(training_examples["data"]) == 2
+    assert len(training_examples["data"]) == 3
     response = client.delete(
         "/api/bot/response/False",
         json={"data": training_examples["data"][0]["_id"]},
@@ -589,7 +619,7 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    assert len(training_examples["data"]) == 1
+    assert len(training_examples["data"]) == 2
 
 
 def test_remove_utterance_attached_to_story():
