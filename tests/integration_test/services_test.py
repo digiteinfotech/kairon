@@ -1694,6 +1694,21 @@ def test_set_config_pipeline_error():
     assert str(actual['message']).__contains__("Failed to load the component 'TestFeaturizer")
     assert not actual['success']
 
+def test_set_config_pipeline_error_empty_policies():
+    data = read_config_file('./template/config/default.yml')
+    data['policies'] = []
+    response = client.put(
+        "/api/bot/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=data
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert str(actual['message']).__contains__("You didn't define any policies")
+    assert actual['error_code'] == 422
+    assert not actual['success']
+
 
 def test_delete_intent():
     client.post(
@@ -2018,6 +2033,31 @@ def test_add_http_action_malformed_url():
     assert not actual["success"]
 
 
+def test_add_http_action_missing_parameters():
+    request_body = {
+        "auth_token": "",
+        "action_name": "new_http_action2",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "put",
+        "http_params_list": [{
+            "key": "",
+            "parameter_type": "",
+            "value": ""
+        }]
+    }
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
 def test_add_http_action_invalid_req_method():
     request_body = {
         "auth_token": "",
@@ -2328,6 +2368,54 @@ def test_update_http_action():
     assert actual['data']["params_list"][0]['value'] == 'testValue1'
     assert actual["success"]
 
+def test_update_http_action_wrong_parameter():
+    request_body = {
+        "auth_token": "",
+        "action_name": "test_update_http_action_6",
+        "response": "",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_6",
+        "response": "json",
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }]
+    }
+    response = client.put(
+        url="/api/bot/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
 
 def test_update_http_action_non_existing():
     request_body = {
@@ -2607,6 +2695,30 @@ def test_update_training_data_generator_status_completed(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
 
+def test_update_training_data_generator_wrong_status(monkeypatch):
+    training_data = [{
+        "intent": "intent1_test_add_training_data",
+        "training_examples": ["example1", "example2"],
+        "response": "response1"},
+        {"intent": "intent2_test_add_training_data",
+         "training_examples": ["example3", "example4"],
+         "response": "response2"}]
+    request_body = {
+        "status": "test",
+        "response": training_data
+    }
+    response = client.put(
+        "/api/bot/update/data/generator/status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert not actual['success']
+
+
 def test_add_training_data(monkeypatch):
     response = client.get(
         "/api/bot/data/generation/history",
@@ -2650,18 +2762,6 @@ def test_add_training_data(monkeypatch):
     assert len(training_examples) == 2
     assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
     assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
-    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
-    assert story is not None
-    assert story['events'][0]['name'] == 'intent1_test_add_training_data'
-    assert story['events'][0]['type'] == StoryEventType.user
-    assert story['events'][1]['name'] == "utter_intent1_test_add_training_data"
-    assert story['events'][1]['type'] == StoryEventType.action
-    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
-    assert story is not None
-    assert story['events'][0]['name'] == 'intent2_test_add_training_data'
-    assert story['events'][0]['type'] == StoryEventType.user
-    assert story['events'][1]['name'] == "utter_intent2_test_add_training_data"
-    assert story['events'][1]['type'] == StoryEventType.action
 
 
 def test_get_training_data_history_1(monkeypatch):
@@ -2921,3 +3021,45 @@ def test_list_action_server_logs():
     assert actual["success"]
     assert len(actual['data']['logs']) == 1
     assert actual['data']['total'] == 11
+
+
+def test_add_training_data_invalid_id(monkeypatch):
+    request_body = {
+        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
+    }
+    client.put(
+        "/api/bot/update/data/generator/status",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        "/api/bot/data/generation/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    response = actual["data"]
+    assert response is not None
+    response['status'] = 'Initiated'
+    assert actual["message"] is None
+    doc_id = response['training_history'][0]['_id']
+    training_data = {
+        "history_id": doc_id,
+        "training_data": [{
+        "intent": "intent1_test_add_training_data",
+        "training_examples": ["example1", "example2"],
+        "response": "response1"},
+        {"intent": "intent2_test_add_training_data",
+         "training_examples": ["example3", "example4"],
+         "response": "response2"}]}
+    response = client.post(
+        "/api/bot/data/bulk",
+        json=training_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "No Training Data Generated"
