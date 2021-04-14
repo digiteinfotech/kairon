@@ -24,7 +24,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file, read_yaml_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -83,6 +83,7 @@ class MongoProcessor:
             stories: File,
             config: File,
             rules: File,
+            http_action: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -94,13 +95,14 @@ class MongoProcessor:
         :param domain: domain data
         :param stories: stories data
         :param rules: rules data
+        :param http_action: http_actions data
         :param config: config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules)
+        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules, http_action)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -116,7 +118,8 @@ class MongoProcessor:
         stories = self.load_stories(bot)
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules)
+        http_action = self.load_http_action(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, http_action)
 
     async def save_from_path(
             self, path: Text, bot: Text, overwrite: bool = True, user="default"
@@ -150,6 +153,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
+            self.read_and_save_http_actions(path, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -159,6 +163,20 @@ class MongoProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException(e)
+
+    def read_and_save_http_actions(self, path: str, bot: Text, user="default"):
+        """
+        reads from http_action.yml file and stores data into database
+
+        :param path: data directory path
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        http_action_path = os.path.join(path, 'http_action.yml')
+        if os.path.exists(http_action_path):
+            http_action = self.read_http_file(http_action_path)
+            self.save_http_action(http_action, bot, user)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -217,6 +235,7 @@ class MongoProcessor:
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
         self.delete_rules(bot, user)
+        self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -1061,23 +1080,23 @@ class MongoProcessor:
             status = {}
             try:
                 intent_id = self.add_intent(
-                    text=data.intent.strip(),
+                    text=data.intent.strip().lower(),
                     bot=bot,
                     user=user,
                     is_integration=is_integration
                 )
-                status[data.intent] = intent_id
+                status[data.intent.strip().lower()] = intent_id
             except AppException as e:
-                status[data.intent] = str(e)
+                status[data.intent.strip().lower()] = str(e)
 
-            story_name = "path_" + data.intent
-            utterance = "utter_" + data.intent
+            story_name = "path_" + data.intent.strip().lower()
+            utterance = "utter_" + data.intent.strip().lower()
             events = [
-                {"name": data.intent, "type": "user"},
-                {"name": utterance, "type": "action"}]
+                {"name": data.intent.strip().lower(), "type": "user"},
+                {"name": utterance.strip().lower(), "type": "action"}]
             try:
                 doc_id = self.add_story(
-                    story_name,
+                    story_name.lower(),
                     events=events,
                     bot=bot,
                     user=user,
@@ -1088,7 +1107,7 @@ class MongoProcessor:
             try:
                 status_message = list(
                     self.add_training_example(
-                        data.training_examples, data.intent, bot, user,
+                        data.training_examples, data.intent.lower(), bot, user,
                         is_integration)
                 )
                 status['training_examples'] = status_message
@@ -1096,7 +1115,7 @@ class MongoProcessor:
                 for training_data_add_status in status_message:
                     if training_data_add_status['_id']:
                         training_examples.append(training_data_add_status['text'])
-                training_data_added[data.intent] = training_examples
+                training_data_added[data.intent.strip().lower()] = training_examples
             except AppException as e:
                 status['training_examples'] = str(e)
 
@@ -1130,7 +1149,7 @@ class MongoProcessor:
             bot=bot,
             status=True,
         )
-        saved = Intents(name=text, bot=bot, user=user, is_integration=is_integration).save().to_mongo().to_dict()
+        saved = Intents(name=text.strip().lower(), bot=bot, user=user, is_integration=is_integration).save().to_mongo().to_dict()
         return saved["_id"].__str__()
 
     def get_intents(self, bot: Text):
@@ -1192,7 +1211,7 @@ class MongoProcessor:
                         new_entities = None
 
                     training_example = TrainingExamples(
-                        intent=intent.strip(),
+                        intent=intent.strip().lower(),
                         text=text,
                         entities=new_entities,
                         bot=bot,
@@ -1233,7 +1252,7 @@ class MongoProcessor:
                     status=True,
             ):
                 raise AppException("Training Example already exists!")
-            training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
+            training_example = TrainingExamples.objects(bot=bot, intent=intent.strip().lower()).get(
                 id=id
             )
             training_example.user = user
@@ -1243,7 +1262,7 @@ class MongoProcessor:
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist as e:
-            raise AppException("Invalid trianing example!")
+            raise AppException("Invalid training example!")
 
     def search_training_examples(self, search: Text, bot: Text):
         """
@@ -1478,7 +1497,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
-            utterances={"text": utterance.strip()}, name=name, bot=bot, user=user
+            utterances={"text": utterance.strip()}, name=name.strip().lower(), bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
@@ -1496,14 +1515,14 @@ class MongoProcessor:
         )
         response = list(
             self.__extract_response_value(
-                values=[utterances], key=name, bot=bot, user=user
+                values=[utterances], key=name.strip().lower(), bot=bot, user=user
             )
         )[0]
         value = response.save().to_mongo().to_dict()
         if not Utility.is_exist(
                 Actions, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Actions(name=name.strip(), bot=bot, user=user).save()
+            Actions(name=name.strip().lower(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -1520,7 +1539,7 @@ class MongoProcessor:
         :return: None
         :raises: DoesNotExist: if utterance does not exist
         """
-        self.edit_response(id, {"text": utterance}, name, bot, user)
+        self.edit_response(id, {"text": utterance}, name.lower(), bot, user)
 
     def edit_response(
             self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
@@ -1540,7 +1559,7 @@ class MongoProcessor:
             self.__check_response_existence(
                 response=utterances, bot=bot, exp_message="Utterance already exists!"
             )
-            response = Responses.objects(bot=bot, name=name).get(id=id)
+            response = Responses.objects(bot=bot, name=name.lower()).get(id=id)
             r_type, r_object = Utility.prepare_response(utterances)
             if RESPONSE.Text.value == r_type:
                 response.text = r_object
@@ -1659,7 +1678,7 @@ class MongoProcessor:
         )
         return (
             Stories(
-                block_name=name.strip(),
+                block_name=name.strip().lower(),
                 events=events,
                 bot=bot,
                 user=user,
@@ -1698,16 +1717,16 @@ class MongoProcessor:
         for step in steps:
             if step['type'] == "INTENT":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=step['name'].strip().lower(),
                     type="user"))
-                intent = step['name']
+                intent = step['name'].strip().lower()
             elif step['type'] == "BOT":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=step['name'].strip().lower(),
                     type="action"))
             elif step['type'] == "HTTP_ACTION":
                 events.append(StoryEvents(
-                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME,
+                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(),
                     type="action"))
                 slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
                 slot = {"name": slot_name, "value": step['name']}
@@ -1715,7 +1734,7 @@ class MongoProcessor:
 
         story_id = (
             Stories(
-                block_name=name.strip(),
+                block_name=name.strip().lower(),
                 events=events,
                 bot=bot,
                 user=user,
@@ -1760,16 +1779,16 @@ class MongoProcessor:
         for step in steps:
             if step['type'] == "INTENT":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=step['name'].strip().lower(),
                     type="user"))
-                intent = step['name']
+                intent = step['name'].strip().lower()
             elif step['type'] == "BOT":
                 events.append(StoryEvents(
-                    name=step['name'],
+                    name=step['name'].strip().lower(),
                     type="action"))
             elif step['type'] == "HTTP_ACTION":
                 events.append(StoryEvents(
-                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME,
+                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(),
                     type="action"))
                 slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
                 slot = {"name": slot_name, "value": step['name']}
@@ -2141,7 +2160,7 @@ class MongoProcessor:
         if not (utterance_name and utterance_name.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
-            responses = list(Responses.objects(name=utterance_name, bot=bot, user=user, status=True))
+            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, user=user, status=True))
             if not responses:
                 raise DoesNotExist("Utterance does not exists")
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
@@ -2187,10 +2206,10 @@ class MongoProcessor:
                          events__name__iexact=intent)
 
         http_action_config_slot = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-        story_event_list = [{"name": intent, "type": "user"},
+        story_event_list = [{"name": intent.strip().lower(), "type": "user"},
                             {"name": "bot", "type": StoryEventType.slot, "value": bot},
-                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story},
-                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME, "type": StoryEventType.action}]
+                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story.strip().lower()},
+                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), "type": StoryEventType.action}]
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                       raise_exception=False)
@@ -2225,10 +2244,10 @@ class MongoProcessor:
         :return: story id
         """
         story_event_list: List[StoryEvents] = [
-            StoryEvents(name=intent, type=StoryEventType.user),
+            StoryEvents(name=intent.strip().lower(), type=StoryEventType.user),
             StoryEvents(name="bot", type=StoryEventType.slot, value=bot),
-            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, type=StoryEventType.slot, value=story),
-            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_NAME, type=StoryEventType.action)]
+            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, type=StoryEventType.slot, value=story.strip().lower()),
+            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), type=StoryEventType.action)]
         try:
             story_old = Stories.objects(block_name__iexact=story, user=user, bot=bot, status=True).get()
         except DoesNotExist as e:
@@ -2291,7 +2310,7 @@ class MongoProcessor:
 
         doc_id = HttpActionConfig(
             auth_token=http_action_config.auth_token,
-            action_name=http_action_config.action_name,
+            action_name=http_action_config.action_name.lower(),
             response=http_action_config.response,
             http_url=http_action_config.http_url,
             request_method=http_action_config.request_method,
@@ -2346,7 +2365,6 @@ class MongoProcessor:
         """
         actions = HttpActionConfig.objects(bot=bot, user=user, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
-
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
         if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",
@@ -2443,6 +2461,16 @@ class MongoProcessor:
         """
         Utility.delete_document([Rules], bot=bot, user=user)
 
+    def delete_http_action(self, bot: Text, user: Text):
+        """
+        soft deletes http actions
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document([HttpActionConfig], bot=bot, user=user)
+
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
             rule_events = list(
@@ -2468,6 +2496,75 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
+    def read_http_file(self, path: Text):
+        http_content = read_yaml_file(path)
+        self.validate_http_file(http_content)
+        return http_content
+
+    def validate_http_file(self, content: dict):
+        required_fields = ['action_name', 'response', 'http_url', 'request_method']
+        actions = content['http_actions']
+        action_names = []
+        for http_obj in actions:
+            if all(name in http_obj for name in required_fields):
+                if http_obj['action_name'] not in action_names:
+                    action_names.append(http_obj['action_name'])
+                else:
+                    raise AppException("Duplicate action name found")
+            else:
+                raise AppException("Required http action fields not found")
+
+    def save_http_action(self, http_action: dict, bot: Text, user: Text):
+        """
+        saves http actions data
+        :param http_action: http actions
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+
+        actions_data = http_action['http_actions']
+        for actions in actions_data:
+            http_obj = HttpActionConfig()
+            http_obj.bot = bot
+            http_obj.user = user
+            http_obj.action_name = actions['action_name']
+            http_obj.http_url = actions['http_url']
+            http_obj.response = actions['response']
+            http_obj.request_method = actions['request_method']
+            if actions.get('params_list'):
+                request_body_list = []
+                for parameters in actions['params_list']:
+                    request_body = HttpActionRequestBody()
+                    request_body.key = parameters.get('key')
+                    request_body.value = parameters.get('value')
+                    request_body.parameter_type = parameters.get('parameter_type')
+                    request_body_list.append(request_body)
+                http_obj.params_list = request_body_list
+            if actions.get('auth_token'):
+                http_obj.auth_token = actions['auth_token']
+            http_obj.save()
+        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+
+    def load_http_action(self, bot: Text):
+        """
+        loads the http actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        action_list = []
+        for obj in HttpActionConfig.objects(bot=bot, status=True):
+            item = obj.to_mongo().to_dict()
+            http_dict = {"action_name": item["action_name"], "response": item["response"], "http_url": item["http_url"],
+                         "request_method": item["request_method"]}
+            if item.get('auth_token'):
+                http_dict['auth_token'] = item['auth_token']
+            if item.get('params_list'):
+                http_dict['params_list'] = item['params_list']
+            action_list.append(http_dict)
+        http_action = {"http_actions": action_list} if action_list else {}
+        return http_action
+
     @staticmethod
     def get_existing_slots(bot: Text):
         """
@@ -2485,7 +2582,6 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
-
 
 class AgentProcessor:
     """

@@ -96,7 +96,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 39
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -106,6 +106,9 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 3
+        actions = processor.load_http_action("test_load_from_path_yml_training_files")
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -520,7 +523,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_entity("file_text", "tests", "testUser")
 
-    def test_add_entity_duplicate_caseinsentive(self):
+    def test_add_entity_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_entity("File_Text", "tests", "testUser")
@@ -569,7 +572,7 @@ class TestMongoProcessor:
         with pytest.raises(Exception):
             assert processor.add_action("utter_priority", "tests", "testUser") is None
 
-    def test_add_action_duplicate_caseinsentive(self):
+    def test_add_action_duplicate_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             assert processor.add_action("Utter_Priority", "tests", "testUser") is None
@@ -598,6 +601,11 @@ class TestMongoProcessor:
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
 
+    def test_add_text_response_case_insensitive(self):
+        processor = MongoProcessor()
+        with pytest.raises(Exception):
+            processor.add_text_response("Great", "Utter_Happy", "tests", "testUser")
+
     def test_add_text_response_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
@@ -613,6 +621,13 @@ class TestMongoProcessor:
             for item in actual
             if "text" in item["value"]
         )
+
+    def test_get_text_response_empty_utterance(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_response("", "tests"))
+        assert actual.__len__() == 0
+        actual = list(processor.get_response(" ", "tests"))
+        assert actual.__len__() == 0
 
     def test_delete_text_response(self):
         processor = MongoProcessor()
@@ -974,6 +989,14 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hey, there" for example in examples)
 
+    def test_edit_training_example_case_insensitive(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="Greet", bot="tests",
+                                        user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "hello, there" for example in examples)
+
     def test_edit_training_example_with_entities(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
@@ -996,12 +1019,29 @@ class TestMongoProcessor:
             processor.edit_text_response(responses[0]["_id"], "Great, carry on!", name="utter_greet", bot="tests",
                                          user="testUser")
 
+    def test_edit_responses_empty_response(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], "", name="utter_happy", bot="tests",
+                                         user="testUser")
+        with pytest.raises(ValidationError):
+            processor.edit_text_response(responses[0]["_id"], " ", name="utter_happy", bot="tests",
+                                         user="testUser")
+
     def test_edit_responses(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
         processor.edit_text_response(responses[0]["_id"], "Great!", name="utter_happy", bot="tests", user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
+
+    def test_edit_responses_case_insensitivity(self):
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_happy", "tests"))
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_happy", "tests"))
+        assert any(response['value']['text'] == "That's Great!" for response in responses if "text" in response['value'])
 
     @responses.activate
     def test_start_training_done_using_event(self, monkeypatch):
@@ -1358,7 +1398,7 @@ class TestMongoProcessor:
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
@@ -1377,13 +1417,67 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_http_action(self):
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        http_action_content = "http_actions:\n- action_name: action_performanceUser1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
+                                        "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
+        assert len(list(HttpActionConfig.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+
+    def test_load_and_delete_http_action(self):
+        HttpActionConfig(
+            action_name="act1",
+            http_url="http://www.alphabet.com",
+            request_method="POST",
+            response='zxcvb',
+            bot="test_http",
+            user="http_creator",
+        ).save()
+        processor = MongoProcessor()
+        actions = processor.load_http_action("test_http")
+        assert actions
+        assert isinstance(actions, dict)
+        assert len(actions["http_actions"]) == 1
+        processor.delete_http_action(bot="test_http", user="http_creator")
+        actions = processor.load_http_action("test_http")
+        assert not actions
+        assert isinstance(actions, dict)
+
+    def test_validate_httpAction_error_duplicate(self):
+        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}, {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_httpAction_error_missing_field(self):
+        test_dict = {'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
 
     def test_get_action_server_logs_empty(self):
         processor = MongoProcessor()
@@ -1637,7 +1731,7 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreetingInvalid", "tests", "testUser", is_integration=False)
 
-    def test_delete_empty_Intent(self):
+    def test_delete_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AssertionError):
             processor.delete_intent("", "tests", "testUser", is_integration=False)
@@ -1646,6 +1740,11 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+
+    def test_delete_intent_case_insensitive(self):
+        processor = MongoProcessor()
+        processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
+        processor.delete_intent("testingdelgreeting", "tests", "testUser", is_integration=False)
 
     def test_intent_no_stories(self):
         processor = MongoProcessor()
@@ -1663,7 +1762,7 @@ class TestModelProcessor:
         actual = processor.get_intents_and_training_examples("tests")
         assert len(actual) == 17
 
-    def test_delete_intent_no_trainingExamples(self):
+    def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)

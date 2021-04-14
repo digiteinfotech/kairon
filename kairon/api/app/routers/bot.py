@@ -58,7 +58,7 @@ async def add_intents(
     Adds a new intent to the bot
     """
     intent_id = mongo_processor.add_intent(
-        text=request_data.data.strip(),
+        text=request_data.data.strip().lower(),
         bot=current_user.get_bot(),
         user=current_user.get_user(),
         is_integration=current_user.get_integration_status()
@@ -139,7 +139,7 @@ async def add_training_examples(
     """
     results = list(
         mongo_processor.add_training_example(
-            request_data.data, intent, current_user.get_bot(), current_user.get_user(),
+            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user(),
             current_user.get_integration_status()
         )
     )
@@ -157,7 +157,7 @@ async def edit_training_examples(
     Updates existing training example
     """
     mongo_processor.edit_training_example(
-        id, request_data.data, intent, current_user.get_bot(), current_user.get_user()
+        id, request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Training Example updated!"}
 
@@ -198,7 +198,7 @@ async def get_responses(
     Fetches list of utterances against utterance name
     """
     return {
-        "data": list(mongo_processor.get_response(utterance, current_user.get_bot()))
+        "data": list(mongo_processor.get_response(utterance.lower(), current_user.get_bot()))
     }
 
 
@@ -212,7 +212,7 @@ async def add_responses(
     Adds utterance value in particular utterance
     """
     utterance_id = mongo_processor.add_text_response(
-        request_data.data, utterance, current_user.get_bot(), current_user.get_user()
+        request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Utterance added!", "data": {"_id": utterance_id}}
 
@@ -230,7 +230,7 @@ async def edit_responses(
     mongo_processor.edit_text_response(
         id,
         request_data.data,
-        utterance,
+        utterance.lower(),
         current_user.get_bot(),
         current_user.get_user(),
     )
@@ -250,7 +250,7 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data, current_user.get_bot(), current_user.get_user()
+            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
         )
     else:
         mongo_processor.delete_response(
@@ -273,8 +273,8 @@ async def add_simple_story(
     return {
         "message": "Story added successfully",
         "data": {
-            "_id": mongo_processor.prepare_and_add_story(story=request_data.action,
-                                                         intent=request_data.intent,
+            "_id": mongo_processor.prepare_and_add_story(story=request_data.action.lower(),
+                                                         intent=request_data.intent.lower(),
                                                          bot=current_user.get_bot(),
                                                          user=current_user.get_user())
         },
@@ -292,7 +292,7 @@ async def add_story(
         "message": "Story added successfully",
         "data": {
             "_id": mongo_processor.add_complex_story(
-                story.name,
+                story.name.lower(),
                 story.get_steps(),
                 current_user.get_bot(),
                 current_user.get_user(),
@@ -312,7 +312,7 @@ async def update_story(
         "message": "Story updated successfully",
         "data": {
             "_id": mongo_processor.update_complex_story(
-                story.name,
+                story.name.lower(),
                 story.get_steps(),
                 current_user.get_bot(),
                 current_user.get_user(),
@@ -455,6 +455,7 @@ async def upload_Files(
         stories: UploadFile = File(...),
         config: UploadFile = File(...),
         rules: UploadFile = File(None),
+        http_action: UploadFile = File(None),
         overwrite: bool = True,
         current_user: User = Depends(auth.get_current_user),
 ):
@@ -467,6 +468,7 @@ async def upload_Files(
         stories,
         config,
         rules,
+        http_action,
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)

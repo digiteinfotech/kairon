@@ -217,6 +217,45 @@ def test_upload(monkeypatch):
     assert actual["success"]
 
 
+def test_upload_with_http_error(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    files = {
+        "nlu": (
+            "nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/error/http_action.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Required http action fields not found"
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
 def test_upload_yml(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -238,6 +277,10 @@ def test_upload_yml(monkeypatch):
         "config": (
             "config.yml",
             open("tests/testing_data/yml_training_files/config.yml", "rb"),
+        ),
+        "http_action": (
+            "http_action.yml",
+            open("tests/testing_data/yml_training_files/http_action.yml", "rb"),
         ),
     }
     response = client.post(
@@ -501,6 +544,36 @@ def test_add_response():
     assert len(actual["data"]) == 2
 
 
+def test_add_response_upper_case():
+    response = client.post(
+        "/api/bot/response/Utter_Greet",
+        json={"data": "Upper Greet Response"},
+        headers={"Authorization": pytest.token_type + " " +pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance added!"
+
+
+def test_get_response_upper_case():
+    response = client.get(
+        "/api/bot/response/Utter_Greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 3
+
+    response_lower = client.get(
+        "/api/bot/response/utter_greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual_lower = response_lower.json()
+    assert len(actual_lower["data"]) == 3
+    assert actual_lower["data"] == actual["data"]
+
+
 def test_add_response_duplicate():
     response = client.post(
         "/api/bot/response/utter_greet",
@@ -531,7 +604,7 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    assert len(training_examples["data"]) == 2
+    assert len(training_examples["data"]) == 3
     response = client.delete(
         "/api/bot/response/False",
         json={"data": training_examples["data"][0]["_id"]},
@@ -546,7 +619,7 @@ def test_remove_response():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     training_examples = training_examples.json()
-    assert len(training_examples["data"]) == 1
+    assert len(training_examples["data"]) == 2
 
 
 def test_remove_utterance_attached_to_story():
@@ -2786,7 +2859,7 @@ def test_list_action_server_logs():
     request_params = {"key": "value", "key2": "value2"}
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
-    HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+    HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
     HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
