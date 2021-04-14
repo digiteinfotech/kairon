@@ -2762,6 +2762,18 @@ def test_add_training_data(monkeypatch):
     assert len(training_examples) == 2
     assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
     assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
+    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent1_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent1_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
+    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
+    assert story is not None
+    assert story['events'][0]['name'] == 'intent2_test_add_training_data'
+    assert story['events'][0]['type'] == StoryEventType.user
+    assert story['events'][1]['name'] == "utter_intent2_test_add_training_data"
+    assert story['events'][1]['type'] == StoryEventType.action
 
 
 def test_get_training_data_history_1(monkeypatch):
@@ -3022,44 +3034,3 @@ def test_list_action_server_logs():
     assert len(actual['data']['logs']) == 1
     assert actual['data']['total'] == 11
 
-
-def test_add_training_data_invalid_id(monkeypatch):
-    request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
-    }
-    client.put(
-        "/api/bot/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    response = client.get(
-        "/api/bot/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    response = actual["data"]
-    assert response is not None
-    response['status'] = 'Initiated'
-    assert actual["message"] is None
-    doc_id = response['training_history'][0]['_id']
-    training_data = {
-        "history_id": doc_id,
-        "training_data": [{
-        "intent": "intent1_test_add_training_data",
-        "training_examples": ["example1", "example2"],
-        "response": "response1"},
-        {"intent": "intent2_test_add_training_data",
-         "training_examples": ["example3", "example4"],
-         "response": "response2"}]}
-    response = client.post(
-        "/api/bot/data/bulk",
-        json=training_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "No Training Data Generated"

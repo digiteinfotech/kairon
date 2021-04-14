@@ -1089,8 +1089,21 @@ class MongoProcessor:
             except AppException as e:
                 status[data.intent.strip().lower()] = str(e)
 
+            story_name = "path_" + data.intent.strip().lower()
             utterance = "utter_" + data.intent.strip().lower()
-
+            events = [
+                {"name": data.intent.strip().lower(), "type": "user"},
+                {"name": utterance.strip().lower(), "type": "action"}]
+            try:
+                doc_id = self.add_story(
+                    story_name.lower(),
+                    events=events,
+                    bot=bot,
+                    user=user,
+                )
+                status['story'] = doc_id
+            except AppException as e:
+                status['story'] = str(e)
             try:
                 status_message = list(
                     self.add_training_example(
@@ -2730,12 +2743,6 @@ class TrainingDataGenerationProcessor:
     """
     Class contains logic for adding/updating training data generator status and history
     """
-
-    @staticmethod
-    def validate_history_id(doc_id):
-        history = TrainingDataGenerator.objects().get(id=doc_id)
-        if not history.response:
-            raise AppException("No Training Data Generated")
 
     @staticmethod
     def retreive_response_and_set_status(request_data, bot, user):

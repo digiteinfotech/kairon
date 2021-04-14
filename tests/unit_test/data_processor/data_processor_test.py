@@ -1086,6 +1086,14 @@ class TestMongoProcessor:
         assert len(training_examples) == 2
         assert Responses.objects(name="utter_intent1") is not None
         assert Responses.objects(name="utter_intent2") is not None
+        story = Stories.objects(block_name="path_intent1").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent1'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent1"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent2").get()
+        assert story is not None
 
     def test_add_training_data_with_invalid_training_example(self):
         training_data = [
@@ -1099,6 +1107,14 @@ class TestMongoProcessor:
         assert training_examples is not None
         assert len(training_examples) == 1
         assert Responses.objects(name="utter_intent3") is not None
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent3'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent3"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
 
     def test_add_training_data_with_intent_exists(self):
         training_data = [
@@ -1112,6 +1128,14 @@ class TestMongoProcessor:
         assert training_examples is not None
         assert len(training_examples) == 2
         assert Responses.objects(name="utter_intent3") is not None
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
+        assert story['events'][0]['name'] == 'intent3'
+        assert story['events'][0]['type'] == StoryEventType.user
+        assert story['events'][1]['name'] == "utter_intent3"
+        assert story['events'][1]['type'] == StoryEventType.action
+        story = Stories.objects(block_name="path_intent3").get()
+        assert story is not None
 
     def test_delete_response(self):
         processor = MongoProcessor()
