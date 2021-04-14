@@ -2743,6 +2743,14 @@ class TrainingDataGenerationProcessor:
     """
     Class contains logic for adding/updating training data generator status and history
     """
+    @staticmethod
+    def validate_history_id(doc_id):
+        try:
+            history = TrainingDataGenerator.objects().get(id=doc_id)
+            if not history.response:
+                raise AppException("No Training Data Generated")
+        except DoesNotExist:
+            raise AppException("Matching history_id not found!")
 
     @staticmethod
     def retreive_response_and_set_status(request_data, bot, user):
