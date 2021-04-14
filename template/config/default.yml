@@ -1,4 +1,3 @@
-
 language: en
 pipeline:
   - name: WhitespaceTokenizer
@@ -18,6 +17,5 @@ pipeline:
 policies:
   - name: MemoizationPolicy
   - name: TEDPolicy
-    max_history: 5
-    epochs: 100
+    epochs: 200
   - name: RulePolicy

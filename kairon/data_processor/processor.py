@@ -24,7 +24,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file, read_yaml_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -65,7 +65,8 @@ from .data_objects import (
     ModelTraining,
     ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
 )
-from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody
+from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
+from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
@@ -82,6 +83,7 @@ class MongoProcessor:
             stories: File,
             config: File,
             rules: File,
+            http_action: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -93,13 +95,14 @@ class MongoProcessor:
         :param domain: domain data
         :param stories: stories data
         :param rules: rules data
+        :param http_action: http_actions data
         :param config: config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules)
+        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules, http_action)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -115,7 +118,8 @@ class MongoProcessor:
         stories = self.load_stories(bot)
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules)
+        http_action = self.load_http_action(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, http_action)
 
     async def save_from_path(
             self, path: Text, bot: Text, overwrite: bool = True, user="default"
@@ -133,7 +137,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            importer = RasaFileImporter(config_file=config_path,
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
             domain = await importer.get_domain()
@@ -149,6 +153,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
+            self.read_and_save_http_actions(path, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -158,6 +163,20 @@ class MongoProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException(e)
+
+    def read_and_save_http_actions(self, path: str, bot: Text, user="default"):
+        """
+        reads from http_action.yml file and stores data into database
+
+        :param path: data directory path
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        http_action_path = os.path.join(path, 'http_action.yml')
+        if os.path.exists(http_action_path):
+            http_action = self.read_http_file(http_action_path)
+            self.save_http_action(http_action, bot, user)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -216,6 +235,7 @@ class MongoProcessor:
         self.delete_nlu(bot, user)
         self.delete_config(bot, user)
         self.delete_rules(bot, user)
+        self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -290,7 +310,7 @@ class MongoProcessor:
             [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
-    def load_domain(self, bot: Text) -> Domain:
+    def load_domain(self, bot: Text) -> Dict:
         """
         loads domain data for training
 
@@ -359,7 +379,7 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if str(training_example.data['text']).lower() not in saved_training_examples:
+            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
@@ -2299,6 +2319,8 @@ class MongoProcessor:
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
+                      raise_exception=False)
         return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):
@@ -2359,6 +2381,31 @@ class MongoProcessor:
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
 
+    @staticmethod
+    def get_row_count(document: Document, bot: str):
+        """
+        Gets the count of rows in a document for a particular bot.
+        :param document: Mongoengine document for which count is to be given
+        :param bot: bot id
+        :return: Count of rows
+        """
+        return document.objects(bot=bot).count()
+
+    @staticmethod
+    def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
+        """
+        Fetches all action server logs from collection.
+        :param bot: bot id
+        :param start_idx: start index in collection
+        :param page_size: number of rows
+        :return: List of Http actions.
+        """
+        for log in HttpActionLog.objects(bot=bot).order_by("-timestamp").skip(start_idx).limit(page_size):
+            log = log.to_mongo().to_dict()
+            log.pop("bot")
+            log.pop("_id")
+            yield log
+
     def __extract_rules(self, story_steps, bot: Text, user: Text):
         saved_rules = self.fetch_rule_block_names(bot)
 
@@ -2414,6 +2461,16 @@ class MongoProcessor:
         """
         Utility.delete_document([Rules], bot=bot, user=user)
 
+    def delete_http_action(self, bot: Text, user: Text):
+        """
+        soft deletes http actions
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.delete_document([HttpActionConfig], bot=bot, user=user)
+
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
             rule_events = list(
@@ -2439,6 +2496,92 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
+    def read_http_file(self, path: Text):
+        http_content = read_yaml_file(path)
+        self.validate_http_file(http_content)
+        return http_content
+
+    def validate_http_file(self, content: dict):
+        required_fields = ['action_name', 'response', 'http_url', 'request_method']
+        actions = content['http_actions']
+        action_names = []
+        for http_obj in actions:
+            if all(name in http_obj for name in required_fields):
+                if http_obj['action_name'] not in action_names:
+                    action_names.append(http_obj['action_name'])
+                else:
+                    raise AppException("Duplicate action name found")
+            else:
+                raise AppException("Required http action fields not found")
+
+    def save_http_action(self, http_action: dict, bot: Text, user: Text):
+        """
+        saves http actions data
+        :param http_action: http actions
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+
+        actions_data = http_action['http_actions']
+        for actions in actions_data:
+            http_obj = HttpActionConfig()
+            http_obj.bot = bot
+            http_obj.user = user
+            http_obj.action_name = actions['action_name']
+            http_obj.http_url = actions['http_url']
+            http_obj.response = actions['response']
+            http_obj.request_method = actions['request_method']
+            if actions.get('params_list'):
+                request_body_list = []
+                for parameters in actions['params_list']:
+                    request_body = HttpActionRequestBody()
+                    request_body.key = parameters.get('key')
+                    request_body.value = parameters.get('value')
+                    request_body.parameter_type = parameters.get('parameter_type')
+                    request_body_list.append(request_body)
+                http_obj.params_list = request_body_list
+            if actions.get('auth_token'):
+                http_obj.auth_token = actions['auth_token']
+            http_obj.save()
+        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+
+    def load_http_action(self, bot: Text):
+        """
+        loads the http actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        action_list = []
+        for obj in HttpActionConfig.objects(bot=bot, status=True):
+            item = obj.to_mongo().to_dict()
+            http_dict = {"action_name": item["action_name"], "response": item["response"], "http_url": item["http_url"],
+                         "request_method": item["request_method"]}
+            if item.get('auth_token'):
+                http_dict['auth_token'] = item['auth_token']
+            if item.get('params_list'):
+                http_dict['params_list'] = item['params_list']
+            action_list.append(http_dict)
+        http_action = {"http_actions": action_list} if action_list else {}
+        return http_action
+
+    @staticmethod
+    def get_existing_slots(bot: Text):
+        """
+        fetches exisitng slots
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of slots
+        """
+        for slot in Slots.objects(bot=bot, status=True):
+            slot = slot.to_mongo().to_dict()
+            slot.pop("bot")
+            slot.pop("user")
+            slot.pop("_id")
+            slot.pop("timestamp")
+            slot.pop("status")
+            yield slot
 
 class AgentProcessor:
     """
@@ -2649,10 +2792,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
             doc.status = status
         except DoesNotExist:
             doc = TrainingDataGenerator()
@@ -2683,10 +2826,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         """
         try:
-            doc = TrainingDataGenerator.objects.filter(Q(bot=bot) and Q(user=user) and (
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) | Q(
-                status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value))).get().to_mongo().to_dict()
+            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
             doc.pop('_id')
         except DoesNotExist:
             doc = None
@@ -2702,11 +2845,10 @@ class TrainingDataGenerationProcessor:
         :return: None
         :raises: AppException
         """
-        if TrainingDataGenerator.objects.filter(
-                Q(bot=bot) and (
-                        Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS)
-                        | Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED))).count():
+        if TrainingDataGenerator.objects(bot=bot).filter(
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
+                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
             if raise_exception:
                 raise AppException("Previous data generation process not completed")
             else:
