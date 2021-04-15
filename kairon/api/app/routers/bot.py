@@ -718,6 +718,7 @@ async def add_training_data(
     Adds intents, training examples and responses along with story against the responses
     """
     try:
+        TrainingDataGenerationProcessor.validate_history_id(request_data.history_id)
         status, training_data_added = mongo_processor.add_training_data(
             training_data=request_data.training_data,
             bot=current_user.get_bot(),

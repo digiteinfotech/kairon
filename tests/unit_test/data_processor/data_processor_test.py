@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import List
 
@@ -1490,7 +1491,7 @@ class TestMongoProcessor:
         expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
         HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
@@ -2469,6 +2470,14 @@ class TestTrainingDataProcessor:
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None
 
+    def test_validate_history_id_no_response_generated(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        print(status.to_mongo().to_dict())
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
     def test_is_in_progress_true(self):
         status = TrainingDataGenerationProcessor.is_in_progress(
             bot="tests2",
@@ -2514,6 +2523,17 @@ class TestTrainingDataProcessor:
         assert status['last_update_timestamp'] is not None
         assert status['end_timestamp'] is not None
         assert status['response'] is not None
+
+    def test_validate_history_id(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        print(status.to_mongo().to_dict())
+        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_validate_history_id_invalid(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
 
     def test_update_is_persisted_flag(self):
         training_data = TrainingDataGenerator.objects(
