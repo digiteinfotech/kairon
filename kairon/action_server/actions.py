@@ -220,7 +220,7 @@ class HttpAction(Action):
     """
     ActionUtility.connect_db()
 
-    async def name(self) -> Text:
+    def name(self) -> Text:
         """
         Name of HTTP action.
 
