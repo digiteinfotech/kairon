@@ -414,7 +414,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     async def test_name(self):
-        assert await HttpAction().name() == "kairon_http_action"
+        assert HttpAction().name() == "kairon_http_action"
 
     def test_is_empty(self):
         assert ActionUtility.is_empty("")
