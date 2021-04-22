@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger as logging
 from kairon.api.models import (User, Response)
 from kairon.api.auth import Authentication
-
+from kairon.utils import Utility
 from .gpt_generator import GPT3QuestionGenerator
 from .models import GPTAddKeyRequest, Response, AugmentationRequest
 from .gpt_processor.gpt_processors import GPT3ApiKey
@@ -26,7 +26,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    connect(host="mongodb://192.168.101.148:27019/conversations")
+    Utility.load_evironment()
+    connect(host=Utility.environment['database']["url"])
 
 
 @app.exception_handler(StarletteHTTPException)
