@@ -63,6 +63,14 @@ class TestMongoProcessor:
             )
         )
         assert result is None
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
+        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True))) == 2
+        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False))) == 7
+
+    def test_bot_id_change(self):
+        bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
+        assert bot_id['initial_value'] == "test_load_yml"
 
     @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
@@ -93,7 +101,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2

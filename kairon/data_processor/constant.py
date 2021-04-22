@@ -14,6 +14,7 @@ class RESPONSE(str, Enum):
 
 class DOMAIN(str, Enum):
     INTENTS = "intents"
+    USE_ENTITIES_KEY = "use_entities"
     ACTIONS = "actions"
     SLOTS = "slots"
     SESSION_CONFIG = "session_config"

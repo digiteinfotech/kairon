@@ -290,7 +290,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        self.__save_intents(domain.intents, bot, user)
+        self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.form_names, bot, user)
         self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
@@ -317,8 +317,10 @@ class MongoProcessor:
         :param bot: bot id
         :return: dict of Domain objects
         """
+        intent_properties = self.__prepare_training_intents_and_properties(bot)
+
         domain_dict = {
-            DOMAIN.INTENTS.value: self.__prepare_training_intents(bot),
+            DOMAIN.INTENTS.value: intent_properties,
             DOMAIN.ACTIONS.value: self.__prepare_training_actions(bot),
             DOMAIN.SLOTS.value: self.__prepare_training_slots(bot),
             DOMAIN.SESSION_CONFIG.value: self.__prepare_training_session_config(bot),
@@ -553,10 +555,16 @@ class MongoProcessor:
         return list(self.fetch_regex_features(bot))
 
     def __extract_intents(self, intents, bot: Text, user: Text):
+        """
+        If intents does not have use_entities flag set in the domain.yml, then
+        use_entities is assumed to be True by rasa.
+        """
         saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
             if intent not in saved_intents:
-                yield Intents(name=intent, bot=bot, user=user)
+                entities = intents[intent].get('used_entities')
+                use_entities = True if entities else False
+                yield Intents(name=intent, bot=bot, user=user, use_entities=use_entities)
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
@@ -583,6 +591,17 @@ class MongoProcessor:
             return intents[0]["intents"]
         else:
             return []
+
+    def __prepare_training_intents_and_properties(self, bot: Text):
+        intent_properties = []
+        use_entities_true = {DOMAIN.USE_ENTITIES_KEY.value: True}
+        use_entities_false = {DOMAIN.USE_ENTITIES_KEY.value: False}
+        for intent in Intents.objects(bot=bot, status=True):
+            intent_property = {}
+            used_entities = intent['use_entities']
+            intent_property[intent['name']] = use_entities_true.copy() if used_entities else use_entities_false.copy()
+            intent_properties.append(intent_property)
+        return intent_properties
 
     def __extract_domain_entities(self, entities: List[str], bot: Text, user: Text):
         saved_entities = self.__prepare_training_domain_entities(bot=bot)
@@ -817,6 +836,10 @@ class MongoProcessor:
         return slots_list
 
     def __extract_slots(self, slots, bot: Text, user: Text):
+        """
+        If influence_conversation flag is not present for a slot, then it is assumed to be
+        set to false by rasa.
+        """
         slots_name_list = self.__fetch_slot_names(bot)
         for slot in slots:
             items = vars(slot)
