@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
+from kairon.action_server.data_objects import HttpActionLog
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -99,7 +100,7 @@ async def predict_intent(
 
 
 @router.post("/intents/search", response_model=Response)
-async def search_intent(
+async def search_training_examples(
         request_data: TextData, current_user: User = Depends(auth.get_current_user)
 ):
     """
@@ -454,6 +455,7 @@ async def upload_Files(
         stories: UploadFile = File(...),
         config: UploadFile = File(...),
         rules: UploadFile = File(None),
+        http_action: UploadFile = File(None),
         overwrite: bool = True,
         current_user: User = Depends(auth.get_current_user),
 ):
@@ -466,6 +468,7 @@ async def upload_Files(
         stories,
         config,
         rules,
+        http_action,
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)
@@ -693,6 +696,20 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     return Response(message=message)
 
 
+@router.get("/actions/logs", response_model=Response)
+async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, current_user: User = Depends(auth.get_current_user)):
+    """
+    Retrieves action server logs for the bot.
+    """
+    logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(HttpActionLog, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
+
+
 @router.post("/data/bulk", response_model=Response)
 async def add_training_data(
         request_data: BulkTrainingDataAddRequest, current_user: User = Depends(auth.get_current_user)
@@ -701,6 +718,7 @@ async def add_training_data(
     Adds intents, training examples and responses along with story against the responses
     """
     try:
+        TrainingDataGenerationProcessor.validate_history_id(request_data.history_id)
         status, training_data_added = mongo_processor.add_training_data(
             training_data=request_data.training_data,
             bot=current_user.get_bot(),
@@ -748,3 +766,14 @@ async def get_latest_data_generation_status(
     """
     latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(), current_user.get_user())
     return {"data": latest_data_generation_status}
+
+
+@router.get("/slots", response_model=Response)
+async def get_latest_data_generation_status(
+        current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Fetches status for latest data generation request
+    """
+    slots = list(mongo_processor.get_existing_slots(current_user.get_bot()))
+    return {"data": slots}

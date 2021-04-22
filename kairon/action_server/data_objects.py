@@ -1,5 +1,4 @@
 import validators
-ValidationFailure = validators.ValidationFailure
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -7,23 +6,26 @@ from mongoengine import (
     StringField,
     DateTimeField,
     BooleanField,
-    ListField,
+    ListField, DictField,
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
 
+from validators import ValidationFailure
 
 
 class HttpActionRequestBody(EmbeddedDocument):
     key = StringField(required=True)
     value = StringField(default="")
-    parameter_type = StringField(default="value", choices=["value", "slot"])
+    parameter_type = StringField(default="value", choices=["value", "slot", "sender_id"])
 
     def validate(self, clean=True):
         from kairon.action_server.actions import ActionUtility
 
-        if self.parameter_type == "value" and ActionUtility.is_empty(self.value):
-            raise ValidationError("Either value for the key should be given or parameter_type should be set to slot")
+        if ActionUtility.is_empty(self.key):
+            raise ValidationError("key in http action parameters cannot be empty")
+        if self.parameter_type == "slot" and ActionUtility.is_empty(self.value):
+            raise ValueError("Provide name of the slot as value")
 
 
 class HttpActionConfig(Document):
@@ -47,3 +49,20 @@ class HttpActionConfig(Document):
             raise ValidationError("URL is malformed")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValidationError("Invalid HTTP method")
+
+        for param in self.params_list:
+            param.validate()
+
+
+class HttpActionLog(Document):
+    intent = StringField()
+    action = StringField()
+    sender = StringField()
+    url = StringField()
+    request_params = DictField()
+    api_response = StringField()
+    bot_response = StringField()
+    exception = StringField()
+    bot = StringField()
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = StringField(default="SUCCESS")

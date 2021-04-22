@@ -5,7 +5,7 @@ from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
-from pydantic import BaseModel, validator, SecretStr
+from pydantic import BaseModel, validator, SecretStr, root_validator
 
 
 class Token(BaseModel):
@@ -180,10 +180,27 @@ class HistoryMonth(BaseModel):
     month: History_Month_Enum
 
 
+class ParameterChoice(str, Enum):
+    value = "value"
+    slot = "slot"
+    sender_id = "sender_id"
+
+
 class HttpActionParameters(BaseModel):
     key: str
-    value: str
-    parameter_type: str
+    value: str = None
+    parameter_type: ParameterChoice
+
+    @root_validator
+    def check(cls, values):
+        from kairon.utils import Utility
+
+        if Utility.check_empty_string(values.get('key')):
+            raise ValueError("key cannot be empty")
+
+        if values.get('parameter_type') == ParameterChoice.slot and Utility.check_empty_string(values.get('value')):
+            raise ValueError("Provide name of the slot as value")
+        return values
 
 
 class HttpActionConfigRequest(BaseModel):
@@ -192,7 +209,7 @@ class HttpActionConfigRequest(BaseModel):
     response: str
     http_url: str
     request_method: str
-    http_params_list: List[HttpActionParameters]
+    http_params_list: List[HttpActionParameters] = None
 
     def get_http_params(self):
         return [param.dict() for param in self.http_params_list]

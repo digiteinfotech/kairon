@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import List
 
@@ -13,7 +14,7 @@ from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Chec
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
-from kairon.action_server.data_objects import HttpActionConfig
+from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
@@ -96,7 +97,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 39
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -106,6 +107,9 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 3
+        actions = processor.load_http_action("test_load_from_path_yml_training_files")
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -1044,7 +1048,7 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(response['value']['text'] == "Great!" for response in responses if "text" in response['value'])
 
-    def test_edit_responses_case_insensitive(self):
+    def test_edit_responses_case_insensitivity(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
         processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests", user="testUser")
@@ -1406,7 +1410,7 @@ class TestMongoProcessor:
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
@@ -1425,13 +1429,184 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_http_action(self):
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        http_action_content = "http_actions:\n- action_name: action_performanceUser1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
+                                        "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
+        assert len(list(HttpActionConfig.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+
+    def test_load_and_delete_http_action(self):
+        HttpActionConfig(
+            action_name="act1",
+            http_url="http://www.alphabet.com",
+            request_method="POST",
+            response='zxcvb',
+            bot="test_http",
+            user="http_creator",
+        ).save()
+        processor = MongoProcessor()
+        actions = processor.load_http_action("test_http")
+        assert actions
+        assert isinstance(actions, dict)
+        assert len(actions["http_actions"]) == 1
+        processor.delete_http_action(bot="test_http", user="http_creator")
+        actions = processor.load_http_action("test_http")
+        assert not actions
+        assert isinstance(actions, dict)
+
+    def test_validate_httpAction_error_duplicate(self):
+        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}, {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_httpAction_error_missing_field(self):
+        test_dict = {'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_get_action_server_logs_empty(self):
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs("test_bot"))
+        assert logs == []
+
+    def test_get_action_server_logs(self):
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
+                            "intent4", "intent3", "intent2"]
+        request_params = {"key": "value", "key2": "value2"}
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+        HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+        HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+        HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+        HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2, status="FAILURE").save()
+        HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs(bot))
+        assert len(logs) == 10
+        assert [log['intent'] in expected_intents for log in logs]
+        assert logs[0]['action'] == "http_action"
+        assert any([log['request_params'] == request_params for log in logs])
+        assert any([log['sender'] == "sender_id_13" for log in logs])
+        assert any([log['api_response'] == "Response" for log in logs])
+        assert any([log['bot_response'] == "Bot Response" for log in logs])
+        assert any([log['status'] == "FAILURE" for log in logs])
+        assert any([log['status'] == "SUCCESS" for log in logs])
+
+        logs = list(processor.get_action_server_logs(bot_2))
+        assert len(logs) == 3
+
+    def test_get_action_server_logs_start_idx_page_size(self):
+        processor = MongoProcessor()
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        logs = list(processor.get_action_server_logs(bot, 10, 15))
+        assert len(logs) == 1
+
+        logs = list(processor.get_action_server_logs(bot, 10, 1))
+        assert len(logs) == 1
+
+        logs = list(processor.get_action_server_logs(bot, 0, 5))
+        assert len(logs) == 5
+
+        logs = list(processor.get_action_server_logs(bot_2, 0, 5))
+        assert len(logs) == 3
+
+        logs = list(processor.get_action_server_logs(bot_2, 2, 1))
+        assert len(logs) == 1
+        log = logs[0]
+        assert log['intent'] == "intent1"
+
+    def test_get_action_server_logs_cnt(self):
+        processor = MongoProcessor()
+        bot = "test_bot"
+        bot_2 = "testing_bot"
+        cnt = processor.get_row_count(HttpActionLog, bot)
+        assert cnt == 11
+
+        cnt = processor.get_row_count(HttpActionLog, bot_2)
+        assert cnt == 3
+
+    def test_get_existing_slots(self):
+        Slots(
+            name="location",
+            type="text",
+            initial_value="delhi",
+            bot="test_get_existing_slots",
+            user="bot_user",
+        ).save()
+        Slots(
+            name="email_id",
+            type="text",
+            initial_value="bot_user@digite.com",
+            bot="test_get_existing_slots",
+            user="bot_user",
+        ).save()
+        Slots(
+            name="username",
+            type="text",
+            initial_value="bot_user",
+            bot="test_get_existing_slots",
+            user="bot_user",
+            status=False
+        ).save()
+        slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots"))
+        assert len(slots) == 2
+        assert slots[0]['name'] == 'location'
+        assert slots[1]['name'] == 'email_id'
+
+    def test_get_existing_slots_bot_not_exists(self):
+        slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
+        assert len(slots) == 0
 
 
 # pylint: disable=R0201
@@ -1726,7 +1901,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         user = 'test_user'
         bot = 'test_bot'
-        
+
         try:
             processor.delete_story(story=None, user=user, bot=bot)
         except AppException:
@@ -2405,6 +2580,14 @@ class TestTrainingDataProcessor:
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None
 
+    def test_validate_history_id_no_response_generated(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        print(status.to_mongo().to_dict())
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
     def test_is_in_progress_true(self):
         status = TrainingDataGenerationProcessor.is_in_progress(
             bot="tests2",
@@ -2450,6 +2633,17 @@ class TestTrainingDataProcessor:
         assert status['last_update_timestamp'] is not None
         assert status['end_timestamp'] is not None
         assert status['response'] is not None
+
+    def test_validate_history_id(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        print(status.to_mongo().to_dict())
+        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_validate_history_id_invalid(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
 
     def test_update_is_persisted_flag(self):
         training_data = TrainingDataGenerator.objects(

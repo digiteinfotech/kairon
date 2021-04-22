@@ -9,16 +9,15 @@ pipeline:
 - name: "EntitySynonymMapper"
 - name: "CountVectorsFeaturizer"
 - name: "DIETClassifier"
-
+  epochs: 100
 # Configuration for Rasa Core.
 # https://rasa.com/docs/rasa/core/policies/
 policies:
   - name: MemoizationPolicy
-    max_history: 3
-    priority: 3
+    max_history: 29
   - name: TEDPolicy
-    max_history: 3
     epochs: 200
+    max_history: 29
   - name: FallbackPolicy
     nlu_threshold: 0.3
     core_threshold: 0.3
