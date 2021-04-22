@@ -119,6 +119,11 @@ slots:
     influence_conversation: true
     max_value: 1
     min_value: 0
+  bot:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: 6f7f0d6f9f6f09fff08fflkf896
+    auto_fill: false
+    influence_conversation: false
 responses:
   utter_attachment_upload:
   - text: Do you wish to upload any relevant document?

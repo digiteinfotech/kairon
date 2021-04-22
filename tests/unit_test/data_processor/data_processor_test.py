@@ -104,7 +104,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 3
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
@@ -148,7 +149,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -159,7 +160,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
 
     @pytest.mark.asyncio
     async def test_load_from_path_all_scenario_append(self):
@@ -191,7 +193,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -202,7 +204,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -217,7 +220,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 0
+        assert domain.slots.__len__() == 1
+        assert domain.slots[0].name == 'bot'
+        assert domain.slots[0].value == 'tests'
         assert domain.templates.keys().__len__() == 9
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
@@ -434,7 +439,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 1
+        assert slots.__len__() == 2
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -467,7 +472,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 2
+        assert slots.__len__() == 3
         assert new_slot.name == "ticketID"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -507,7 +512,7 @@ class TestMongoProcessor:
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="file_text")
         enitity = Entities.objects(bot="tests").get(name="file_text")
-        assert slots.__len__() == 3
+        assert slots.__len__() == 4
         assert new_slot.name == "file_text"
         assert new_slot.type == "text"
         assert enitity.name == "file_text"

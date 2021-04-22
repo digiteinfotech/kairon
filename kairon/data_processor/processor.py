@@ -834,6 +834,8 @@ class MongoProcessor:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
                 Slots.objects.insert(new_slots)
+        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                      raise_exception=False)
 
     def fetch_slots(self, bot: Text, status=True):
         """
