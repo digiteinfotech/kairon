@@ -858,7 +858,7 @@ class MongoProcessor:
             if new_slots:
                 Slots.objects.insert(new_slots)
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
 
     def fetch_slots(self, bot: Text, status=True):
         """
@@ -1768,11 +1768,11 @@ class MongoProcessor:
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         for slot in slots:
             self.add_slot(
                 {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception=False)
+                bot, user, raise_exception_if_exists=False)
         return story_id
 
     def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
@@ -1828,7 +1828,7 @@ class MongoProcessor:
         for slot in slots:
             self.add_slot(
                 {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception=False)
+                bot, user, raise_exception_if_exists=False)
         return story_id
 
     def delete_complex_story(self, name: str, bot: Text, user: Text):
@@ -2237,11 +2237,11 @@ class MongoProcessor:
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), "type": StoryEventType.action}]
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         self.add_slot(
             {"name": http_action_config_slot, "type": "any", "initial_value": story, "influence_conversation": False},
             bot, user,
-            raise_exception=False)
+            raise_exception_if_exists=False)
 
         return self.add_story(story, story_event_list, bot, user)
 
@@ -2345,7 +2345,7 @@ class MongoProcessor:
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):
@@ -2391,19 +2391,19 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, user=user, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
-    def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
-        if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",
-                                name__iexact=slot_value['name'], bot=bot,
-                                status=True):
-            slot_value['user'] = user
-            slot_value['bot'] = bot
-            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
-        else:
+    def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+        try:
             slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            if slot and raise_exception_if_exists:
+                raise AppException("Slot exists")
             slot['initial_value'] = slot_value.get('initial_value')
             slot['type'] = slot_value.get('type')
             slot['influence_conversation'] = slot_value.get('influence_conversation')
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        except DoesNotExist:
+            slot_value['user'] = user
+            slot_value['bot'] = bot
+            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
         return slot_id
 
     @staticmethod

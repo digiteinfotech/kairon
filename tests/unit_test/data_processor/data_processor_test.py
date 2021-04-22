@@ -1257,7 +1257,7 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
         processor.add_slot({"name": "bot", "type": "unfeaturized", "influence_conversation": True}, bot, user,
-                      raise_exception=False)
+                           raise_exception_if_exists=False)
         slot = Slots.objects(name__iexact='bot',bot=bot, user=user).get()
         assert slot['name'] == 'bot'
         assert slot['type'] == 'unfeaturized'
@@ -1265,7 +1265,7 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot,
-                           user, raise_exception=False)
+                           user, raise_exception_if_exists=False)
         slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
         assert slot['name'] == 'bot'
         assert slot['type'] == 'any'
