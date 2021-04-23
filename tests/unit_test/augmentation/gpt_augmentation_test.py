@@ -1,4 +1,3 @@
-from augmentation.gpt3_question_generator.gpt_processor.gpt_processors import GPT3ApiKey
 from augmentation.gpt3_question_generator.gpt_generator import GPT3QuestionGenerator
 from augmentation.gpt3_question_generator.models import AugmentationRequest
 from kairon.utils import Utility
@@ -16,21 +15,12 @@ def setup():
 
 class TestGPT3QuestionGeneration:
 
-    def test_add_gpt_key(self):
-        try:
-            GPT3ApiKey.add_gpt_key(user="test@test.com", api_key="XYZ123")
-        except:
-            raise Exception("Key not added.")
-
-        assert "XYZ123" == GPT3ApiKey.get_user("test@test.com")["api_key"]
-
     def test_generate_questions(self):
 
-        request_data = AugmentationRequest(text="Are there any more test questions?", num_responses=2)
+        request_data = AugmentationRequest(api_key="sk-5AOrVOwpaHj6oPbHl6N5lwieE7t4pbGf1ugUzD4k",
+                                           data=["Are there any more test questions?"], num_responses=2)
 
-        GPT3ApiKey.add_gpt_key(user="siddhant.bane@digite.com", api_key="sk-5AOrVOwpaHj6oPbHl6N5lwieE7t4pbGf1ugUzD4k")
-
-        gpt3_generator = GPT3QuestionGenerator(request_data=request_data, user="siddhant.bane@digite.com")
+        gpt3_generator = GPT3QuestionGenerator(request_data=request_data)
         augmented_questions = gpt3_generator.augment_questions()
 
         assert len(augmented_questions) > 0

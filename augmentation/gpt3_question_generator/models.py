@@ -12,16 +12,11 @@ class Response(BaseModel):
     error_code: int = 0
 
 
-class GPTAddKeyRequest(BaseModel):
-    """ This class defines the variables (and their types) that will be defined in the request
-                message"""
-    key: str
-
-
 class AugmentationRequest(BaseModel):
     """ This class defines the variables (and their types) that will be defined in the request
                     message"""
-    text: str
+    api_key: str
+    data: list
     engine: str = "davinci"
     temperature: float = 0.75
     max_tokens: int = 100

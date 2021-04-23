@@ -8,8 +8,7 @@ from kairon.api.models import (User, Response)
 from kairon.api.auth import Authentication
 from kairon.utils import Utility
 from .gpt_generator import GPT3QuestionGenerator
-from .models import GPTAddKeyRequest, Response, AugmentationRequest
-from .gpt_processor.gpt_processors import GPT3ApiKey
+from .models import Response, AugmentationRequest
 import uvicorn
 from mongoengine import connect
 
@@ -55,22 +54,11 @@ async def http_exception_handler(request, exc):
     )
 
 
-@app.post("/gpt/key", response_model=Response)
-async def add_key(request_data: GPTAddKeyRequest, current_user: User = Depends(auth.get_current_user)):
-
-    try:
-        GPT3ApiKey.add_gpt_key(user=current_user.email, api_key=request_data.key)
-    except Exception as e:
-        return {"message": str(e)}
-
-    return {"message": "Key added successfully"}
-
-
 @app.post("/gpt/generate_questions", response_model=Response)
-async def generate_questions(request_data: AugmentationRequest, current_user: User = Depends(auth.get_current_user)):
+async def generate_questions(request_data: AugmentationRequest):
 
     try:
-        gpt3_generator = GPT3QuestionGenerator(request_data, current_user.email)
+        gpt3_generator = GPT3QuestionGenerator(request_data)
         augmented_questions = gpt3_generator.augment_questions()
     except Exception as e:
         return {"message": str(e)}

@@ -1,17 +1,15 @@
 import openai
 from .gpt import GPT, Example
 from .models import AugmentationRequest
-from .gpt_processor.gpt_processors import GPT3ApiKey
 
 
 class GPT3QuestionGenerator:
 
-    def __init__(self, request_data: AugmentationRequest, user: str):
+    def __init__(self, request_data: AugmentationRequest):
 
-        self.gpt_user = GPT3ApiKey.get_user(user)
-        openai.api_key = self.gpt_user["api_key"]
+        openai.api_key = request_data.api_key
 
-        self.text = request_data.text
+        self.data = request_data.data
         self.num_responses = request_data.num_responses
 
         self.gpt = GPT(engine=request_data.engine,
@@ -24,11 +22,14 @@ class GPT3QuestionGenerator:
                                      'How can I get vaccinated for covid 19?'))
 
     def augment_questions(self):
-        output = self.gpt.submit_request(self.text, self.num_responses)
 
+        # run loop for each question in data var
         questions_set = set()
 
-        for i in range(self.num_responses):
-            questions_set.add(output.choices[i].text.replace('output: ', '').replace('\n', ''))
+        for text in self.data:
+            output = self.gpt.submit_request(text, self.num_responses)
+
+            for i in range(self.num_responses):
+                questions_set.add(output.choices[i].text.replace('output: ', '').replace('\n', ''))
 
         return questions_set
