@@ -10,7 +10,8 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.action_server.data_objects import HttpActionRequestBody, HttpActionConfig, HttpActionLog
-from kairon.action_server.actions import ActionUtility, HttpAction
+from kairon.action_server.actions import HttpAction
+from kairon.action_server.utils import ActionUtility
 from kairon.action_server.exception import HttpActionFailure
 from kairon.utils import Utility
 

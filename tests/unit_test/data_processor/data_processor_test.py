@@ -63,6 +63,14 @@ class TestMongoProcessor:
             )
         )
         assert result is None
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
+        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True))) == 2
+        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False))) == 7
+
+    def test_bot_id_change(self):
+        bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
+        assert bot_id['initial_value'] == "test_load_yml"
 
     @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
@@ -93,7 +101,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -104,7 +117,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 3
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
@@ -148,7 +162,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -159,7 +173,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
 
     @pytest.mark.asyncio
     async def test_load_from_path_all_scenario_append(self):
@@ -191,7 +206,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 8
+        assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -202,7 +217,8 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "unfeaturized"
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -217,7 +233,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 0
+        assert domain.slots.__len__() == 1
+        assert domain.slots[0].name == 'bot'
+        assert domain.slots[0].value == 'tests'
         assert domain.templates.keys().__len__() == 9
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
@@ -434,7 +452,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 1
+        assert slots.__len__() == 2
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -467,7 +485,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 2
+        assert slots.__len__() == 3
         assert new_slot.name == "ticketID"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -507,7 +525,7 @@ class TestMongoProcessor:
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="file_text")
         enitity = Entities.objects(bot="tests").get(name="file_text")
-        assert slots.__len__() == 3
+        assert slots.__len__() == 4
         assert new_slot.name == "file_text"
         assert new_slot.type == "text"
         assert enitity.name == "file_text"
@@ -1239,7 +1257,7 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
         processor.add_slot({"name": "bot", "type": "unfeaturized", "influence_conversation": True}, bot, user,
-                      raise_exception=False)
+                           raise_exception_if_exists=False)
         slot = Slots.objects(name__iexact='bot',bot=bot, user=user).get()
         assert slot['name'] == 'bot'
         assert slot['type'] == 'unfeaturized'
@@ -1247,7 +1265,7 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot,
-                           user, raise_exception=False)
+                           user, raise_exception_if_exists=False)
         slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
         assert slot['name'] == 'bot'
         assert slot['type'] == 'any'

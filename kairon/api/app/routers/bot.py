@@ -472,6 +472,9 @@ async def upload_Files(
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)
+    ModelProcessor.set_training_status(
+        bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+    )
     background_tasks.add_task(
         start_training, current_user.get_bot(), current_user.get_user()
     )
