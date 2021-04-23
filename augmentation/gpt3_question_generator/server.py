@@ -1,10 +1,9 @@
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi import FastAPI, HTTPException
-from fastapi import Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger as logging
-from kairon.api.models import (User, Response)
+from kairon.api.models import Response
 from kairon.api.auth import Authentication
 from kairon.utils import Utility
 from .gpt_generator import GPT3QuestionGenerator
