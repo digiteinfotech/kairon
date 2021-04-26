@@ -20,7 +20,7 @@ class HttpActionRequestBody(EmbeddedDocument):
     parameter_type = StringField(default="value", choices=["value", "slot", "sender_id"])
 
     def validate(self, clean=True):
-        from kairon.action_server.actions import ActionUtility
+        from .utils import ActionUtility
 
         if ActionUtility.is_empty(self.key):
             raise ValidationError("key in http action parameters cannot be empty")

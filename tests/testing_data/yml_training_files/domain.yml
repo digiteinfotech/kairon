@@ -43,20 +43,16 @@ intents:
     use_entities: true
 - mood_unhappy:
     use_entities: true
-- nlu_fallback:
-    use_entities: true
-- out_of_scope:
-    use_entities: true
+- nlu_fallback
+- out_of_scope
 - performance_feedback:
     use_entities: true
-- restart:
-    use_entities: true
-- session_start:
-    use_entities: true
+- restart
+- session_start
 - small_talk:
-    use_entities: true
+    use_entities: false
 - thank:
-    use_entities: true
+    use_entities: false
 - upload_file_on_ticket:
     use_entities: true
 - user_feedback:
@@ -97,7 +93,6 @@ slots:
     type: rasa.shared.core.slots.UnfeaturizedSlot
     initial_value: null
     auto_fill: true
-    influence_conversation: false
   priority:
     type: rasa.shared.core.slots.CategoricalSlot
     initial_value: null
@@ -111,7 +106,6 @@ slots:
     type: rasa.shared.core.slots.UnfeaturizedSlot
     initial_value: null
     auto_fill: true
-    influence_conversation: false
   ticketID:
     type: rasa.shared.core.slots.FloatSlot
     initial_value: 1.0
@@ -119,6 +113,11 @@ slots:
     influence_conversation: true
     max_value: 1
     min_value: 0
+  bot:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: 6f7f0d6f9f6f09fff08fflkf896
+    auto_fill: false
+    influence_conversation: false
 responses:
   utter_attachment_upload:
   - text: Do you wish to upload any relevant document?

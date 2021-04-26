@@ -147,6 +147,7 @@ class Intents(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     is_integration = BooleanField(default=False)
+    use_entities = BooleanField(default=False)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
@@ -273,7 +274,7 @@ class Slots(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    influence_conversation = BooleanField(default=True)
+    influence_conversation = BooleanField(default=False)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(

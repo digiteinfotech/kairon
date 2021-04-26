@@ -290,7 +290,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        self.__save_intents(domain.intents, bot, user)
+        self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.form_names, bot, user)
         self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
@@ -317,8 +317,10 @@ class MongoProcessor:
         :param bot: bot id
         :return: dict of Domain objects
         """
+        intent_properties = self.__prepare_training_intents_and_properties(bot)
+
         domain_dict = {
-            DOMAIN.INTENTS.value: self.__prepare_training_intents(bot),
+            DOMAIN.INTENTS.value: intent_properties,
             DOMAIN.ACTIONS.value: self.__prepare_training_actions(bot),
             DOMAIN.SLOTS.value: self.__prepare_training_slots(bot),
             DOMAIN.SESSION_CONFIG.value: self.__prepare_training_session_config(bot),
@@ -553,10 +555,16 @@ class MongoProcessor:
         return list(self.fetch_regex_features(bot))
 
     def __extract_intents(self, intents, bot: Text, user: Text):
+        """
+        If intents does not have use_entities flag set in the domain.yml, then
+        use_entities is assumed to be True by rasa.
+        """
         saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
             if intent not in saved_intents:
-                yield Intents(name=intent, bot=bot, user=user)
+                entities = intents[intent].get('used_entities')
+                use_entities = True if entities else False
+                yield Intents(name=intent, bot=bot, user=user, use_entities=use_entities)
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
@@ -583,6 +591,17 @@ class MongoProcessor:
             return intents[0]["intents"]
         else:
             return []
+
+    def __prepare_training_intents_and_properties(self, bot: Text):
+        intent_properties = []
+        use_entities_true = {DOMAIN.USE_ENTITIES_KEY.value: True}
+        use_entities_false = {DOMAIN.USE_ENTITIES_KEY.value: False}
+        for intent in Intents.objects(bot=bot, status=True):
+            intent_property = {}
+            used_entities = intent['use_entities']
+            intent_property[intent['name']] = use_entities_true.copy() if used_entities else use_entities_false.copy()
+            intent_properties.append(intent_property)
+        return intent_properties
 
     def __extract_domain_entities(self, entities: List[str], bot: Text, user: Text):
         saved_entities = self.__prepare_training_domain_entities(bot=bot)
@@ -817,6 +836,10 @@ class MongoProcessor:
         return slots_list
 
     def __extract_slots(self, slots, bot: Text, user: Text):
+        """
+        If influence_conversation flag is not present for a slot, then it is assumed to be
+        set to false by rasa.
+        """
         slots_name_list = self.__fetch_slot_names(bot)
         for slot in slots:
             items = vars(slot)
@@ -834,6 +857,8 @@ class MongoProcessor:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
                 Slots.objects.insert(new_slots)
+        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                      raise_exception_if_exists=False)
 
     def fetch_slots(self, bot: Text, status=True):
         """
@@ -1743,11 +1768,11 @@ class MongoProcessor:
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         for slot in slots:
             self.add_slot(
                 {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception=False)
+                bot, user, raise_exception_if_exists=False)
         return story_id
 
     def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
@@ -1803,7 +1828,7 @@ class MongoProcessor:
         for slot in slots:
             self.add_slot(
                 {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception=False)
+                bot, user, raise_exception_if_exists=False)
         return story_id
 
     def delete_complex_story(self, name: str, bot: Text, user: Text):
@@ -2212,11 +2237,11 @@ class MongoProcessor:
                             {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), "type": StoryEventType.action}]
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         self.add_slot(
             {"name": http_action_config_slot, "type": "any", "initial_value": story, "influence_conversation": False},
             bot, user,
-            raise_exception=False)
+            raise_exception_if_exists=False)
 
         return self.add_story(story, story_event_list, bot, user)
 
@@ -2320,7 +2345,7 @@ class MongoProcessor:
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
-                      raise_exception=False)
+                      raise_exception_if_exists=False)
         return doc_id
 
     def delete_http_action_config(self, action: str, user: str, bot: str):
@@ -2366,19 +2391,19 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, user=user, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
-    def add_slot(self, slot_value: Dict, bot, user, raise_exception=True):
-        if not Utility.is_exist(Slots, raise_error=raise_exception, exp_message="Slot exists",
-                                name__iexact=slot_value['name'], bot=bot,
-                                status=True):
-            slot_value['user'] = user
-            slot_value['bot'] = bot
-            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
-        else:
+    def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+        try:
             slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            if slot and raise_exception_if_exists:
+                raise AppException("Slot exists")
             slot['initial_value'] = slot_value.get('initial_value')
             slot['type'] = slot_value.get('type')
             slot['influence_conversation'] = slot_value.get('influence_conversation')
             slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        except DoesNotExist:
+            slot_value['user'] = user
+            slot_value['bot'] = bot
+            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
         return slot_id
 
     @staticmethod
