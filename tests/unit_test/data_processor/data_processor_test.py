@@ -16,7 +16,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
-from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, StoryEventRequest
+from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
@@ -1496,6 +1496,12 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_http")
         assert not actions
         assert isinstance(actions, dict)
+
+    def test_validate_httpAction_empty_content(self):
+        test_dict = {'http_actions': []}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+        assert not processor.validate_http_file({})
 
     def test_validate_httpAction_error_duplicate(self):
         test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}, {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
