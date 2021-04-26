@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
+import yaml
 from fastapi import File
 from loguru import logger as logging
 from mongoengine import Document, Q
@@ -24,7 +25,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file, read_yaml_file
+from rasa.shared.utils.io import read_config_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -144,6 +145,7 @@ class MongoProcessor:
             story_graph = await importer.get_stories()
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
+            http_actions = self.read_http_file(path)
 
             if overwrite:
                 self.delete_bot_data(bot, user)
@@ -153,7 +155,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
-            self.read_and_save_http_actions(path, bot, user)
+            self.save_http_action(http_actions, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -2521,15 +2523,25 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
-    def read_http_file(self, path: Text):
-        http_content = read_yaml_file(path)
-        self.validate_http_file(http_content)
-        return http_content
+    def read_http_file(self, path: Text, raise_exception: bool = False):
+        http_actions = None
+        http_actions_yml = os.path.join(path, 'http_action.yml')
+        if os.path.exists(http_actions_yml):
+            http_actions = yaml.load(open(http_actions_yml), Loader=yaml.SafeLoader)
+            self.validate_http_file(http_actions)
+        else:
+            if raise_exception:
+                raise AppException('Path does not exists!')
+        return http_actions
 
     def validate_http_file(self, content: dict):
         required_fields = ['action_name', 'response', 'http_url', 'request_method']
-        actions = content['http_actions']
         action_names = []
+
+        if not content or not content.get('http_actions'):
+            return
+
+        actions = content.get('http_actions')
         for http_obj in actions:
             if all(name in http_obj for name in required_fields):
                 if http_obj['action_name'] not in action_names:
@@ -2547,7 +2559,8 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-
+        if not http_action or not http_action.get('http_actions'):
+            return
         actions_data = http_action['http_actions']
         for actions in actions_data:
             http_obj = HttpActionConfig()
