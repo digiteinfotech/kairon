@@ -110,11 +110,6 @@ class GPT:
                                             stop=self.stop)
         return response
 
-    def get_top_reply(self, prompt):
-        """Obtains the best result as returned by the API."""
-        response = self.submit_request(prompt)
-        return response['choices'][0]['text']
-
     def format_example(self, ex):
         """Formats the input, output pair."""
         return self.input_prefix + ex.get_input(
