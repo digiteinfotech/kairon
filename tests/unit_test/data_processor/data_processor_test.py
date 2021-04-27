@@ -18,6 +18,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
+from kairon.api.data_objects import Feedback
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, POSSIBLE_DOMAIN_FILES, \
     POSSIBLE_CONFIG_FILES, POSSIBLE_NLU_FILES, POSSIBLE_STORIES_FILES
