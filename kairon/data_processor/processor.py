@@ -69,6 +69,7 @@ from .data_objects import (
 from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
+from ..api.data_objects import Feedback
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
 
@@ -2621,6 +2622,11 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
+
+    @staticmethod
+    def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
+        Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
+
 
 class AgentProcessor:
     """
