@@ -166,20 +166,6 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
-    def read_and_save_http_actions(self, path: str, bot: Text, user="default"):
-        """
-        reads from http_action.yml file and stores data into database
-
-        :param path: data directory path
-        :param bot: bot id
-        :param user: user id
-        :return: None
-        """
-        http_action_path = os.path.join(path, 'http_action.yml')
-        if os.path.exists(http_action_path):
-            http_action = self.read_http_file(http_action_path)
-            self.save_http_action(http_action, bot, user)
-
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
         apply use-case template
@@ -2547,9 +2533,22 @@ class MongoProcessor:
                 if http_obj['action_name'] not in action_names:
                     action_names.append(http_obj['action_name'])
                 else:
-                    raise AppException("Duplicate action name found")
+                    raise AppException("Duplicate http action found!")
             else:
                 raise AppException("Required http action fields not found")
+            if not http_obj.get('action_name') or not http_obj.get('response') or not http_obj.get(
+                    'http_url') or not http_obj.get('request_method'):
+                raise AppException('Invalid http action: ' + http_obj['action_name'])
+            if not http_obj.get('request_method') or http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}:
+                raise AppException('Invalid request method: ' + http_obj['action_name'])
+            if http_obj.get('params_list'):
+                for param in http_obj.get('params_list'):
+                    if not param.get('key'):
+                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                    if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
+                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                    if param.get('parameter_type') == 'slot' and not param.get('value'):
+                        param['value'] = param.get('key')
 
     def save_http_action(self, http_action: dict, bot: Text, user: Text):
         """
@@ -2561,27 +2560,29 @@ class MongoProcessor:
         """
         if not http_action or not http_action.get('http_actions'):
             return
+        saved_http_actions = set([action['action_name'] for action in self.list_http_actions(bot, user)])
         actions_data = http_action['http_actions']
         for actions in actions_data:
-            http_obj = HttpActionConfig()
-            http_obj.bot = bot
-            http_obj.user = user
-            http_obj.action_name = actions['action_name']
-            http_obj.http_url = actions['http_url']
-            http_obj.response = actions['response']
-            http_obj.request_method = actions['request_method']
-            if actions.get('params_list'):
-                request_body_list = []
-                for parameters in actions['params_list']:
-                    request_body = HttpActionRequestBody()
-                    request_body.key = parameters.get('key')
-                    request_body.value = parameters.get('value')
-                    request_body.parameter_type = parameters.get('parameter_type')
-                    request_body_list.append(request_body)
-                http_obj.params_list = request_body_list
-            if actions.get('auth_token'):
-                http_obj.auth_token = actions['auth_token']
-            http_obj.save()
+            if actions['action_name'] not in saved_http_actions:
+                http_obj = HttpActionConfig()
+                http_obj.bot = bot
+                http_obj.user = user
+                http_obj.action_name = actions['action_name']
+                http_obj.http_url = actions['http_url']
+                http_obj.response = actions['response']
+                http_obj.request_method = actions['request_method']
+                if actions.get('params_list'):
+                    request_body_list = []
+                    for parameters in actions['params_list']:
+                        request_body = HttpActionRequestBody()
+                        request_body.key = parameters.get('key')
+                        request_body.value = parameters.get('value')
+                        request_body.parameter_type = parameters.get('parameter_type')
+                        request_body_list.append(request_body)
+                    http_obj.params_list = request_body_list
+                if actions.get('auth_token'):
+                    http_obj.auth_token = actions['auth_token']
+                http_obj.save()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
 
     def load_http_action(self, bot: Text):

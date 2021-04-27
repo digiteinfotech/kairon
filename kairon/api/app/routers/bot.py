@@ -11,7 +11,6 @@ from kairon.api.models import (
     User,
     ListData,
     Response,
-    StoryRequest,
     Endpoint,
     Config,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
