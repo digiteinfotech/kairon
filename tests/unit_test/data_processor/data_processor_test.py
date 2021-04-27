@@ -16,6 +16,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
+from kairon.api.data_objects import Feedback
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
 from kairon.data_processor.data_objects import (TrainingExamples,
@@ -1497,23 +1498,116 @@ class TestMongoProcessor:
         assert not actions
         assert isinstance(actions, dict)
 
-    def test_validate_httpAction_empty_content(self):
+    def test_validate_http_action_empty_content(self):
         test_dict = {'http_actions': []}
         processor = MongoProcessor()
         assert not processor.validate_http_file(test_dict)
         assert not processor.validate_http_file({})
 
-    def test_validate_httpAction_error_duplicate(self):
-        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}, {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+    def test_validate_http_action_error_duplicate(self):
+        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
+                                       "request_method": 'POST'},
+                                      {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
+                                       "request_method": 'POST'}]}
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.validate_http_file(test_dict)
 
-    def test_validate_httpAction_error_missing_field(self):
-        test_dict = {'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+    def test_validate_http_action_error_missing_field(self):
+        test_dict = {
+            'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_invalid_request_method(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'slot', "value": 'slot'}],
+                                       "request_method": "OPTIONS", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": '', "parameter_type": '', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list_2(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": '', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list_3(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                                       {"key": 'username', "parameter_type": 'slot', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        processor.validate_http_file(test_dict)
+        assert test_dict['http_actions'][0]['params_list'][1]['value'] == 'username'
+
+    def test_validate_http_action_params_list_4(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": None}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list_5(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list_6(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [], "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+
+    def test_validate_http_action_empty_params_list_7(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        processor = MongoProcessor()
+        assert not processor.validate_http_file(test_dict)
+
+    def test_save_http_action_already_exists(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"},
+                                      {"action_name": "test_save_http_action_already_exists",
+                                       "http_url": "http://f2724.kairon.io/",
+                                       "request_method": "GET", "response": "${RESPONSE}"}
+                                      ]}
+        HttpActionConfig(action_name="test_save_http_action_already_exists",
+                         http_url='http://kairon.ai',
+                         response='response',
+                         request_method='GET',
+                         bot='test', user='test').save()
+        processor = MongoProcessor()
+        processor.save_http_action(test_dict, 'test', 'test')
+        action = HttpActionConfig.objects(bot='test', user='test').get(action_name="test_save_http_action_already_exists")
+        assert action
+        assert action['http_url'] == "http://kairon.ai"
+        assert not action['params_list']
+        action = HttpActionConfig.objects(bot='test', user='test').get(action_name="rain_today")
+        assert action
+        assert action['http_url'] == "http://f2724.kairon.io/"
+        assert action['params_list']
 
     def test_get_action_server_logs_empty(self):
         processor = MongoProcessor()
@@ -1631,6 +1725,34 @@ class TestMongoProcessor:
     def test_get_existing_slots_bot_not_exists(self):
         slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
         assert len(slots) == 0
+
+    def test_add_feedback(self):
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_feedback(4.5, 'test', 'test', feedback='product is good')
+        feedback = Feedback.objects(bot='test', user='test').get()
+        assert feedback['rating'] == 4.5
+        assert feedback['scale'] == 5.0
+        assert feedback['feedback'] == 'product is good'
+        assert feedback['timestamp']
+
+    def test_add_feedback_2(self):
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_feedback(5.0, 'test', 'test_user', scale=10, feedback='i love kairon')
+        feedback = Feedback.objects(bot='test', user='test_user').get()
+        assert feedback['rating'] == 5.0
+        assert feedback['scale'] == 10
+        assert feedback['feedback'] == 'i love kairon'
+        assert feedback['timestamp']
+
+    def test_add_feedback_3(self):
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_feedback(5.0, 'test', 'test')
+        feedback = list(Feedback.objects(bot='test', user='test'))
+        assert feedback[1]['rating'] == 5.0
+        assert feedback[1]['scale'] == 5.0
+        assert not feedback[1]['feedback']
+        assert feedback[1]['timestamp']
+
 
 
 # pylint: disable=R0201

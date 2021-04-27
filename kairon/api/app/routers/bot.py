@@ -11,11 +11,10 @@ from kairon.api.models import (
     User,
     ListData,
     Response,
-    StoryRequest,
     Endpoint,
     Config,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
-    SimpleStoryRequest
+    SimpleStoryRequest, FeedbackRequest
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
@@ -780,3 +779,13 @@ async def get_latest_data_generation_status(
     """
     slots = list(mongo_processor.get_existing_slots(current_user.get_bot()))
     return {"data": slots}
+
+
+@router.post("/feedback", response_model=Response)
+async def send_confirm_link(feedback: FeedbackRequest, current_user: User = Depends(auth.get_current_user),):
+    """
+    Receive feedback from user.
+    """
+    mongo_processor.add_feedback(feedback.rating, current_user.get_bot(), current_user.get_user(),
+                                  feedback.scale, feedback.feedback)
+    return {"message": "Thanks for the feedback!"}

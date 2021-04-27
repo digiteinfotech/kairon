@@ -3077,3 +3077,19 @@ def test_add_training_data_invalid_id(monkeypatch):
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "No Training Data Generated"
+
+
+def test_feedback():
+    request = {
+        'rating': 5.0, 'scale': 5.0, 'feedback': 'The product is better than rasa.'
+    }
+    response = client.post(
+        "/api/bot/feedback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Thanks for the feedback!'
