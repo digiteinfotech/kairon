@@ -11,7 +11,6 @@ from mongoengine import (
 from mongoengine.errors import ValidationError
 from datetime import datetime
 
-from validators import ValidationFailure
 
 
 class HttpActionRequestBody(EmbeddedDocument):
@@ -45,7 +44,7 @@ class HttpActionConfig(Document):
             raise ValidationError("Action name cannot be empty")
         if self.http_url is None or not self.http_url.strip():
             raise ValidationError("URL cannot be empty")
-        if isinstance(validators.url(self.http_url), ValidationFailure):
+        if isinstance(validators.url(self.http_url), validators.ValidationFailure):
             raise ValidationError("URL is malformed")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValidationError("Invalid HTTP method")
