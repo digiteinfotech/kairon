@@ -12,7 +12,7 @@ class Response(BaseModel):
     error_code: int = 0
 
 
-class AugmentationRequest(BaseModel):
+class GPTRequest(BaseModel):
     """ This class defines the variables (and their types) that will be defined in the request
                     message"""
     api_key: str

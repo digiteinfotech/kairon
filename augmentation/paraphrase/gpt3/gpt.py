@@ -5,11 +5,6 @@ import openai
 import uuid
 
 
-def set_openai_key(key):
-    """Sets OpenAI key."""
-    openai.api_key = key
-
-
 class Example:
     """Stores an input, output pair and formats it to prime the model."""
     def __init__(self, inp, out):
@@ -96,11 +91,12 @@ class GPT:
 
         return q
 
-    def submit_request(self, prompt, num_responses):
+    def submit_request(self, prompt, num_responses, api_key):
         """Calls the OpenAI API with the specified parameters."""
         if num_responses < 1:
             num_responses = 1
-        response = openai.Completion.create(engine=self.get_engine(),
+        response = openai.Completion.create(api_key=api_key,
+                                            engine=self.get_engine(),
                                             prompt=self.craft_query(prompt),
                                             max_tokens=self.get_max_tokens(),
                                             temperature=self.get_temperature(),

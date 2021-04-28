@@ -1,13 +1,13 @@
-import openai
 from .gpt import GPT, Example
-from .models import AugmentationRequest
+from .models import GPTRequest
 
 
-class GPT3QuestionGenerator:
+class GPT3ParaphraseGenerator:
 
-    def __init__(self, request_data: AugmentationRequest):
+    """Class creates GPT model for text augmentation"""
+    def __init__(self, request_data: GPTRequest):
 
-        openai.api_key = request_data.api_key
+        self.api_key = request_data.api_key
 
         self.data = request_data.data
         self.num_responses = request_data.num_responses
@@ -21,15 +21,22 @@ class GPT3QuestionGenerator:
         self.gpt.add_example(Example('How can I get the vaccine for covid 19?',
                                      'How can I get vaccinated for covid 19?'))
 
-    def augment_questions(self):
+    def paraphrases(self):
+        """This function creates prompt using user's input and sends a
+        request to gpt3's Completion api for question augmentation
+
+        :param self:
+        :return: list of questions"""
 
         # run loop for each question in data var
         questions_set = set()
 
         for text in self.data:
-            output = self.gpt.submit_request(text, self.num_responses)
+            output = self.gpt.submit_request(text, self.num_responses, self.api_key)
 
+            print(output.choices[0])
             for i in range(self.num_responses):
+                print(output)
                 questions_set.add(output.choices[i].text.replace('output: ', '').replace('\n', ''))
 
         return questions_set
