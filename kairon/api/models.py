@@ -327,3 +327,9 @@ class AddStoryRequest(BaseModel):
 class SimpleStoryRequest(BaseModel):
     action: str
     intent: str
+
+
+class FeedbackRequest(BaseModel):
+    rating: float
+    scale: float = 5
+    feedback: str = None

@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
+import yaml
 from fastapi import File
 from loguru import logger as logging
 from mongoengine import Document, Q
@@ -24,7 +25,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file, read_yaml_file
+from rasa.shared.utils.io import read_config_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -68,6 +69,7 @@ from .data_objects import (
 from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
 from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
+from ..api.data_objects import Feedback
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
 
@@ -144,6 +146,7 @@ class MongoProcessor:
             story_graph = await importer.get_stories()
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
+            http_actions = self.read_http_file(path)
 
             if overwrite:
                 self.delete_bot_data(bot, user)
@@ -153,7 +156,7 @@ class MongoProcessor:
             self.save_nlu(nlu, bot, user)
             self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
-            self.read_and_save_http_actions(path, bot, user)
+            self.save_http_action(http_actions, bot, user)
         except InvalidDomain as e:
             logging.info(e)
             raise AppException(
@@ -163,20 +166,6 @@ class MongoProcessor:
         except Exception as e:
             logging.info(e)
             raise AppException(e)
-
-    def read_and_save_http_actions(self, path: str, bot: Text, user="default"):
-        """
-        reads from http_action.yml file and stores data into database
-
-        :param path: data directory path
-        :param bot: bot id
-        :param user: user id
-        :return: None
-        """
-        http_action_path = os.path.join(path, 'http_action.yml')
-        if os.path.exists(http_action_path):
-            http_action = self.read_http_file(http_action_path)
-            self.save_http_action(http_action, bot, user)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -2521,23 +2510,46 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
-    def read_http_file(self, path: Text):
-        http_content = read_yaml_file(path)
-        self.validate_http_file(http_content)
-        return http_content
+    def read_http_file(self, path: Text, raise_exception: bool = False):
+        http_actions = None
+        http_actions_yml = os.path.join(path, 'http_action.yml')
+        if os.path.exists(http_actions_yml):
+            http_actions = yaml.load(open(http_actions_yml), Loader=yaml.SafeLoader)
+            self.validate_http_file(http_actions)
+        else:
+            if raise_exception:
+                raise AppException('Path does not exists!')
+        return http_actions
 
     def validate_http_file(self, content: dict):
         required_fields = ['action_name', 'response', 'http_url', 'request_method']
-        actions = content['http_actions']
         action_names = []
+
+        if not content or not content.get('http_actions'):
+            return
+
+        actions = content.get('http_actions')
         for http_obj in actions:
             if all(name in http_obj for name in required_fields):
                 if http_obj['action_name'] not in action_names:
                     action_names.append(http_obj['action_name'])
                 else:
-                    raise AppException("Duplicate action name found")
+                    raise AppException("Duplicate http action found!")
             else:
                 raise AppException("Required http action fields not found")
+            if not http_obj.get('action_name') or not http_obj.get('response') or not http_obj.get(
+                    'http_url') or not http_obj.get('request_method'):
+                raise AppException('Invalid http action: ' + http_obj['action_name'])
+            if not http_obj.get('request_method') or http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}:
+                raise AppException('Invalid request method: ' + http_obj['action_name'])
+            if http_obj.get('params_list'):
+                for param in http_obj.get('params_list'):
+                    if not param.get('key'):
+                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                    if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
+                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                    if param.get('parameter_type') == 'slot' and not param.get('value'):
+                        param['value'] = param.get('key')
 
     def save_http_action(self, http_action: dict, bot: Text, user: Text):
         """
@@ -2547,28 +2559,31 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-
+        if not http_action or not http_action.get('http_actions'):
+            return
+        saved_http_actions = set([action['action_name'] for action in self.list_http_actions(bot, user)])
         actions_data = http_action['http_actions']
         for actions in actions_data:
-            http_obj = HttpActionConfig()
-            http_obj.bot = bot
-            http_obj.user = user
-            http_obj.action_name = actions['action_name']
-            http_obj.http_url = actions['http_url']
-            http_obj.response = actions['response']
-            http_obj.request_method = actions['request_method']
-            if actions.get('params_list'):
-                request_body_list = []
-                for parameters in actions['params_list']:
-                    request_body = HttpActionRequestBody()
-                    request_body.key = parameters.get('key')
-                    request_body.value = parameters.get('value')
-                    request_body.parameter_type = parameters.get('parameter_type')
-                    request_body_list.append(request_body)
-                http_obj.params_list = request_body_list
-            if actions.get('auth_token'):
-                http_obj.auth_token = actions['auth_token']
-            http_obj.save()
+            if actions['action_name'] not in saved_http_actions:
+                http_obj = HttpActionConfig()
+                http_obj.bot = bot
+                http_obj.user = user
+                http_obj.action_name = actions['action_name']
+                http_obj.http_url = actions['http_url']
+                http_obj.response = actions['response']
+                http_obj.request_method = actions['request_method']
+                if actions.get('params_list'):
+                    request_body_list = []
+                    for parameters in actions['params_list']:
+                        request_body = HttpActionRequestBody()
+                        request_body.key = parameters.get('key')
+                        request_body.value = parameters.get('value')
+                        request_body.parameter_type = parameters.get('parameter_type')
+                        request_body_list.append(request_body)
+                    http_obj.params_list = request_body_list
+                if actions.get('auth_token'):
+                    http_obj.auth_token = actions['auth_token']
+                http_obj.save()
         self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
 
     def load_http_action(self, bot: Text):
@@ -2607,6 +2622,11 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
+
+    @staticmethod
+    def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
+        Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
+
 
 class AgentProcessor:
     """
