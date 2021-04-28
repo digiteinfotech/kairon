@@ -34,9 +34,7 @@ class GPT3ParaphraseGenerator:
         for text in self.data:
             output = self.gpt.submit_request(text, self.num_responses, self.api_key)
 
-            print(output.choices[0])
             for i in range(self.num_responses):
-                print(output)
                 questions_set.add(output.choices[i].text.replace('output: ', '').replace('\n', ''))
 
         return questions_set
