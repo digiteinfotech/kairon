@@ -28,7 +28,7 @@ moto
 locust
 greenlet==0.4.17
 python-docx==0.8.10
-PyMuPDF==1.18.4
+PyMuPDF==1.18.12
 sentencepiece
 tensorflow==2.3.2
 numpy==1.19.5
