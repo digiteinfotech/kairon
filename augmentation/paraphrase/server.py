@@ -6,7 +6,9 @@ from loguru import logger as logging
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-
+from .gpt3.generator import GPT3ParaphraseGenerator
+from .gpt3.models import GPTRequest
+import uvicorn
 
 class Response(BaseModel):
     """ This class defines the variables (and their types) that will be defined in the response
@@ -58,3 +60,18 @@ async def paraphrases(request_data: List[Text]):
     """Generates variations for given list of sentences/questions"""
     response = ParaPhrasing.paraphrases(request_data)
     return {"data": {"paraphrases": response}}
+
+
+@app.post("/paraphrases/gpt", response_model=Response)
+async def gpt_paraphrases(request_data: GPTRequest):
+    """Generates variations for given list of sentences/questions using GPT3"""
+    try:
+        gpt3_generator = GPT3ParaphraseGenerator(request_data)
+        augmented_questions = gpt3_generator.paraphrases()
+    except Exception as e:
+        return {"message": str(e)}
+
+    return {"data": {"questions": augmented_questions}}
+
+if __name__ == "main":
+    uvicorn.run(app)
