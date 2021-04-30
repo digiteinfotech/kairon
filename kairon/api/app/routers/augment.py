@@ -40,11 +40,11 @@ async def questions(
     return response.json()
 
 
-@router.post("paraphrases/gpt", response_model=Response)
+@router.post("/paraphrases/gpt", response_model=Response)
 async def gpt_paraphrases(request_data: GPTRequest):
     """Generates variations for given list of sentences/questions using GPT3"""
 
     response = requests.post(
-        Utility.environment["augmentation"]["paraphrase_gpt_url"], json=request_data
+        Utility.environment["augmentation"]["paraphrase_gpt_url"], json=request_data.json()
     )
     return response.json()

@@ -1390,12 +1390,66 @@ def test_predict_intent_error():
 
 
 @responses.activate
+def test_augment_paraphrase_gpt():
+    responses.add(
+        responses.POST,
+        "http://localhost:8000/paraphrases/gpt",
+        json={
+            "success": True,
+            "data": {
+                "questions": ['Where is digite located?',
+                              'Where is digite situated?']
+            },
+            "message": None,
+            "error_code": 0,
+        },
+        status=200,
+    )
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": ["Where is digite located?"], "api_key": "MockKey"}
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
+@responses.activate
+def test_augment_paraphrase_gpt_fail():
+    key_error_message = "Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com."
+    responses.add(
+        responses.POST,
+        "http://localhost:8000/paraphrases/gpt",
+        json={
+            "success": False,
+            "data": None,
+            "message": key_error_message,
+        },
+        status=200,
+    )
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": ["Where is digite located?"], "api_key": "InvalidKey"}
+    )
+
+    actual = response.json()
+
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["message"] == key_error_message
+
+
+@responses.activate
 def test_augment_paraphrase():
     responses.add(
         responses.POST,
         "http://localhost:8000/paraphrases",
         json={
-            "sucess": True,
+            "success": True,
             "data": {
                 "questions": ['Where is digite located?',
                               'Where is digite?',
