@@ -18,7 +18,7 @@ RUN python3 -m pip install pyjwt
 RUN python3 -m pip install passlib[bcrypt]
 RUN python3 -m pip install python-multipart
 RUN python3 -m pip install validators
-RUN python3 -m pip install secure
+RUN python3 -m pip install secure==0.2.1
 RUN python3 -m pip install spacy==2.3.2
 RUN python3 -m spacy download en_core_web_md
 RUN python3 -m spacy link en_core_web_md en
