@@ -28,7 +28,7 @@ class TestCli:
             assert e == "'Namespace' object has no attribute 'bot'"
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(kwarg1="--train", kwarg2="tests"))
+                return_value=argparse.Namespace(kwarg1="--train", kwarg2="test_cli"))
     def test_kairon_cli_train_no_argument_user(self, monkeypatch):
         def mock_training(*args, **kwargs):
             return "model"
@@ -39,7 +39,7 @@ class TestCli:
             assert e == "'Namespace' object has no attribute 'user'"
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(train="--train", bot="tests", user="testUser"))
+                return_value=argparse.Namespace(train="--train", bot="test_cli", user="testUser"))
     def test_kairon_cli_train(self, monkeypatch):
         def mock_training(*args, **kwargs):
             return "model"
@@ -48,7 +48,7 @@ class TestCli:
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(train="--train", bot="tests", user="testUser", token="test"))
+                return_value=argparse.Namespace(train="--train", bot="test_cli", user="testUser", token="test"))
     def test_kairon_cli_train_with_all_arguments(self, monkeypatch):
         def mock_training(*args, **kwargs):
             return "model"

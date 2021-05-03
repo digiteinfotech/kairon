@@ -1080,10 +1080,10 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": None})],
+            match=[responses.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
-        model_path = start_training("tests", "testUser")
+        model_path = start_training("test_event", "testUser")
         assert model_path is None
 
     @responses.activate
@@ -1093,10 +1093,10 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
+            match=[responses.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
-        model_path = start_training("tests", "testUser", token)
+        model_path = start_training("test_event_with_token", "testUser", token)
         assert model_path is None
 
     @responses.activate
