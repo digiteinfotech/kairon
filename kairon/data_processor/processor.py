@@ -151,10 +151,10 @@ class MongoProcessor:
             if overwrite:
                 self.delete_bot_data(bot, user)
 
+            self.save_config(config, bot, user)
             self.save_domain(domain, bot, user)
             self.save_stories(story_graph.story_steps, bot, user)
             self.save_nlu(nlu, bot, user)
-            self.save_config(config, bot, user)
             self.save_rules(story_graph.story_steps, bot, user)
             self.save_http_action(http_actions, bot, user)
         except InvalidDomain as e:
