@@ -665,16 +665,22 @@ class Utility:
         :return: None
         """
         from rasa.nlu.registry import registered_components as nlu_components
-        for item in config['pipeline']:
-            component_cfg = item['name']
-            if not (component_cfg in nlu_components or
-                    component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter"]):
-                raise AppException("Invalid component " + component_cfg)
+        if config['pipeline']:
+            for item in config['pipeline']:
+                component_cfg = item['name']
+                if not (component_cfg in nlu_components or
+                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter"]):
+                    raise AppException("Invalid component " + component_cfg)
+        else:
+            raise AppException("You didn't define any pipeline")
 
-        core_policies = Utility.get_rasa_core_policies()
-        for policy in config['policies']:
-            if policy['name'] not in core_policies:
-                raise AppException("Invalid policy " + policy['name'])
+        if config['policies']:
+            core_policies = Utility.get_rasa_core_policies()
+            for policy in config['policies']:
+                if policy['name'] not in core_policies:
+                    raise AppException("Invalid policy " + policy['name'])
+        else:
+            raise AppException("You didn't define any policies")
 
     @staticmethod
     def get_rasa_core_policies():

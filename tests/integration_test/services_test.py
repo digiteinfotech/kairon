@@ -1732,7 +1732,7 @@ def test_set_config_policy_error():
     assert actual['data'] is None
     assert actual['error_code'] == 422
     assert actual[
-               'message'] == "Module for policy 'TestPolicy' could not be loaded. Please make sure the name is a valid policy."
+               'message'] == "Invalid policy TestPolicy"
     assert not actual['success']
 
 
@@ -1748,7 +1748,7 @@ def test_set_config_pipeline_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert str(actual['message']).__contains__("Failed to load the component 'TestFeaturizer")
+    assert str(actual['message']).__contains__("Invalid component TestFeaturizer")
     assert not actual['success']
 
 
