@@ -3,9 +3,8 @@ from fastapi import APIRouter
 from fastapi import Depends
 
 from kairon.api.auth import Authentication
-from kairon.api.models import Response, User, ListData, TextData
+from kairon.api.models import Response, User, ListData, TextData, GPTRequest
 from kairon.utils import Utility
-from augmentation.paraphrase.gpt3.models import GPTRequest
 
 router = APIRouter()
 auth = Authentication()
