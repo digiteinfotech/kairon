@@ -10,6 +10,7 @@ security:
 augmentation:
   paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrases"}
   question_generation_url: ${QUESTION_GENERATION_URL:"http://localhost:8000/questions"}
+  paraphrase_gpt_url: ${PARAPHRASE_GPT_URL:"http://localhost:8000/paraphrases/gpt"}
 
 model:
   train:

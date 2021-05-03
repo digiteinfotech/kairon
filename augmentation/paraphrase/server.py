@@ -10,6 +10,7 @@ from .gpt3.generator import GPT3ParaphraseGenerator
 from .gpt3.models import GPTRequest
 import uvicorn
 
+
 class Response(BaseModel):
     """ This class defines the variables (and their types) that will be defined in the response
         message when a HTTP error is detected """
