@@ -16,6 +16,7 @@ RUN python3 -m pip install requests
 RUN python3 -m pip install torch
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
+RUN python3 -m pip install openai
 
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation

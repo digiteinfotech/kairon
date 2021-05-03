@@ -1,0 +1,49 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "23:30"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: transformers
+    versions:
+    - 4.2.2
+    - 4.3.0
+    - 4.3.2
+    - 4.3.3
+    - 4.4.1
+    - 4.4.2
+    - 4.5.0
+  - dependency-name: pytest
+    versions:
+    - 6.2.2
+  - dependency-name: pymupdf
+    versions:
+    - 1.18.10
+    - 1.18.6
+    - 1.18.7
+    - 1.18.8
+    - 1.18.9
+  - dependency-name: mongoengine
+    versions:
+    - 0.22.1
+    - 0.23.0
+  - dependency-name: pandas
+    versions:
+    - 1.2.1
+    - 1.2.2
+    - 1.2.3
+  - dependency-name: pyjwt
+    versions:
+    - 2.0.1
+  - dependency-name: uvicorn
+    versions:
+    - 0.13.3
+  - dependency-name: pytest-xdist
+    versions:
+    - 2.2.0
+  - dependency-name: pytest-html
+    versions:
+    - 3.1.1

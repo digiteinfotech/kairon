@@ -5,3 +5,5 @@ paraphrase
    :maxdepth: 4
 
    paraphrasing
+
+   gpt3/index
