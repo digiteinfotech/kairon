@@ -15,7 +15,7 @@ test:
     - python3.7 -m pip install pip==20.2.4
     - python3.7 -m pip install -r requirements.txt
     - python3.7 -m pip install git+https://github.com/sfahad1414/question_generation.git
-    - python3.7 -m pytest --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/load_test/
+    - python3.7 -m pytest tests --html=report.html --cov=kairon tests/ --cov-report html:coverage_html --ignore tests/load_test/
 
 build:
   tags:
