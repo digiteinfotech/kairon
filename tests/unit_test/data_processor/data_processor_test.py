@@ -34,7 +34,7 @@ from kairon.data_processor.processor import MongoProcessor, AgentProcessor, Mode
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
-
+from kairon.api.auth import Authentication
 
 class TestMongoProcessor:
 
@@ -1079,18 +1079,34 @@ class TestMongoProcessor:
         responses.add(
             responses.POST,
             "http://localhost/train",
-            status=200
+            status=200,
+            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": None})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("tests", "testUser")
         assert model_path is None
 
     @responses.activate
+    def test_start_training_done_using_event_and_token(self, monkeypatch):
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
+        responses.add(
+            responses.POST,
+            "http://localhost/train",
+            status=200,
+            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
+        model_path = start_training("tests", "testUser", token)
+        assert model_path is None
+
+    @responses.activate
     def test_start_training_done_reload_event(self, monkeypatch):
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
         responses.add(
             responses.GET,
             "http://localhost/api/bot/model/reload",
             json={"message": "Reloading Model!"},
+            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
             status=200
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
