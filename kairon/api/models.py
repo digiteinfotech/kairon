@@ -333,3 +333,12 @@ class FeedbackRequest(BaseModel):
     rating: float
     scale: float = 5
     feedback: str = None
+
+
+class GPTRequest(BaseModel):
+    api_key: str
+    data: list
+    engine: str = "davinci"
+    temperature: float = 0.75
+    max_tokens: int = 100
+    num_responses: int = 10
