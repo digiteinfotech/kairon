@@ -4,7 +4,7 @@ from io import BytesIO
 import pytest
 from fastapi import UploadFile
 from mongoengine import connect
-import yaml
+
 from kairon.utils import Utility
 
 

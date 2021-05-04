@@ -11,12 +11,12 @@ import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
 
-from kairon.action_server.data_objects import HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.api.data_objects import Bot
 from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
 from kairon.api.app.main import app
-from kairon.data_processor.constant import CUSTOM_ACTIONS, UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses
 from kairon.data_processor.processor import MongoProcessor, ModelProcessor, TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
@@ -66,8 +66,7 @@ def test_account_registration_error():
         },
     )
     actual = response.json()
-    assert actual[
-               "message"] == '''1 validation error for Request\nbody -> password\n  Missing 1 uppercase letter (type=value_error)'''
+    assert actual["message"] == [{'loc': ['body', 'password'], 'msg': 'Missing 1 uppercase letter', 'type': 'value_error'}]
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -145,7 +144,7 @@ def test_upload_missing_data():
     actual = response.json()
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
     )
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -176,7 +175,7 @@ def test_upload_error():
     actual = response.json()
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> nlu\n  field required (type=value_error.missing)"
+            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
     )
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -743,7 +742,7 @@ def test_add_story_empty_event():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Steps are required to form story (type=value_error)"
+    assert actual["message"] ==  [{'loc': ['body', 'steps'], 'msg': 'Steps are required to form story', 'type': 'value_error'}]
 
 
 def test_add_story_lone_intent():
@@ -762,7 +761,7 @@ def test_add_story_lone_intent():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Intent should be followed by utterance or action (type=value_error)"
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': 'Intent should be followed by utterance or action', 'type': 'value_error'}]
 
 
 def test_add_story_consecutive_intents():
@@ -781,7 +780,7 @@ def test_add_story_consecutive_intents():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  Found 2 consecutive intents (type=value_error)"
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': 'Found 2 consecutive intents', 'type': 'value_error'}]
 
 
 def test_add_story_multiple_actions():
@@ -798,9 +797,9 @@ def test_add_story_multiple_actions():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  You can have only one Http action against an intent (type=value_error)"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Story added successfully"
 
 
 def test_add_story_utterance_as_first_step():
@@ -819,7 +818,7 @@ def test_add_story_utterance_as_first_step():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "1 validation error for Request\nbody -> steps\n  First step should be an intent (type=value_error)"
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': 'First step should be an intent', 'type': 'value_error'}]
 
 
 def test_add_story_missing_event_type():
@@ -836,7 +835,7 @@ def test_add_story_missing_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  field required (type=value_error.missing)"
+            == [{'loc': ['body', 'steps', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
     )
 
 
@@ -857,7 +856,7 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION' (type=type_error.enum; enum_values=[<StoryStepType.intent: 'INTENT'>, <StoryStepType.bot: 'BOT'>, <StoryStepType.http_action: 'HTTP_ACTION'>])"
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION']}, 'loc': ['body', 'steps', 0, 'type'], 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION'", 'type': 'type_error.enum'}]
     )
 
 
@@ -897,7 +896,7 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == "1 validation error for Request\nbody -> steps -> 0 -> type\n  value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION' (type=type_error.enum; enum_values=[<StoryStepType.intent: 'INTENT'>, <StoryStepType.bot: 'BOT'>, <StoryStepType.http_action: 'HTTP_ACTION'>])"
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION']}, 'loc': ['body', 'steps', 0, 'type'], 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION'", 'type': 'type_error.enum'}]
     )
 
 
@@ -917,7 +916,6 @@ def test_delete_story():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Story added successfully"
-    assert actual["data"]["_id"]
 
     response = client.delete(
         "/api/bot/stories/test_path1",
@@ -1551,7 +1549,7 @@ def test_save_endpoint_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == '1 validation error for Request\nbody\n  field required (type=value_error.missing)'
+    assert actual['message'] == [{'loc': ['body'], 'msg': 'field required', 'type': 'value_error.missing'}]
     assert not actual['success']
 
 
@@ -2576,119 +2574,6 @@ def test_delete_http_action_non_existing():
     assert actual["message"]
     assert not actual["success"]
 
-
-def test_add_story_for_action():
-    response = client.post(
-        "/api/bot/intents",
-        json={"data": "test_add_story_for_action_intent"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["data"]["_id"]
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Intent added successfully!"
-
-    request_body = {
-        "auth_token": "",
-        "action_name": "test_add_story_for_action",
-        "response": "string",
-        "http_url": "http://www.google.com",
-        "request_method": "GET",
-        "http_params_list": [{
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
-        }]
-    }
-
-    response = client.post(
-        url="/api/bot/action/httpaction",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["message"]
-    assert actual["success"]
-
-    response = client.post(
-        "/api/bot/stories/simple/action",
-        json={
-            "action": "test_add_story_for_action",
-            "intent": "test_add_story_for_action_intent"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
-    assert actual["data"]["_id"]
-
-
-def test_add_story_for_action_get_utterance_from_intent():
-    response = client.get(
-        "/api/bot/utterance_from_intent/test_add_story_for_action_intent",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]["name"] == "test_add_story_for_action"
-    assert actual["data"]["type"] == UTTERANCE_TYPE.HTTP
-    assert Utility.check_empty_string(actual["message"])
-
-
-def test_add_story_for_action_empty_action():
-    response = client.post(
-        "/api/bot/stories/simple/action",
-        json={
-            "action": "",
-            "intent": "test_add_story_for_action_intent"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Action and intent cannot be empty"
-
-
-def test_add_story_for_action_empty_intent():
-    response = client.post(
-        "/api/bot/stories/simple/action",
-        json={
-            "action": "",
-            "intent": "test_add_story_for_action_intent"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Action and intent cannot be empty"
-
-
-def test_add_story_for_action_delete_action_and_story():
-    response = client.delete(
-        url="/api/bot/action/httpaction/test_add_story_for_action",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["message"]
-    assert actual["success"]
-
-    response = client.delete(
-        "/api/bot/stories/test_add_story_for_action",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Story deleted successfully"
-
 @responses.activate
 def test_train_using_event(monkeypatch):
     responses.add(
@@ -3156,4 +3041,4 @@ def test_feedback():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]
-    assert actual["message"] == 'Thanks for the feedback!'
+    assert actual["message"] == 'Thanks for your feedback!'

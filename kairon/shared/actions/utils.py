@@ -10,7 +10,7 @@ from mongoengine import DoesNotExist, connect
 from rasa_sdk import Tracker
 from smart_config import ConfigLoader
 
-from .action_models import ParameterType
+from .models import ParameterType
 from .data_objects import HttpActionConfig, HttpActionRequestBody
 from .exception import HttpActionFailure
 
@@ -131,15 +131,13 @@ class ActionUtility:
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True).to_mongo().to_dict()
             logger.debug("http_action_config: " + str(http_config_dict))
-            if dict is None:
-                raise DoesNotExist
         except DoesNotExist:
             raise HttpActionFailure("No HTTP action found for bot " + bot + " and action " + action_name)
 
         return http_config_dict
 
     @staticmethod
-    def retrieve_value_from_response(grouped_keys: List[str], http_response: dict):
+    def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
         """
         Retrieves values for user defined placeholders
         :param grouped_keys: List of user defined keys
@@ -193,17 +191,11 @@ class ActionUtility:
             return parsed_output
         keys_without_placeholders = [plcehlder.lstrip("${").rstrip("}") for plcehlder in keys_with_placeholders]
 
-        try:
-            if not isinstance(http_response, dict):
-                http_response_as_json = json.loads(http_response)
-            else:
-                http_response_as_json = http_response
-        except ValueError as e:
-            logging.error(e)
+        if type(http_response) not in [dict, list]:
             if keys_with_placeholders is not None:
                 raise HttpActionFailure("Could not find value for keys in response")
-            return parsed_output
-        value_mapping = ActionUtility.retrieve_value_from_response(keys_without_placeholders, http_response_as_json)
+
+        value_mapping = ActionUtility.retrieve_value_from_response(keys_without_placeholders, http_response)
         for key in value_mapping:
             value_for_placeholder = value_mapping[key]
             if isinstance(value_for_placeholder, dict):

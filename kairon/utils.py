@@ -48,7 +48,7 @@ from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
 
-from .action_server.data_objects import HttpActionConfig
+from .shared.actions.data_objects import HttpActionConfig
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
@@ -511,6 +511,22 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.update(**update)
+
+    @staticmethod
+    def hard_delete_document(documents: List[Document], bot: Text, user: Text, **kwargs):
+        """
+        perform hard delete on list of mongo collections
+
+        :param documents: list of mongo collections
+        :param bot: bot id
+        :param user: user id
+        :return: NONE
+        """
+        for document in documents:
+            kwargs['bot'] = bot
+            fetched_documents = document.objects(**kwargs)
+            if fetched_documents.count() > 0:
+                fetched_documents.delete()
 
 
     @staticmethod

@@ -14,10 +14,8 @@ from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Chec
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
-from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
-from kairon.api.auth import Authentication
-from kairon.api.data_objects import Feedback
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
 from kairon.data_processor.data_objects import (TrainingExamples,
@@ -28,13 +26,14 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator, Rules
+                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback
                                                 )
 from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
     TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
+from kairon.api.auth import Authentication
 
 
 class TestMongoProcessor:
@@ -67,8 +66,10 @@ class TestMongoProcessor:
         assert result is None
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
-        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True))) == 2
-        assert len(list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False))) == 7
+        assert len(
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
+        assert len(
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 7
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -78,10 +79,10 @@ class TestMongoProcessor:
     async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
         await (
-                processor.save_from_path(
-                    "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
-                )
+            processor.save_from_path(
+                "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
             )
+        )
         training_data = processor.load_nlu("test_load_from_path_yml_training_files")
         assert isinstance(training_data, TrainingData)
         assert training_data.training_examples.__len__() == 292
@@ -107,12 +108,14 @@ class TestMongoProcessor:
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
         assert domain.intent_properties.__len__() == 29
-        assert len([intent for intent in domain.intent_properties.keys() if domain.intent_properties.get(intent)['used_entities']]) == 27
-        assert len([intent for intent in domain.intent_properties.keys() if not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 39
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -820,7 +823,7 @@ class TestMongoProcessor:
         )
         assert id_add
 
-    async def test_train_model(self):
+    def test_train_model(self):
         model = train_model_for_bot("tests")
         assert model
 
@@ -991,13 +994,33 @@ class TestMongoProcessor:
 
     def test_get_stories(self):
         processor = MongoProcessor()
-        stories = list(processor.get_stories("tests", "testUser"))
+        stories = list(processor.get_stories("tests"))
         assert stories.__len__() == 8
         assert stories[0]['name'] == 'happy path'
         assert stories[0]['steps'][0]['name'] == 'greet'
         assert stories[0]['steps'][0]['type'] == 'INTENT'
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
+
+    def test_add_stories_with_action(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greet", "type": "user"},
+            {"name": "action_check_day", "type": "action"},
+            {"name": "utter_greet", "type": "action"},
+            {"name": "mood_great", "type": "user"},
+            {"name": "utter_greet", "type": "action"},
+        ]
+        processor.add_story("happy path", events, "test_with_action", "testUser")
+        stories = list(processor.get_stories("test_with_action"))
+        assert stories.__len__() == 1
+        assert stories[0]['name'] == 'happy path'
+        assert stories[0]['steps'][0]['name'] == 'greet'
+        assert stories[0]['steps'][0]['type'] == 'INTENT'
+        assert stories[0]['steps'][1]['name'] == 'action_check_day'
+        assert stories[0]['steps'][1]['type'] == 'ACTION'
+        assert stories[0]['steps'][2]['name'] == 'utter_greet'
+        assert stories[0]['steps'][2]['type'] == 'BOT'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -1071,9 +1094,11 @@ class TestMongoProcessor:
     def test_edit_responses_case_insensitivity(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
-        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests", user="testUser")
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests",
+                                     user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
-        assert any(response['value']['text'] == "That's Great!" for response in responses if "text" in response['value'])
+        assert any(
+            response['value']['text'] == "That's Great!" for response in responses if "text" in response['value'])
 
     @responses.activate
     def test_start_training_done_using_event(self, monkeypatch):
@@ -1108,6 +1133,18 @@ class TestMongoProcessor:
             "http://localhost/api/bot/model/reload",
             json={"message": "Reloading Model!"},
             match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
+            status=200
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
+        model_path = start_training("tests", "testUser")
+        assert model_path
+
+    def test_start_training_done_reload_event_without_token(self, monkeypatch):
+        responses.add(
+            responses.GET,
+            "http://localhost/api/bot/model/reload",
+            json={"message": "Reloading Model!"},
+            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": None})],
             status=200
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
@@ -1276,7 +1313,7 @@ class TestMongoProcessor:
         user = 'test_user'
         processor.add_slot({"name": "bot", "type": "unfeaturized", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        slot = Slots.objects(name__iexact='bot',bot=bot, user=user).get()
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
         assert slot['name'] == 'bot'
         assert slot['type'] == 'unfeaturized'
         assert slot['initial_value'] is None
@@ -1291,8 +1328,9 @@ class TestMongoProcessor:
         assert not slot['influence_conversation']
 
         with pytest.raises(AppException):
-            msg = processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
-            assert msg ==  'Slot exists'
+            msg = processor.add_slot(
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
+            assert msg == 'Slot exists'
 
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()
@@ -1332,10 +1370,10 @@ class TestMongoProcessor:
         events = [UserUttered(text="greet", intent=intent),
                   ActionExecuted(action_name="utter_greet")]
         story_steps = [RuleStep(block_name="rule1",
-                               start_checkpoints=[Checkpoint("START")],
-                               end_checkpoints=[Checkpoint("END")],
-                               events=events,
-                               condition_events_indices={0}),
+                                start_checkpoints=[Checkpoint("START")],
+                                end_checkpoints=[Checkpoint("END")],
+                                events=events,
+                                condition_events_indices={0}),
                        RuleStep(block_name="rule2",
                                 start_checkpoints=[Checkpoint("START")],
                                 end_checkpoints=[Checkpoint("END")],
@@ -1364,7 +1402,7 @@ class TestMongoProcessor:
               start_checkpoints=["START"],
               end_checkpoints=["END"],
               events=[StoryEvents(name="greet", type="user"),
-                    StoryEvents(name="utter_greet", type="action")],
+                      StoryEvents(name="utter_greet", type="action")],
               condition_events_indices={0}, bot="test_save_rules_already_present", user="rules_creator").save()
         story_steps = [RuleStep(block_name="rule1",
                                 start_checkpoints=[Checkpoint("START")],
@@ -1446,11 +1484,13 @@ class TestMongoProcessor:
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save",
+                                        "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
-        assert len(list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_rules(self):
@@ -1465,12 +1505,14 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save",
+                                        "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(
-            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator", status=True))) == 2
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
 
     @pytest.mark.asyncio
@@ -1563,8 +1605,9 @@ class TestMongoProcessor:
 
     def test_validate_http_action_empty_params_list_3(self):
         test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                                       {"key": 'username', "parameter_type": 'slot', "value": ''}],
+                                       "params_list": [
+                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                           {"key": 'username', "parameter_type": 'slot', "value": ''}],
                                        "request_method": "GET", "response": "${RESPONSE}"}]}
         processor = MongoProcessor()
         processor.validate_http_file(test_dict)
@@ -1617,7 +1660,8 @@ class TestMongoProcessor:
                          bot='test', user='test').save()
         processor = MongoProcessor()
         processor.save_http_action(test_dict, 'test', 'test')
-        action = HttpActionConfig.objects(bot='test', user='test').get(action_name="test_save_http_action_already_exists")
+        action = HttpActionConfig.objects(bot='test', user='test').get(
+            action_name="test_save_http_action_already_exists")
         assert action
         assert action['http_url'] == "http://kairon.ai"
         assert not action['params_list']
@@ -1637,34 +1681,50 @@ class TestMongoProcessor:
         expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-        HttpActionLog(intent="intent2", action="http_action", sender="sender_id", url="http://kairon-api.digite.com/api/bot",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
         HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                      timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
+        HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
+                      url="http://kairon-api.digite.com/api/bot",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                      status="FAILURE").save()
+        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot_2).save()
         HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                      status="FAILURE").save()
         HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                      status="FAILURE").save()
         HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot_2).save()
         HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response",
+                      bot=bot).save()
         HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
+                      status="FAILURE").save()
         HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
-                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot, status="FAILURE").save()
+                      request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                      status="FAILURE").save()
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
@@ -1771,7 +1831,6 @@ class TestMongoProcessor:
         assert feedback[1]['timestamp']
 
 
-
 # pylint: disable=R0201
 class TestAgentProcessor:
 
@@ -1821,7 +1880,7 @@ class TestModelProcessor:
         model_training = ModelTraining.objects(bot="tests", status="Done")
         ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
         index = ids.index(training_status_inprogress_id)
-        assert model_training.count() == 3
+        assert model_training.count() == 4
         assert training_status_inprogress_id in ids
         assert model_training[index].bot == "tests"
         assert model_training[index].user == "testUser"
@@ -1873,7 +1932,7 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 6)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 
@@ -1954,72 +2013,12 @@ class TestModelProcessor:
     def test_delete_intent_with_examples_stories_utterance(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.add_training_example(["hello","hi"],"TestingDelGreeting","tests", "testUser", is_integration=False)
+        processor.add_training_example(["hello", "hi"], "TestingDelGreeting", "tests", "testUser", is_integration=False)
         processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         actual = processor.get_intents("tests")
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
         actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
         assert len(actual) == 0
-
-    def test_prepare_and_add_story(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        action = 'test_action'
-        user = 'test_user'
-        intent = "greet_http_action"
-        processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
-        story = Stories.objects(block_name=action, bot=bot, status=True).get(block_name__iexact=action)
-
-        assert story['events'] is not None
-        assert story['events'][0] is not None
-        assert story['events'][0]['name'] == intent
-        assert story['events'][0]['type'] == StoryEventType.user
-        assert story['events'][1]['name'] == "bot"
-        assert story['events'][1]['type'] == StoryEventType.slot
-        assert story['events'][1]['value'] == bot
-        assert story['events'][2]['name'] == "http_action_config"
-        assert story['events'][2]['type'] == StoryEventType.slot
-        assert story['events'][2]['value'] == action
-        assert story['events'][3]['name'] == "kairon_http_action"
-        assert story['events'][3]['type'] == StoryEventType.action
-
-    def test_prepare_and_add_story_no_bot(self):
-        processor = MongoProcessor()
-        bot = None
-        action = 'test_action'
-        user = 'test_user'
-        event_name = "greet_http_action"
-        intent = "test"
-        try:
-            processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
-            assert False
-        except AppException as e:
-            assert str(e).__contains__("Story, bot and user are required")
-
-    def test_prepare_and_add_story_no_user(self):
-        processor = MongoProcessor()
-        bot = "bot"
-        action = 'test_action'
-        user = None
-        intent = "greet_http_action"
-        try:
-            processor.prepare_and_add_story(story=action, intent=intent, bot=bot, user=user)
-            assert False
-        except AppException as e:
-            assert str(e).__contains__("Story, bot and user are required")
-
-    def test_prepare_and_add_story_no_story(self):
-        processor = MongoProcessor()
-        bot = "bot"
-        story = None
-        user = "test_user"
-        event_name = "greet_http_action"
-        intent = "test"
-        try:
-            processor.prepare_and_add_story(story=story, intent=intent, bot=bot, user=user)
-            assert False
-        except AppException as e:
-            assert str(e).__contains__("Story, bot and user are required")
 
     def test_delete_story(self):
         processor = MongoProcessor()
@@ -2111,7 +2110,7 @@ class TestModelProcessor:
             request_method=request_method,
             http_params_list=http_params_list
         )
-        processor.add_http_action_config(http_action_config, user, bot)
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
             action_name__iexact=action)
         assert actual_http_action is not None
@@ -2128,15 +2127,71 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=CUSTOM_ACTIONS.HTTP_ACTION_NAME)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
+    def test_add_http_action_config_missing_values(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_action_missing_values'
+        # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
+        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            auth_token=auth_token,
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            http_params_list=http_params_list
+        )
+        http_dict = http_action_config.dict()
+        http_dict['action_name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['action_name'] = action
+        http_dict['http_url'] = None
+        with pytest.raises(ValidationError, match="URL cannot be empty"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['http_url'] = "www.google.com"
+        with pytest.raises(ValidationError, match="URL is malformed"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['http_url'] = http_url
+        http_dict['request_method'] = "XYZ"
+        with pytest.raises(ValidationError, match="Invalid HTTP method"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['request_method'] = "GET"
+        http_dict['http_params_list'][0]['key'] = None
+        with pytest.raises(ValidationError, match="key in http action parameters cannot be empty"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['http_params_list'][0]['value'] = None
+        http_dict['http_params_list'][0]['key'] = "param1"
+        with pytest.raises(ValidationError, match="Provide name of the slot as value"):
+            processor.add_http_action_config(http_dict, user, bot)
 
     def test_list_http_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        actions = processor.list_http_actions(bot, user)
+        actions = processor.list_http_actions(bot)
         assert len(actions) == 1
+
+    def test_list_http_action_names(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        actions = processor.list_http_action_names(bot)
+        assert len(actions) == 1
+
+    def test_list_http_action_names_empty(self):
+        processor = MongoProcessor()
+        bot = 'test_bot1'
+        actions = processor.list_http_action_names(bot)
+        assert len(actions) == 0
 
     def test_add_http_action_config_existing(self):
         processor = MongoProcessor()
@@ -2168,7 +2223,7 @@ class TestModelProcessor:
             http_params_list=params
         )
         try:
-            processor.add_http_action_config(http_action_config, user, bot)
+            processor.add_http_action_config(http_action_config.dict(), user, bot)
             assert False
         except AppException as ex:
             assert str(ex).__contains__("Action exists")
@@ -2229,7 +2284,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         http_url = 'http://www.google.com'
-        action = 'test_get_http_action_config'
+        action = 'test_get_http_action_config1'
         auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
@@ -2244,7 +2299,7 @@ class TestModelProcessor:
             user=user
         ).save().to_mongo()
 
-        actual_test_user1 = processor.get_http_action_config(bot=bot, user="test_user", action_name=action)
+        actual_test_user1 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user1 is not None
         assert actual_test_user1['auth_token'] == auth_token
         assert actual_test_user1['action_name'] == action
@@ -2268,7 +2323,7 @@ class TestModelProcessor:
             user=user1
         ).save().to_mongo()
 
-        actual_test_user2 = processor.get_http_action_config(bot=bot, user="test_user", action_name=action)
+        actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['auth_token'] == auth_token
         assert actual_test_user2['action_name'] == action
@@ -2296,69 +2351,10 @@ class TestModelProcessor:
         ).save().to_mongo()
 
         try:
-            processor.get_http_action_config(bot=bot, user="test_user", action_name="action")
+            processor.get_http_action_config(bot=bot, action_name="action")
             assert False
         except AppException as e:
             assert str(e) == "No HTTP action found for bot test_bot and action action"
-
-    def test_update_story_non_existing(self):
-        processor = MongoProcessor()
-        user = "test_user"
-        story = "new_story"
-        bot = "bot"
-        story_event = [StoryEvents(name="greet", type="user")]
-        intent = "greet_again"
-        Stories(
-            block_name=story,
-            bot=bot,
-            user=user,
-            events=story_event
-        ).save(validate=False).to_mongo()
-        try:
-            processor.update_story(story="story", intent=intent, user=user, bot=bot)
-        except AppException as ex:
-            assert str(ex) == 'Story story does not exists'
-
-    def test_update_story(self):
-        processor = MongoProcessor()
-        user = "test_user"
-        story = "test_update_story"
-        bot = "bot"
-        story_event = [StoryEvents(name="greet", type="user")]
-        intent = "slap"
-        Stories(
-            block_name=story,
-            bot=bot,
-            user=user,
-            events=story_event
-        ).save(validate=False).to_mongo()
-        processor.update_story(story=story, intent=intent, user=user, bot=bot)
-        updated = Stories.objects(block_name=story, bot=bot, user=user, status=True).get(block_name__iexact=story)
-        assert updated is not None
-        assert updated.events[0].name == intent
-        assert updated.events[0].type == "user"
-        assert updated.events[0].value is None
-
-    def test_update_story_case_insensitive(self):
-        processor = MongoProcessor()
-        user = "test_user"
-        story = "test_update_story_cs"
-        bot = "bot"
-        story_event = [StoryEvents(name="greet", type="user")]
-        intent = "slap"
-        Stories(
-            block_name=story,
-            bot=bot,
-            user=user,
-            events=story_event
-        ).save(validate=False).to_mongo()
-
-        processor.update_story(story="Test_Update_Story_CS", intent=intent, user=user, bot=bot)
-        updated = Stories.objects(block_name=story, bot=bot, user=user, status=True).get(block_name__iexact=story)
-        assert updated is not None
-        assert updated.events[0].name == intent
-        assert updated.events[0].type == "user"
-        assert updated.events[0].value is None
 
     def test_update_http_config(self):
         processor = MongoProcessor()
@@ -2380,7 +2376,7 @@ class TestModelProcessor:
             request_method=request_method,
             http_params_list=http_params_list
         )
-        http_config_id = processor.add_http_action_config(http_action_config, user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
         assert http_config_id is not None
         http_url = 'http://www.alphabet.com'
         auth_token = ""
@@ -2399,7 +2395,7 @@ class TestModelProcessor:
         )
         processor.update_http_config(http_action_config, user, bot)
 
-        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, status=True).get(
             action_name__iexact=action)
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
@@ -2435,7 +2431,7 @@ class TestModelProcessor:
             request_method=request_method,
             http_params_list=http_params_list
         )
-        http_config_id = processor.add_http_action_config(http_action_config, user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
         assert http_config_id is not None
         bot = 'test_bot'
         http_url = 'http://www.alphabet.com'
@@ -2460,6 +2456,37 @@ class TestModelProcessor:
         except AppException as e:
             assert str(e) == 'No HTTP action found for bot test_bot and action test_update_http_config_invalid'
 
+    def test_add_complex_story_without_http_action(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        processor.add_complex_story("story without action", steps, "test_without_http", "testUser")
+        story = Stories.objects(block_name="story without action", bot="test_without_http").get()
+        assert len(story.events) == 5
+        actions = processor.list_actions("test_without_http")
+        assert actions == []
+
+    def test_add_complex_story_with_action(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "action_check", "type": "ACTION"},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        processor.add_complex_story("story with action", steps, "test_with_action", "testUser")
+        story = Stories.objects(block_name="story with action", bot="test_with_action").get()
+        assert len(story.events) == 6
+        actions = processor.list_actions("test_with_action")
+        assert actions == ["action_check"]
+
     def test_add_complex_story(self):
         processor = MongoProcessor()
         steps = [
@@ -2471,8 +2498,10 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         processor.add_complex_story("story with action", steps, "tests", "testUser")
-        story = Stories.objects(block_name="story with action").get()
+        story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
+        actions = processor.list_actions("tests")
+        assert actions == []
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -2549,7 +2578,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         processor.update_complex_story("story with action", steps, "tests", "testUser")
-        story = Stories.objects(block_name="story with action").get()
+        story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
     def test_case_insensitive_update_complex_story(self):
@@ -2565,7 +2594,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         processor.update_complex_story("STory with action", steps, "tests", "testUser")
-        story = Stories.objects(block_name="story with action").get()
+        story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
     def test_update_non_existing_complex_story(self):
@@ -2618,6 +2647,12 @@ class TestModelProcessor:
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.update_complex_story("empty path", [], "tests", "testUser")
+
+    def test_list_actions(self):
+        processor = MongoProcessor()
+        processor.add_action("reset_slot", "test_upload_and_save", "test_user")
+        actions = processor.list_actions("test_upload_and_save")
+        assert actions == ['reset_slot']
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()

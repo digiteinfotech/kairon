@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
-from kairon.action_server.data_objects import HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.api.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -14,7 +14,7 @@ from kairon.api.models import (
     Endpoint,
     Config,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
-    SimpleStoryRequest, FeedbackRequest
+    FeedbackRequest
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
@@ -185,7 +185,7 @@ async def get_all_responses(
     Fetches list of all utterances added.
     """
     return {
-        "data": list(mongo_processor.get_all_responses(current_user.get_bot(), current_user.get_user()))
+        "data": list(mongo_processor.get_all_responses(current_user.get_bot()))
     }
 
 
@@ -260,26 +260,6 @@ async def remove_responses(
     }
 
 
-@router.post("/stories/simple/action", response_model=Response)
-async def add_simple_story(
-        request_data: SimpleStoryRequest, current_user: User = Depends(auth.get_current_user)
-):
-    """
-    Adds a story (conversational flow) with just one intent and an http action against it.
-    """
-    if Utility.check_empty_string(request_data.action) or Utility.check_empty_string(request_data.intent):
-        raise AppException("Action and intent cannot be empty")
-    return {
-        "message": "Story added successfully",
-        "data": {
-            "_id": mongo_processor.prepare_and_add_story(story=request_data.action.lower(),
-                                                         intent=request_data.intent.lower(),
-                                                         bot=current_user.get_bot(),
-                                                         user=current_user.get_user())
-        },
-    }
-
-
 @router.post("/stories", response_model=Response)
 async def add_story(
         story: AddStoryRequest, current_user: User = Depends(auth.get_current_user)
@@ -325,7 +305,7 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
     """
     Fetches existing list of stories (conversation flows)
     """
-    return {"data": list(mongo_processor.get_stories(current_user.get_bot(), current_user.get_user()))}
+    return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
 
 
 @router.delete("/stories/{story}", response_model=Response)
@@ -481,7 +461,7 @@ async def upload_Files(
 
 
 @router.post("/upload/data_generation/file", response_model=Response)
-async def upload_file(
+async def upload_data_generation_file(
     background_tasks: BackgroundTasks,
     doc: UploadFile = File(...),
     current_user: User = Depends(auth.get_current_user)
@@ -640,7 +620,7 @@ async def add_http_action(request_data: HttpActionConfigRequest, current_user: U
     """
     Stores the http action config and story event
     """
-    http_config_id = mongo_processor.add_http_action_config(request_data, current_user.get_user(),
+    http_config_id = mongo_processor.add_http_action_config(request_data.dict(), current_user.get_user(),
                                                             current_user.get_bot())
     response = {"http_config_id": http_config_id}
     message = "Http action added!"
@@ -654,7 +634,6 @@ async def get_http_action(action: str = Path(default=None, description="action n
     Returns configuration set for the HTTP action
     """
     http_action_config = mongo_processor.get_http_action_config(action_name=action,
-                                                                           user=current_user.get_user(),
                                                                            bot=current_user.bot)
     action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
     return Response(data=action_config)
@@ -665,8 +644,7 @@ async def list_http_actions(current_user: User = Depends(auth.get_current_user))
     """
     Returns list of http actions for bot and user.
     """
-    actions = mongo_processor.list_http_actions(user=current_user.get_user(),
-                                                                           bot=current_user.bot)
+    actions = mongo_processor.list_http_actions(bot=current_user.bot)
     return Response(data=actions)
 
 
@@ -782,10 +760,10 @@ async def get_latest_data_generation_status(
 
 
 @router.post("/feedback", response_model=Response)
-async def send_confirm_link(feedback: FeedbackRequest, current_user: User = Depends(auth.get_current_user),):
+async def feedback(feedback: FeedbackRequest, current_user: User = Depends(auth.get_current_user),):
     """
     Receive feedback from user.
     """
     mongo_processor.add_feedback(feedback.rating, current_user.get_bot(), current_user.get_user(),
                                   feedback.scale, feedback.feedback)
-    return {"message": "Thanks for the feedback!"}
+    return {"message": "Thanks for your feedback!"}

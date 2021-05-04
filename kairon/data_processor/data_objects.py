@@ -12,7 +12,9 @@ from mongoengine import (
     DateTimeField,
     BooleanField,
     DictField,
-    DynamicField, IntField,
+    DynamicField,
+    IntField,
+    FloatField
 )
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import parse_uri
@@ -451,3 +453,12 @@ class TrainingDataGenerator(Document):
     end_timestamp = DateTimeField(default=None)
     response = ListField(EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None)
     exception = StringField(default=None)
+
+
+class Feedback(Document):
+    rating = FloatField(required=True)
+    scale = FloatField(default=5.0)
+    feedback = StringField(default=None)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

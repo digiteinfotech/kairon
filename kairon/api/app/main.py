@@ -1,6 +1,8 @@
+import json
+
 from loguru import logger as logging
 from time import time
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security.utils import get_authorization_scheme_param
@@ -115,12 +117,12 @@ async def http_exception_handler(request, exc):
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
+async def validation_exception_handler(request, exc: RequestValidationError):
     """ logs the RequestValidationError detected and returns the
         appropriate message and details of the error """
     logging.debug(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=exc.errors()).dict()
     )
 
 
