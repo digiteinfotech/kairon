@@ -1409,7 +1409,8 @@ def test_augment_paraphrase_gpt():
     )
     response = client.post(
         "/api/augment/paraphrases/gpt",
-        json={"data": ["Where is digite located?"], "api_key": "MockKey"}
+        json={"data": ["Where is digite located?"], "api_key": "MockKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
@@ -1440,7 +1441,8 @@ def test_augment_paraphrase_gpt_fail():
         )
     response = client.post(
         "/api/augment/paraphrases/gpt",
-        json={"data": ["Where is digite located?"], "api_key": "InvalidKey"}
+        json={"data": ["Where is digite located?"], "api_key": "InvalidKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
