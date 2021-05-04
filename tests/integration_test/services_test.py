@@ -1395,7 +1395,7 @@ def test_augment_paraphrase_gpt():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(json.dumps({"api_key": "MockKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75, "max_tokens": 100, "num_responses": 10}))],
+        match=[responses.json_params_matcher({"api_key": "MockKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75, "max_tokens": 100, "num_responses": 10})],
         json={
             "success": True,
             "data": {
@@ -1429,8 +1429,8 @@ def test_augment_paraphrase_gpt_fail():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(json.dumps({"api_key": "InvalidKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
-             "max_tokens": 100, "num_responses": 10}))],
+        match=[responses.json_params_matcher({"api_key": "InvalidKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
+             "max_tokens": 100, "num_responses": 10})],
         json={
                 "success": False,
                 "data": None,
