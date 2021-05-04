@@ -35,7 +35,7 @@ def test_generate_questions_empty_api_key(monkeypatch):
     request_data = GPTRequest(api_key="",
                               data=["Are there any more test questions?"], num_responses=2)
 
-    with pytest.raises(AppException):
+    with pytest.raises(Exception):
         gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
         gpt3_generator.paraphrases()
 
@@ -45,10 +45,23 @@ def test_generate_questions_empty_data(monkeypatch):
 
     request_data = GPTRequest(api_key="MockKey",
                               data=[""], num_responses=2)
-
-    with pytest.raises(AppException):
+    with pytest.raises(Exception):
         gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
         gpt3_generator.paraphrases()
+
+    request_data = GPTRequest(api_key="MockKey",
+                              data=["Are there any more test questions?", "Are there more questions?", ""],
+                              num_responses=2)
+    with pytest.raises(Exception):
+        gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
+        gpt3_generator.paraphrases()
+
+    request_data = GPTRequest(api_key="MockKey",
+                              data=["Are there any more test questions?", "Are there more questions?"],
+                              num_responses=2)
+    gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
+    resp = gpt3_generator.paraphrases()
+    assert resp == {'Response text from gpt3'}
 
 
 def test_generate_questions_invalid_api_key():

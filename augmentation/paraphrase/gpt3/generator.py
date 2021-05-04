@@ -1,7 +1,5 @@
 from .gpt import GPT, Example
 from .models import GPTRequest
-from kairon.utils import Utility
-from kairon.exceptions import AppException
 
 
 class GPT3ParaphraseGenerator:
@@ -33,11 +31,15 @@ class GPT3ParaphraseGenerator:
         # run loop for each question in data var
         questions_set = set()
 
-        if Utility.check_empty_string(self.api_key):
-            raise AppException("API key cannot be empty.")
+        if not self.api_key:
+            raise Exception("API key cannot be empty.")
 
-        if Utility.check_empty_list_elements(self.data):
-            raise AppException("Questions data cannot be empty.")
+        if self.data:
+            data_present = all([example for example in self.data])
+            if not data_present:
+                raise Exception("Questions data cannot be empty.")
+        else:
+            raise Exception("Questions data cannot be empty.")
 
         for text in self.data:
             output = self.gpt.submit_request(text, self.num_responses, self.api_key)
