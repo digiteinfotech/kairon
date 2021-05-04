@@ -664,13 +664,36 @@ class Utility:
         :param config: configuration
         :return: None
         """
-        rasa_config = RasaNLUModelConfig(config)
-        component_builder = ComponentBuilder()
-        for i in range(len(rasa_config.pipeline)):
-            component_cfg = rasa_config.for_component(i)
-            component_builder.create_component(component_cfg, rasa_config)
+        from rasa.nlu.registry import registered_components as nlu_components
+        if config['pipeline']:
+            for item in config['pipeline']:
+                component_cfg = item['name']
+                if not (component_cfg in nlu_components or
+                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter"]):
+                    raise AppException("Invalid component " + component_cfg)
+        else:
+            raise AppException("You didn't define any pipeline")
 
-        configuration.load(config)
+        if config['policies']:
+            core_policies = Utility.get_rasa_core_policies()
+            for policy in config['policies']:
+                if policy['name'] not in core_policies:
+                    raise AppException("Invalid policy " + policy['name'])
+        else:
+            raise AppException("You didn't define any policies")
+
+    @staticmethod
+    def get_rasa_core_policies():
+        from rasa.core.policies import registry
+        file1 = open(registry.__file__, 'r')
+        Lines = file1.readlines()
+        policy = []
+        for line in Lines:
+            if line.startswith("from"):
+                items = line.split("import")[1].split(",")
+                for item in items:
+                    policy.append(item.strip())
+        return policy
 
     @staticmethod
     def load_email_configuration():

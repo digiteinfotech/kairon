@@ -59,8 +59,9 @@ class Authentication:
             user_model.alias_user = alias_user
         return user_model
 
-    def create_access_token(self, *, data: dict, is_integration=False, token_expire: int=0):
-        expires_delta = timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
+    @staticmethod
+    def create_access_token( *, data: dict, is_integration=False, token_expire: int=0):
+        expires_delta = timedelta(minutes=Authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode = data.copy()
         if not is_integration:
             if expires_delta:
@@ -71,7 +72,7 @@ class Authentication:
                 else:
                     expire = datetime.utcnow() + timedelta(minutes=15)
             to_encode.update({"exp": expire})
-        encoded_jwt = encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
+        encoded_jwt = encode(to_encode, Authentication.SECRET_KEY, algorithm=Authentication.ALGORITHM)
         return encoded_jwt
 
     def __authenticate_user(self, username: str, password: str):
@@ -97,14 +98,14 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token = self.create_access_token(data={"sub": user["email"]})
+        access_token = Authentication.create_access_token(data={"sub": user["email"]})
         return access_token
 
     def generate_integration_token(self, bot: Text, account: int):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
         integration_user = AccountProcessor.get_integration_user(bot, account)
-        access_token = self.create_access_token(
+        access_token = Authentication.create_access_token(
             data={"sub": integration_user["email"]}, is_integration=True
         )
         return access_token

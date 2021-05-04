@@ -16,6 +16,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.action_server.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
+from kairon.api.auth import Authentication
 from kairon.api.data_objects import Feedback
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
 from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
@@ -1079,18 +1080,34 @@ class TestMongoProcessor:
         responses.add(
             responses.POST,
             "http://localhost/train",
-            status=200
+            status=200,
+            match=[responses.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
-        model_path = start_training("tests", "testUser")
+        model_path = start_training("test_event", "testUser")
+        assert model_path is None
+
+    @responses.activate
+    def test_start_training_done_using_event_and_token(self, monkeypatch):
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
+        responses.add(
+            responses.POST,
+            "http://localhost/train",
+            status=200,
+            match=[responses.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
+        )
+        monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
+        model_path = start_training("test_event_with_token", "testUser", token)
         assert model_path is None
 
     @responses.activate
     def test_start_training_done_reload_event(self, monkeypatch):
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
         responses.add(
             responses.GET,
             "http://localhost/api/bot/model/reload",
             json={"message": "Reloading Model!"},
+            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
             status=200
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")

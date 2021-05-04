@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import tarfile
@@ -1393,7 +1394,8 @@ def test_predict_intent_error():
 def test_augment_paraphrase_gpt():
     responses.add(
         responses.POST,
-        "http://localhost:8000/paraphrases/gpt",
+        url="http://localhost:8000/paraphrases/gpt",
+        match=[responses.json_params_matcher(json.dumps({"api_key": "MockKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75, "max_tokens": 100, "num_responses": 10}))],
         json={
             "success": True,
             "data": {
@@ -1403,7 +1405,7 @@ def test_augment_paraphrase_gpt():
             "message": None,
             "error_code": 0,
         },
-        status=200,
+        status=200
     )
     response = client.post(
         "/api/augment/paraphrases/gpt",
@@ -1426,14 +1428,16 @@ def test_augment_paraphrase_gpt_fail():
     key_error_message = "Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com."
     responses.add(
         responses.POST,
-        "http://localhost:8000/paraphrases/gpt",
+        url="http://localhost:8000/paraphrases/gpt",
+        match=[responses.json_params_matcher(json.dumps({"api_key": "InvalidKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
+             "max_tokens": 100, "num_responses": 10}))],
         json={
-            "success": False,
-            "data": None,
-            "message": key_error_message,
-        },
-        status=200,
-    )
+                "success": False,
+                "data": None,
+                "message": key_error_message,
+            },
+            status=200,
+        )
     response = client.post(
         "/api/augment/paraphrases/gpt",
         json={"data": ["Where is digite located?"], "api_key": "InvalidKey"}
@@ -1469,11 +1473,12 @@ def test_augment_paraphrase():
             "error_code": 0,
         },
         status=200,
+        match=[responses.json_params_matcher(["where is digite located?"])]
     )
     response = client.post(
         "/api/augment/paraphrases",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"data": ["where is digite located?'"]},
+        json={"data": ["where is digite located?"]},
     )
 
     actual = response.json()
@@ -1732,7 +1737,7 @@ def test_set_config_policy_error():
     assert actual['data'] is None
     assert actual['error_code'] == 422
     assert actual[
-               'message'] == "Module for policy 'TestPolicy' could not be loaded. Please make sure the name is a valid policy."
+               'message'] == "Invalid policy TestPolicy"
     assert not actual['success']
 
 
@@ -1748,7 +1753,7 @@ def test_set_config_pipeline_error():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert str(actual['message']).__contains__("Failed to load the component 'TestFeaturizer")
+    assert str(actual['message']).__contains__("Invalid component TestFeaturizer")
     assert not actual['success']
 
 
