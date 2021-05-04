@@ -44,6 +44,12 @@ def test_generate_questions_empty_data(monkeypatch):
     monkeypatch.setattr(openai.Completion, 'create', mock_create)
 
     request_data = GPTRequest(api_key="MockKey",
+                              data=[], num_responses=2)
+    with pytest.raises(Exception):
+        gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
+        gpt3_generator.paraphrases()
+
+    request_data = GPTRequest(api_key="MockKey",
                               data=[""], num_responses=2)
     with pytest.raises(Exception):
         gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
