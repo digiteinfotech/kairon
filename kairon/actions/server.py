@@ -4,7 +4,7 @@ from tornado.options import parse_command_line
 from .handlers.index import MainHandler
 from .handlers.action import ActionHandler
 from ..shared.actions.utils import ActionUtility
-
+from loguru import logger
 
 def make_app():
     return Application([
@@ -18,5 +18,5 @@ if __name__ == "__main__":
     app = make_app()
     app.listen(5055)
     parse_command_line()
-    print("Server Started")
+    logger.info("Server Started")
     IOLoop.current().start()

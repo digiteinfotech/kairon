@@ -8,8 +8,7 @@ from ...shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
 from ...shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from ...shared.actions.exception import HttpActionFailure
 from ...shared.actions.utils import ActionUtility
-import logging
-
+from loguru import logger
 
 class ActionProcessor:
 
@@ -30,10 +29,10 @@ class ActionProcessor:
         status = "SUCCESS"
         http_url = None
         try:
-            logging.debug(tracker.current_slot_values())
+            logger.info(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
-            logging.debug("intent: " + str(intent))
-            logging.debug("tracker.latest_message: " + str(tracker.latest_message))
+            logger.info("intent: " + str(intent))
+            logger.info("tracker.latest_message: " + str(tracker.latest_message))
             bot_id = tracker.get_slot("bot")
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
                 raise HttpActionFailure("Bot id and HTTP action configuration name not found in slot")
@@ -42,19 +41,19 @@ class ActionProcessor:
                                                                                         action_name=action)
             http_url = http_action_config['http_url']
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
-            logging.debug("request_body: " + str(request_body))
+            logger.info("request_body: " + str(request_body))
             http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
                                                                http_url=http_action_config['http_url'],
                                                                request_method=http_action_config['request_method'],
                                                                request_body=request_body)
-            logging.debug("http response: " + str(http_response))
+            logger.info("http response: " + str(http_response))
 
             bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
-            logging.debug("response: " + str(bot_response))
+            logger.info("response: " + str(bot_response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
             exception = str(e)
-            logging.error(exception)
+            logger.exception(e)
             status = "FAILURE"
             bot_response = "I have failed to process your request"
         finally:
