@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
-import yaml
 from fastapi import File
 from loguru import logger as logging
 from mongoengine import Document, Q
@@ -25,7 +24,7 @@ from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
 from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file
+from rasa.shared.utils.io import read_config_file, read_yaml_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
@@ -64,12 +63,16 @@ from .data_objects import (
     Slots,
     StoryEvents,
     ModelTraining,
-    ModelDeployment, TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, Rules,
+    ModelDeployment,
+    TrainingDataGenerator,
+    TrainingDataGeneratorResponse,
+    TrainingExamplesTrainingDataGenerator,
+    Rules,
+    Feedback
 )
-from ..action_server.action_models import KAIRON_ACTION_RESPONSE_SLOT
-from ..action_server.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
+from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
-from ..api.data_objects import Feedback
 from ..api.models import StoryEventType, HttpActionConfigRequest
 
 
@@ -123,6 +126,22 @@ class MongoProcessor:
         http_action = self.load_http_action(bot)
         return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, http_action)
 
+    async def apply_template(self, template: Text, bot: Text, user: Text):
+        """
+        apply use-case template
+
+        :param template: use-case template name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: raise AppException
+        """
+        use_case_path = os.path.join("./template/use-cases", template)
+        if os.path.exists(use_case_path):
+            await self.save_from_path(path=use_case_path, bot=bot, user=user)
+        else:
+            raise AppException("Invalid template!")
+
     async def save_from_path(
             self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
@@ -158,30 +177,14 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
             self.save_http_action(http_actions, bot, user)
         except InvalidDomain as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(
                 """Failed to validate yaml file.
                             Please make sure the file is initial and all mandatory parameters are specified"""
             )
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(e)
-
-    async def apply_template(self, template: Text, bot: Text, user: Text):
-        """
-        apply use-case template
-
-        :param template: use-case template name
-        :param bot: bot id
-        :param user: user id
-        :return: None
-        :raises: raise AppException
-        """
-        use_case_path = os.path.join("./template/use-cases", template)
-        if os.path.exists(use_case_path):
-            await self.save_from_path(path=use_case_path, bot=bot, user=user)
-        else:
-            raise AppException("Invalid template!")
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -248,7 +251,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document(
+        Utility.hard_delete_document(
             [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], user=user, bot=bot
         )
 
@@ -295,11 +298,11 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document(
+        Utility.hard_delete_document(
             [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
         )
 
-    def load_domain(self, bot: Text) -> Dict:
+    def load_domain(self, bot: Text) -> Domain:
         """
         loads domain data for training
 
@@ -338,7 +341,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([Stories], bot=bot, user=user)
+        Utility.hard_delete_document([Stories], bot=bot, user=user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """
@@ -372,9 +375,9 @@ class MongoProcessor:
         for training_example in training_examples:
             if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
-                training_data.intent = training_example.data[
+                training_data.intent = str(training_example.data[
                     TRAINING_EXAMPLE.INTENT.value
-                ]
+                ])
                 training_data.text = training_example.data['text']
                 training_data.bot = bot
                 training_data.user = user
@@ -553,7 +556,7 @@ class MongoProcessor:
             if intent not in saved_intents:
                 entities = intents[intent].get('used_entities')
                 use_entities = True if entities else False
-                yield Intents(name=intent, bot=bot, user=user, use_entities=use_entities)
+                yield Intents(name=intent.strip(), bot=bot, user=user, use_entities=use_entities)
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
@@ -715,10 +718,10 @@ class MongoProcessor:
                 session.save()
 
         except NotUniqueError as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Session Config already exists for the bot")
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Internal Server Error")
 
     def fetch_session_config(self, bot: Text):
@@ -979,7 +982,6 @@ class MongoProcessor:
                 yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
-                ## metadata={"type": Any, "initial_value": event.value})
 
     def fetch_stories(self, bot: Text, status=True):
         """
@@ -1034,6 +1036,7 @@ class MongoProcessor:
             configs["user"] = user
             config_obj = Configs._from_son(configs)
         except Exception as e:
+            logging.exception(e)
             raise AppException(e)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
@@ -1045,7 +1048,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([Configs], bot=bot, user=user)
+        Utility.hard_delete_document([Configs], bot=bot, user=user)
 
     def fetch_configs(self, bot: Text):
         """
@@ -1402,10 +1405,10 @@ class MongoProcessor:
             doc.timestamp = datetime.utcnow()
             doc.save(validate=False)
         except DoesNotExist as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Unable to remove document")
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Unable to remove document")
 
     def __prepare_document_list(self, documents: List[Document], field: Text):
@@ -1471,7 +1474,7 @@ class MongoProcessor:
                 status=True
         ):
             action = (
-                Actions(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
+                Actions(name=name.strip().lower(), bot=bot, user=user).save().to_mongo().to_dict()
             )
             return action["_id"].__str__()
         else:
@@ -1631,9 +1634,9 @@ class MongoProcessor:
 
         return saved_items
 
-    def get_all_responses(self, bot: Text, user: Text):
+    def get_all_responses(self, bot: Text):
         responses = list(
-            Responses.objects(bot=bot, user=user, status=True).order_by("-timestamp").aggregate(
+            Responses.objects(bot=bot, status=True).order_by("-timestamp").aggregate(
                 [
                     {
                         "$group": {
@@ -1704,6 +1707,27 @@ class MongoProcessor:
                 .__str__()
         )
 
+    def __complex_story_prepare_steps(self, steps: List[Dict], bot, user):
+        """
+        convert kairon story events to rasa story events
+        :param steps: list of story steps
+        :return: rasa story events list
+        """
+
+        events = []
+        for step in steps:
+            if step['type'] == "INTENT":
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type="user"))
+            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION"]:
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type="action"))
+                if step['type']  == "ACTION":
+                    self.add_action(step['name'], bot, user, raise_exception=False)
+        return events
+
     def add_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
         """
         save story in mongodb
@@ -1725,26 +1749,7 @@ class MongoProcessor:
         if not steps:
             raise AppException("Story steps are required")
 
-        events = []
-        intent = None
-        slots = []
-        for step in steps:
-            if step['type'] == "INTENT":
-                events.append(StoryEvents(
-                    name=step['name'].strip().lower(),
-                    type="user"))
-                intent = step['name'].strip().lower()
-            elif step['type'] == "BOT":
-                events.append(StoryEvents(
-                    name=step['name'].strip().lower(),
-                    type="action"))
-            elif step['type'] == "HTTP_ACTION":
-                events.append(StoryEvents(
-                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(),
-                    type="action"))
-                slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-                slot = {"name": slot_name, "value": step['name']}
-                slots.append(slot)
+        events = self.__complex_story_prepare_steps(steps, bot, user)
 
         story_id = (
             Stories(
@@ -1758,10 +1763,7 @@ class MongoProcessor:
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
-        for slot in slots:
-            self.add_slot(
-                {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception_if_exists=False)
+
         return story_id
 
     def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
@@ -1787,37 +1789,11 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Story does not exists")
 
-        events = []
-        intent = None
-        slots = []
-        for step in steps:
-            if step['type'] == "INTENT":
-                events.append(StoryEvents(
-                    name=step['name'].strip().lower(),
-                    type="user"))
-                intent = step['name'].strip().lower()
-            elif step['type'] == "BOT":
-                events.append(StoryEvents(
-                    name=step['name'].strip().lower(),
-                    type="action"))
-            elif step['type'] == "HTTP_ACTION":
-                events.append(StoryEvents(
-                    name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(),
-                    type="action"))
-                slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-                slot = {"name": slot_name, "value": step['name']}
-                slots.append(slot)
-
-        story['events'] = events
+        story['events'] = self.__complex_story_prepare_steps(steps, bot, user)
 
         story_id = (
             story.save().to_mongo().to_dict()["_id"].__str__()
         )
-
-        for slot in slots:
-            self.add_slot(
-                {"name": slot['name'], "type": "any", "initial_value": slot['value'], "influence_conversation": False},
-                bot, user, raise_exception_if_exists=False)
         return story_id
 
     def delete_complex_story(self, name: str, bot: Text, user: Text):
@@ -1829,23 +1805,13 @@ class MongoProcessor:
         :return:
         """
         try:
-            story = Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
             raise AppException("Story does not exists")
-        slots = []
-        for event in story.events:
-            if event.type == "user":
-                slots.append(CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + event.name)
         Utility.delete_document(
             [Stories], bot=bot, user=user, block_name__iexact=name
         )
-        try:
-            for slot in slots:
-                Utility.delete_document(
-                    [Slots], bot=bot, user=user, name__iexact=slot
-                )
-        except Exception as e:
-            logging.error(e)
+
 
     def __fetch_list_of_events(self, bot: Text):
         saved_events = list(
@@ -1876,13 +1842,15 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def get_stories(self, bot: Text, user: Text):
+    def get_stories(self, bot: Text):
         """
         fetches stories 
         
         :param bot: bot is 
         :return: yield dict
         """
+
+        http_actions = self.list_http_action_names(bot)
         for value in Stories.objects(bot=bot, status=True):
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
@@ -1894,23 +1862,20 @@ class MongoProcessor:
             item["_id"] = item["_id"].__str__()
 
             steps = []
-            intent = None
             for event in events:
                 step = {}
 
                 if event['type'] == 'user':
                     step['name'] = event['name']
                     step['type'] = 'INTENT'
-                    intent = event['name']
                 elif event['type'] == 'action':
-                    if event['name'] == CUSTOM_ACTIONS.HTTP_ACTION_NAME:
-                        possible_slot_name = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-                        slot = Slots.objects(name=possible_slot_name, bot=bot, user=user, status=True).get()
-                        step['name'] = slot['initial_value']
+                    step['name'] = event['name']
+                    if event['name'] in http_actions:
                         step['type'] = 'HTTP_ACTION'
-                    else:
-                        step['name'] = event['name']
+                    elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
+                    else:
+                        step['type'] = 'ACTION'
                 if step:
                     steps.append(step)
 
@@ -2051,7 +2016,7 @@ class MongoProcessor:
             endpoint["_id"] = endpoint["_id"].__str__()
             return endpoint
         except DoesNotExist as e:
-            logging.info(e)
+            logging.exception(e)
             if raise_exception:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
@@ -2147,7 +2112,7 @@ class MongoProcessor:
             intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
 
         except DoesNotExist as custEx:
-            logging.info(custEx)
+            logging.exception(custEx)
             raise AppException(
                 "Invalid IntentName: Unable to remove document: " + str(custEx)
             )
@@ -2167,7 +2132,7 @@ class MongoProcessor:
                     [TrainingExamples], bot=bot, user=user, intent__iexact=intent
                 )
         except Exception as ex:
-            logging.info(ex)
+            logging.exception(ex)
             raise AppException("Unable to remove document" + str(ex))
 
     def delete_utterance(self, utterance_name: str, bot: str, user: str):
@@ -2204,36 +2169,6 @@ class MongoProcessor:
         except DoesNotExist as e:
             raise AppException(e)
 
-    def prepare_and_add_story(self, story: str, intent: str, bot: str, user: str):
-        """
-        Creates story events from intent for related Http action and adds it to the stories collection.
-        :param story: Name of the story
-        :param story_event: Event to be added to story
-        :param bot: Bot id
-        :param user: User id
-        :return: Story id
-        """
-        if Utility.check_empty_string(story) or Utility.check_empty_string(bot) or Utility.check_empty_string(user):
-            raise AppException("Story, bot and user are required")
-
-        Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
-                         events__name__iexact=intent)
-
-        http_action_config_slot = CUSTOM_ACTIONS.HTTP_ACTION_CONFIG + "_" + intent
-        story_event_list = [{"name": intent.strip().lower(), "type": "user"},
-                            {"name": "bot", "type": StoryEventType.slot, "value": bot},
-                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, "type": StoryEventType.slot, "value": story.strip().lower()},
-                            {"name": CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), "type": StoryEventType.action}]
-
-        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception_if_exists=False)
-        self.add_slot(
-            {"name": http_action_config_slot, "type": "any", "initial_value": story, "influence_conversation": False},
-            bot, user,
-            raise_exception_if_exists=False)
-
-        return self.add_story(story, story_event_list, bot, user)
-
     def delete_story(self, story: str, user: str, bot: str):
         """
         Soft deletes the story.
@@ -2245,32 +2180,8 @@ class MongoProcessor:
         try:
             Utility.delete_document([Stories], block_name__iexact=story, bot=bot, user=user)
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(e)
-
-    def update_story(self, story: str, intent: str, user: str, bot: str):
-        """
-        Creates story events with event provided and updates the story.
-        :param story: story name
-        :param event: StoryEventRequest<name, type, value> to be added
-        :param user: user id
-        :param bot: bot id
-        :return: story id
-        """
-        story_event_list: List[StoryEvents] = [
-            StoryEvents(name=intent.strip().lower(), type=StoryEventType.user),
-            StoryEvents(name="bot", type=StoryEventType.slot, value=bot),
-            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_CONFIG, type=StoryEventType.slot, value=story.strip().lower()),
-            StoryEvents(name=CUSTOM_ACTIONS.HTTP_ACTION_NAME.strip().lower(), type=StoryEventType.action)]
-        try:
-            story_old = Stories.objects(block_name__iexact=story, user=user, bot=bot, status=True).get()
-        except DoesNotExist as e:
-            logging.info(e)
-            raise AppException("Story " + story + " does not exists")
-        story_old.user = user
-        story_old.events = story_event_list
-        story_old.timestamp = datetime.utcnow()
-        return story_old.save(validate=False).to_mongo().to_dict()["_id"].__str__()
 
     def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):
         """
@@ -2283,7 +2194,7 @@ class MongoProcessor:
         http_action = None
         try:
             http_action: HttpActionConfig = self.get_http_action_config(
-                action_name=request_data.action_name, user=user, bot=bot)
+                action_name=request_data.action_name, bot=bot)
             if http_action is None:
                 raise AppException("No HTTP action found for bot " + bot + " and action " + request_data.action_name)
         except AppException as e:
@@ -2304,35 +2215,35 @@ class MongoProcessor:
         http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
         return http_config_id
 
-    def add_http_action_config(self, http_action_config: HttpActionConfigRequest, user: str, bot: str):
+    def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
         """
         Adds a new Http action.
-        :param http_action_config: HttpActionConfigRequest object containing configuration for the Http action
+        :param http_action_config: dict object containing configuration for the Http action
         :param user: user id
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
         Utility.is_exist(HttpActionConfig, exp_message="Action exists",
-                         action_name__iexact=http_action_config.action_name, bot=bot,
+                         action_name__iexact=http_action_config.get("action_name"), bot=bot,
                          status=True)
         http_action_params = [
             HttpActionRequestBody(
-                key=param.key,
-                value=param.value,
-                parameter_type=param.parameter_type)
-            for param in http_action_config.http_params_list]
+                key=param['key'],
+                value=param['value'],
+                parameter_type=param['parameter_type'])
+            for param in http_action_config.get("http_params_list")]
 
         doc_id = HttpActionConfig(
-            auth_token=http_action_config.auth_token,
-            action_name=http_action_config.action_name.lower(),
-            response=http_action_config.response,
-            http_url=http_action_config.http_url,
-            request_method=http_action_config.request_method,
+            auth_token=http_action_config.get("auth_token"),
+            action_name=http_action_config['action_name'].lower(),
+            response=http_action_config['response'],
+            http_url=http_action_config['http_url'],
+            request_method=http_action_config['request_method'],
             params_list=http_action_params,
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
-        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+        self.add_action(http_action_config['action_name'].lower(), bot, user, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
         return doc_id
@@ -2350,8 +2261,9 @@ class MongoProcessor:
         if not is_exists:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
         Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
+        Utility.delete_document([Actions], name__iexact=action, bot=bot, user=user)
 
-    def get_http_action_config(self, bot: str, user: str, action_name: str):
+    def get_http_action_config(self, bot: str, action_name: str):
         """
         Fetches Http action config from collection.
         :param bot: bot id
@@ -2360,39 +2272,63 @@ class MongoProcessor:
         :return: HttpActionConfig object containing configuration for the Http action.
         """
         try:
-            http_config_dict = HttpActionConfig.objects().get(bot=bot, user=user,
+            http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True)
         except DoesNotExist as ex:
-            logging.info(ex)
+            logging.exception(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             raise AppException(e)
         return http_config_dict
 
-    def list_http_actions(self, bot: str, user: str):
+    def list_http_actions(self, bot: str):
         """
         Fetches all Http actions from collection.
         :param bot: bot id
         :param user: user id
         :return: List of Http actions.
         """
-        actions = HttpActionConfig.objects(bot=bot, user=user, status=True)
+        actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
+
+    def list_actions(self, bot: Text):
+        actions = list(Actions.objects(bot=bot, status=True).aggregate(
+            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}, }}]
+        ))
+
+        if actions:
+            http_actions = self.list_http_action_names(bot)
+            print(http_actions)
+            return [action for action in actions[0]['actions'] if not str(action).startswith("utter_") and action not in http_actions]
+        else:
+            return []
+
+    def list_http_action_names(self, bot: Text):
+        actions = list(HttpActionConfig.objects(bot=bot, status=True).aggregate(
+            [{"$group": {"_id": "$bot", "actions": {"$push": "$action_name"}, }}]
+        ))
+
+        if actions:
+            return actions[0]['actions']
+        else:
+            return []
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         try:
             slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
-            if slot and raise_exception_if_exists:
-                raise AppException("Slot exists")
-            slot['initial_value'] = slot_value.get('initial_value')
-            slot['type'] = slot_value.get('type')
-            slot['influence_conversation'] = slot_value.get('influence_conversation')
-            slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+            if raise_exception_if_exists:
+                raise AppException("Slot already exists!")
         except DoesNotExist:
-            slot_value['user'] = user
-            slot_value['bot'] = bot
-            slot_id = (Slots(**slot_value).save().to_mongo().to_dict()['_id'].__str__())
+            slot = Slots()
+            slot.name = slot_value['name']
+
+        slot.initial_value = slot_value.get('initial_value')
+        slot.type = slot_value.get('type')
+        slot.influence_conversation = slot_value.get('influence_conversation')
+        slot.user = user
+        slot.bot = bot
+        slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
 
     @staticmethod
@@ -2473,7 +2409,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([Rules], bot=bot, user=user)
+        Utility.hard_delete_document([Rules], bot=bot, user=user)
 
     def delete_http_action(self, bot: Text, user: Text):
         """
@@ -2483,7 +2419,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.delete_document([HttpActionConfig], bot=bot, user=user)
+        Utility.hard_delete_document([HttpActionConfig], bot=bot, user=user)
 
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
@@ -2514,7 +2450,7 @@ class MongoProcessor:
         http_actions = None
         http_actions_yml = os.path.join(path, 'http_action.yml')
         if os.path.exists(http_actions_yml):
-            http_actions = yaml.load(open(http_actions_yml), Loader=yaml.SafeLoader)
+            http_actions = Utility.load_yaml(http_actions_yml)
             self.validate_http_file(http_actions)
         else:
             if raise_exception:
@@ -2531,25 +2467,26 @@ class MongoProcessor:
         actions = content.get('http_actions')
         for http_obj in actions:
             if all(name in http_obj for name in required_fields):
+                if (not http_obj.get('request_method') or
+                        http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}):
+                    raise AppException('Invalid request method: ' + http_obj['action_name'])
+
                 if http_obj['action_name'] not in action_names:
+
+                    if http_obj.get('params_list'):
+                        for param in http_obj.get('params_list'):
+                            if not param.get('key'):
+                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
+                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
+                            if param.get('parameter_type') == 'slot' and not param.get('value'):
+                                param['value'] = param.get('key')
+
                     action_names.append(http_obj['action_name'])
                 else:
-                    raise AppException("Duplicate http action found!")
+                    raise AppException("Duplicate http action found")
             else:
                 raise AppException("Required http action fields not found")
-            if not http_obj.get('action_name') or not http_obj.get('response') or not http_obj.get(
-                    'http_url') or not http_obj.get('request_method'):
-                raise AppException('Invalid http action: ' + http_obj['action_name'])
-            if not http_obj.get('request_method') or http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}:
-                raise AppException('Invalid request method: ' + http_obj['action_name'])
-            if http_obj.get('params_list'):
-                for param in http_obj.get('params_list'):
-                    if not param.get('key'):
-                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                    if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
-                        raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                    if param.get('parameter_type') == 'slot' and not param.get('value'):
-                        param['value'] = param.get('key')
 
     def save_http_action(self, http_action: dict, bot: Text, user: Text):
         """
@@ -2559,16 +2496,20 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
+
         if not http_action or not http_action.get('http_actions'):
             return
-        saved_http_actions = set([action['action_name'] for action in self.list_http_actions(bot, user)])
+
+        saved_http_actions = set([action['action_name'] for action in self.list_http_actions(bot)])
+
         actions_data = http_action['http_actions']
         for actions in actions_data:
             if actions['action_name'] not in saved_http_actions:
+                action_name = str(actions['action_name']).lower()
                 http_obj = HttpActionConfig()
                 http_obj.bot = bot
                 http_obj.user = user
-                http_obj.action_name = actions['action_name']
+                http_obj.action_name = action_name.strip()
                 http_obj.http_url = actions['http_url']
                 http_obj.response = actions['response']
                 http_obj.request_method = actions['request_method']
@@ -2584,7 +2525,7 @@ class MongoProcessor:
                 if actions.get('auth_token'):
                     http_obj.auth_token = actions['auth_token']
                 http_obj.save()
-        self.add_action(CUSTOM_ACTIONS.HTTP_ACTION_NAME, bot, user, raise_exception=False)
+                self.add_action(action_name, bot, user, raise_exception=False)
 
     def load_http_action(self, bot: Text):
         """
@@ -2626,7 +2567,6 @@ class MongoProcessor:
     @staticmethod
     def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
         Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
-
 
 class AgentProcessor:
     """

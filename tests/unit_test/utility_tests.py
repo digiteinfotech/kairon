@@ -4,7 +4,7 @@ from io import BytesIO
 import pytest
 from fastapi import UploadFile
 from mongoengine import connect
-import yaml
+
 from kairon.utils import Utility
 
 
@@ -88,17 +88,17 @@ class TestUtility:
         assert os.path.exists(training_data_path)
 
     def test_config_validation(self):
-        config = yaml.load(open("./tests/testing_data/yml_training_files/config.yml"), yaml.SafeLoader)
+        config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
         Utility.validate_rasa_config(config)
 
     def test_config_validation_invalid_pipeline(self):
-        config = yaml.load(open("./tests/testing_data/yml_training_files/config.yml"), yaml.SafeLoader)
+        config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
         config.get('pipeline').append({'name':"XYZ"})
         with pytest.raises(Exception):
             Utility.validate_rasa_config(config)
 
     def test_config_validation_invalid_config(self):
-        config = yaml.load(open("./tests/testing_data/yml_training_files/config.yml"), yaml.SafeLoader)
+        config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
         config.get('policies').append({'name': "XYZ"})
         with pytest.raises(Exception):
             Utility.validate_rasa_config(config)

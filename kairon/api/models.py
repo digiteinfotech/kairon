@@ -43,7 +43,7 @@ class User(BaseModel):
 
 class Response(BaseModel):
     success: bool = True
-    message: str = None
+    message: Any = None
     data: Any
     error_code: int = 0
 
@@ -279,6 +279,7 @@ class StoryStepType(str, Enum):
     intent = "INTENT"
     bot = "BOT"
     http_action = "HTTP_ACTION"
+    action = "ACTION"
 
 
 class StoryStepRequest(BaseModel):
@@ -307,20 +308,6 @@ class AddStoryRequest(BaseModel):
         for i, j in enumerate(range(1, len(v))):
             if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.intent:
                 raise ValueError("Found 2 consecutive intents")
-
-        action_cnt_for_intent = {}
-        intent = ""
-        for step in v:
-            if step.type == StoryStepType.intent:
-                intent = step.name
-                continue
-            if step.type == StoryStepType.http_action:
-                num_http_actions = action_cnt_for_intent.get(intent)
-                if not num_http_actions:
-                    num_http_actions = 0
-                elif num_http_actions >= 1:
-                    raise ValueError("You can have only one Http action against an intent")
-                action_cnt_for_intent[intent] = num_http_actions + 1
         return v
 
 
