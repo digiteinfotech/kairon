@@ -642,9 +642,18 @@ async def get_http_action(action: str = Path(default=None, description="action n
 @router.get("/action/httpaction", response_model=Response)
 async def list_http_actions(current_user: User = Depends(auth.get_current_user)):
     """
-    Returns list of http actions for bot and user.
+    Returns list of http actions for bot.
     """
     actions = mongo_processor.list_http_actions(bot=current_user.bot)
+    return Response(data=actions)
+
+
+@router.get("/actions", response_model=Response)
+async def list_actions(current_user: User = Depends(auth.get_current_user)):
+    """
+    Returns list of actions for bot.
+    """
+    actions = mongo_processor.list_actions(bot=current_user.bot)
     return Response(data=actions)
 
 

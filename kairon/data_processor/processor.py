@@ -177,13 +177,13 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
             self.save_http_action(http_actions, bot, user)
         except InvalidDomain as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(
                 """Failed to validate yaml file.
                             Please make sure the file is initial and all mandatory parameters are specified"""
             )
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(e)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
@@ -718,10 +718,10 @@ class MongoProcessor:
                 session.save()
 
         except NotUniqueError as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Session Config already exists for the bot")
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Internal Server Error")
 
     def fetch_session_config(self, bot: Text):
@@ -1036,6 +1036,7 @@ class MongoProcessor:
             configs["user"] = user
             config_obj = Configs._from_son(configs)
         except Exception as e:
+            logging.exception(e)
             raise AppException(e)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
@@ -1404,10 +1405,10 @@ class MongoProcessor:
             doc.timestamp = datetime.utcnow()
             doc.save(validate=False)
         except DoesNotExist as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Unable to remove document")
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException("Unable to remove document")
 
     def __prepare_document_list(self, documents: List[Document], field: Text):
@@ -2015,7 +2016,7 @@ class MongoProcessor:
             endpoint["_id"] = endpoint["_id"].__str__()
             return endpoint
         except DoesNotExist as e:
-            logging.info(e)
+            logging.exception(e)
             if raise_exception:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
@@ -2111,7 +2112,7 @@ class MongoProcessor:
             intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
 
         except DoesNotExist as custEx:
-            logging.info(custEx)
+            logging.exception(custEx)
             raise AppException(
                 "Invalid IntentName: Unable to remove document: " + str(custEx)
             )
@@ -2131,7 +2132,7 @@ class MongoProcessor:
                     [TrainingExamples], bot=bot, user=user, intent__iexact=intent
                 )
         except Exception as ex:
-            logging.info(ex)
+            logging.exception(ex)
             raise AppException("Unable to remove document" + str(ex))
 
     def delete_utterance(self, utterance_name: str, bot: str, user: str):
@@ -2179,7 +2180,7 @@ class MongoProcessor:
         try:
             Utility.delete_document([Stories], block_name__iexact=story, bot=bot, user=user)
         except Exception as e:
-            logging.info(e)
+            logging.exception(e)
             raise AppException(e)
 
     def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):
@@ -2274,10 +2275,10 @@ class MongoProcessor:
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True)
         except DoesNotExist as ex:
-            logging.info(ex)
+            logging.exception(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             raise AppException(e)
         return http_config_dict
 

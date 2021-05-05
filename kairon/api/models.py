@@ -279,6 +279,7 @@ class StoryStepType(str, Enum):
     intent = "INTENT"
     bot = "BOT"
     http_action = "HTTP_ACTION"
+    action = "ACTION"
 
 
 class StoryStepRequest(BaseModel):
