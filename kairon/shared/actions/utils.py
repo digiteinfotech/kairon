@@ -132,8 +132,9 @@ class ActionUtility:
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True).to_mongo().to_dict()
             logger.debug("http_action_config: " + str(http_config_dict))
-        except DoesNotExist:
-            raise ActionNotFoundException(action_name)
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise HttpActionFailure("No HTTP action found for bot")
 
         return http_config_dict
 

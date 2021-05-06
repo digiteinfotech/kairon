@@ -102,3 +102,15 @@ class TestUtility:
         config.get('policies').append({'name': "XYZ"})
         with pytest.raises(Exception):
             Utility.validate_rasa_config(config)
+
+    def test_prepare_nlu_text_with_entities(self):
+        expected = "n=[8](n), p=1[8](n), k=2[8](n) ec=[14](ec), ph=[3](p)"
+        text, entities = Utility.extract_text_and_entities(expected)
+        actual = Utility.prepare_nlu_text(text, entities)
+        assert expected == actual
+
+    def test_prepare_nlu_text(self):
+        expected = "India is beautiful"
+        text, entities = Utility.extract_text_and_entities(expected)
+        actual = Utility.prepare_nlu_text(text, entities)
+        assert expected == actual

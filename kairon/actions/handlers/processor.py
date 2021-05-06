@@ -53,7 +53,7 @@ class ActionProcessor:
             bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
             logger.info("response: " + str(bot_response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
-        except ActionNotFoundException as e:
+        except HttpActionFailure as e:
             exception = str(e)
             logger.exception(e)
             status = "FAILURE"

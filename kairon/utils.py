@@ -96,11 +96,8 @@ class Utility:
         """
         if not Utility.check_empty_string(example):
             if entities:
-                for entity in entities:
-                    example = example.replace(
-                        entity["value"],
-                        "[" + entity["value"] + "](" + entity["entity"] + ")",
-                    )
+                from rasa.shared.nlu.training_data.formats.rasa_yaml import RasaYAMLWriter
+                example = RasaYAMLWriter.generate_message({'text': example, "entities": entities})
         return example
 
     @staticmethod
