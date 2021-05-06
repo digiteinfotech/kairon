@@ -13,7 +13,7 @@ RUN python3 -m pip install loguru
 RUN python3 -m pip install numpy
 RUN python3 -m pip install matplotlib
 RUN python3 -m pip install requests
-RUN python3 -m pip install torch
+RUN python3 -m pip install torch==1.6.0
 RUN python3 -m nltk.downloader wordnet
 RUN python3 -m nltk.downloader averaged_perceptron_tagger
 RUN python3 -m pip install openai

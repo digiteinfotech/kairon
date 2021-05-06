@@ -1,5 +1,6 @@
 from .gpt import GPT, Example
 from .models import GPTRequest
+import string
 
 
 class GPT3ParaphraseGenerator:
@@ -30,6 +31,7 @@ class GPT3ParaphraseGenerator:
 
         # run loop for each question in data var
         questions_set = set()
+        questions_wo_punctuation = set()
 
         if not self.api_key:
             raise Exception("API key cannot be empty.")
@@ -45,6 +47,13 @@ class GPT3ParaphraseGenerator:
             output = self.gpt.submit_request(text, self.num_responses, self.api_key)
 
             for i in range(self.num_responses):
-                questions_set.add(output.choices[i].text.replace('output: ', '').replace('\n', ''))
+
+                aug_question = output.choices[i].text.replace('output: ', '').replace('\n', '')
+                if len(aug_question) < 2*len(text):
+                    raw_question = aug_question.translate(str.maketrans('', '', string.punctuation)).lower()
+
+                    if raw_question not in questions_wo_punctuation:
+                        questions_wo_punctuation.add(raw_question)
+                        questions_set.add(aug_question)
 
         return questions_set
