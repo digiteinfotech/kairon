@@ -1058,7 +1058,7 @@ class TestMongoProcessor:
         processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](Location) India", intent="greet",
                                         bot="tests", user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
-        assert any(example['text'] == "Meghalaya India" for example in examples)
+        assert any(example['text'] == "[Meghalaya](Location) India" for example in examples)
 
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()

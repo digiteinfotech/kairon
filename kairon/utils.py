@@ -137,26 +137,6 @@ class Utility:
         Utility.environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
 
     @staticmethod
-    def validate_fields(fields: Dict, data: Dict):
-        """
-        validate fields
-
-        :param fields: fields
-        :param data: data
-        :return: None
-        """
-        error = ""
-        for key, value in fields.items():
-            if isinstance(value, StringField):
-                if data[key] != None and str(data["key"]).strip():
-                    error += "\n " + key + " cannot be empty or blank spaces"
-            elif isinstance(value, ListField):
-                if value.required and value:
-                    error += "\n " + key + " cannot be empty"
-        if error:
-            raise error
-
-    @staticmethod
     def is_exist(
             document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):
@@ -214,19 +194,6 @@ class Utility:
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(iglob(folder + "/*"), key=os.path.getctime)
-
-    @staticmethod
-    def check_empty_list_elements(items: List[Text]):
-        """
-        checks if any of the input strings are empty
-
-        :param items: text list
-        :return: boolean
-        """
-        for item in items:
-            if Utility.check_empty_string(item):
-                return True
-        return False
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
