@@ -17,10 +17,8 @@ class ActionHandler(RequestHandler, ABC):
         from rasa_sdk.interfaces import Tracker
 
         action_name = action_call.get("next_action")
-        if action_name:
+        if action_name and action_name.strip():
             logger.debug(f"Received request to run '{action_name}'")
-            #if not str(action_name).startswith("http_"):
-            #    raise ActionNotFoundException(action_name)
 
             tracker_json = action_call["tracker"]
             domain = action_call.get("domain", {})

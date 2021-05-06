@@ -9,6 +9,8 @@ from ...shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from ...shared.actions.exception import HttpActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
+from mongoengine.errors import DoesNotExist
+from rasa_sdk.interfaces import ActionNotFoundException
 
 class ActionProcessor:
 
@@ -51,6 +53,11 @@ class ActionProcessor:
             bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
             logger.info("response: " + str(bot_response))
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
+        except ActionNotFoundException as e:
+            exception = str(e)
+            logger.exception(e)
+            status = "FAILURE"
+            bot_response = "I have failed to process your request"
         except Exception as e:
             exception = str(e)
             logger.exception(e)
