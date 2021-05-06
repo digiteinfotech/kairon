@@ -236,6 +236,7 @@ class TestActionServer(AsyncHTTPTestCase):
         }
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
-        print(response_json)
         self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE', 'value': 'I have failed to process your request'}], 'responses': [{'text': 'I have failed to process your request', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'image': None, 'attachment': None}]})
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
