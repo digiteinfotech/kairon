@@ -454,8 +454,9 @@ async def upload_Files(
     ModelProcessor.set_training_status(
         bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
     )
+    token = Authentication.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user()
+        start_training, current_user.get_bot(), current_user.get_user(), token
     )
     return {"message": "Data uploaded successfully!"}
 
