@@ -70,9 +70,9 @@ async def gpt_paraphrases(request_data: GPTRequest):
         gpt3_generator = GPT3ParaphraseGenerator(request_data)
         augmented_questions = gpt3_generator.paraphrases()
     except Exception as e:
-        return {"message": str(e)}
+        return {"message": str(e), "success": False}
 
-    return {"data": {"questions": augmented_questions}}
+    return {"data": {"paraphrases": augmented_questions}}
 
 if __name__ == "main":
     uvicorn.run(app)
