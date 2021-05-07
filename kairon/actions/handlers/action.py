@@ -4,14 +4,14 @@ from abc import ABC
 from rasa_sdk import utils
 from rasa_sdk.interfaces import ActionExecutionRejection, ActionNotFoundException
 from tornado.escape import json_decode, json_encode
-from tornado.web import RequestHandler
+from .base import BaseHandler
 from rasa_sdk.executor import CollectingDispatcher, ActionExecutor
 from .processor import ActionProcessor
 
 logger = logging.getLogger(__name__)
 
 
-class ActionHandler(RequestHandler, ABC):
+class ActionHandler(BaseHandler, ABC):
 
     async def process_actions(self, action_call):
         from rasa_sdk.interfaces import Tracker

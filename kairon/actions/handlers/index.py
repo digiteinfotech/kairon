@@ -1,10 +1,13 @@
 from abc import ABC
 
-from tornado.web import RequestHandler
+from .base import BaseHandler
 
 
-class MainHandler(RequestHandler, ABC):
+class MainHandler(BaseHandler, ABC):
     async def get(self):
+        self.write("Kairon Action Server Running")
+
+    async def post(self):
         self.write("Kairon Action Server Running")
 
 
