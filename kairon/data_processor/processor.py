@@ -2614,8 +2614,9 @@ class AgentProcessor:
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
+            interpreter = Utility.get_interpreter(model_path)
             agent = Agent.load(
-                model_path, action_endpoint=action_endpoint, tracker_store=mongo_store
+                model_path, interpreter=interpreter, action_endpoint=action_endpoint, tracker_store=mongo_store
             )
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:

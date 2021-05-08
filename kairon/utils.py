@@ -866,3 +866,17 @@ class Utility:
         with Path(destination).open("wb") as buffer:
             shutil.copyfileobj(doc.file, buffer)
         return destination
+
+    @staticmethod
+    def get_interpreter(model_path):
+        from rasa.model import get_model, get_model_subdirectories
+        from rasa.core.interpreter import create_interpreter
+        try:
+            with get_model(model_path) as unpacked_model:
+                _, nlu_model = get_model_subdirectories(unpacked_model)
+                _interpreter = create_interpreter(
+                    nlu_model
+                )
+        except Exception:
+            logger.debug(f"Could not load interpreter from '{model_path}'.")
+            _interpreter = None
