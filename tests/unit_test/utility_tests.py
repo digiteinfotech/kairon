@@ -115,13 +115,14 @@ class TestUtility:
         actual = Utility.prepare_nlu_text(text, entities)
         assert expected == actual
 
-    def test_get_action_url_default(self):
+    def test_get_action_url(self, monkeypatch):
         actual = Utility.get_action_url({})
         assert actual.url == "http://localhost:5055/webhook"
-
-    def test_get_action_url_user(self):
-        actual = Utility.get_action_url({"action_endpoint":{"url":"http://action-server:5055/webhook"}})
+        actual = Utility.get_action_url({"action_endpoint": {"url": "http://action-server:5055/webhook"}})
         assert actual.url == "http://action-server:5055/webhook"
+        monkeypatch.setitem(Utility.environment['action'], "url", None)
+        actual = Utility.get_action_url({})
+        assert actual is None
 
     def test_get_interpreter_with_no_model(self):
         actual = Utility.get_interpreter("test.tar.gz")
