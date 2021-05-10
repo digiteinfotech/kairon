@@ -1275,7 +1275,7 @@ class MongoProcessor:
             training_example.user = user
             training_example.text = text
             if entities:
-                training_example.entities = self.__extract_entities(entities)
+                training_example.entities = list(self.__extract_entities(entities))
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist as e:
@@ -2614,8 +2614,9 @@ class AgentProcessor:
             model_path = AgentProcessor.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
+            interpreter = Utility.get_interpreter(model_path)
             agent = Agent.load(
-                model_path, action_endpoint=action_endpoint, tracker_store=mongo_store
+                model_path, interpreter=interpreter, action_endpoint=action_endpoint, tracker_store=mongo_store
             )
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
