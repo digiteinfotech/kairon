@@ -29,10 +29,6 @@ class GPT3ParaphraseGenerator:
         :param self:
         :return: list of questions"""
 
-        # run loop for each question in data var
-        questions_set = set()
-        questions_wo_punctuation = set()
-
         if not self.api_key:
             raise Exception("API key cannot be empty.")
 
@@ -43,16 +39,23 @@ class GPT3ParaphraseGenerator:
         else:
             raise Exception("Questions data cannot be empty.")
 
+        # run loop for each question in data var
+        questions_set = set()
+
+        # adding prompts sent by user to this list so that we can reject duplicate sentences from gpt response
+        mod_data = [sentence.translate(str.maketrans('', '', string.punctuation)).lower().strip() for sentence in self.data]
+        questions_wo_punctuation = set(mod_data)
+
         for text in self.data:
             output = self.gpt.submit_request(text, self.num_responses, self.api_key)
 
             for i in range(self.num_responses):
 
-                aug_question = output.choices[i].text.replace('output: ', '').replace('\n', '')
+                aug_question = output.choices[i].text.replace('output:', '').replace('\n', '').strip()
                 if len(aug_question) < 2*len(text):
                     raw_question = aug_question.translate(str.maketrans('', '', string.punctuation)).lower()
 
-                    if raw_question not in questions_wo_punctuation:
+                    if raw_question not in questions_wo_punctuation and raw_question != "":
                         questions_wo_punctuation.add(raw_question)
                         questions_set.add(aug_question)
 
