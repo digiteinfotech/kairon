@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://192.168.101.148:27019/conversations"}
+  url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 security:
@@ -16,6 +16,10 @@ model:
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
     event_url: ${TRAIN_EVENT_URL}
+    agent_url: ${AGENT_URL}
+  data_importer:
+    limit_per_day: ${IMPORTING_LIMIT_PER_DAY:5}
+    event_url: ${IMPORTER_EVENT_URL}
     agent_url: ${AGENT_URL}
 
 action:

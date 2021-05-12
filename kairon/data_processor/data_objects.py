@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
+from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -455,7 +455,7 @@ class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     document_path = StringField(default=None)
-    status = StringField(default=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
+    status = StringField(default=EVENT_STATUS.INITIATED)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
@@ -470,3 +470,21 @@ class Feedback(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class ValidationLogs(Document):
+    intents = ListField(StringField(), default=[])
+    utterances = ListField(StringField(), default=[])
+    stories = ListField(StringField(), default=[])
+    training_examples = ListField(StringField(), default=[])
+    domain = ListField(StringField(), default=[])
+    config = ListField(StringField(), default=[])
+    http_actions = ListField(StringField(), default=[])
+    exception = StringField(default=None)
+    is_data_uploaded = BooleanField(default=False)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    start_timestamp = DateTimeField(default=None)
+    end_timestamp = DateTimeField(default=None)
+    validation_status = StringField(default=None)
+    event_status = StringField(default="COMPLETED")

@@ -30,3 +30,4 @@ build:
     -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
     -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .
     -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen:latest .
+    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer:latest .
