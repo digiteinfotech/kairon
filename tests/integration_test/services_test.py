@@ -15,9 +15,11 @@ from kairon.api.app.main import app
 from kairon.api.data_objects import Bot
 from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
-from kairon.data_processor.constant import UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses
-from kairon.data_processor.processor import MongoProcessor, ModelProcessor, TrainingDataGenerationProcessor
+from kairon.data_processor.processor import MongoProcessor
+from kairon.data_processor.model_processor import ModelProcessor
+from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.utils import Utility
@@ -122,61 +124,34 @@ def test_api_login():
 
 
 def test_upload_missing_data():
-    files = {
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
+    files = (('training_files', ("domain.yml", BytesIO(open("tests/testing_data/all/domain.yml", "rb").read()))),
+             ('training_files', ("stories.md", BytesIO(open("tests/testing_data/all/data/stories.md", "rb").read()))),
+             ('training_files', ("config.yml", BytesIO(open("tests/testing_data/all/config.yml", "rb").read()))),
+            )
     response = client.post(
         "/api/bot/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert (
-            actual["message"]
-            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
-    )
+    assert actual["message"] == 'Some training files are missing!'
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert not actual["success"]
 
 
 def test_upload_error():
-    files = {
-        "nlu": ("nlu.md", None),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
+    files = (('training_files', ("nlu.md", None)),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
     response = client.post(
         "/api/bot/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert (
-            actual["message"]
-            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
-    )
+    assert actual["message"] == 'Some training files are missing!'
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert not actual["success"]
@@ -187,73 +162,20 @@ def test_upload(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.md",
-            open("tests/testing_data/all/data/nlu.md", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+              ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
     response = client.post(
-        "/api/bot/upload",
+        "/api/bot/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["message"] == "Event triggered! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
-
-
-def test_upload_with_http_error(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.md",
-            open("tests/testing_data/all/data/nlu.md", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-        "http_action": (
-            "http_action.yml",
-            open("tests/testing_data/error/http_action.yml", "rb"),
-        ),
-    }
-    response = client.post(
-        "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
-    )
-    actual = response.json()
-    assert actual["message"] == "Required http action fields not found"
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert not actual["success"]
 
 
 def test_upload_yml(monkeypatch):
@@ -261,38 +183,101 @@ def test_upload_yml(monkeypatch):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.yml",
-            open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/yml_training_files/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.yml",
-            open("tests/testing_data/yml_training_files/data/stories.yml", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/yml_training_files/config.yml", "rb"),
-        ),
-        "http_action": (
-            "http_action.yml",
-            open("tests/testing_data/yml_training_files/http_action.yml", "rb"),
-        ),
-    }
+    files = (('training_files', ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+             (
+             'training_files', ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+             )
     response = client.post(
         "/api/bot/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["message"] == "Event triggered! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+
+
+def test_train(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    def _mock_training_limit(*arge, **kwargs):
+        return False
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+
+
+def test_upload_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 2)
+    response = client.post(
+        "/api/bot/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={'training_files': ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Daily limit exceeded.'
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
+
+
+@responses.activate
+def test_upload_using_event(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/upload",
+        status=200
+    )
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", "http://localhost/upload")
+    response = client.post(
+        "/api/bot/upload?import_data=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=(('training_files', ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+               ('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+               (
+               'training_files', ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+               ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+               (
+                   'training_files',
+                   ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+               )
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Event triggered! Check logs."
+
+
+def test_get_data_importer_logs():
+    response = client.get(
+        "/api/bot/importer/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 3
+    assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+    assert actual['data'][0]['is_data_uploaded']
+    assert actual['data'][0]['start_timestamp']
+    assert not actual["message"]
 
 
 def test_get_slots():
@@ -984,7 +969,7 @@ def test_get_utterance_from_not_exist_intent():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_train(monkeypatch):
+def test_train_on_updated_data(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -2637,7 +2622,7 @@ def test_train_using_event(monkeypatch):
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2674,7 +2659,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.COMPLETED,
+        "status": EVENT_STATUS.COMPLETED,
         "response": training_data
     }
     response = client.put(
@@ -2781,7 +2766,7 @@ def test_get_training_data_history_1(monkeypatch):
     assert actual["message"] is None
     training_data = actual["data"]['training_history'][0]
 
-    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+    assert training_data['status'] == EVENT_STATUS.COMPLETED.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
     assert training_data['last_update_timestamp'] == end_timestamp
@@ -2803,7 +2788,7 @@ def test_get_training_data_history_1(monkeypatch):
 
 def test_update_training_data_generator_status_exception(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED,
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2817,7 +2802,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.FAIL,
+        "status": EVENT_STATUS.FAIL,
         "exception": 'Exception message'
     }
     response = client.put(
@@ -2842,7 +2827,7 @@ def test_get_training_data_history_2(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] is None
     training_data = actual["data"]['training_history'][0]
-    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.FAIL.value
+    assert training_data['status'] == EVENT_STATUS.FAIL.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
     assert training_data['last_update_timestamp'] == end_timestamp
@@ -2851,7 +2836,7 @@ def test_get_training_data_history_2(monkeypatch):
 
 def test_fetch_latest(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED,
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2867,7 +2852,7 @@ def test_fetch_latest(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert actual["data"]['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
     assert actual["message"] is None
 
 
@@ -3034,7 +3019,7 @@ def test_list_action_server_logs():
 
 def test_add_training_data_invalid_id(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED
     }
     client.put(
         "/api/bot/update/data/generator/status",
@@ -3088,3 +3073,15 @@ def test_feedback():
     assert actual["error_code"] == 0
     assert not actual["data"]
     assert actual["message"] == 'Thanks for your feedback!'
+
+
+def test_validate():
+    response = client.post(
+        "/api/bot/validate",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Event triggered! Check logs.'

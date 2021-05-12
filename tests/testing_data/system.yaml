@@ -19,6 +19,10 @@ model:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:2}
     event_url: ${TRAIN_EVENT_URL}
     agent_url: ${AGENT_URL}
+  data_importer:
+    limit_per_day: ${IMPORTING_LIMIT_PER_DAY:10}
+    event_url: ${IMPORTER_EVENT_URL}
+    agent_url: ${AGENT_URL}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}

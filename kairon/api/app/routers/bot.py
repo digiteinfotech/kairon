@@ -1,9 +1,12 @@
 import os
+from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
+from kairon.data_processor.data_importer_log_processor import DataImporterLogProcessor
+from kairon.events.events import Events
 from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.api.auth import Authentication
 from kairon.api.models import (
@@ -16,13 +19,12 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
     FeedbackRequest
 )
-from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import MODEL_TRAINING_STATUS, EVENT_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
-from kairon.data_processor.processor import (
-    MongoProcessor,
-    AgentProcessor,
-    ModelProcessor, TrainingDataGenerationProcessor,
-)
+from kairon.data_processor.processor import MongoProcessor
+from kairon.data_processor.agent_processor import AgentProcessor
+from kairon.data_processor.model_processor import ModelProcessor
+from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.train import start_training
 from kairon.utils import Utility
@@ -427,37 +429,25 @@ async def deployment_history(current_user: User = Depends(auth.get_current_user)
 
 
 @router.post("/upload", response_model=Response)
-async def upload_Files(
+async def upload_files(
         background_tasks: BackgroundTasks,
-        nlu: UploadFile = File(...),
-        domain: UploadFile = File(...),
-        stories: UploadFile = File(...),
-        config: UploadFile = File(...),
-        rules: UploadFile = File(None),
-        http_action: UploadFile = File(None),
+        training_files: List[UploadFile] = File(...),
+        import_data: bool = True,
         overwrite: bool = True,
         current_user: User = Depends(auth.get_current_user),
 ):
     """
-    Uploads training data nlu.md, domain.yml, stories.md and config.yml files
+    Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and http_action.yml files.
     """
-    await mongo_processor.upload_and_save(
-        nlu,
-        domain,
-        stories,
-        config,
-        rules,
-        http_action,
-        current_user.get_bot(),
-        current_user.get_user(),
-        overwrite)
-    ModelProcessor.set_training_status(
-        bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-    )
-    background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user()
-    )
-    return {"message": "Data uploaded successfully!"}
+    DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
+    DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
+    await Utility.save_and_validate_training_files(current_user.get_bot(), training_files)
+    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(),
+                                     is_data_uploaded=True)
+    background_tasks.add_task(Events.trigger_data_importer,
+                              current_user.get_bot(), current_user.get_user(),
+                              import_data, overwrite)
+    return {"message": "Event triggered! Check logs."}
 
 
 @router.post("/upload/data_generation/file", response_model=Response)
@@ -473,7 +463,7 @@ async def upload_data_generation_file(
     TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
     file_path = await Utility.upload_document(doc)
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
-          user=current_user.get_user(), status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value, document_path=file_path)
+          user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value, document_path=file_path)
     token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
         Utility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
@@ -776,3 +766,31 @@ async def feedback(feedback: FeedbackRequest, current_user: User = Depends(auth.
     mongo_processor.add_feedback(feedback.rating, current_user.get_bot(), current_user.get_user(),
                                   feedback.scale, feedback.feedback)
     return {"message": "Thanks for your feedback!"}
+
+
+@router.get("/importer/logs", response_model=Response)
+async def get_data_importer_logs(current_user: User = Depends(auth.get_current_user)):
+    """
+    Get data importer event logs.
+    """
+    logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot()))
+    return Response(data=logs)
+
+
+@router.post("/validate", response_model=Response)
+async def upload_files(
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(auth.get_current_user),
+):
+    """
+    Validates bot training data.
+    """
+    DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
+    DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
+    mongo_processor.prepare_training_data_for_validation(current_user.get_bot())
+    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(),
+                                     is_data_uploaded=False)
+    background_tasks.add_task(Events.trigger_data_importer,
+                              current_user.get_bot(), current_user.get_user(),
+                              False, False)
+    return {"message": "Event triggered! Check logs."}
