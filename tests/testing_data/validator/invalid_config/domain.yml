@@ -1,0 +1,20 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- greet:
+    use_entities: false
+- deny:
+    use_entities: false
+
+responses:
+  utter_goodbye:
+  - text: Bye
+  utter_greet:
+  - text: Hey! How are you?
+actions:
+- utter_greet
+- utter_goodbye

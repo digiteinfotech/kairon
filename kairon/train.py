@@ -13,7 +13,8 @@ from rasa.utils.common import TempDirectoryPath
 
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS
 from kairon.data_processor.importer import MongoDataImporter
-from kairon.data_processor.processor import AgentProcessor, ModelProcessor
+from kairon.data_processor.agent_processor import AgentProcessor
+from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility

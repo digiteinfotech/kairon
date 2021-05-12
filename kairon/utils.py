@@ -48,9 +48,11 @@ from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
-from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
+from .data_processor.constant import POSSIBLE_NLU_FILES, POSSIBLE_STORIES_FILES, \
+    POSSIBLE_DOMAIN_FILES, POSSIBLE_CONFIG_FILES, EVENT_STATUS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
+
 
 
 class Utility:
@@ -250,7 +252,69 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
+    def make_dirs(path: Text, raise_exception_if_exists=False):
+        if os.path.exists(path):
+            if raise_exception_if_exists:
+                raise AppException('Directory exists!')
+        else:
+            os.makedirs(path)
+
+    @staticmethod
+    async def save_and_validate_training_files(bot: Text, training_files: [File]):
+        if not training_files:
+            raise AppException("No files received!")
+
+        if training_files[0].filename.endswith('.zip'):
+            await Utility.unzip_and_validate(bot, training_files[0])
+            return
+
+        bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+        Utility.make_dirs(data_path)
+
+        for file in training_files:
+            if file.filename in POSSIBLE_NLU_FILES.union(POSSIBLE_STORIES_FILES).union({'rules.yml'}):
+                path = os.path.join(data_path, file.filename)
+                Utility.write_to_file(path, await file.read())
+            elif file.filename in POSSIBLE_CONFIG_FILES.union(POSSIBLE_DOMAIN_FILES).union({'http_action.yml'}):
+                path = os.path.join(bot_data_home_dir, file.filename)
+                Utility.write_to_file(path, await file.read())
+
+        Utility.validate_files(bot_data_home_dir, True)
+
+    @staticmethod
+    async def unzip_and_validate(bot: Text, training_file: File):
+        tmp_dir = tempfile.mkdtemp()
+        zipped_file = os.path.join(tmp_dir, training_file.filename)
+        Utility.write_to_file(zipped_file, await training_file.read())
+        unzip_path = os.path.join('training_data', bot, str(datetime.utcnow()))
+        shutil.unpack_archive(zipped_file, unzip_path, 'zip')
+        try:
+            Utility.validate_files(unzip_path, True)
+        finally:
+            Utility.delete_directory(tmp_dir)
+
+    @staticmethod
+    def validate_files(bot_data_home_dir: Text, delete_dir_on_exception: bool = False):
+        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+
+        if not os.path.exists(bot_data_home_dir) or not os.path.exists(data_path):
+            if delete_dir_on_exception:
+                Utility.delete_directory(bot_data_home_dir)
+            raise AppException("Could not find required directory structure in zip file!")
+        files = set(os.listdir(bot_data_home_dir)).union(os.listdir(data_path))
+
+        if POSSIBLE_NLU_FILES.intersection(files).__len__() < 1 or \
+                POSSIBLE_STORIES_FILES.intersection(files).__len__() < 1 or \
+                POSSIBLE_DOMAIN_FILES.intersection(files).__len__() < 1 or \
+                POSSIBLE_CONFIG_FILES.intersection(files).__len__() < 1:
+            if delete_dir_on_exception:
+                Utility.delete_directory(bot_data_home_dir)
+            raise AppException('Some training files are missing!')
+
+    @staticmethod
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
+                                  http_action: File = None):
         """
         convert mongo data  to individual files
 
@@ -635,32 +699,6 @@ class Utility:
         return sum(files, [])
 
     @staticmethod
-    def validate_rasa_config(config: Dict):
-        """
-        validates bot config.yml content for invalid entries
-
-        :param config: configuration
-        :return: None
-        """
-        from rasa.nlu.registry import registered_components as nlu_components
-        if config['pipeline']:
-            for item in config['pipeline']:
-                component_cfg = item['name']
-                if not (component_cfg in nlu_components or
-                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter"]):
-                    raise AppException("Invalid component " + component_cfg)
-        else:
-            raise AppException("You didn't define any pipeline")
-
-        if config['policies']:
-            core_policies = Utility.get_rasa_core_policies()
-            for policy in config['policies']:
-                if policy['name'] not in core_policies:
-                    raise AppException("Invalid policy " + policy['name'])
-        else:
-            raise AppException("You didn't define any policies")
-
-    @staticmethod
     def get_rasa_core_policies():
         from rasa.core.policies import registry
         file1 = open(registry.__file__, 'r')
@@ -830,9 +868,8 @@ class Utility:
             from .data_processor.processor import TrainingDataGenerationProcessor
             TrainingDataGenerationProcessor.set_status(bot=bot,
                                                        user=user,
-                                                       status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
+                                                       status=EVENT_STATUS.FAIL.value,
                                                        exception=str(e))
-
 
     @staticmethod
     def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
@@ -889,3 +926,23 @@ class Utility:
             for cleanUp in glob(os.path.join(path, '*.tar.gz')):
                 if model != cleanUp:
                     shutil.move(cleanUp, new_path)
+
+    @staticmethod
+    def read_yaml(path: Text, raise_exception: bool = False):
+        content = None
+        if os.path.exists(path):
+            content = yaml.load(open(path), Loader=yaml.SafeLoader)
+        else:
+            if raise_exception:
+                raise AppException('Path does not exists!')
+        return content
+
+    @staticmethod
+    def replace_file_name(msg: str, root_dir: str = '/tmp'):
+        regex = '((\'*\"*{0}).*(/{1}\'*\"*))'
+        files = ['nlu.yml', 'domain.yml', 'config.yml', 'stories.yml', 'nlu.yaml', 'domain.yaml', 'config.yaml',
+                 'stories.yaml', 'nlu.md', 'stories.md']
+        for file in files:
+            file_regex = regex.format(root_dir, file)
+            msg = re.sub(file_regex, file, msg)
+        return msg

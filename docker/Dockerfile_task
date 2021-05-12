@@ -40,4 +40,4 @@ ENV BOT default
 ENV USER default
 ENV TOKEN default
 
-CMD ["sh","-c","python -m kairon --train ${BOT} ${USER} ${TOKEN}"]
+CMD ["sh","-c","python -m kairon train ${BOT} ${USER} ${TOKEN}"]
