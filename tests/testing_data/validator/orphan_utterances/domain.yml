@@ -1,0 +1,25 @@
+intents:
+- greet
+- deny
+
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+  utter_goodbye:
+  - text: Bye
+  utter_iamabot:
+  - text: I am a Jarvis, powered by Citta.ai .
+  utter_feedback:
+  - text: We would love to hear what you have to say.
+  utter_good_feedback:
+  - text: Thanks you for loving us. Keep using.
+  utter_bad_feedback:
+  - text: Thanks you for your feedback. We will train better till next time.
+
+actions:
+- utter_greet
+- utter_goodbye
+- utter_iamabot
+- utter_feedback
+- utter_good_feedback
+- utter_bad_feedback

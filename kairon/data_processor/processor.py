@@ -1,5 +1,6 @@
 import itertools
 import os
+import shutil
 from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
@@ -7,11 +8,10 @@ from typing import Text, Dict, List
 
 from fastapi import File
 from loguru import logger as logging
-from mongoengine import Document, Q
+from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
-from rasa.core.agent import Agent
 from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
@@ -23,13 +23,11 @@ from rasa.shared.core.events import SlotSet
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.nlu.training_data.message import Message
-from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file, read_yaml_file
+from rasa.shared.utils.io import read_config_file
 from rasa.shared.importers.rasa import RasaFileImporter
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.nlu.constants import TEXT
-from .cache import AgentCache
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -40,7 +38,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, TRAINING_DATA_GENERATOR_DIR,
+    UTTERANCE_TYPE, CUSTOM_ACTIONS
 )
 from .data_objects import (
     Responses,
@@ -62,11 +60,7 @@ from .data_objects import (
     EndPointTracker,
     Slots,
     StoryEvents,
-    ModelTraining,
     ModelDeployment,
-    TrainingDataGenerator,
-    TrainingDataGeneratorResponse,
-    TrainingExamplesTrainingDataGenerator,
     Rules,
     Feedback
 )
@@ -74,6 +68,7 @@ from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
+from ..validator.training_data_validator import TrainingDataValidator
 
 
 class MongoProcessor:
@@ -158,6 +153,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            http_actions_yml = os.path.join(path, 'http_action.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
@@ -165,17 +161,10 @@ class MongoProcessor:
             story_graph = await importer.get_stories()
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
-            http_actions = self.read_http_file(path)
+            http_actions = Utility.read_yaml(http_actions_yml)
+            TrainingDataValidator.validate_http_actions(http_actions)
 
-            if overwrite:
-                self.delete_bot_data(bot, user)
-
-            self.save_config(config, bot, user)
-            self.save_domain(domain, bot, user)
-            self.save_stories(story_graph.story_steps, bot, user)
-            self.save_nlu(nlu, bot, user)
-            self.save_rules(story_graph.story_steps, bot, user)
-            self.save_http_action(http_actions, bot, user)
+            self.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, overwrite)
         except InvalidDomain as e:
             logging.exception(e)
             raise AppException(
@@ -185,6 +174,18 @@ class MongoProcessor:
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
+
+    def save_training_data(self, config: dict, domain: Domain, story_graph: StoryGraph, nlu: TrainingData,
+                           http_actions: dict, bot: Text, user: Text, overwrite: bool = False):
+        if overwrite:
+            self.delete_bot_data(bot, user)
+
+        self.save_config(config, bot, user)
+        self.save_domain(domain, bot, user)
+        self.save_stories(story_graph.story_steps, bot, user)
+        self.save_nlu(nlu, bot, user)
+        self.save_rules(story_graph.story_steps, bot, user)
+        self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -1026,7 +1027,9 @@ class MongoProcessor:
         :return: config unique id
         """
         try:
-            Utility.validate_rasa_config(configs)
+            config_errors = TrainingDataValidator.validate_rasa_config(configs)
+            if config_errors:
+                raise AppException(config_errors[0])
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = configs["pipeline"]
             config_obj.language = configs["language"]
@@ -2446,48 +2449,6 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
-    def read_http_file(self, path: Text, raise_exception: bool = False):
-        http_actions = None
-        http_actions_yml = os.path.join(path, 'http_action.yml')
-        if os.path.exists(http_actions_yml):
-            http_actions = Utility.load_yaml(http_actions_yml)
-            self.validate_http_file(http_actions)
-        else:
-            if raise_exception:
-                raise AppException('Path does not exists!')
-        return http_actions
-
-    def validate_http_file(self, content: dict):
-        required_fields = ['action_name', 'response', 'http_url', 'request_method']
-        action_names = []
-
-        if not content or not content.get('http_actions'):
-            return
-
-        actions = content.get('http_actions')
-        for http_obj in actions:
-            if all(name in http_obj for name in required_fields):
-                if (not http_obj.get('request_method') or
-                        http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}):
-                    raise AppException('Invalid request method: ' + http_obj['action_name'])
-
-                if http_obj['action_name'] not in action_names:
-
-                    if http_obj.get('params_list'):
-                        for param in http_obj.get('params_list'):
-                            if not param.get('key'):
-                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
-                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                            if param.get('parameter_type') == 'slot' and not param.get('value'):
-                                param['value'] = param.get('key')
-
-                    action_names.append(http_obj['action_name'])
-                else:
-                    raise AppException("Duplicate http action found")
-            else:
-                raise AppException("Required http action fields not found")
-
     def save_http_action(self, http_action: dict, bot: Text, user: Text):
         """
         saves http actions data
@@ -2566,377 +2527,34 @@ class MongoProcessor:
 
     @staticmethod
     def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
+        """
+        Add user feedback.
+        @param rating: user given rating.
+        @param bot: bot id.
+        @param user: Kairon username.
+        @param scale: Scale on which rating is given. %.0 is the default value.
+        @param feedback: feedback if any.
+        @return:
+        """
         Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
-class AgentProcessor:
-    """
-    Class contains logic for loading bot agents
-    """
-
-    mongo_processor = MongoProcessor()
-    cache_provider: AgentCache = Utility.create_cache()
-
-    @staticmethod
-    def get_agent(bot: Text) -> Agent:
+    def prepare_training_data_for_validation(self, bot: Text):
         """
-        fetch the bot agent from cache if exist otherwise load it into the cache
-
-        :param bot: bot id
-        :return: Agent Object
+        Writes training data into files and makes them available for validation.
+        @param bot: bot id.
+        @return:
         """
-        if not AgentProcessor.cache_provider.is_exists(bot):
-            AgentProcessor.reload(bot)
-        return AgentProcessor.cache_provider.get(bot)
-
-    @staticmethod
-    def get_latest_model(bot: Text):
-        """
-        fetches the latest model from the path
-
-        :param bot: bot id
-        :return: latest model path
-        """
-        return Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
-
-    @staticmethod
-    def reload(bot: Text):
-        """
-        reload bot agent
-
-        :param bot: bot id
-        :return: None
-        """
-        try:
-            endpoint = AgentProcessor.mongo_processor.get_endpoints(
-                bot, raise_exception=False
-            )
-            action_endpoint = Utility.get_action_url(endpoint)
-            model_path = AgentProcessor.get_latest_model(bot)
-            domain = AgentProcessor.mongo_processor.load_domain(bot)
-            mongo_store = Utility.get_local_mongo_store(bot, domain)
-            interpreter = Utility.get_interpreter(model_path)
-            agent = Agent.load(
-                model_path, interpreter=interpreter, action_endpoint=action_endpoint, tracker_store=mongo_store
-            )
-            AgentProcessor.cache_provider.set(bot, agent)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException("Bot has not been trained yet !")
-
-
-class ModelProcessor:
-    """
-    Class contains logic for model training history
-    """
-
-    @staticmethod
-    def set_training_status(
-            bot: Text,
-            user: Text,
-            status: Text,
-            model_path: Text = None,
-            exception: Text = None,
-    ):
-        """
-        add or update bot training history
-
-        :param bot: bot id
-        :param user: user id
-        :param status: InProgress, Done, Fail
-        :param model_path: new model path
-        :param exception: exception while training
-        :return: None
-        """
-        try:
-            doc = ModelTraining.objects(bot=bot).get(
-                status=MODEL_TRAINING_STATUS.INPROGRESS
-            )
-            doc.status = status
-            doc.end_timestamp = datetime.utcnow()
-        except DoesNotExist:
-            doc = ModelTraining()
-            doc.status = status
-            doc.start_timestamp = datetime.utcnow()
-            if status in [MODEL_TRAINING_STATUS.FAIL, MODEL_TRAINING_STATUS.DONE]:
-                doc.end_timestamp = datetime.utcnow()
-
-        doc.bot = bot
-        doc.user = user
-        doc.model_path = model_path
-        doc.exception = exception
-        doc.save()
-
-    @staticmethod
-    def is_training_inprogress(bot: Text, raise_exception=True):
-        """
-        checks if there is any bot training in progress
-
-        :param bot: bot id
-        :param raise_exception: whether to raise an exception, default is True
-        :return: None
-        :raises: AppException
-        """
-        if ModelTraining.objects(
-                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
-        ).count():
-            if raise_exception:
-                raise AppException("Previous model training in progress.")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def is_daily_training_limit_exceeded(bot: Text, raise_exception=True):
-        """
-        checks if daily bot training limit is exhausted
-
-        :param bot: bot id
-        :param raise_exception: whether to raise and exception
-        :return: boolean
-        :raises: AppException
-        """
-        today = datetime.today()
-
-        today_start = today.replace(hour=0, minute=0, second=0)
-        doc_count = ModelTraining.objects(
-            bot=bot, start_timestamp__gte=today_start
-        ).count()
-        if doc_count >= Utility.environment['model']['train']["limit_per_day"]:
-            if raise_exception:
-                raise AppException("Daily model training limit exceeded.")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def get_training_history(bot: Text):
-        """
-        fetches bot training history
-
-        :param bot: bot id
-        :return: yield dict of training history
-        """
-        for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
-            item = value.to_mongo().to_dict()
-            item.pop("bot")
-            item["_id"] = item["_id"].__str__()
-            yield item
-
-
-class TrainingDataGenerationProcessor:
-    """
-    Class contains logic for adding/updating training data generator status and history
-    """
-    @staticmethod
-    def validate_history_id(doc_id):
-        try:
-            history = TrainingDataGenerator.objects().get(id=doc_id)
-            if not history.response:
-                raise AppException("No Training Data Generated")
-        except DoesNotExist:
-            raise AppException("Matching history_id not found!")
-
-    @staticmethod
-    def retreive_response_and_set_status(request_data, bot, user):
-        training_data_list = None
-        if request_data.response:
-            training_data_list = []
-            for training_data in request_data.response:
-                training_examples = []
-                for example in training_data.training_examples:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example
-                        )
-                    )
-
-                training_data_list.append(
-                    TrainingDataGeneratorResponse(
-                        intent=training_data.intent,
-                        training_examples=training_examples,
-                        response=training_data.response
-                    ))
-        TrainingDataGenerationProcessor.set_status(
-            status=request_data.status,
-            response=training_data_list,
-            exception=request_data.exception,
-            bot=bot,
-            user=user
+        nlu = self.load_nlu(bot)
+        domain = self.load_domain(bot)
+        stories = self.load_stories(bot)
+        config = self.load_config(bot)
+        rules = self.get_rules_for_training(bot)
+        directory = Utility.write_training_data(
+            nlu,
+            domain,
+            config,
+            stories,
+            rules,
         )
-
-    @staticmethod
-    def set_status(
-            bot: Text,
-            user: Text,
-            status: Text,
-            document_path=None,
-            response=None,
-            exception: Text = None,
-    ):
-        """
-        add or update training data generator status
-
-        :param bot: bot id
-        :param user: user id
-        :param status: InProgress, Done, Fail
-        :param response: data generation response
-        :param exception: exception while training
-        :return: None
-        """
-        try:
-            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
-            doc.status = status
-        except DoesNotExist:
-            doc = TrainingDataGenerator()
-            doc.status = TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
-            doc.document_path = document_path
-            doc.start_timestamp = datetime.utcnow()
-
-        doc.last_update_timestamp = datetime.utcnow()
-        if status in [TRAINING_DATA_GENERATOR_STATUS.FAIL, TRAINING_DATA_GENERATOR_STATUS.COMPLETED]:
-            doc.end_timestamp = datetime.utcnow()
-            doc.last_update_timestamp = doc.end_timestamp
-        doc.bot = bot
-        doc.user = user
-        doc.response = response
-        doc.exception = exception
-        doc.save()
-
-    @staticmethod
-    def fetch_latest_workload(
-            bot: Text,
-            user: Text,
-    ):
-        """
-        fetch latest training data generator task
-
-        :param bot: bot id
-        :param user: user id
-        :return: None
-        """
-        try:
-            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
-            doc.pop('_id')
-        except DoesNotExist:
-            doc = None
-        return doc
-
-    @staticmethod
-    def is_in_progress(bot: Text, raise_exception=True):
-        """
-        checks if there is any training data generation in progress
-
-        :param bot: bot id
-        :param raise_exception: whether to raise an exception, default is True
-        :return: None
-        :raises: AppException
-        """
-        if TrainingDataGenerator.objects(bot=bot).filter(
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
-            if raise_exception:
-                raise AppException("Previous data generation process not completed")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def get_training_data_generator_history(bot: Text):
-        """
-        fetches training data generator history
-
-        :param bot: bot id
-        :return: yield dict of training history
-        """
-        return list(TrainingDataGenerationProcessor.__get_all_history(bot))
-
-    @staticmethod
-    def __get_all_history(bot: Text):
-        """
-        fetches training data generator history
-
-        :param bot: bot id
-        :return: yield dict of training history
-        """
-        for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
-            item = value.to_mongo().to_dict()
-            if item.get('document_path'):
-                item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
-            item.pop("bot")
-            item.pop("user")
-            item["_id"] = item["_id"].__str__()
-            yield item
-
-    @staticmethod
-    def check_data_generation_limit(bot: Text, raise_exception=True):
-        """
-        checks if daily training data generation limit is exhausted
-
-        :param bot: bot id
-        :param raise_exception: whether to raise and exception
-        :return: boolean
-        :raises: AppException
-        """
-        today = datetime.today()
-
-        today_start = today.replace(hour=0, minute=0, second=0)
-        doc_count = TrainingDataGenerator.objects(
-            bot=bot, start_timestamp__gte=today_start
-        ).count()
-        if doc_count >= Utility.environment['data_generation']["limit_per_day"]:
-            if raise_exception:
-                raise AppException("Daily file processing limit exceeded.")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
-        history = TrainingDataGenerator.objects().get(id=doc_id)
-        updated_training_data_with_flag = []
-        for training_data in history.response:
-            intent = training_data.intent
-            response = training_data.response
-            existing_training_examples = [example.training_example for example in training_data.training_examples]
-            training_examples = []
-
-            if persisted_training_data.get(intent):
-                examples_added = persisted_training_data.get(training_data.intent)
-                examples_not_added = list(set(existing_training_examples) - set(examples_added))
-
-                for example in examples_not_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example
-                        )
-                    )
-
-                for example in examples_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example,
-                            is_persisted=True
-                        )
-                    )
-            else:
-                training_examples = training_data.training_examples
-
-            updated_training_data_with_flag.append(
-                TrainingDataGeneratorResponse(
-                    intent=intent,
-                    training_examples=training_examples,
-                    response=response
-                ))
-        history.response = updated_training_data_with_flag
-        history.save()
+        training_data_home = os.path.join('training_data', bot, str(datetime.utcnow()))
+        shutil.move(directory, training_data_home)
