@@ -1,9 +1,8 @@
 from augmentation.paraphrase.gpt3.generator import GPT3ParaphraseGenerator
 from augmentation.paraphrase.gpt3.models import GPTRequest
+from augmentation.paraphrase.gpt3.gpt import GPT
 import openai
-from kairon.exceptions import AppException
 import pytest
-from augmentation.paraphrase.server import gpt_paraphrases
 
 
 def mock_create(*args, **kwargs):
@@ -15,6 +14,50 @@ def mock_create(*args, **kwargs):
         choices = [MockText(), MockText()]
 
     return MockOutput()
+
+
+def mock_submit_request(*args, **kwargs):
+
+    class MockOutput:
+
+        class MockText:
+            def __init__(self, text):
+                self.text = text
+
+        choices = [
+            MockText("output: Are there any further test questions?"),
+            MockText("output: Are there any further test questions."),
+            MockText("output: Are there any more test questions?Input: My friend has an athletic scholarship to the University of Arkansas"),
+            MockText("output: Is there another test question?"),
+            MockText("output: Is there another test question"),
+            MockText("output: Is there another Test Question?"),
+            MockText("output: Are there any more test questions?"),
+            MockText("output: Are there any more test questions."),
+            MockText("output:Are there more test questions?"),
+            MockText("output:"),
+            MockText("output: "),
+            MockText("output: ."),
+            MockText("output:?")
+        ]
+
+    return MockOutput()
+
+
+def test_questions_set_generation(monkeypatch):
+    monkeypatch.setattr(GPT, 'submit_request', mock_submit_request)
+
+    request_data = GPTRequest(api_key="MockKey",
+                              data=["Are there any more test questions?"], num_responses=13)
+
+    gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
+    augmented_questions = gpt3_generator.paraphrases()
+
+    expected_augmented_questions = {
+        "Are there any further test questions?",
+        "Is there another test question?",
+        "Are there more test questions?"
+    }
+    assert augmented_questions == expected_augmented_questions
 
 
 def test_generate_questions(monkeypatch):

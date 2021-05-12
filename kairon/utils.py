@@ -95,11 +95,8 @@ class Utility:
         """
         if not Utility.check_empty_string(example):
             if entities:
-                for entity in entities:
-                    example = example.replace(
-                        entity["value"],
-                        "[" + entity["value"] + "](" + entity["entity"] + ")",
-                    )
+                from rasa.shared.nlu.training_data.formats.rasa_yaml import RasaYAMLWriter
+                example = RasaYAMLWriter.generate_message({'text': example, "entities": entities})
         return example
 
     @staticmethod
@@ -134,26 +131,6 @@ class Utility:
         :return: None
         """
         Utility.environment = ConfigLoader(os.getenv("system_file", "./system.yaml")).get_config()
-
-    @staticmethod
-    def validate_fields(fields: Dict, data: Dict):
-        """
-        validate fields
-
-        :param fields: fields
-        :param data: data
-        :return: None
-        """
-        error = ""
-        for key, value in fields.items():
-            if isinstance(value, StringField):
-                if data[key] != None and str(data["key"]).strip():
-                    error += "\n " + key + " cannot be empty or blank spaces"
-            elif isinstance(value, ListField):
-                if value.required and value:
-                    error += "\n " + key + " cannot be empty"
-        if error:
-            raise error
 
     @staticmethod
     def is_exist(
@@ -213,19 +190,6 @@ class Utility:
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(iglob(folder + "/*"), key=os.path.getctime)
-
-    @staticmethod
-    def check_empty_list_elements(items: List[Text]):
-        """
-        checks if any of the input strings are empty
-
-        :param items: text list
-        :return: boolean
-        """
-        for item in items:
-            if Utility.check_empty_string(item):
-                return True
-        return False
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
@@ -936,6 +900,20 @@ class Utility:
         with Path(destination).open("wb") as buffer:
             shutil.copyfileobj(doc.file, buffer)
         return destination
+
+    @staticmethod
+    def get_interpreter(model_path):
+        from rasa.model import get_model, get_model_subdirectories
+        from rasa.core.interpreter import create_interpreter
+        try:
+            with get_model(model_path) as unpacked_model:
+                _, nlu_model = get_model_subdirectories(unpacked_model)
+                _interpreter = create_interpreter(
+                    nlu_model
+                )
+        except Exception:
+            logger.debug(f"Could not load interpreter from '{model_path}'.")
+            _interpreter = None
 
     @staticmethod
     def read_yaml(path: Text, raise_exception: bool = False):

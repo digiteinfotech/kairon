@@ -166,3 +166,77 @@ class TestActionServer(AsyncHTTPTestCase):
             self.assertEqual(len(response_json['events']), 1)
             self.assertEqual(len(response_json['responses']), 1)
             self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
+
+    def test_http_action_missing_action_name(self):
+        action_name = ""
+
+        request_object = {
+          "next_action": action_name,
+          "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+          },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+          },
+          "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, None)
+
+    def test_http_action_doesnotexist(self):
+        action_name = "does_not_exist_action"
+
+        request_object = {
+          "next_action": action_name,
+          "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+          },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+          },
+          "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")

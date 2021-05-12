@@ -1393,7 +1393,7 @@ def test_augment_paraphrase_gpt():
         json={
             "success": True,
             "data": {
-                "questions": ['Where is digite located?',
+                "paraphrases": ['Where is digite located?',
                               'Where is digite situated?']
             },
             "message": None,
@@ -1412,7 +1412,7 @@ def test_augment_paraphrase_gpt():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == {
-        "questions": ['Where is digite located?',
+        "paraphrases": ['Where is digite located?',
                       'Where is digite situated?']
     }
     assert Utility.check_empty_string(actual["message"])

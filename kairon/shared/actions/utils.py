@@ -13,6 +13,7 @@ from smart_config import ConfigLoader
 from .models import ParameterType
 from .data_objects import HttpActionConfig, HttpActionRequestBody
 from .exception import HttpActionFailure
+from rasa_sdk.interfaces import ActionNotFoundException
 
 
 class ActionUtility:
@@ -131,8 +132,9 @@ class ActionUtility:
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
                                                               action_name=action_name, status=True).to_mongo().to_dict()
             logger.debug("http_action_config: " + str(http_config_dict))
-        except DoesNotExist:
-            raise HttpActionFailure("No HTTP action found for bot " + bot + " and action " + action_name)
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise HttpActionFailure("No HTTP action found for bot")
 
         return http_config_dict
 
