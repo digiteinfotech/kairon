@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Any, Dict
 import validators
-from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
@@ -270,7 +270,7 @@ class TrainingDataGeneratorResponseModel(BaseModel):
 
 
 class TrainingDataGeneratorStatusModel(BaseModel):
-    status: TRAINING_DATA_GENERATOR_STATUS
+    status: EVENT_STATUS
     response: List[TrainingData] = None
     exception: str = None
 

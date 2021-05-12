@@ -81,10 +81,20 @@ class CUSTOM_ACTIONS(str, Enum):
     HTTP_ACTION_CONFIG = "http_action_config"
 
 
-class TRAINING_DATA_GENERATOR_STATUS(str, Enum):
+class EVENT_STATUS(str, Enum):
     INITIATED = "Initiated"
     TASKSPAWNED = "Task Spawned"
     INPROGRESS = "In progress"
-    PARSE = "Task Spawned"
+    PARSE = "Parsing data"
+    VALIDATING = "Validation in progress"
+    SAVE = "Importing data to kairon"
+    SKIP_IMPORT = "Skipping importing data to kairon"
+    TRIGGER_TRAINING = "Triggering model training"
     COMPLETED = "Completed"
     FAIL = "Fail"
+
+
+POSSIBLE_NLU_FILES = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
+POSSIBLE_STORIES_FILES = {'stories.yml', 'stories.md', 'stories.yaml'}
+POSSIBLE_DOMAIN_FILES = {'domain.yml', 'domain.yaml'}
+POSSIBLE_CONFIG_FILES = {'config.yaml', 'config.yml'}

@@ -1,0 +1,5 @@
+intents:
+- greet
+- goodbye
+
+entities

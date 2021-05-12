@@ -1,0 +1,14 @@
+intents:
+- greet
+- refute
+- deny
+
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+  utter_goodbye:
+  - text: Bye
+
+actions:
+- utter_greet
+- utter_goodbye
