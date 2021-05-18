@@ -13,6 +13,8 @@ class DataImporter:
     """
 
     def __init__(self, path: Text, bot: Text, user: Text, save_data: bool = True, overwrite: bool = True):
+        """Initialize data importer"""
+
         self.path = path
         self.bot = bot
         self.user = user

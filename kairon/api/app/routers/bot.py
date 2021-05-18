@@ -780,7 +780,7 @@ async def get_data_importer_logs(current_user: User = Depends(auth.get_current_u
 
 
 @router.post("/validate", response_model=Response)
-async def upload_files(
+async def validate_training_data(
         background_tasks: BackgroundTasks,
         current_user: User = Depends(auth.get_current_user),
 ):

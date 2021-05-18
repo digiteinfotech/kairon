@@ -26,39 +26,44 @@ class TestTrainingDataValidator:
     @pytest.mark.asyncio
     async def test_validate_with_file_importer_invalid_yaml_format(self):
         # domain
+        root = 'tests/testing_data/all'
         domain_path = 'tests/testing_data/validator/invalid_yaml/domain.yml'
         nlu_path = 'tests/testing_data/all/data'
         config_path = 'tests/testing_data/all/config.yml'
         with pytest.raises(AppException):
-            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
 
         # config
+        root = 'tests/testing_data/all'
         domain_path = 'tests/testing_data/all/domain.yml'
         nlu_path = 'tests/testing_data/all/data'
         config_path = 'tests/testing_data/validator/invalid_yaml/config.yml'
         with pytest.raises(AppException):
-            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
 
         # nlu
+        root = 'tests/testing_data/all'
         domain_path = 'tests/testing_data/all/domain.yml'
         nlu_path = 'tests/testing_data/validator/invalid_yaml/data'
         config_path = 'tests/testing_data/all/config.yml'
         with pytest.raises(AppException):
-            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
 
         # stories
+        root = 'tests/testing_data/all'
         domain_path = 'tests/testing_data/all/domain.yml'
         nlu_path = 'tests/testing_data/validator/invalid_yaml/data_2'
         config_path = 'tests/testing_data/all/config.yml'
         with pytest.raises(AppException):
-            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
 
     @pytest.mark.asyncio
     async def test_validate_intent_mismatch(self):
+        root = 'tests/testing_data/validator/intent_name_mismatch'
         domain_path = 'tests/testing_data/validator/intent_name_mismatch/domain.yml'
         nlu_path = 'tests/testing_data/validator/intent_name_mismatch/data'
         config_path = 'tests/testing_data/validator/intent_name_mismatch/config.yml'
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         with pytest.raises(AppException):
             validator.validate_training_data()
 
@@ -75,10 +80,11 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_empty_domain(self):
+        root = 'tests/testing_data/validator/empty_domain'
         domain_path = 'tests/testing_data/validator/empty_domain/domain.yml'
         nlu_path = 'tests/testing_data/validator/valid/data'
         config_path = 'tests/testing_data/validator/valid/config.yml'
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         with pytest.raises(AppException):
             validator.validate_training_data()
 
@@ -92,14 +98,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_story_with_conflicts(self):
+        root = 'tests/testing_data/validator/conflicting_stories'
         domain_path = 'tests/testing_data/validator/conflicting_stories/domain.yml'
         nlu_path = 'tests/testing_data/validator/conflicting_stories/data'
         config_path = 'tests/testing_data/validator/conflicting_stories/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')
@@ -111,14 +118,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_intent_in_story_not_in_domain(self):
+        root = 'tests/testing_data/validator/intent_missing_in_domain'
         domain_path = 'tests/testing_data/validator/intent_missing_in_domain/domain.yml'
         nlu_path = 'tests/testing_data/validator/intent_missing_in_domain/data'
         config_path = 'tests/testing_data/validator/intent_missing_in_domain/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert validator.summary['intents'][
                    0] == 'There is a message in the training data labeled with intent \'deny\'. This intent is not listed in your domain.'
@@ -132,14 +140,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_intent_not_used_in_any_story(self):
+        root = 'tests/testing_data/validator/orphan_intents'
         domain_path = 'tests/testing_data/validator/orphan_intents/domain.yml'
         nlu_path = 'tests/testing_data/validator/orphan_intents/data'
         config_path = 'tests/testing_data/validator/orphan_intents/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
         assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
@@ -151,14 +160,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_repeated_training_example(self):
+        root = 'tests/testing_data/validator/common_training_examples'
         domain_path = 'tests/testing_data/validator/common_training_examples/domain.yml'
         nlu_path = 'tests/testing_data/validator/common_training_examples/data'
         config_path = 'tests/testing_data/validator/common_training_examples/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')
@@ -172,14 +182,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_utterance_in_story_not_in_domain(self):
+        root= 'tests/testing_data/validator/utterance_missing_in_domain'
         domain_path = 'tests/testing_data/validator/utterance_missing_in_domain/domain.yml'
         nlu_path = 'tests/testing_data/validator/utterance_missing_in_domain/data'
         config_path = 'tests/testing_data/validator/utterance_missing_in_domain/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert validator.summary['utterances'][
@@ -191,14 +202,15 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_utterance_not_used_in_any_story(self):
+        root = 'tests/testing_data/validator/orphan_utterances'
         domain_path = 'tests/testing_data/validator/orphan_utterances/domain.yml'
         nlu_path = 'tests/testing_data/validator/orphan_utterances/data'
         config_path = 'tests/testing_data/validator/orphan_utterances/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
@@ -210,10 +222,11 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_valid_training_data(self):
+        root = 'tests/testing_data/validator/valid'
         domain_path = 'tests/testing_data/validator/valid/domain.yml'
         nlu_path = 'tests/testing_data/validator/valid/data'
         config_path = 'tests/testing_data/validator/valid/config.yml'
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data()
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')
@@ -224,22 +237,24 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_invalid_training_file_path(self):
+        root = 'tests/testing_data/invalid_path/domain.yml'
         domain_path = 'tests/testing_data/invalid_path/domain.yml'
         nlu_path = 'tests/testing_data/validator/intent_name_mismatch/data'
         config_path = 'tests/testing_data/validator/intent_name_mismatch/config.yml'
         with pytest.raises(AppException):
-            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
 
     @pytest.mark.asyncio
     async def test_validate_config_with_invalid_pipeline(self):
+        root = 'tests/testing_data/validator/invalid_config'
         domain_path = 'tests/testing_data/validator/invalid_config/domain.yml'
         nlu_path = 'tests/testing_data/validator/invalid_config/data'
         config_path = 'tests/testing_data/validator/invalid_config/config.yml'
         with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
             validator.validate_training_data()
 
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path)
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')

@@ -192,8 +192,9 @@ class TestUtility:
 
     def test_make_dirs_exception(self, resource_make_dirs):
         assert os.path.exists(pytest.temp_path)
-        with pytest.raises(AppException):
+        with pytest.raises(AppException) as e:
             Utility.make_dirs(pytest.temp_path, True)
+        assert str(e).__contains__('Directory exists!')
 
     def test_make_dirs_path_already_exists(self, resource_make_dirs):
         assert os.path.exists(pytest.temp_path)
@@ -241,8 +242,9 @@ class TestUtility:
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_no_files_received(self):
-        with pytest.raises(AppException):
+        with pytest.raises(AppException) as e:
             await Utility.save_and_validate_training_files(pytest.bot, [])
+        assert str(e).__contains__("No files received!")
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files(self, resource_save_and_validate_training_files):
