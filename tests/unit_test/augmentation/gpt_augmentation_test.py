@@ -25,12 +25,19 @@ def mock_submit_request(*args, **kwargs):
                 self.text = text
 
         choices = [
-            MockText("Are there any further test questions?"),
-            MockText("Are there any further test questions."),
-            MockText("Are there any more test questions?Input: My friend has an athletic scholarship to the University of Arkansas"),
-            MockText("Is there another test question?"),
-            MockText("Is there another test question"),
-            MockText("Is there another Test Question?")
+            MockText("output: Are there any further test questions?"),
+            MockText("output: Are there any further test questions."),
+            MockText("output: Are there any more test questions?Input: My friend has an athletic scholarship to the University of Arkansas"),
+            MockText("output: Is there another test question?"),
+            MockText("output: Is there another test question"),
+            MockText("output: Is there another Test Question?"),
+            MockText("output: Are there any more test questions?"),
+            MockText("output: Are there any more test questions."),
+            MockText("output:Are there more test questions?"),
+            MockText("output:"),
+            MockText("output: "),
+            MockText("output: ."),
+            MockText("output:?")
         ]
 
     return MockOutput()
@@ -40,12 +47,16 @@ def test_questions_set_generation(monkeypatch):
     monkeypatch.setattr(GPT, 'submit_request', mock_submit_request)
 
     request_data = GPTRequest(api_key="MockKey",
-                              data=["Are there any more test questions?"], num_responses=6)
+                              data=["Are there any more test questions?"], num_responses=13)
 
     gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
     augmented_questions = gpt3_generator.paraphrases()
 
-    expected_augmented_questions = {"Are there any further test questions?", "Is there another test question?"}
+    expected_augmented_questions = {
+        "Are there any further test questions?",
+        "Is there another test question?",
+        "Are there more test questions?"
+    }
     assert augmented_questions == expected_augmented_questions
 
 
