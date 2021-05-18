@@ -5,6 +5,20 @@ from mongoengine import connect
 from kairon.cli import data_importer, training
 from kairon.utils import Utility
 
+"""
+CLI to train or import(and validate) data into kairon.
+
+Usage:
+    Train:
+        kairon train <botid> <userid>
+        kairon train <botid> <userid> <token>
+    
+    Import data:
+        kairon data-importer <botid> <userid>
+        kairon data-importer <botid> <userid> --import-data
+        kairon data-importer <botid> <userid> --import-data --overwrite
+"""
+
 
 def create_argument_parser():
     parser = ArgumentParser(
