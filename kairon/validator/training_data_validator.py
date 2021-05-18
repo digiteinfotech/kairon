@@ -25,9 +25,14 @@ DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'a
 
 
 class TrainingDataValidator(Validator):
-    """Tool to verify usage of intents, utterances, training examples and conflicts in stories."""
+    """
+    Tool to verify usage of intents, utterances,
+    training examples and conflicts in stories.
+    """
 
     def __init__(self, validator: Validator):
+        """Initiate class with rasa validator object."""
+
         super().__init__(validator.domain, validator.intents, validator.story_graph)
         self.validator = validator
         self.summary = {}
@@ -47,7 +52,7 @@ class TrainingDataValidator(Validator):
         return cls(validator)
 
     @classmethod
-    async def from_training_files(cls, training_data_paths: str, domain_path: str, config_path: str, root_dir='/tmp'):
+    async def from_training_files(cls, training_data_paths: str, domain_path: str, config_path: str, root_dir):
         """
         Create validator from training files.
         @param training_data_paths: nlu.yml file path.

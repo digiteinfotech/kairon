@@ -328,7 +328,7 @@ class Utility:
         if not os.path.exists(bot_data_home_dir) or not os.path.exists(data_path):
             if delete_dir_on_exception:
                 Utility.delete_directory(bot_data_home_dir)
-            raise AppException("Could not find required directory structure in zip file!")
+            raise AppException("Required directory structure not found!")
         files = set(os.listdir(bot_data_home_dir)).union(os.listdir(data_path))
 
         if POSSIBLE_NLU_FILES.intersection(files).__len__() < 1 or \
@@ -1005,7 +1005,7 @@ class Utility:
         return content
 
     @staticmethod
-    def replace_file_name(msg: str, root_dir: str = '/tmp'):
+    def replace_file_name(msg: str, root_dir: str):
         regex = '((\'*\"*{0}).*(/{1}\'*\"*))'
         files = ['nlu.yml', 'domain.yml', 'config.yml', 'stories.yml', 'nlu.yaml', 'domain.yaml', 'config.yaml',
                  'stories.yaml', 'nlu.md', 'stories.md']
