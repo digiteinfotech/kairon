@@ -168,7 +168,7 @@ class TrainingDataValidator(Validator):
             event.intent["name"]
             for story in self.story_graph.story_steps
             for event in story.events
-            if type(event) == UserUttered
+            if isinstance(event, UserUttered)
         }
 
         for story_intent in stories_intents:
