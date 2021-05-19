@@ -12,7 +12,6 @@ from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
 from fastapi import File
-from mongoengine import StringField, ListField
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.utils.endpoints import EndpointConfig
 import requests
