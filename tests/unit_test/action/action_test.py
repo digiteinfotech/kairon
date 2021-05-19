@@ -275,7 +275,7 @@ class TestActions:
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
             auth_token="",
-            action_name="http_action",
+            action_name="test_get_http_action_config_deleted_action",
             response="${RESPONSE}",
             http_url="http://www.digite.com",
             request_method="POST",
@@ -286,7 +286,7 @@ class TestActions:
         ).save().to_mongo().to_dict()
         expected = HttpActionConfig(
             auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
-            action_name="http_action",
+            action_name="test_get_http_action_config_deleted_action",
             response="json",
             http_url="http://test.com",
             request_method="GET",
@@ -295,7 +295,7 @@ class TestActions:
             user="user"
         ).save().to_mongo().to_dict()
 
-        actual = ActionUtility.get_http_action_config("bot", "http_action")
+        actual = ActionUtility.get_http_action_config("bot", "test_get_http_action_config_deleted_action")
         assert actual is not None
         assert expected['auth_token'] == actual['auth_token']
         assert expected['action_name'] == actual['action_name']
