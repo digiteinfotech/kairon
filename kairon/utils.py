@@ -340,8 +340,7 @@ class Utility:
             raise AppException('Some training files are missing!')
 
     @staticmethod
-    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None):
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
         """
         convert mongo data  to individual files
 
