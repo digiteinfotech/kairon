@@ -282,6 +282,11 @@ class StoryStepType(str, Enum):
     action = "ACTION"
 
 
+class StoryType(str, Enum):
+    story = "STORY"
+    rule = "RULE"
+
+
 class StoryStepRequest(BaseModel):
     name: str
     type: StoryStepType
@@ -290,6 +295,7 @@ class StoryStepRequest(BaseModel):
 class AddStoryRequest(BaseModel):
     name: str
     steps: List[StoryStepRequest]
+    type: StoryType
 
     def get_steps(self):
         return [step.dict() for step in self.steps]
@@ -297,12 +303,12 @@ class AddStoryRequest(BaseModel):
     @validator("steps")
     def validate_request_method(cls, v, values, **kwargs):
         if not v:
-            raise ValueError("Steps are required to form story")
+            raise ValueError("Steps are required to form Flow")
 
         if v[0].type != StoryStepType.intent:
             raise ValueError("First step should be an intent")
 
-        if v[len(v)-1].type == StoryStepType.intent:
+        if v[len(v) - 1].type == StoryStepType.intent:
             raise ValueError("Intent should be followed by utterance or action")
 
         for i, j in enumerate(range(1, len(v))):
@@ -324,8 +330,28 @@ class FeedbackRequest(BaseModel):
 
 class GPTRequest(BaseModel):
     api_key: str
-    data: list
+    data: List[str]
     engine: str = "davinci"
     temperature: float = 0.75
     max_tokens: int = 100
     num_responses: int = 10
+
+    @validator("data")
+    def validate_gpt_questions(cls, v, values, **kwargs):
+        if len(v) <= 0:
+            raise ValueError("Question Please!")
+        elif len(v) > 5:
+            raise ValueError("Max 5 Questions are allowed!")
+        return v
+
+
+class ParaphrasesRequest(BaseModel):
+    data: List[str]
+
+    @validator("data")
+    def validate_paraphrases_questions(cls, v, values, **kwargs):
+        if len(v) <= 0:
+            raise ValueError("Question Please!")
+        elif len(v) > 5:
+            raise ValueError("Max 5 Questions are allowed!")
+        return v

@@ -130,6 +130,7 @@ def train_model_for_bot(bot: str):
     del domain
     del stories
     del config
+    Utility.move_old_models(output, model)
     return model
 
 

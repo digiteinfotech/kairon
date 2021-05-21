@@ -1,3 +1,4 @@
+import glob
 import os
 from io import BytesIO
 
@@ -127,3 +128,9 @@ class TestUtility:
     def test_get_interpreter_with_no_model(self):
         actual = Utility.get_interpreter("test.tar.gz")
         assert actual is None
+
+    def test_delete_old_models(self):
+        folder = "models/tests"
+        file = Utility.get_latest_file(folder)
+        Utility.move_old_models(folder, file)
+        assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1

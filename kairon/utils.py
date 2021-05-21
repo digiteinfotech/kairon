@@ -6,19 +6,18 @@ import tempfile
 from datetime import datetime, timedelta
 from glob import glob, iglob
 from html import escape
-from pathlib import Path
 from io import BytesIO
+from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
-from fastapi import File
-from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
-from rasa.utils.endpoints import EndpointConfig
+
 import requests
 import yaml
+from fastapi import File
 from fastapi.security import OAuth2PasswordBearer
 from jwt import encode, decode
-from mongoengine import StringField, ListField
+from loguru import logger
 from mongoengine.document import BaseDocument, Document
 from mongoengine.errors import ValidationError
 from passlib.context import CryptContext
@@ -32,28 +31,27 @@ from pymongo.uri_parser import (
     SRV_SCHEME,
     parse_userinfo,
 )
+from rasa.core.tracker_store import MongoTrackerStore
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.shared.constants import DEFAULT_MODELS_PATH
-from rasa.shared.nlu.constants import TEXT
-from rasa.core import config as configuration
-from rasa.core.tracker_store import MongoTrackerStore
+from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import StoryGraph
 from rasa.shared.importers.rasa import Domain
-from rasa.nlu.components import ComponentBuilder
-from rasa.nlu.config import RasaNLUModelConfig
-from rasa.shared.nlu.training_data.training_data import TrainingData
-from rasa.shared.nlu.training_data.formats.markdown import MarkdownReader
+from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data import entities_parser
+from rasa.shared.nlu.training_data.formats.markdown import MarkdownReader
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.utils.endpoints import EndpointConfig
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
 
-from .shared.actions.data_objects import HttpActionConfig
+from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
-from kairon.data_processor.cache import InMemoryAgentCache
-from loguru import logger
+from .shared.actions.data_objects import HttpActionConfig
+import shutil
 
 class Utility:
     """Class contains logic for various utilities"""
@@ -190,7 +188,7 @@ class Utility:
         """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        return max(iglob(folder + "/*"), key=os.path.getctime)
+        return max(iglob(os.path.join(folder, "*.tar.gz")), key=os.path.getctime)
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
@@ -880,3 +878,13 @@ class Utility:
         except Exception:
             logger.debug(f"Could not load interpreter from '{model_path}'.")
             _interpreter = None
+
+    @staticmethod
+    def move_old_models(path, model):
+        if os.path.isdir(path):
+            new_path = os.path.join(path, "old_model")
+            if not os.path.exists(new_path):
+                os.mkdir(new_path)
+            for cleanUp in glob(os.path.join(path, '*.tar.gz')):
+                if model != cleanUp:
+                    shutil.move(cleanUp, new_path)

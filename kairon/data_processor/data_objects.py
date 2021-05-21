@@ -316,7 +316,7 @@ class StoryEvents(EmbeddedDocument):
 class Stories(Document):
     block_name = StringField(required=True)
     start_checkpoints = ListField(StringField(), required=True)
-    end_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField())
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -335,7 +335,7 @@ class Rules(Document):
     block_name = StringField(required=True)
     condition_events_indices = ListField(IntField(), default=[])
     start_checkpoints = ListField(StringField(), required=True)
-    end_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField())
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)

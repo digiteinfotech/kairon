@@ -627,6 +627,7 @@ def test_remove_utterance_attached_to_story():
         "/api/bot/stories",
         json={
             "name": "test_remove_utterance_attached_to_story",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -637,7 +638,7 @@ def test_remove_utterance_attached_to_story():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
     response = client.delete(
         "/api/bot/response/True",
         json={"data": "utter_greet"},
@@ -719,6 +720,7 @@ def test_add_story():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -729,21 +731,40 @@ def test_add_story():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+
+
+def test_add_story_invalid_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "TEST",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'", 'type': 'type_error.enum'}]
 
 
 def test_add_story_empty_event():
     response = client.post(
         "/api/bot/stories",
-        json={"name": "test_add_story_empty_event", "steps": []},
+        json={"name": "test_add_story_empty_event","type": "STORY", "steps": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form story', 'type': 'value_error'}]
+        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
 
 
 def test_add_story_lone_intent():
@@ -751,6 +772,7 @@ def test_add_story_lone_intent():
         "/api/bot/stories",
         json={
             "name": "test_add_story_lone_intent",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -771,6 +793,7 @@ def test_add_story_consecutive_intents():
         "/api/bot/stories",
         json={
             "name": "test_add_story_consecutive_intents",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "INTENT"},
@@ -790,7 +813,8 @@ def test_add_story_multiple_actions():
     response = client.post(
         "/api/bot/stories",
         json={
-            "name": "test_add_story_consecutive_intents",
+            "name": "test_add_story_consecutive_actions",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "HTTP_ACTION"},
@@ -802,7 +826,7 @@ def test_add_story_multiple_actions():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
 
 
 def test_add_story_utterance_as_first_step():
@@ -810,6 +834,7 @@ def test_add_story_utterance_as_first_step():
         "/api/bot/stories",
         json={
             "name": "test_add_story_consecutive_intents",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "BOT"},
                 {"name": "utter_greet", "type": "HTTP_ACTION"},
@@ -830,6 +855,7 @@ def test_add_story_missing_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -848,6 +874,7 @@ def test_add_story_invalid_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -871,6 +898,7 @@ def test_update_story():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -881,7 +909,7 @@ def test_update_story():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story updated successfully"
+    assert actual["message"] == "Flow updated successfully"
     assert actual["data"]["_id"]
 
 
@@ -890,6 +918,7 @@ def test_update_story_invalid_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -913,6 +942,7 @@ def test_delete_story():
         "/api/bot/stories",
         json={
             "name": "test_path1",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -923,27 +953,27 @@ def test_delete_story():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
 
     response = client.delete(
-        "/api/bot/stories/test_path1",
+        "/api/bot/stories/test_path1/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story deleted successfully"
+    assert actual["message"] == "Flow deleted successfully"
 
 
 def test_delete_non_existing_story():
     response = client.delete(
-        "/api/bot/stories/test_path2",
+        "/api/bot/stories/test_path2/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Story does not exists"
+    assert actual["message"] == "Data does not exists"
 
 
 def test_get_stories():
@@ -1433,6 +1463,31 @@ def test_augment_paraphrase_gpt():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_augment_paraphrase_gpt_validation():
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": [], "api_key": "MockKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
+
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": ["hi", "hello", "thanks", "hello", "bye", "how are you"], "api_key": "MockKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
+
 @responses.activate
 def test_augment_paraphrase_gpt_fail():
     key_error_message = "Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com."
@@ -1498,6 +1553,32 @@ def test_augment_paraphrase():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_augment_paraphrase_no_of_questions():
+    response = client.post(
+        "/api/augment/paraphrases",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": []},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
+
+    response = client.post(
+        "/api/augment/paraphrases",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": ["Hi", "Hello", "How are you", "Bye", "Thanks", "Welcome"]},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
 
 
 def test_get_user_details():
@@ -2592,6 +2673,7 @@ def test_list_actions():
         "/api/bot/stories",
         json={
             "name": "test_path_action",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "action_greet", "type": "ACTION"},
@@ -2601,7 +2683,7 @@ def test_list_actions():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
     assert actual['data']["_id"]
     assert actual["success"]
 
@@ -3088,3 +3170,264 @@ def test_feedback():
     assert actual["error_code"] == 0
     assert not actual["data"]
     assert actual["message"] == 'Thanks for your feedback!'
+
+
+def test_add_rule():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+
+
+def test_add_rule_invalid_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "TEST",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'", 'type': 'type_error.enum'}]
+
+
+def test_add_rule_empty_event():
+    response = client.post(
+        "/api/bot/stories",
+        json={"name": "test_add_rule_empty_event","type": "RULE", "steps": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
+
+
+def test_add_rule_lone_intent():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_lone_intent",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "greet_again", "type": "INTENT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Intent should be followed by utterance or action', 'type': 'value_error'}]
+
+
+def test_add_rule_consecutive_intents():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_intents",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Found 2 consecutive intents', 'type': 'value_error'}]
+
+
+def test_add_rule_multiple_actions():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_actions",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+
+
+def test_add_rule_utterance_as_first_step():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_intents",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "BOT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'First step should be an intent', 'type': 'value_error'}]
+
+
+def test_add_rule_missing_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'loc': ['body', 'steps', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    )
+
+
+def test_add_rule_invalid_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
+                 'type': 'type_error.enum'}]
+    )
+
+
+def test_update_rule():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow updated successfully"
+    assert actual["data"]["_id"]
+
+
+def test_update_rule_invalid_event_type():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
+                 'type': 'type_error.enum'}]
+    )
+
+
+def test_delete_rule():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path1",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+
+    response = client.delete(
+        "/api/bot/stories/test_path1/RULE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow deleted successfully"
+
+
+def test_delete_non_existing_rule():
+    response = client.delete(
+        "/api/bot/stories/test_path2/RULE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Data does not exists"

@@ -1728,7 +1728,7 @@ class MongoProcessor:
                     self.add_action(step['name'], bot, user, raise_exception=False)
         return events
 
-    def add_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+    def add_complex_story(self, story: Dict, bot: Text, user: Text):
         """
         save story in mongodb
 
@@ -1740,33 +1740,46 @@ class MongoProcessor:
         :raises: AppException: Story already exist!
 
         """
+        name = story['name']
+        steps = story['steps']
+        type = story['type']
         if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
-
-        Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
-                         block_name__iexact=name)
+            raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
-            raise AppException("Story steps are required")
+            raise AppException("steps are required")
 
         events = self.__complex_story_prepare_steps(steps, bot, user)
 
-        story_id = (
-            Stories(
-                block_name=name.strip().lower(),
-                events=events,
-                bot=bot,
-                user=user,
-                start_checkpoints=[STORY_START],
-            ).save().to_mongo().to_dict()["_id"].__str__()
+        data_class = None
+        if type == "STORY":
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
+        else:
+            raise AppException("Invalid type")
+
+        Utility.is_exist(data_class, exp_message="Data already exists!", bot=bot, status=True,
+                         block_name__iexact=name)
+
+        data_object = data_class(
+            block_name=name.strip().lower(),
+            events=events,
+            bot=bot,
+            user=user,
+            start_checkpoints=[STORY_START],
+        )
+
+        id = (
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
 
-        return story_id
+        return id
 
-    def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+    def update_complex_story(self, story: Dict, bot: Text, user: Text):
         """
         Updates story in mongodb
 
@@ -1778,25 +1791,36 @@ class MongoProcessor:
         :raises: AppException: Story already exist!
 
         """
+        name = story['name']
+        steps = story['steps']
+        type = story['type']
         if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
+            raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
-            raise AppException("Story steps are required")
+            raise AppException("steps are required")
+
+        data_class = None
+        if type == 'STORY':
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
+        else:
+            raise AppException("Invalid type")
 
         try:
-            story = Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("Story does not exists")
+            raise AppException("Data does not exists")
 
-        story['events'] = self.__complex_story_prepare_steps(steps, bot, user)
+        data_object['events'] = self.__complex_story_prepare_steps(steps, bot, user)
 
         story_id = (
-            story.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
         return story_id
 
-    def delete_complex_story(self, name: str, bot: Text, user: Text):
+    def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
         """
         Soft deletes complex story.
         :param name: Story name
@@ -1804,12 +1828,20 @@ class MongoProcessor:
         :param bot: bot id
         :return:
         """
+
+        data_class = None
+        if type == 'STORY':
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
+        else:
+            raise AppException("Invalid type")
         try:
-            Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("Story does not exists")
+            raise AppException("Data does not exists")
         Utility.delete_document(
-            [Stories], bot=bot, user=user, block_name__iexact=name
+            [data_class], bot=bot, user=user, block_name__iexact=name
         )
 
 
@@ -2167,20 +2199,6 @@ class MongoProcessor:
                 raise AppException("At least one response is required for utterance linked to story")
             self.remove_document(Responses, utterance_id, bot, user)
         except DoesNotExist as e:
-            raise AppException(e)
-
-    def delete_story(self, story: str, user: str, bot: str):
-        """
-        Soft deletes the story.
-        :param story: Story name
-        :param user: user id
-        :param bot: bot id
-        :return:
-        """
-        try:
-            Utility.delete_document([Stories], block_name__iexact=story, bot=bot, user=user)
-        except Exception as e:
-            logging.exception(e)
             raise AppException(e)
 
     def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):

@@ -14,7 +14,8 @@ from kairon.api.models import (
     Endpoint,
     Config,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
-    FeedbackRequest
+    FeedbackRequest,
+    StoryType
 )
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
@@ -268,11 +269,10 @@ async def add_story(
     Adds a story (conversational flow) in the particular bot
     """
     return {
-        "message": "Story added successfully",
+        "message": "Flow added successfully",
         "data": {
             "_id": mongo_processor.add_complex_story(
-                story.name.lower(),
-                story.get_steps(),
+                story.dict(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -288,11 +288,10 @@ async def update_story(
     Updates a story (conversational flow) in the particular bot
     """
     return {
-        "message": "Story updated successfully",
+        "message": "Flow updated successfully",
         "data": {
             "_id": mongo_processor.update_complex_story(
-                story.name.lower(),
-                story.get_steps(),
+                story.dict(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -308,19 +307,22 @@ async def get_stories(current_user: User = Depends(auth.get_current_user)):
     return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
 
 
-@router.delete("/stories/{story}", response_model=Response)
-async def delete_stories(story: str = Path(default=None, description="Story name", example="happy_path"), current_user: User = Depends(auth.get_current_user)
+@router.delete("/stories/{story}/{type}", response_model=Response)
+async def delete_stories(story: str = Path(default=None, description="Story name", example="happy_path"),
+                         type: str = StoryType,
+                         current_user: User = Depends(auth.get_current_user)
 ):
     """
     Updates a story (conversational flow) in the particular bot
     """
     mongo_processor.delete_complex_story(
         story,
+        type,
         current_user.get_bot(),
         current_user.get_user(),
     )
     return {
-        "message": "Story deleted successfully"
+        "message": "Flow deleted successfully"
     }
 
 
