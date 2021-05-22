@@ -1883,16 +1883,20 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
-        for value in Stories.objects(bot=bot, status=True):
+        data_list = list(Stories.objects(bot=bot, status=True))
+        data_list.extend(list(Rules.objects(bot=bot, status=True)))
+        for value in data_list:
+            final_data = {}
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
             events = item.pop("events")
-            item.pop("bot")
-            item.pop("user")
-            item.pop("timestamp")
-            item.pop("status")
-            item["_id"] = item["_id"].__str__()
-
+            final_data["_id"] = item["_id"].__str__()
+            if isinstance(value, Stories):
+                final_data['type'] = 'STORY'
+            elif isinstance(value, Rules):
+                final_data['type'] = 'RULE'
+            else:
+                continue
             steps = []
             for event in events:
                 step = {}
@@ -1911,9 +1915,9 @@ class MongoProcessor:
                 if step:
                     steps.append(step)
 
-            item['name'] = block_name
-            item['steps'] = steps
-            yield item
+            final_data['name'] = block_name
+            final_data['steps'] = steps
+            yield final_data
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):
         """

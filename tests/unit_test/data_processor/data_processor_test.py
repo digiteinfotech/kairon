@@ -997,6 +997,7 @@ class TestMongoProcessor:
         stories = list(processor.get_stories("tests"))
         assert stories.__len__() == 8
         assert stories[0]['name'] == 'happy path'
+        assert stories[0]['type'] == 'STORY'
         assert stories[0]['steps'][0]['name'] == 'greet'
         assert stories[0]['steps'][0]['type'] == 'INTENT'
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
@@ -3013,6 +3014,12 @@ class TestTrainingDataProcessor:
         with pytest.raises(AppException):
             rule_dict = {'name': None, 'steps': events, 'type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
+
+    def test_fetch_stories_with_rules(self):
+        processor = MongoProcessor()
+        data = list(processor.get_stories("tests"))
+        assert all( item['type'] in ['STORY', 'RULE'] for item in data)
+        assert len(data) == 9
 
     def test_update_empty_rule_name(self):
         processor = MongoProcessor()
