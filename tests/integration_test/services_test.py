@@ -12,6 +12,7 @@ from mongoengine import connect
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
+from kairon.api.auth import Authentication
 from kairon.api.data_objects import Bot
 from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
@@ -37,7 +38,9 @@ def setup():
 
 def pytest_configure():
     return {'token_type': None,
-            'access_token': None
+            'access_token': None,
+            'username': None,
+            'bot': None
             }
 
 
@@ -104,9 +107,10 @@ def test_account_registration():
 
 
 def test_api_login():
+    email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@1"},
     )
     actual = response.json()
     assert all(
@@ -119,7 +123,12 @@ def test_api_login():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
-
+    pytest.username = email
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    pytest.bot = response['data']['user']['bot']
 
 def test_upload_missing_data():
     files = {
@@ -216,6 +225,49 @@ def test_upload(monkeypatch):
     assert actual["data"] is None
     assert actual["success"]
 
+@responses.activate
+def test_upload_with_event(monkeypatch):
+    token = Authentication.create_access_token(data={'sub': pytest.username})
+    responses.add(
+        responses.POST,
+        "http://localhost/train",
+        status=200,
+        match=[responses.json_params_matcher({"bot": pytest.bot, "user": pytest.username, "token": token.decode('utf8')})],
+    )
+    monkeypatch.setitem(Utility.environment['model'], 'train', {"event_url":"http://localhost/train", "limit_per_day": 3})
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    files = {
+        "nlu": (
+            "nlu.md",
+            open("tests/testing_data/all/data/nlu.md", "rb"),
+        ),
+        "domain": (
+            "domain.yml",
+            open("tests/testing_data/all/domain.yml", "rb"),
+        ),
+        "stories": (
+            "stories.md",
+            open("tests/testing_data/all/data/stories.md", "rb"),
+        ),
+        "config": (
+            "config.yml",
+            open("tests/testing_data/all/config.yml", "rb"),
+        ),
+    }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    ModelProcessor.set_training_status(pytest.bot, pytest.username, 'Done')
 
 def test_upload_with_http_error(monkeypatch):
     def mongo_store(*arge, **kwargs):

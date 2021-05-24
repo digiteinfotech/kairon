@@ -367,7 +367,7 @@ async def train(
     """
     Trains the chatbot
     """
-    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email)
+    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'train')
     return {"message": "Model training started."}
 
 
@@ -444,7 +444,7 @@ async def upload_Files(
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)
-    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email)
+    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'upload')
     return {"message": "Data uploaded successfully!"}
 
 

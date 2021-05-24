@@ -251,7 +251,8 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
+                                  http_action: File = None):
         """
         convert mongo data  to individual files
 
@@ -491,7 +492,6 @@ class Utility:
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
 
-
     @staticmethod
     def extract_user_password(uri: str):
         """
@@ -562,7 +562,7 @@ class Utility:
         :return: plain intent, list of extracted entities
         """
         example = entities_parser.parse_training_example(text)
-        return example.get(TEXT), example.get('entities',[])
+        return example.get(TEXT), example.get('entities', [])
 
     @staticmethod
     def __extract_response_button(buttons: Dict):
@@ -608,7 +608,7 @@ class Utility:
             response_type = "custom"
         else:
             response_type = None
-            data =None
+            data = None
         return response_type, data
 
     @staticmethod
@@ -815,8 +815,9 @@ class Utility:
     def train_model_event(bot: str, user: str, token: str = None):
         event_url = Utility.environment['model']['train']['event_url']
         logger.info("model training event started")
-        response = requests.post(event_url, headers={'content-type': 'application/json'}, json={'bot': bot, 'user': user, 'token': token})
-        logger.info("model training event completed"+response.content.decode('utf8'))
+        response = requests.post(event_url, headers={'content-type': 'application/json'},
+                                 json={'bot': bot, 'user': user, 'token': token})
+        logger.info("model training event completed" + response.content.decode('utf8'))
 
     @staticmethod
     def trigger_data_generation_event(bot: str, user: str, token: str):
@@ -834,13 +835,12 @@ class Utility:
                                                        status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
                                                        exception=str(e))
 
-
     @staticmethod
     def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
-        logger.info("agent event started "+url)
+        logger.info("agent event started " + url)
         headers = {'content-type': 'application/json', 'X-USER': user}
         if token:
-            headers['Authorization'] = 'Bearer '+token
+            headers['Authorization'] = 'Bearer ' + token
         response = requests.request(method, url, headers=headers, json=json)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
@@ -891,20 +891,28 @@ class Utility:
                 if model != cleanUp:
                     shutil.move(cleanUp, new_path)
 
-
     @staticmethod
-    def train_model(background_tasks: BackgroundTasks, bot: Text, user: Text, email: Text):
+    def train_model(background_tasks: BackgroundTasks, bot: Text, user: Text, email: Text, process_type: Text):
+        """
+        train model common code when uploading files or training a model
+        :param background_tasks: fast api background task
+        :param bot: bot id
+        :param user: user id
+        :param email: user email for generating token for reload
+        :param process_type: either upload or train
+        """
         from .data_processor.processor import ModelProcessor
         from .api.auth import Authentication
         from .data_processor.constant import MODEL_TRAINING_STATUS
         from .train import start_training
-
-        ModelProcessor.is_training_inprogress(bot)
-        ModelProcessor.is_daily_training_limit_exceeded(bot)
-        ModelProcessor.set_training_status(
-            bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-        )
-        token = Authentication.create_access_token(data={"sub": email})
-        background_tasks.add_task(
-            start_training, bot, user, token.decode('utf8')
-        )
+        exception = process_type != 'upload'
+        is_inprogress = ModelProcessor.is_training_inprogress(bot, raise_exception=exception)
+        is_limit_exceed = ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=exception)
+        if not (is_inprogress and is_limit_exceed):
+            ModelProcessor.set_training_status(
+                bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+            )
+            token = Authentication.create_access_token(data={"sub": email})
+            background_tasks.add_task(
+                start_training, bot, user, token.decode('utf8')
+            )

@@ -10,10 +10,9 @@ from mongoengine import DoesNotExist, connect
 from rasa_sdk import Tracker
 from smart_config import ConfigLoader
 
-from .models import ParameterType
 from .data_objects import HttpActionConfig, HttpActionRequestBody
 from .exception import HttpActionFailure
-from rasa_sdk.interfaces import ActionNotFoundException
+from .models import ParameterType
 
 
 class ActionUtility:
