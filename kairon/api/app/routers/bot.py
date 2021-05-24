@@ -21,14 +21,13 @@ from kairon.api.models import (
     FeedbackRequest,
     StoryType
 )
-from kairon.data_processor.constant import MODEL_TRAINING_STATUS, EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS
 from kairon.data_processor.data_objects import TrainingExamples
 from kairon.data_processor.processor import MongoProcessor
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
-from kairon.train import start_training
 from kairon.utils import Utility
 from urllib.parse import urljoin
 

@@ -967,7 +967,7 @@ class Utility:
         :param email: user email for generating token for reload
         :param process_type: either upload or train
         """
-        from .data_processor.processor import ModelProcessor
+        from .data_processor.model_processor import ModelProcessor
         from .api.auth import Authentication
         from .data_processor.constant import MODEL_TRAINING_STATUS
         from .train import start_training
