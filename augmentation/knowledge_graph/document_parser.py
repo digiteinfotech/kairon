@@ -1,5 +1,4 @@
 from operator import itemgetter
-import collections
 from collections import deque, Counter
 import re
 import fitz
@@ -169,7 +168,7 @@ class DocumentParser:
         elements = [i.replace('|', '') for i in elements]
         elements = [i for i in elements if len(i.strip()) > 0]
         elements2 = [i for i in elements if not i.replace(i[i.find("<"):i.find(">") + 1], '').strip().isdigit()]
-        qw = [item for item, count in collections.Counter(elements2).items() if count > 5 and '<h' not in item]
+        qw = [item for item, count in Counter(elements2).items() if count > 5 and '<h' not in item]
         final_list = [item for item in elements2 if item not in qw]
         final_list = [item for item in final_list if not '<s' in item]
         doc_list = final_list

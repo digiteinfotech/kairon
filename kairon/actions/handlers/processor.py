@@ -9,8 +9,6 @@ from ...shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from ...shared.actions.exception import HttpActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
-from mongoengine.errors import DoesNotExist
-from rasa_sdk.interfaces import ActionNotFoundException
 
 class ActionProcessor:
 

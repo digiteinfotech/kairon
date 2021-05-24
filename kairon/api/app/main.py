@@ -1,11 +1,12 @@
-import json
 import logging
-from loguru import logger
 from time import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security.utils import get_authorization_scheme_param
+from loguru import logger
 from mongoengine import connect, disconnect
 from mongoengine.errors import (
     DoesNotExist,
@@ -17,15 +18,14 @@ from mongoengine.errors import (
     MultipleObjectsReturned,
     InvalidQueryError,
 )
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-from kairon.exceptions import AppException
-from .routers import auth, bot, augment, history, user, account
-from kairon.api.models import Response
-from kairon.api.processor import AccountProcessor
-from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 from secure import SecureHeaders
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from kairon.api.models import Response
+from kairon.api.processor import AccountProcessor
+from kairon.exceptions import AppException
+from .routers import auth, bot, augment, history, user, account
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()

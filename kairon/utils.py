@@ -51,7 +51,7 @@ from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
-import shutil
+
 
 class Utility:
     """Class contains logic for various utilities"""
@@ -878,6 +878,7 @@ class Utility:
         except Exception:
             logger.debug(f"Could not load interpreter from '{model_path}'.")
             _interpreter = None
+        return _interpreter
 
     @staticmethod
     def move_old_models(path, model):
