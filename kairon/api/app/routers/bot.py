@@ -367,16 +367,7 @@ async def train(
     """
     Trains the chatbot
     """
-
-    ModelProcessor.is_training_inprogress(current_user.get_bot())
-    ModelProcessor.is_daily_training_limit_exceeded(current_user.get_bot())
-    ModelProcessor.set_training_status(
-        bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-    )
-    token = Authentication.create_access_token(data={"sub": current_user.email})
-    background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
-    )
+    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email)
     return {"message": "Model training started."}
 
 
@@ -453,13 +444,7 @@ async def upload_Files(
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)
-    ModelProcessor.set_training_status(
-        bot=current_user.get_bot(), user=current_user.get_user(), status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-    )
-    token = Authentication.create_access_token(data={"sub": current_user.email})
-    background_tasks.add_task(
-        start_training, current_user.get_bot(), current_user.get_user(), token
-    )
+    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email)
     return {"message": "Data uploaded successfully!"}
 
 

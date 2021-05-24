@@ -51,6 +51,7 @@ from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
+from fastapi.background import BackgroundTasks
 
 
 class Utility:
@@ -889,3 +890,21 @@ class Utility:
             for cleanUp in glob(os.path.join(path, '*.tar.gz')):
                 if model != cleanUp:
                     shutil.move(cleanUp, new_path)
+
+
+    @staticmethod
+    def train_model(background_tasks: BackgroundTasks, bot: Text, user: Text, email: Text):
+        from .data_processor.processor import ModelProcessor
+        from .api.auth import Authentication
+        from .data_processor.constant import MODEL_TRAINING_STATUS
+        from .train import start_training
+
+        ModelProcessor.is_training_inprogress(bot)
+        ModelProcessor.is_daily_training_limit_exceeded(bot)
+        ModelProcessor.set_training_status(
+            bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+        )
+        token = Authentication.create_access_token(data={"sub": email})
+        background_tasks.add_task(
+            start_training, bot, user, token.decode('utf8')
+        )
