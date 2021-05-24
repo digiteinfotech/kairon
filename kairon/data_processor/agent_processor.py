@@ -37,7 +37,8 @@ class AgentProcessor:
         :param bot: bot id
         :return: latest model path
         """
-        return Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
+        model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
+        return Utility.get_latest_file(model_file, "*.tar.gz")
 
     @staticmethod
     def reload(bot: Text):
