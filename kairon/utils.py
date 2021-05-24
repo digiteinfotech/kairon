@@ -934,7 +934,7 @@ class Utility:
 
     @staticmethod
     def train_model(background_tasks: BackgroundTasks, bot: Text, user: Text, email: Text):
-        from .data_processor.processor import ModelProcessor
+        from .data_processor.model_processor import ModelProcessor
         from .api.auth import Authentication
         from .data_processor.constant import MODEL_TRAINING_STATUS
         from .train import start_training

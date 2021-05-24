@@ -26,11 +26,9 @@ from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
-from rasa.train import DEFAULT_MODELS_PATH
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from .cache import AgentCache
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -72,6 +70,7 @@ from ..api.models import StoryEventType, HttpActionConfigRequest
 from ..validator.training_data_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+
 
 class MongoProcessor:
     """
