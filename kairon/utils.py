@@ -48,8 +48,8 @@ from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
-from .data_processor.constant import POSSIBLE_NLU_FILES, POSSIBLE_STORIES_FILES, \
-    POSSIBLE_DOMAIN_FILES, POSSIBLE_CONFIG_FILES, EVENT_STATUS
+from .data_processor.constant import ALLOWED_NLU_FILES, ALLOWED_STORIES_FILES, \
+    ALLOWED_DOMAIN_FILES, ALLOWED_CONFIG_FILES, EVENT_STATUS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 
@@ -181,16 +181,20 @@ class Utility:
             return Utility.pwd_context.hash(password)
 
     @staticmethod
-    def get_latest_file(folder):
+    def get_latest_file(folder, extension_pattern="*"):
         """
-        fetches latest file from folder
+        Fetches latest file.
+        If extension is provided, latest file with that extension is retrieved.
+        By default, latest file in the folder is retrieved and can be of any type.
+        Example extension patterns: "*.tar.gz", "*.zip", etc.
 
         :param folder: folder path
+        :param extension_pattern: file extension as a regular expression
         :return: latest file
         """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        return max(iglob(os.path.join(folder, "*.tar.gz")), key=os.path.getctime)
+        return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
@@ -273,10 +277,10 @@ class Utility:
         Utility.make_dirs(data_path)
 
         for file in training_files:
-            if file.filename in POSSIBLE_NLU_FILES.union(POSSIBLE_STORIES_FILES).union({'rules.yml'}):
+            if file.filename in ALLOWED_NLU_FILES.union(ALLOWED_STORIES_FILES).union({'rules.yml'}):
                 path = os.path.join(data_path, file.filename)
                 Utility.write_to_file(path, await file.read())
-            elif file.filename in POSSIBLE_CONFIG_FILES.union(POSSIBLE_DOMAIN_FILES).union({'http_action.yml'}):
+            elif file.filename in ALLOWED_CONFIG_FILES.union(ALLOWED_DOMAIN_FILES).union({'http_action.yml'}):
                 path = os.path.join(bot_data_home_dir, file.filename)
                 Utility.write_to_file(path, await file.read())
 
@@ -304,10 +308,10 @@ class Utility:
             raise AppException("Required directory structure not found!")
         files = set(os.listdir(bot_data_home_dir)).union(os.listdir(data_path))
 
-        if POSSIBLE_NLU_FILES.intersection(files).__len__() < 1 or \
-                POSSIBLE_STORIES_FILES.intersection(files).__len__() < 1 or \
-                POSSIBLE_DOMAIN_FILES.intersection(files).__len__() < 1 or \
-                POSSIBLE_CONFIG_FILES.intersection(files).__len__() < 1:
+        if ALLOWED_NLU_FILES.intersection(files).__len__() < 1 or \
+                ALLOWED_STORIES_FILES.intersection(files).__len__() < 1 or \
+                ALLOWED_DOMAIN_FILES.intersection(files).__len__() < 1 or \
+                ALLOWED_CONFIG_FILES.intersection(files).__len__() < 1:
             if delete_dir_on_exception:
                 Utility.delete_directory(bot_data_home_dir)
             raise AppException('Some training files are missing!')

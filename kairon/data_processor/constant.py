@@ -94,7 +94,7 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
 
 
-POSSIBLE_NLU_FILES = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
-POSSIBLE_STORIES_FILES = {'stories.yml', 'stories.md', 'stories.yaml'}
-POSSIBLE_DOMAIN_FILES = {'domain.yml', 'domain.yaml'}
-POSSIBLE_CONFIG_FILES = {'config.yaml', 'config.yml'}
+ALLOWED_NLU_FILES = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
+ALLOWED_STORIES_FILES = {'stories.yml', 'stories.md', 'stories.yaml'}
+ALLOWED_DOMAIN_FILES = {'domain.yml', 'domain.yaml'}
+ALLOWED_CONFIG_FILES = {'config.yaml', 'config.yml'}
