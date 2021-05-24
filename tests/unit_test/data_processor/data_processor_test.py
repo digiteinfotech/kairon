@@ -19,8 +19,8 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, POSSIBLE_DOMAIN_FILES, \
-    POSSIBLE_CONFIG_FILES, POSSIBLE_NLU_FILES, POSSIBLE_STORIES_FILES
+from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FILES, \
+    ALLOWED_CONFIG_FILES, ALLOWED_NLU_FILES, ALLOWED_STORIES_FILES
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -1893,10 +1893,10 @@ class TestMongoProcessor:
         dirs = os.listdir(bot_home)
         files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
             os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-        assert POSSIBLE_DOMAIN_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_CONFIG_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_NLU_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_STORIES_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_DOMAIN_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FILES.intersection(files).__len__() == 1
 
     def test_prepare_training_data_for_validation(self, resource_prepare_training_data_for_validation):
         bot = 'prepare_training_data_for_validation'
@@ -1907,10 +1907,10 @@ class TestMongoProcessor:
         dirs = os.listdir(bot_home)
         files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
             os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-        assert POSSIBLE_DOMAIN_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_CONFIG_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_NLU_FILES.intersection(files).__len__() == 1
-        assert POSSIBLE_STORIES_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_DOMAIN_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FILES.intersection(files).__len__() == 1
 
 
 # pylint: disable=R0201
