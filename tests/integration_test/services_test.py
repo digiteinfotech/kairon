@@ -234,7 +234,7 @@ def test_upload_with_event(monkeypatch):
         status=200,
         match=[responses.json_params_matcher({"bot": pytest.bot, "user": pytest.username, "token": token.decode('utf8')})],
     )
-    monkeypatch.setitem(Utility.environment['model'], 'train', {"event_url":"http://localhost/train", "limit_per_day": 3})
+    monkeypatch.setitem(Utility.environment['model']['train'], 'event_url', "http://localhost/train")
     def get_token(*args, **kwargs):
         return token
 
@@ -257,6 +257,18 @@ def test_upload_with_event(monkeypatch):
             open("tests/testing_data/all/config.yml", "rb"),
         ),
     }
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    monkeypatch.setitem(Utility.environment['model'], 'train',
+                        {"event_url": "http://localhost/train", "limit_per_day": 3})
     response = client.post(
         "/api/bot/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

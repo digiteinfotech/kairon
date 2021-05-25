@@ -908,11 +908,10 @@ class Utility:
         exception = process_type != 'upload'
         is_inprogress = ModelProcessor.is_training_inprogress(bot, raise_exception=exception)
         is_limit_exceed = ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=exception)
-        if not (is_inprogress and is_limit_exceed):
-            ModelProcessor.set_training_status(
-                bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-            )
-            token = Authentication.create_access_token(data={"sub": email})
-            background_tasks.add_task(
-                start_training, bot, user, token.decode('utf8')
-            )
+        ModelProcessor.set_training_status(
+            bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
+        )
+        token = Authentication.create_access_token(data={"sub": email})
+        background_tasks.add_task(
+            start_training, bot, user, token.decode('utf8')
+        )

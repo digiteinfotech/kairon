@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import APIRouter, BackgroundTasks, Path
@@ -444,7 +445,12 @@ async def upload_Files(
         current_user.get_bot(),
         current_user.get_user(),
         overwrite)
-    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'upload')
+    try:
+        Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email,
+                            'upload')
+    except Exception as e:
+        logging.error(e)
+        return {"message": "Please train your model!"}
     return {"message": "Data uploaded successfully!"}
 
 
