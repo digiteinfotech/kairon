@@ -114,8 +114,9 @@ class TestMongoProcessor:
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
-        assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.forms.__len__() == 2
+        assert isinstance(domain.forms, dict)
+        assert domain.user_actions.__len__() == 41
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -170,8 +171,10 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
-        assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.forms.__len__() == 2
+        assert isinstance(domain.forms, dict)
+        print(domain.user_actions)
+        assert domain.user_actions.__len__() == 36
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -214,8 +217,9 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
-        assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.forms.__len__() == 2
+        assert isinstance(domain.forms, dict)
+        assert domain.user_actions.__len__() == 36
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -698,76 +702,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.add_text_response("Welcome", " ", "tests", "testUser")
 
-    def test_add_story(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        processor.add_story("happy path", events, "tests", "testUser")
-
-    def test_add_duplicate_story(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(Exception):
-            processor.add_story("happy path", events, "tests", "testUser")
-
-    def test_add_duplicate_case_insensitive_story(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(Exception):
-            processor.add_story("Happy path", events, "tests", "testUser")
-
-    def test_add_none_story_name(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(AppException):
-            processor.add_story(None, events, "tests", "testUser")
-
-    def test_add_empty_story_name(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(AppException):
-            processor.add_story("", events, "tests", "testUser")
-
-    def test_add_blank_story_name(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        with pytest.raises(AppException):
-            processor.add_story("  ", events, "tests", "testUser")
-
-    def test_add_empty_story_event(self):
-        processor = MongoProcessor()
-        with pytest.raises(ValidationError):
-            processor.add_story("happy path", [], "tests", "testUser")
-
     def test_get_session_config(self):
         processor = MongoProcessor()
         session_config = processor.get_session_config("tests")
@@ -995,7 +929,7 @@ class TestMongoProcessor:
     def test_get_stories(self):
         processor = MongoProcessor()
         stories = list(processor.get_stories("tests"))
-        assert stories.__len__() == 8
+        assert stories.__len__() == 7
         assert stories[0]['name'] == 'happy path'
         assert stories[0]['type'] == 'STORY'
         assert stories[0]['steps'][0]['name'] == 'greet'
@@ -1003,25 +937,6 @@ class TestMongoProcessor:
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
 
-    def test_add_stories_with_action(self):
-        processor = MongoProcessor()
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "action_check_day", "type": "action"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-        ]
-        processor.add_story("happy path", events, "test_with_action", "testUser")
-        stories = list(processor.get_stories("test_with_action"))
-        assert stories.__len__() == 1
-        assert stories[0]['name'] == 'happy path'
-        assert stories[0]['steps'][0]['name'] == 'greet'
-        assert stories[0]['steps'][0]['type'] == 'INTENT'
-        assert stories[0]['steps'][1]['name'] == 'action_check_day'
-        assert stories[0]['steps'][1]['type'] == 'ACTION'
-        assert stories[0]['steps'][2]['name'] == 'utter_greet'
-        assert stories[0]['steps'][2]['type'] == 'BOT'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -1252,22 +1167,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.delete_response(" ", "testBot", "testUser")
 
-    def test_delete_response_attached_to_story(self):
-        processor = MongoProcessor()
-        utterance = "test_delete_response_attached_to_story"
-        bot = "testBot"
-        user = "testUser"
-        utter_intentA_1_id = processor.add_response({"text": "demo_response"}, utterance, bot, user)
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": utterance, "type": "action"},
-        ]
-        processor.add_story("test path", events, bot, user)
-        with pytest.raises(AppException):
-            processor.delete_response(utter_intentA_1_id, bot, user)
-
     def test_delete_utterance(self):
         processor = MongoProcessor()
         utterance = "test_delete_utterance"
@@ -1275,22 +1174,6 @@ class TestMongoProcessor:
         user = "testUser"
         processor.add_response({"text": "demo_response1"}, utterance, bot, user)
         processor.delete_utterance(utterance, bot, user)
-
-    def test_delete_utterance_attached_to_story(self):
-        processor = MongoProcessor()
-        utterance = "test_delete_utterance_attached_to_story"
-        bot = "testBot"
-        user = "testUser"
-        processor.add_response({"text": "demo_response2"}, utterance, bot, user)
-        events = [
-            {"name": "greet", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": utterance, "type": "action"},
-        ]
-        processor.add_story("test_delete_utterance", events, bot, user)
-        with pytest.raises(Exception):
-            processor.delete_utterance(utterance, bot, user)
 
     def test_delete_utterance_non_existing(self):
         processor = MongoProcessor()
@@ -2508,6 +2391,20 @@ class TestModelProcessor:
             story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
+    def test_add_duplicate_complex_story_using_events(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        with pytest.raises(Exception):
+            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY'}
+            processor.add_complex_story(story_dict, "tests", "testUser")
+
     def test_update_complex_story(self):
         processor = MongoProcessor()
         steps = [
@@ -2522,6 +2419,21 @@ class TestModelProcessor:
         processor.update_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
+
+    def test_update_complex_story_same_events(self):
+        def test_update_complex_story(self):
+            processor = MongoProcessor()
+            steps = [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+                {"name": "utter_cheer_up", "type": "BOT"},
+                {"name": "mood_great", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+            ]
+            story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY'}
+            with pytest.raises(AppException, match="FLow already exists!"):
+                processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_case_insensitive_update_complex_story(self):
         processor = MongoProcessor()
@@ -3019,7 +2931,7 @@ class TestTrainingDataProcessor:
         processor = MongoProcessor()
         data = list(processor.get_stories("tests"))
         assert all( item['type'] in ['STORY', 'RULE'] for item in data)
-        assert len(data) == 9
+        assert len(data) == 8
 
     def test_update_empty_rule_name(self):
         processor = MongoProcessor()

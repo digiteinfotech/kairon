@@ -75,6 +75,7 @@ from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+from mongoengine.queryset.visitor import Q
 
 
 class MongoProcessor:
@@ -285,7 +286,7 @@ class MongoProcessor:
         """
         self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
-        self.__save_forms(domain.form_names, bot, user)
+        self.__save_forms(domain.forms, bot, user)
         self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
@@ -392,14 +393,9 @@ class MongoProcessor:
 
     def __fetch_all_synonyms_value(self, bot: Text):
         synonyms = list(
-            EntitySynonyms.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
-            )
+            EntitySynonyms.objects(bot=bot, status=True).values_list('value')
         )
-        if synonyms:
-            return synonyms[0]["values"]
-        else:
-            return []
+        return synonyms
 
     def __extract_synonyms(self, synonyms, bot: Text, user: Text):
         saved_synonyms = self.__fetch_all_synonyms_value(bot)
@@ -456,15 +452,10 @@ class MongoProcessor:
 
     def __fetch_all_lookup_values(self, bot: Text):
         lookup_tables = list(
-            LookupTables.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
-            )
+            LookupTables.objects(bot=bot, status=True).values_list('value')
         )
 
-        if lookup_tables:
-            return lookup_tables[0]["values"]
-        else:
-            return []
+        return lookup_tables
 
     def __extract_lookup_tables(self, lookup_tables, bot: Text, user: Text):
         saved_lookup = self.__fetch_all_lookup_values(bot)
@@ -502,15 +493,9 @@ class MongoProcessor:
 
     def __fetch_all_regex_patterns(self, bot: Text):
         regex_patterns = list(
-            RegexFeatures.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "patterns": {"$push": "$pattern"}, }}]
-            )
+            RegexFeatures.objects(bot=bot, status=True).values_list('pattern')
         )
-
-        if regex_patterns:
-            return regex_patterns[0]["patterns"]
-        else:
-            return []
+        return regex_patterns
 
     def __extract_regex_features(self, regex_features, bot: Text, user: Text):
         saved_regex_patterns = self.__fetch_all_regex_patterns(bot)
@@ -573,17 +558,12 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: List of intents
         """
-        intents = Intents.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "intents": {"$push": "$name"}}}]
-        )
+        intents = Intents.objects(bot=bot, status=status).values_list('name')
         return list(intents)
 
     def __prepare_training_intents(self, bot: Text):
         intents = self.fetch_intents(bot)
-        if intents:
-            return intents[0]["intents"]
-        else:
-            return []
+        return intents
 
     def __prepare_training_intents_and_properties(self, bot: Text):
         intent_properties = []
@@ -616,23 +596,32 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of entities
         """
-        entities = Entities.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "entities": {"$push": "$name"}}}]
-        )
+        entities = Entities.objects(bot=bot, status=status).values_list('name')
         return list(entities)
 
     def __prepare_training_domain_entities(self, bot: Text):
         entities = self.fetch_domain_entities(bot)
-        if entities:
-            return entities[0]["entities"]
-        else:
-            return []
+        return entities
 
     def __extract_forms(self, forms, bot: Text, user: Text):
-        saved_forms = self.__prepare_training_forms(bot)
+
+        saved_forms = self.fetch_forms(bot, status=True)
+
         for form in forms:
-            if form not in saved_forms:
-                yield Forms(name=form, bot=bot, user=user)
+            if isinstance(form,str):
+                object = self.__save_form_logic(form, {}, saved_forms, bot, user)
+                if object:
+                    yield object
+            elif isinstance(form, Dict):
+                for name, mapping in form.items():
+                    object = self.__save_form_logic(form, mapping, saved_forms, bot, user)
+                    if object:
+                        yield object
+
+    def __save_form_logic(self, name, mapping, saved_forms, bot, user):
+        if {name: mapping} not in saved_forms:
+            return Forms(name=name, mapping=mapping, bot=bot, user=user)
+        return None
 
     def __save_forms(self, forms, bot: Text, user: Text):
         if forms:
@@ -648,17 +637,18 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of forms
         """
-        forms = Forms.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "forms": {"$push": "$name"}}}]
-        )
-        return list(forms)
+        forms = Forms.objects(bot=bot, status=status)
+        for form in forms:
+            yield {form.name: form.mapping}
+
 
     def __prepare_training_forms(self, bot: Text):
-        forms = self.fetch_forms(bot)
-        if forms:
-            return forms[0]["forms"]
-        else:
-            return []
+        forms = list(self.fetch_forms(bot))
+        form_dict = {}
+        for form in forms:
+            for name, mapping in form.items():
+                form_dict[name] = mapping
+        return form_dict
 
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
@@ -680,17 +670,12 @@ class MongoProcessor:
         :param status: user id
         :return: list of actions
         """
-        actions = Actions.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}}}]
-        )
+        actions = Actions.objects(bot=bot, status=status).values_list('name')
         return list(actions)
 
     def __prepare_training_actions(self, bot: Text):
         actions = self.fetch_actions(bot)
-        if actions:
-            return actions[0]["actions"]
-        else:
-            return []
+        return actions
 
     def __extract_session_config(
             self, session_config: SessionConfig, bot: Text, user: Text
@@ -819,14 +804,9 @@ class MongoProcessor:
 
     def __fetch_slot_names(self, bot: Text):
         saved_slots = list(
-            Slots.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "slots": {"$push": "$name"}}}]
-            )
+            Slots.objects(bot=bot, status=True).values_list('name')
         )
-        slots_list = []
-        if saved_slots:
-            slots_list = saved_slots[0]["slots"]
-        return slots_list
+        return saved_slots
 
     def __extract_slots(self, slots, bot: Text, user: Text):
         """
@@ -914,14 +894,9 @@ class MongoProcessor:
 
     def __fetch_story_block_names(self, bot: Text):
         saved_stories = list(
-            Stories.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
-            )
+            Stories.objects(bot=bot, status=True).values_list('block_name')
         )
-        result = []
-        if saved_stories:
-            result = saved_stories[0]["block"]
-        return result
+        return saved_stories
 
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         saved_stories = self.__fetch_story_block_names(bot)
@@ -1110,14 +1085,13 @@ class MongoProcessor:
             story_name = "path_" + data.intent.strip().lower()
             utterance = "utter_" + data.intent.strip().lower()
             events = [
-                {"name": data.intent.strip().lower(), "type": "user"},
-                {"name": utterance.strip().lower(), "type": "action"}]
+                {"name": data.intent.strip().lower(), "type": "INTENT"},
+                {"name": utterance.strip().lower(), "type": "BOT"}]
             try:
-                doc_id = self.add_story(
-                    story_name.lower(),
-                    events=events,
+                doc_id = self.add_complex_story(
+                    story= {'name': story_name.lower(), 'steps': events, 'type': 'STORY'},
                     bot=bot,
-                    user=user,
+                    user=user
                 )
                 status['story'] = doc_id
             except AppException as e:
@@ -1675,39 +1649,6 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
-        """
-        save story in mongodb
-        
-        :param name: story name
-        :param events: story events list
-        :param bot: bot id
-        :param user: user id
-        :return: story id
-        :raises: AppException: Story already exist!
-
-        :todo need to add the logic to add action, slots and forms if it does not exist
-        """
-        if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
-
-        self.__check_event_existence(
-            events, bot=bot, exp_message="Story already exist!"
-        )
-        return (
-            Stories(
-                block_name=name.strip().lower(),
-                events=events,
-                bot=bot,
-                user=user,
-                start_checkpoints=[STORY_START],
-            )
-                .save()
-                .to_mongo()
-                .to_dict()["_id"]
-                .__str__()
-        )
-
     def __complex_story_prepare_steps(self, steps: List[Dict], bot, user):
         """
         convert kairon story events to rasa story events
@@ -1760,8 +1701,9 @@ class MongoProcessor:
         else:
             raise AppException("Invalid type")
 
-        Utility.is_exist(data_class, exp_message="Data already exists!", bot=bot, status=True,
-                         block_name__iexact=name)
+        Utility.is_exist_query(data_class,
+                               query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
+                               exp_message="FLow already exists!")
 
         data_object = data_class(
             block_name=name.strip().lower(),
@@ -1812,9 +1754,13 @@ class MongoProcessor:
         try:
             data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("Data does not exists")
+            raise AppException("FLow does not exists")
 
         data_object['events'] = self.__complex_story_prepare_steps(steps, bot, user)
+
+        Utility.is_exist_query(data_class,
+                               query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
+                               exp_message="FLow already exists!")
 
         story_id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
@@ -1844,36 +1790,6 @@ class MongoProcessor:
         Utility.delete_document(
             [data_class], bot=bot, user=user, block_name__iexact=name
         )
-
-
-    def __fetch_list_of_events(self, bot: Text):
-        saved_events = list(
-            Stories.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$name", "events": {"$push": "$events"}}}]
-            )
-        )
-
-        saved_items = list(
-            itertools.chain.from_iterable([items["events"] for items in saved_events])
-        )
-
-        return saved_items
-
-    def __check_event_existence(
-            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
-    ):
-        saved_items = self.__fetch_list_of_events(bot)
-
-        if events in saved_items:
-            if raise_error:
-                if Utility.check_empty_string(exp_message):
-                    raise AppException("Exception message cannot be empty")
-                raise AppException(exp_message)
-            else:
-                return True
-        else:
-            if not raise_error:
-                return False
 
     def get_stories(self, bot: Text):
         """
@@ -2316,26 +2232,17 @@ class MongoProcessor:
         return list(self.__prepare_document_list(actions, "action_name"))
 
     def list_actions(self, bot: Text):
-        actions = list(Actions.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}, }}]
-        ))
+        actions = list(Actions.objects(bot=bot, status=True).values_list('name'))
 
         if actions:
             http_actions = self.list_http_action_names(bot)
-            print(http_actions)
-            return [action for action in actions[0]['actions'] if not str(action).startswith("utter_") and action not in http_actions]
+            return [action for action in actions if not str(action).startswith("utter_") and action not in http_actions]
         else:
-            return []
+            return actions
 
     def list_http_action_names(self, bot: Text):
-        actions = list(HttpActionConfig.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$action_name"}, }}]
-        ))
-
-        if actions:
-            return actions[0]['actions']
-        else:
-            return []
+        actions = list(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        return actions
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         try:
@@ -2409,14 +2316,9 @@ class MongoProcessor:
     @staticmethod
     def fetch_rule_block_names(bot: Text):
         saved_stories = list(
-            Rules.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
-            )
+            Rules.objects(bot=bot, status=True).values_list('block_name')
         )
-        result = []
-        if saved_stories:
-            result = saved_stories[0]["block"]
-        return result
+        return saved_stories
 
     def save_rules(self, story_steps, bot: Text, user: Text):
         if story_steps:

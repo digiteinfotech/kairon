@@ -52,7 +52,7 @@ from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
-
+from mongoengine.queryset.visitor import QCombination
 
 class Utility:
     """Class contains logic for various utilities"""
@@ -145,7 +145,32 @@ class Utility:
         :param kwargs: filter parameters
         :return: boolean
         """
-        doc = document.objects(**kwargs)
+        doc = document.objects(args, **kwargs)
+        if doc.__len__():
+            if raise_error:
+                if Utility.check_empty_string(exp_message):
+                    raise AppException("Exception message cannot be empty")
+                raise AppException(exp_message)
+            else:
+                return True
+        else:
+            if not raise_error:
+                return False
+
+    @staticmethod
+    def is_exist_query(
+            document: Document, query: QCombination, exp_message: Text = None, raise_error = True
+    ):
+        """
+        check if document exist
+
+        :param document: document type
+        :param exp_message: exception message
+        :param raise_error: boolean to raise exception
+        :param kwargs: filter parameters
+        :return: boolean
+        """
+        doc = document.objects(query)
         if doc.__len__():
             if raise_error:
                 if Utility.check_empty_string(exp_message):

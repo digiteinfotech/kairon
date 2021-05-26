@@ -30,7 +30,7 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-
+from rasa.shared.core.domain import _validate_slot_mappings
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -170,6 +170,7 @@ class Entities(Document):
 
 class Forms(Document):
     name = StringField(required=True)
+    mapping = DictField(default={})
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -178,6 +179,10 @@ class Forms(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Form name cannot be empty or blank spaces")
+        try:
+            _validate_slot_mappings({self.name: self.mapping})
+        except Exception as e:
+            raise ValidationError(e)
 
 
 class ResponseButton(EmbeddedDocument):

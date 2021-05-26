@@ -786,17 +786,17 @@ def test_add_story():
             "name": "test_path",
             "type": "STORY",
             "steps": [
-                {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet", "type": "BOT"},
+                {"name": "test_greet", "type": "INTENT"},
+                {"name": "utter_test_greet", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_add_story_invalid_type():
@@ -971,10 +971,10 @@ def test_update_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
     assert actual["message"] == "Flow updated successfully"
     assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_update_story_invalid_event_type():
@@ -1009,15 +1009,15 @@ def test_delete_story():
             "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet", "type": "BOT"},
+                {"name": "utter_greet_delete", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    assert actual["message"] == "Flow added successfully"
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Flow added successfully"
 
     response = client.delete(
         "/api/bot/stories/test_path1/STORY",
