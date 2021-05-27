@@ -287,7 +287,9 @@ class MongoProcessor:
         self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.forms, bot, user)
-        self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
+        utterances = filter(lambda actions: actions.startswith('utter_'), domain.user_actions)
+        actions = list(set(domain.user_actions) - set(domain.form_names) - set(utterances))
+        self.__save_actions(actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
@@ -1447,7 +1449,7 @@ class MongoProcessor:
                 name__iexact=name.strip(),
                 bot=bot,
                 status=True
-        ):
+        ) and not name.startswith('utter_'):
             action = (
                 Actions(name=name.strip().lower(), bot=bot, user=user).save().to_mongo().to_dict()
             )
@@ -1511,10 +1513,6 @@ class MongoProcessor:
             )
         )[0]
         value = response.save().to_mongo().to_dict()
-        if not Utility.is_exist(
-                Actions, raise_error=False, name__iexact=name, bot=bot, status=True
-        ):
-            Actions(name=name.strip().lower(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def edit_text_response(
