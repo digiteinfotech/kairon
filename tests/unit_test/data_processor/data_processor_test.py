@@ -118,6 +118,7 @@ class TestMongoProcessor:
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 41
+        assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 11
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -176,6 +177,7 @@ class TestMongoProcessor:
         assert isinstance(domain.forms, dict)
         print(domain.user_actions)
         assert domain.user_actions.__len__() == 36
+        assert processor.list_actions('all').__len__() == 11
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -222,6 +224,7 @@ class TestMongoProcessor:
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 36
         assert domain.intents.__len__() == 29
+        assert processor.list_actions('all').__len__() == 11
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -574,32 +577,37 @@ class TestMongoProcessor:
 
     def test_add_action(self):
         processor = MongoProcessor()
-        assert processor.add_action("utter_priority", "tests", "testUser")
-        action = Actions.objects(bot="tests").get(name="utter_priority")
-        assert action.name == "utter_priority"
+        assert processor.add_action("get_priority", "test", "testUser")
+        action = Actions.objects(bot="test").get(name="get_priority")
+        assert action.name == "get_priority"
+
+    def test_add_action_starting_with_utter(self):
+        processor = MongoProcessor()
+        assert not processor.add_action("utter_get_priority", "test", "testUser")
+        with pytest.raises(DoesNotExist):
+            Actions.objects(bot="test").get(name="utter_get_priority")
+
+    def test__action_data_object(self):
+        assert Actions(name="test_action", bot='test', user='test')
+
+    def test_data_obj_action_empty(self):
+        with pytest.raises(ValidationError):
+            Actions(name=" ", bot='test', user='test').save()
+
+    def test_data_obj_action_starting_with_utter(self):
+        with pytest.raises(ValidationError):
+            Actions(name="utter_get_priority", bot='test', user='test').save()
 
     def test_get_actions(self):
         processor = MongoProcessor()
-        expected = [
-            "utter_greet",
-            "utter_cheer_up",
-            "utter_happy",
-            "utter_goodbye",
-            "utter_priority",
-            "utter_did_that_help",
-            "utter_iamabot",
-            'utter_feedback',
-            "utter_bad_feedback",
-            "utter_good_feedback"
-        ]
-        actual = processor.get_actions("tests")
-        assert actual.__len__() == expected.__len__()
-        assert all(item["name"] in expected for item in actual)
+        actual = processor.get_actions("test")
+        assert actual.__len__() == 1
+        assert actual[0]['name'] == 'get_priority'
 
     def test_add_action_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            assert processor.add_action("utter_priority", "tests", "testUser") is None
+            processor.add_action("get_priority", "test", "testUser")
 
     def test_add_action_duplicate_case_insensitive(self):
         processor = MongoProcessor()
