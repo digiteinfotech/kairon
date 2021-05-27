@@ -1,6 +1,7 @@
 import logging
 from time import time
 
+from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +26,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from kairon.api.models import Response
 from kairon.api.processor import AccountProcessor
 from kairon.exceptions import AppException
-from .routers import auth, bot, augment, history, user, account
+from kairon.api.app.routers import auth, bot, augment, history, user, account
+from kairon.utils import Utility
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()
@@ -39,6 +41,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["content-disposition"],
 )
+apm_client = Utility.initiate_apm_client()
+if apm_client:
+    app.add_middleware(ElasticAPM, client=apm_client)
 
 
 @app.middleware("http")

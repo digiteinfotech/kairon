@@ -1,3 +1,4 @@
+import glob
 import os
 from datetime import datetime
 from io import BytesIO
@@ -760,6 +761,10 @@ class TestMongoProcessor:
     def test_train_model(self):
         model = train_model_for_bot("tests")
         assert model
+        folder = "models/tests"
+        file = Utility.get_latest_file(folder)
+        Utility.move_old_models(folder, file)
+        assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
 
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
@@ -768,7 +773,7 @@ class TestMongoProcessor:
             assert model
 
     def test_start_training_done(self, monkeypatch):
-        def mongo_store(*arge, **kwargs):
+        def mongo_store(*args, **kwargs):
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)

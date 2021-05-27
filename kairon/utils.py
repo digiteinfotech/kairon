@@ -14,6 +14,7 @@ from typing import Text, List, Dict
 
 import requests
 import yaml
+from elasticapm.contrib.starlette import make_apm_client
 from fastapi import File
 from fastapi.security import OAuth2PasswordBearer
 from jwt import encode, decode
@@ -931,8 +932,8 @@ class Utility:
         from .data_processor.constant import MODEL_TRAINING_STATUS
         from .train import start_training
         exception = process_type != 'upload'
-        is_inprogress = ModelProcessor.is_training_inprogress(bot, raise_exception=exception)
-        is_limit_exceed = ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=exception)
+        ModelProcessor.is_training_inprogress(bot, raise_exception=exception)
+        ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=exception)
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
@@ -940,3 +941,18 @@ class Utility:
         background_tasks.add_task(
             start_training, bot, user, token.decode('utf8')
         )
+
+    @staticmethod
+    def initiate_apm_client():
+        logger.debug(f'apm_enable: {Utility.environment["elasticsearch"].get("enable")}')
+        if Utility.environment["elasticsearch"].get("enable"):
+            server_url = Utility.environment["elasticsearch"].get("apm_server_url")
+            service_name = Utility.environment["elasticsearch"].get("service_name")
+            env = Utility.environment["elasticsearch"].get("env_type")
+            request = {"SERVER_URL": server_url,
+                       "SERVICE_NAME": service_name,
+                       'ENVIRONMENT': env, }
+            logger.debug(f'apm: {request}')
+            if service_name and server_url:
+                apm = make_apm_client(request)
+                return apm
