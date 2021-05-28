@@ -15,6 +15,7 @@ RUN python3 -m pip install torch
 RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN python3 -m nltk.downloader punkt
 RUN python3 -m pip install protobuf
+RUN python3 -m pip install elastic-apm
 
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation
