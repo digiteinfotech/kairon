@@ -132,33 +132,24 @@ class TestUtility:
         assert not Utility.initiate_apm_client()
 
     def test_initiate_apm_client_enabled(self, monkeypatch):
-        def _mock_env(*args, **kwargs):
-            return True
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
-
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         assert Utility.initiate_apm_client()
 
     def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
-        def _mock_env(*args, **kwargs):
-            return True
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
 
         assert not Utility.initiate_apm_client()
 
     def test_initiate_apm_client_service_url_not_present(self, monkeypatch):
-        def _mock_env(*args, **kwargs):
-            return True
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', None)
 
         assert not Utility.initiate_apm_client()
 
     def test_initiate_apm_client_env_not_present(self, monkeypatch):
-        def _mock_env(*args, **kwargs):
-            return True
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
 
         assert Utility.initiate_apm_client()
