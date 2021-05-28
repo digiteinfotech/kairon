@@ -25,3 +25,9 @@ data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   event_url: ${DATA_GENERATION_EVENT_URL}
   kairon_url: ${KAIRON_URL}
+
+elasticsearch:
+  enable: ${ENABLE_APM:false}
+  apm_server_url: ${APM_SERVER_URL:"http://localhost:8082"}
+  service_name: ${APM_APPLICATION_NAME:"Kairon"}
+  env_type: ${KAIRON_ENV_TYPE:"dev"}

@@ -248,6 +248,9 @@ class Actions(Document):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Action name cannot be empty or blank spaces")
 
+        if self.name.startswith('utter_'):
+            raise ValidationError("Action name cannot start with utter_")
+
 
 class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)

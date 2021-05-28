@@ -1,4 +1,3 @@
-import glob
 import os
 from io import BytesIO
 
@@ -129,8 +128,37 @@ class TestUtility:
         actual = Utility.get_interpreter("test.tar.gz")
         assert actual is None
 
-    def test_delete_old_models(self):
-        folder = "models/tests"
-        file = Utility.get_latest_file(folder)
-        Utility.move_old_models(folder, file)
-        assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
+    def test_initiate_apm_client_disabled(self):
+        assert not Utility.initiate_apm_client()
+
+    def test_initiate_apm_client_enabled(self, monkeypatch):
+        def _mock_env(*args, **kwargs):
+            return True
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+
+        assert Utility.initiate_apm_client()
+
+    def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
+        def _mock_env(*args, **kwargs):
+            return True
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
+
+        assert not Utility.initiate_apm_client()
+
+    def test_initiate_apm_client_service_url_not_present(self, monkeypatch):
+        def _mock_env(*args, **kwargs):
+            return True
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', None)
+
+        assert not Utility.initiate_apm_client()
+
+    def test_initiate_apm_client_env_not_present(self, monkeypatch):
+        def _mock_env(*args, **kwargs):
+            return True
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', _mock_env)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
+
+        assert Utility.initiate_apm_client()
