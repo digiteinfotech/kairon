@@ -1,5 +1,7 @@
 import json
 import os
+import urllib.parse
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
@@ -14,6 +16,7 @@ from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import HttpActionFailure
 from kairon.utils import Utility
+import requests
 
 
 class TestActions:
@@ -915,3 +918,64 @@ class TestActions:
             assert False
         except HttpActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
+
+    @pytest.mark.asyncio
+    async def test_run_get_with_parameters(self, monkeypatch):
+        request_params = [HttpActionRequestBody(key='key1', value="value1"),
+                          HttpActionRequestBody(key='key2', value="value2")]
+        action = HttpActionConfig(
+            auth_token="",
+            action_name="test_run_get_with_parameters",
+            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            params_list=request_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        }
+
+        class MockResponse(object):
+            def __init__(self, url, headers):
+                self.status_code = 200
+                self.url = url
+                self.headers = headers
+
+            def json(self):
+                return resp_msg
+
+            def text(self):
+                return json.dumps(resp_msg)
+
+        def mock_get(url, headers):
+            if headers and url == http_url+'?'+urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
+                return MockResponse(url, headers)
+        monkeypatch.setattr(requests, "get", mock_get)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'

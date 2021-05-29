@@ -13,7 +13,7 @@ from smart_config import ConfigLoader
 from .data_objects import HttpActionConfig, HttpActionRequestBody
 from .exception import HttpActionFailure
 from .models import ParameterType
-
+from urllib.parse import urlencode, quote_plus
 
 class ActionUtility:
 
@@ -38,20 +38,18 @@ class ActionUtility:
             request_body = {}
 
         if not ActionUtility.is_empty(auth_token):
-            if request_method.upper() == 'GET':
-                request_body['Authorization'] = auth_token
-            else:
-                header = {'Authorization': auth_token}
+            header = {'Authorization': auth_token}
         try:
-            if request_method.upper() == 'GET':
-                response = requests.get(http_url, headers=request_body)
-            elif request_method.upper() == 'POST':
-                response = requests.post(http_url, json=request_body, headers=header)
-            elif request_method.upper() == 'PUT':
-                response = requests.put(http_url, json=request_body, headers=header)
-            elif request_method.upper() == 'DELETE':
-                response = requests.delete(http_url, json=request_body, headers=header)
+            if request_method.lower() == 'get':
+                if request_body:
+                    http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
+                response = requests.get(http_url, headers=header)
+            elif request_method.lower() in ['post', 'put', 'delete']:
+                response = requests.request(request_method.lower(), http_url, json=request_body, headers=header)
+            else:
+                raise HttpActionFailure("Got non-200 status code")
             logger.debug("raw response: " + str(response.text))
+            logger.debug("status " + str(response.status_code))
 
             if response.status_code != 200:
                 raise HttpActionFailure("Got non-200 status code")
