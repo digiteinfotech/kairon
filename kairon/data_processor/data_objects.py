@@ -332,11 +332,11 @@ class Stories(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
-        Utility.validate_document_list(self.events)
         if Utility.check_empty_string(self.block_name):
-            raise ValidationError("Story path name cannot be empty or blank spaces")
+            raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
-            raise ValidationError("Stories cannot be empty")
+            raise ValidationError("events cannot be empty")
+        Utility.validate_flow_events(self.events, "STORY", self.block_name)
 
 
 class Rules(Document):
@@ -350,6 +350,12 @@ class Rules(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.block_name):
+            raise ValidationError("rule name cannot be empty or blank spaces")
+        elif not self.events:
+            raise ValidationError("events cannot be empty")
+        Utility.validate_flow_events(self.events, "RULE", self.block_name)
 
 class Configs(Document):
     language = StringField(required=True, default="en")

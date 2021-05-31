@@ -1664,6 +1664,8 @@ class MongoProcessor:
                     type="action"))
                 if step['type']  == "ACTION":
                     self.add_action(step['name'], bot, user, raise_exception=False)
+            else:
+                raise AppException("Invalid event type!")
         return events
 
     def add_complex_story(self, story: Dict, bot: Text, user: Text):
@@ -1722,8 +1724,7 @@ class MongoProcessor:
         """
         Updates story in mongodb
 
-        :param name: story name
-        :param steps: story steps list
+        :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
         :return: story id
@@ -1739,7 +1740,6 @@ class MongoProcessor:
         if not steps:
             raise AppException("steps are required")
 
-        data_class = None
         if type == 'STORY':
             data_class = Stories
         elif type == 'RULE':
@@ -1752,8 +1752,8 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("FLow does not exists")
 
-        data_object['events'] = self.__complex_story_prepare_steps(steps, bot, user)
-
+        events = self.__complex_story_prepare_steps(steps, bot, user)
+        data_object['events'] = events
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
                                exp_message="FLow already exists!")
@@ -1766,7 +1766,8 @@ class MongoProcessor:
     def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
         """
         Soft deletes complex story.
-        :param name: Story name
+        :param name: Flow name
+        :param type: Flow Type
         :param user: user id
         :param bot: bot id
         :return:
@@ -1782,7 +1783,7 @@ class MongoProcessor:
         try:
             data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("Data does not exists")
+            raise AppException("Flow does not exists")
         Utility.delete_document(
             [data_class], bot=bot, user=user, block_name__iexact=name
         )

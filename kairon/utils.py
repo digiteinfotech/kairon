@@ -55,6 +55,7 @@ from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
 
+
 class Utility:
     """Class contains logic for various utilities"""
 
@@ -956,3 +957,21 @@ class Utility:
             if service_name and server_url:
                 apm = make_apm_client(request)
                 return apm
+
+    @staticmethod
+    def validate_flow_events(events, type, name):
+        Utility.validate_document_list(events)
+        if events[0].type != "user":
+            raise ValidationError("First event should be an user")
+
+        if events[len(events) - 1].type == "user":
+            raise ValidationError("user event should be followed by action")
+
+        intents = 0
+        for i, j in enumerate(range(1, len(events))):
+            if events[i].type == "user":
+                intents = intents + 1
+            if events[i].type == "user" and events[j].type == "user":
+                raise ValidationError("Found 2 consecutive user events")
+            if type == "RULE" and intents > 1:
+                raise ValidationError(f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
