@@ -109,7 +109,7 @@ stories:
   steps:
   - intent: performance_feedback
   - action: utter_feedback
-  - intent: user_feedback
+  - intent: user_pos_feedback
     entities:
     - fdResponse: "like"
   - action: utter_good_feedback
@@ -117,7 +117,7 @@ stories:
   steps:
   - intent: performance_feedback
   - action: utter_feedback
-  - intent: user_feedback
+  - intent: user_neg_feedback
     entities:
     - fdResponse: "hate"
   - action: utter_bad_feedback

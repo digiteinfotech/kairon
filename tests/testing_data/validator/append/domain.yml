@@ -24,6 +24,9 @@ responses:
     - text: '{location} is nice place.'
 
 actions:
+- action_say_hello
+- action_say_bye
+- action_say_location
 - utter_greet
 - utter_goodbye
 - utter_affirm

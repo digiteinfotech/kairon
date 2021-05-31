@@ -6,11 +6,11 @@ from requests import exceptions
 
 from kairon.utils import Utility
 from kairon.data_processor.constant import EVENT_STATUS
-from kairon.data_processor.data_importer_log_processor import DataImporterLogProcessor
-from kairon.events.actions.data_importer import DataImporter
+from kairon.importer.processor import DataImporterLogProcessor
+from kairon.importer.data_importer import DataImporter
 
 
-class Events:
+class EventsTrigger:
     """
     Class to trigger events.
     """
@@ -29,8 +29,7 @@ class Events:
         validation_status = 'Failure'
         path = None
         try:
-            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
-                    Utility.environment['model']['data_importer'].get('event_url'):
+            if Utility.get_event_url("DATA_IMPORTER"):
                 import_flag = '--import-data' if save_data else ''
                 overwrite_flag = '--overwrite' if overwrite else ''
                 json = {'BOT': bot, 'USER': user, "IMPORT_DATA": import_flag, "OVERWRITE": overwrite_flag}
@@ -49,23 +48,23 @@ class Events:
                 is_data_valid = all([not summary[key] for key in summary.keys()])
                 validation_status = 'Success' if is_data_valid else 'Failure'
                 DataImporterLogProcessor.add_log(bot, user, summary,
-                                                 validation_status=validation_status,
+                                                 status=validation_status,
                                                  event_status=EVENT_STATUS.SAVE.value)
-
-                data_importer.import_data()
+                if is_data_valid:
+                    data_importer.import_data()
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.COMPLETED.value)
         except exceptions.ConnectionError as e:
             logger.error(str(e))
             DataImporterLogProcessor.add_log(bot, user,
                                              exception='Failed to trigger the event.',
-                                             validation_status=validation_status,
+                                             status=validation_status,
                                              event_status=EVENT_STATUS.FAIL.value)
 
         except Exception as e:
             logger.error(str(e))
             DataImporterLogProcessor.add_log(bot, user,
                                              exception=str(e),
-                                             validation_status=validation_status,
+                                             status=validation_status,
                                              event_status=EVENT_STATUS.FAIL.value)
         if path:
             Utility.delete_directory(path)

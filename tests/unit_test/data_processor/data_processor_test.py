@@ -1,5 +1,7 @@
 import glob
 import os
+import shutil
+import tempfile
 from datetime import datetime
 from io import BytesIO
 from typing import List
@@ -19,8 +21,8 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FILES, \
-    ALLOWED_CONFIG_FILES, ALLOWED_NLU_FILES, ALLOWED_STORIES_FILES
+from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
+    ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -50,21 +52,24 @@ class TestMongoProcessor:
         Utility.load_evironment()
         connect(host=Utility.environment["database"]['url'])
 
-    @staticmethod
-    async def get_training_data(path: str):
-        domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
-        training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
-        config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-        http_actions_path = os.path.join(path, 'http_action.yml')
-        importer = RasaFileImporter.load_from_config(config_path=config_path,
-                                                     domain_path=domain_path,
-                                                     training_data_paths=training_data_path)
-        domain = await importer.get_domain()
-        story_graph = await importer.get_stories()
-        config = await importer.get_config()
-        nlu = await importer.get_nlu_data(config.get('language'))
-        http_actions = Utility.read_yaml(http_actions_path)
-        return nlu, story_graph, domain, config, http_actions
+    @pytest.fixture()
+    def get_training_data(self):
+
+        async def _read_and_get_data(path: str):
+            domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
+            training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
+            config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            http_actions_path = os.path.join(path, 'http_action.yml')
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=training_data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+            http_actions = Utility.read_yaml(http_actions_path)
+            return nlu, story_graph, domain, config, http_actions
+        return _read_and_get_data
 
     @pytest.mark.asyncio
     async def test_load_from_path(self):
@@ -790,7 +795,7 @@ class TestMongoProcessor:
         model = train_model_for_bot("tests")
         assert model
         folder = "models/tests"
-        file = Utility.get_latest_file(folder)
+        file = Utility.get_latest_file(folder, '*.tar.gz')
         Utility.move_old_models(folder, file)
         assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
 
@@ -1660,11 +1665,11 @@ class TestMongoProcessor:
         assert feedback[1]['timestamp']
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all(self):
+    async def test_save_training_data_all(self, get_training_data):
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await TestMongoProcessor.get_training_data(path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, True)
@@ -1701,7 +1706,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 41
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1717,11 +1722,11 @@ class TestMongoProcessor:
         assert len(actions['http_actions']) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_no_rules_and_http_actions(self):
+    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data):
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await TestMongoProcessor.get_training_data(path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, True)
@@ -1751,7 +1756,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 36
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1766,11 +1771,11 @@ class TestMongoProcessor:
         assert not actions
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_overwrite(self):
+    async def test_save_training_data_all_overwrite(self, get_training_data):
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await TestMongoProcessor.get_training_data(path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, True)
@@ -1807,7 +1812,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 41
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1823,11 +1828,11 @@ class TestMongoProcessor:
         assert len(actions['http_actions']) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_append(self):
+    async def test_save_training_data_all_append(self, get_training_data):
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await TestMongoProcessor.get_training_data(path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, False)
@@ -1864,7 +1869,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1880,12 +1885,19 @@ class TestMongoProcessor:
         assert len(actions['http_actions']) == 5
 
     @pytest.fixture()
+    def resource_prepare_training_data_for_validation_with_home_dir(self):
+        tmp_dir = tempfile.mkdtemp()
+        pytest.dir = tmp_dir
+        yield 'resource_prepare_training_data_for_validation_with_home_dir'
+        Utility.delete_directory(pytest.dir)
+
+    @pytest.fixture()
     def resource_prepare_training_data_for_validation(self):
         yield 'resource_prepare_training_data_for_validation'
-        Utility.delete_directory(os.path.join('training_data', 'prepare_training_data_for_validation'))
+        Utility.delete_directory(os.path.join('training_data', 'test'))
 
     def test_prepare_training_data_for_validation_no_data(self, resource_prepare_training_data_for_validation):
-        bot = 'prepare_training_data_for_validation'
+        bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot)
         bot_home = os.path.join('training_data', bot)
@@ -1893,13 +1905,66 @@ class TestMongoProcessor:
         dirs = os.listdir(bot_home)
         files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
             os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-        assert ALLOWED_DOMAIN_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_CONFIG_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_NLU_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_STORIES_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+
+    def test_prepare_training_data_for_validation_with_home_dir(self, resource_prepare_training_data_for_validation_with_home_dir):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.dir)
+        bot_home = pytest.dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(bot_home)).union(os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation_nlu_only(self):
+        pytest.nlu_only_tmp_dir = tempfile.mkdtemp()
+        yield 'resource_prepare_training_data_for_validation_nlu_only'
+        Utility.delete_directory(pytest.nlu_only_tmp_dir)
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation_rules_only(self):
+        pytest.nlu_only_tmp_dir = tempfile.mkdtemp()
+        yield 'resource_prepare_training_data_for_validation_rules_only'
+        Utility.delete_directory(pytest.nlu_only_tmp_dir)
+
+    def test_prepare_training_data_for_validation_nlu_domain_only(self, resource_prepare_training_data_for_validation_nlu_only):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'nlu', 'domain'})
+        bot_home = pytest.nlu_only_tmp_dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(os.path.join(bot_home))).union(
+            os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 0
+
+    def test_prepare_training_data_for_validation_rules_only(self, resource_prepare_training_data_for_validation_rules_only):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'rules'})
+        bot_home = pytest.nlu_only_tmp_dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(os.path.join(bot_home))).union(
+            os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
 
     def test_prepare_training_data_for_validation(self, resource_prepare_training_data_for_validation):
-        bot = 'prepare_training_data_for_validation'
+        bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot)
         bot_home = os.path.join('training_data', bot)
@@ -1907,10 +1972,263 @@ class TestMongoProcessor:
         dirs = os.listdir(bot_home)
         files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
             os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-        assert ALLOWED_DOMAIN_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_CONFIG_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_NLU_FILES.intersection(files).__len__() == 1
-        assert ALLOWED_STORIES_FILES.intersection(files).__len__() == 1
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+
+    @pytest.fixture()
+    def resource_unzip_and_validate(self):
+        pytest.bot = 'test_validate_and_prepare_data'
+        data_path = 'tests/testing_data/yml_training_files'
+        tmp_dir = tempfile.gettempdir()
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.make_archive(zip_file, 'zip', data_path)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_unzip_and_validate"
+        os.remove(zip_file + '.zip')
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_zip(self, resource_unzip_and_validate):
+        processor = MongoProcessor()
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert REQUIREMENTS == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.fixture()
+    def resource_save_and_validate_training_files(self):
+        pytest.bot = 'test_validate_and_prepare_data'
+        config_path = 'tests/testing_data/yml_training_files/config.yml'
+        domain_path = 'tests/testing_data/yml_training_files/domain.yml'
+        nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
+        stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
+        http_action_path = 'tests/testing_data/yml_training_files/http_action.yml'
+        rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
+        pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
+        pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
+        pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
+        pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
+        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(open(http_action_path, 'rb').read()))
+        pytest.rules = UploadFile(filename="rules.yml", file=BytesIO(open(rules_path, 'rb').read()))
+        pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
+        yield "resource_save_and_validate_training_files"
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_save_actions_and_config_append(self):
+        import json
+
+        pytest.bot = 'test_validate_and_prepare_data'
+        config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
+        actions = {"http_actions": [{"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com", "request_method": "GET", "response": "json"}]}
+        actions = json.dumps(actions).encode('utf-8')
+        pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
+        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(actions))
+        yield "resource_validate_and_prepare_data_save_actions_and_config_append"
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert REQUIREMENTS == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_nlu_only(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.nlu]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'nlu'} == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_stories_only(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.stories]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'stories'} == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_config(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.config]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'config'} == files_received
+        assert non_event_data
+
+        assert processor.list_http_actions(pytest.bot).__len__() == 0
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.rules]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'rules'} == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'http_actions'} == files_received
+        assert non_event_data
+
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.domain]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'domain'} == files_received
+        assert not non_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions, pytest.config]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'http_actions', 'config'} == files_received
+        assert non_event_data
+
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions_and_config_append(self, resource_validate_and_prepare_data_save_actions_and_config_append):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions, pytest.config]
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, False)
+        assert {'http_actions', 'config'} == files_received
+        assert non_event_data
+
+        assert processor.list_http_actions(pytest.bot).__len__() == 6
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language'] == 'fr'
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_no_valid_file_in_zip(self):
+        data_path = 'tests/testing_data/validator'
+        tmp_dir = tempfile.gettempdir()
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.make_archive(zip_file, 'zip', data_path)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_no_valid_file_in_zip"
+        os.remove(zip_file + '.zip')
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_no_valid_file_received(self, resource_validate_and_prepare_data_no_valid_file_in_zip):
+        processor = MongoProcessor()
+        bot = 'test_validate_and_prepare_data'
+        with pytest.raises(AppException) as e:
+            await processor.validate_and_prepare_data(bot, 'test', [pytest.zip], True)
+        assert str(e).__contains__('Invalid files received')
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_zip_actions_config(self):
+        tmp_dir = tempfile.mkdtemp()
+        pytest.bot = 'validate_and_prepare_data_zip_actions_config'
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.copy2('tests/testing_data/yml_training_files/http_action.yml', tmp_dir)
+        shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
+        shutil.make_archive(zip_file, 'zip', tmp_dir)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_zip_actions_config"
+        shutil.rmtree(tmp_dir)
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_zip_actions_config(self, resource_validate_and_prepare_data_zip_actions_config):
+        processor = MongoProcessor()
+        files_received, non_event_data = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert {'http_actions', 'config'} == files_received
+        assert non_event_data
+
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_invalid_zip_actions_config(self):
+        import json
+        tmp_dir = tempfile.mkdtemp()
+        pytest.bot = 'validate_and_prepare_data_zip_actions_config'
+        zip_file = os.path.join(tmp_dir, 'test')
+        actions = Utility.read_yaml('tests/testing_data/yml_training_files/http_action.yml')
+        actions['http_actions'][0].pop('action_name')
+        Utility.write_to_file(os.path.join(tmp_dir, 'http_action.yml'), json.dumps(actions).encode())
+        shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
+        shutil.make_archive(zip_file, 'zip', tmp_dir)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_zip_actions_config"
+        shutil.rmtree(tmp_dir)
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert str(e).__contains__('Required http action fields not found')
 
 
 # pylint: disable=R0201

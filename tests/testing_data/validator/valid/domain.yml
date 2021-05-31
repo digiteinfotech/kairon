@@ -16,5 +16,7 @@ responses:
   - text: Hey! How are you?
 
 actions:
+- action_say_hello
+- action_say_goodbye
 - utter_greet
 - utter_goodbye

@@ -10,9 +10,9 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.data_processor.constant import EVENT_STATUS
-from kairon.data_processor.data_importer_log_processor import DataImporterLogProcessor
+from kairon.importer.processor import DataImporterLogProcessor
 from kairon.data_processor.processor import MongoProcessor
-from kairon.events.events import Events
+from kairon.events.events import EventsTrigger
 
 
 class TestEvents:
@@ -39,7 +39,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, False)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents')
@@ -53,7 +53,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Success'
+        assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     @pytest.mark.asyncio
@@ -68,7 +68,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, False, False)
+        await EventsTrigger.trigger_data_importer(bot, user, False, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('intents')
@@ -82,7 +82,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Failure'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     @pytest.mark.asyncio
@@ -97,7 +97,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, False)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 3
         assert not logs[0].get('intents')
@@ -111,7 +111,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Failure'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     @pytest.mark.asyncio
@@ -126,7 +126,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, False)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 4
         assert logs[0].get('intents')
@@ -140,7 +140,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Failure'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     @pytest.mark.asyncio
@@ -155,7 +155,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, True)
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 5
         assert not logs[0].get('intents')
@@ -169,16 +169,16 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Success'
+        assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)[0]['intents']
-        assert 'deny' in processor.fetch_intents(bot)[0]['intents']
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
         assert len(list(processor.fetch_responses(bot))) == 2
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 2
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -193,7 +193,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, False)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 6
         assert not logs[0].get('intents')
@@ -207,18 +207,18 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Success'
+        assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)[0]['intents']
-        assert 'deny' in processor.fetch_intents(bot)[0]['intents']
-        assert 'location' in processor.fetch_intents(bot)[0]['intents']
-        assert 'affirm' in processor.fetch_intents(bot)[0]['intents']
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
+        assert 'location' in processor.fetch_intents(bot)
+        assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 4
+        assert len(processor.fetch_actions(bot)) == 3
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -233,7 +233,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        await Events.trigger_data_importer(bot, user, True, True)
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 7
         assert not logs[0].get('intents')
@@ -247,16 +247,16 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Success'
+        assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)[0]['intents']
-        assert 'deny' in processor.fetch_intents(bot)[0]['intents']
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
         assert len(list(processor.fetch_responses(bot))) == 2
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 2
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -271,7 +271,7 @@ class TestEvents:
                       json={"message": "Event triggered successfully!"},
                       status=200)
         responses.start()
-        await Events.trigger_data_importer(bot, user, True, False)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
         responses.stop()
         request = json.loads(responses.calls[0].request.body)
         assert request['BOT'] == bot
@@ -292,7 +292,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
-        assert not logs[0].get('validation_status')
+        assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
 
     @pytest.mark.asyncio
@@ -307,7 +307,7 @@ class TestEvents:
                       json={"message": "Event triggered successfully!"},
                       status=200)
         responses.start()
-        await Events.trigger_data_importer(bot, user, True, True)
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
         responses.stop()
         request = json.loads(responses.calls[1].request.body)
 
@@ -329,7 +329,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
-        assert not logs[0].get('validation_status')
+        assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
 
     @pytest.mark.asyncio
@@ -344,7 +344,7 @@ class TestEvents:
                       json={"message": "Event triggered successfully!"},
                       status=200)
         responses.start()
-        await Events.trigger_data_importer(bot, user, False, False)
+        await EventsTrigger.trigger_data_importer(bot, user, False, False)
         responses.stop()
         request = json.loads(responses.calls[2].request.body)
 
@@ -366,7 +366,7 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
-        assert not logs[0].get('validation_status')
+        assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
 
     @pytest.mark.asyncio
@@ -376,7 +376,7 @@ class TestEvents:
         event_url = "http://url.event4"
         monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", event_url)
 
-        await Events.trigger_data_importer(bot, user, False, False)
+        await EventsTrigger.trigger_data_importer(bot, user, False, False)
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -391,5 +391,5 @@ class TestEvents:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['validation_status'] == 'Failure'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value

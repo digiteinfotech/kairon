@@ -5,8 +5,8 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.data_processor.constant import EVENT_STATUS
-from kairon.data_processor.data_importer_log_processor import DataImporterLogProcessor
-from kairon.data_processor.data_objects import ValidationLogs
+from kairon.importer.processor import DataImporterLogProcessor
+from kairon.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
 
 
@@ -42,7 +42,7 @@ class TestDataImporterLogProcessor:
         user = 'test'
         DataImporterLogProcessor.add_log(bot, user,
                                          exception='Validation failed',
-                                         validation_status='Failure',
+                                         status='Failure',
                                          event_status=EVENT_STATUS.FAIL.value)
         log = ValidationLogs.objects(bot=bot).get().to_mongo().to_dict()
         assert not log.get('intents')
@@ -56,7 +56,7 @@ class TestDataImporterLogProcessor:
         assert not log['is_data_uploaded']
         assert log['start_timestamp']
         assert log.get('end_timestamp')
-        assert log.get('validation_status') == 'Failure'
+        assert log.get('status') == 'Failure'
         assert log['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_add_log_success(self):
@@ -64,7 +64,7 @@ class TestDataImporterLogProcessor:
         user = 'test'
         DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False)
         DataImporterLogProcessor.add_log(bot, user,
-                                         validation_status='Success',
+                                         status='Success',
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log = list(DataImporterLogProcessor.get_logs(bot))
         assert not log[0].get('intents')
@@ -78,7 +78,7 @@ class TestDataImporterLogProcessor:
         assert not log[0]['is_data_uploaded']
         assert log[0]['start_timestamp']
         assert log[0].get('end_timestamp')
-        assert log[0].get('validation_status') == 'Success'
+        assert log[0].get('status') == 'Success'
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_is_event_in_progress_false(self):

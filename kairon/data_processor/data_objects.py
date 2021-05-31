@@ -32,6 +32,7 @@ from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.core.domain import _validate_slot_mappings
 
+
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -470,21 +471,3 @@ class Feedback(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
-
-
-class ValidationLogs(Document):
-    intents = ListField(StringField(), default=[])
-    utterances = ListField(StringField(), default=[])
-    stories = ListField(StringField(), default=[])
-    training_examples = ListField(StringField(), default=[])
-    domain = ListField(StringField(), default=[])
-    config = ListField(StringField(), default=[])
-    http_actions = ListField(StringField(), default=[])
-    exception = StringField(default=None)
-    is_data_uploaded = BooleanField(default=False)
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    start_timestamp = DateTimeField(default=None)
-    end_timestamp = DateTimeField(default=None)
-    validation_status = StringField(default=None)
-    event_status = StringField(default="COMPLETED")

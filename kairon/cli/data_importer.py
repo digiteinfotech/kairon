@@ -5,7 +5,7 @@ from typing import List
 from loguru import logger
 from rasa.cli import SubParsersAction
 
-from kairon.events.events import Events
+from kairon.events.events import EventsTrigger
 
 
 def validate_and_import(args):
@@ -13,7 +13,7 @@ def validate_and_import(args):
     logger.info("user: {}", args.user)
     logger.info("import_data: {}", args.import_data)
     logger.info("overwrite: {}", args.overwrite)
-    asyncio.run(Events.trigger_data_importer(args.bot, args.user, args.import_data, args.overwrite))
+    asyncio.run(EventsTrigger.trigger_data_importer(args.bot, args.user, args.import_data, args.overwrite))
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):

@@ -31,11 +31,12 @@ class TestUtility:
 
     @pytest.fixture()
     def resource_validate_files(self):
-        bot_data_home_dir = os.path.join(tempfile.mkdtemp(), str(datetime.now()))
+        tmp_dir = tempfile.mkdtemp()
+        bot_data_home_dir = os.path.join(tmp_dir, str(datetime.now()))
         shutil.copytree('tests/testing_data/yml_training_files', bot_data_home_dir)
         pytest.bot_data_home_dir = bot_data_home_dir
         yield "resource_validate_files"
-        shutil.rmtree(bot_data_home_dir)
+        shutil.rmtree(tmp_dir)
 
     @pytest.fixture()
     def resource_validate_no_training_files(self):
@@ -63,7 +64,7 @@ class TestUtility:
         shutil.make_archive(zip_file, 'zip', data_path)
         pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
         yield "resource_unzip_and_validate_exception"
-        os.remove(zip_file+'.zip')
+        os.remove(zip_file + '.zip')
 
     @pytest.fixture()
     def resource_validate_no_training_files_delete_dir(self):
@@ -71,6 +72,38 @@ class TestUtility:
         os.mkdir(os.path.join(bot_data_home_dir, 'data'))
         pytest.bot_data_home_dir = bot_data_home_dir
         yield "resource_validate_no_training_files_delete_dir"
+
+    @pytest.fixture()
+    def resource_validate_only_stories_and_nlu(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copytree('tests/testing_data/yml_training_files/data/', os.path.join(bot_data_home_dir, 'data'))
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_validate_only_stories_and_nlu"
+        shutil.rmtree(bot_data_home_dir)
+
+    @pytest.fixture()
+    def resource_validate_only_http_actions(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copy2('tests/testing_data/yml_training_files/http_action.yml', bot_data_home_dir)
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_validate_only_http_actions"
+        shutil.rmtree(bot_data_home_dir)
+
+    @pytest.fixture()
+    def resource_validate_only_domain(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copy2('tests/testing_data/yml_training_files/domain.yml', bot_data_home_dir)
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_resource_validate_only_domain"
+        shutil.rmtree(bot_data_home_dir)
+
+    @pytest.fixture()
+    def resource_validate_only_config(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copy2('tests/testing_data/yml_training_files/config.yml', bot_data_home_dir)
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_resource_validate_only_config"
+        shutil.rmtree(bot_data_home_dir)
 
     @pytest.fixture()
     def resource_save_and_validate_training_files(self):
@@ -234,11 +267,8 @@ class TestUtility:
         assert actual is None
 
     def test_validate_files(self, resource_validate_files):
-        assert not Utility.validate_files(pytest.bot_data_home_dir)
-
-    def test_get_interpreter_with_no_model(self):
-        actual = Utility.get_interpreter("test.tar.gz")
-        assert actual is None
+        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir)
+        assert not requirements
 
     def test_initiate_apm_client_disabled(self):
         assert not Utility.initiate_apm_client()
@@ -268,49 +298,95 @@ class TestUtility:
 
     def test_validate_path_not_found(self):
         with pytest.raises(AppException):
-            Utility.validate_files('/tests/path_not_found')
+            Utility.validate_and_get_requirements('/tests/path_not_found')
 
     def test_validate_no_files(self, resource_validate_no_training_files):
         with pytest.raises(AppException):
-            Utility.validate_files(pytest.bot_data_home_dir)
+            Utility.validate_and_get_requirements(pytest.bot_data_home_dir)
         assert os.path.exists(pytest.bot_data_home_dir)
 
     def test_validate_no_files_delete_dir(self, resource_validate_no_training_files_delete_dir):
         with pytest.raises(AppException):
-            Utility.validate_files(pytest.bot_data_home_dir, True)
+            Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert not os.path.exists(pytest.bot_data_home_dir)
+
+    def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
+        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'http_actions', 'config', 'domain'} == requirements
+
+    def test_validate_only_http_actions(self, resource_validate_only_http_actions):
+        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'rules', 'domain', 'config', 'stories', 'nlu'} == requirements
+
+    def test_validate_only_domain(self, resource_validate_only_domain):
+        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'rules', 'http_actions', 'config', 'stories', 'nlu', 'http_actions'} == requirements
+
+    def test_validate_only_config(self, resource_validate_only_config):
+        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'rules', 'http_actions', 'domain', 'stories', 'nlu', 'http_actions'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):
-        assert not await Utility.unzip_and_validate(pytest.bot, pytest.zip)
+        unzip_path = await Utility.save_training_files_as_zip(pytest.bot, pytest.zip)
+        assert os.path.exists(unzip_path)
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate_exception(self, resource_unzip_and_validate_exception):
-        with pytest.raises(AppException):
-            await Utility.unzip_and_validate(pytest.bot, pytest.zip)
+        unzip_path = await Utility.save_training_files_as_zip(pytest.bot, pytest.zip)
+        assert os.path.exists(unzip_path)
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_zip(self, resource_unzip_and_validate):
-        assert not await Utility.save_and_validate_training_files(pytest.bot, [pytest.zip])
+        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, [pytest.zip])
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_no_files_received(self):
         with pytest.raises(AppException) as e:
-            await Utility.save_and_validate_training_files(pytest.bot, [])
+            await Utility.save_uploaded_data(pytest.bot, [])
         assert str(e).__contains__("No files received!")
+
+        with pytest.raises(AppException) as e:
+            await Utility.save_uploaded_data(pytest.bot, None)
+        assert str(e).__contains__("No files received!")
+
+    @pytest.mark.asyncio
+    async def test_save_and_validate_training_files_2_files_only(self, resource_save_and_validate_training_files):
+        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, [pytest.domain, pytest.nlu])
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.rules, pytest.http_actions]
-        assert not await Utility.save_and_validate_training_files(pytest.bot, training_files)
+        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_no_rules_and_http_actions(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.nlu, pytest.stories]
-        assert not await Utility.save_and_validate_training_files(pytest.bot, training_files)
+        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_invalid(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.non_nlu, pytest.stories]
-        with pytest.raises(AppException):
-            await Utility.save_and_validate_training_files(pytest.bot, training_files)
+        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'non_nlu.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'non_nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))

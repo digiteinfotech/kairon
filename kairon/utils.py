@@ -49,8 +49,9 @@ from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
-from .data_processor.constant import ALLOWED_NLU_FILES, ALLOWED_STORIES_FILES, \
-    ALLOWED_DOMAIN_FILES, ALLOWED_CONFIG_FILES, EVENT_STATUS
+from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
+    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
+    REQUIREMENTS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
@@ -291,57 +292,78 @@ class Utility:
             os.makedirs(path)
 
     @staticmethod
-    async def save_and_validate_training_files(bot: Text, training_files: [File]):
+    async def save_uploaded_data(bot: Text, training_files: [File]):
         if not training_files:
             raise AppException("No files received!")
 
         if training_files[0].filename.endswith('.zip'):
-            await Utility.unzip_and_validate(bot, training_files[0])
-            return
+            bot_data_home_dir = await Utility.save_training_files_as_zip(bot, training_files[0])
+        else:
+            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+            data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+            Utility.make_dirs(data_path)
 
-        bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
-        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
-        Utility.make_dirs(data_path)
+            for file in training_files:
+                if file.filename in ALLOWED_NLU_FORMATS.union(ALLOWED_STORIES_FORMATS).union(ALLOWED_RULES_FORMATS):
+                    path = os.path.join(data_path, file.filename)
+                    Utility.write_to_file(path, await file.read())
+                elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(ALLOWED_HTTP_ACTIONS_FORMATS):
+                    path = os.path.join(bot_data_home_dir, file.filename)
+                    Utility.write_to_file(path, await file.read())
 
-        for file in training_files:
-            if file.filename in ALLOWED_NLU_FILES.union(ALLOWED_STORIES_FILES).union({'rules.yml'}):
-                path = os.path.join(data_path, file.filename)
-                Utility.write_to_file(path, await file.read())
-            elif file.filename in ALLOWED_CONFIG_FILES.union(ALLOWED_DOMAIN_FILES).union({'http_action.yml'}):
-                path = os.path.join(bot_data_home_dir, file.filename)
-                Utility.write_to_file(path, await file.read())
-
-        Utility.validate_files(bot_data_home_dir, True)
+        return bot_data_home_dir
 
     @staticmethod
-    async def unzip_and_validate(bot: Text, training_file: File):
+    async def save_training_files_as_zip(bot: Text, training_file: File):
         tmp_dir = tempfile.mkdtemp()
-        zipped_file = os.path.join(tmp_dir, training_file.filename)
-        Utility.write_to_file(zipped_file, await training_file.read())
-        unzip_path = os.path.join('training_data', bot, str(datetime.utcnow()))
-        shutil.unpack_archive(zipped_file, unzip_path, 'zip')
         try:
-            Utility.validate_files(unzip_path, True)
+            zipped_file = os.path.join(tmp_dir, training_file.filename)
+            Utility.write_to_file(zipped_file, await training_file.read())
+            unzip_path = os.path.join('training_data', bot, str(datetime.utcnow()))
+            shutil.unpack_archive(zipped_file, unzip_path, 'zip')
+            return unzip_path
+        except Exception as e:
+            logger.error(e)
+            raise AppException("Invalid zip")
         finally:
             Utility.delete_directory(tmp_dir)
 
     @staticmethod
-    def validate_files(bot_data_home_dir: Text, delete_dir_on_exception: bool = False):
+    def validate_and_get_requirements(bot_data_home_dir: Text, delete_dir_on_exception: bool = False):
+        """
+        Checks whether at least one of the required files are present and
+        finds other files required for validation during import.
+        @param bot_data_home_dir: path where data exists
+        @param delete_dir_on_exception: whether directory needs to be deleted in case of exception.
+        """
+        requirements = set()
         data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
 
-        if not os.path.exists(bot_data_home_dir) or not os.path.exists(data_path):
-            if delete_dir_on_exception:
-                Utility.delete_directory(bot_data_home_dir)
-            raise AppException("Required directory structure not found!")
-        files = set(os.listdir(bot_data_home_dir)).union(os.listdir(data_path))
+        if not os.path.exists(bot_data_home_dir):
+            raise AppException("Bot data home directory not found")
 
-        if ALLOWED_NLU_FILES.intersection(files).__len__() < 1 or \
-                ALLOWED_STORIES_FILES.intersection(files).__len__() < 1 or \
-                ALLOWED_DOMAIN_FILES.intersection(files).__len__() < 1 or \
-                ALLOWED_CONFIG_FILES.intersection(files).__len__() < 1:
+        files_received = set(os.listdir(bot_data_home_dir))
+        if os.path.exists(data_path):
+            files_received = files_received.union(os.listdir(data_path))
+
+        if ALLOWED_NLU_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('nlu')
+        if ALLOWED_STORIES_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('stories')
+        if ALLOWED_DOMAIN_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('domain')
+        if ALLOWED_CONFIG_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('config')
+        if ALLOWED_RULES_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('rules')
+        if ALLOWED_HTTP_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('http_actions')
+
+        if requirements == REQUIREMENTS:
             if delete_dir_on_exception:
                 Utility.delete_directory(bot_data_home_dir)
-            raise AppException('Some training files are missing!')
+            raise AppException('Invalid files received')
+        return requirements
 
     @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
@@ -1016,3 +1038,18 @@ class Utility:
             file_regex = regex.format(root_dir, file)
             msg = re.sub(file_regex, file, msg)
         return msg
+
+    @staticmethod
+    def get_event_url(event_type: str, raise_exc: bool = False):
+        url = None
+        if "DATA_IMPORTER" == event_type:
+            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and Utility.environment['model']['data_importer'].get('event_url'):
+                url = Utility.environment['model']['data_importer'].get('event_url')
+        elif "TRAINING" == event_type:
+            if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
+                url = Utility.environment['model']['train'].get('event_url')
+        else:
+            raise AppException("Invalid event type received")
+        if raise_exc:
+            raise AppException("Could not find event url")
+        return url

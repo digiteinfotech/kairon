@@ -2,7 +2,7 @@ import pytest
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.validator.training_data_validator import TrainingDataValidator
+from kairon.importer.validator.file_validator import TrainingDataValidator
 
 
 class TestTrainingDataValidator:

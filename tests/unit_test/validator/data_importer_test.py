@@ -8,7 +8,7 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.data_processor.processor import MongoProcessor
-from kairon.events.actions.data_importer import DataImporter
+from kairon.importer.data_importer import DataImporter
 from kairon.exceptions import AppException
 
 
@@ -82,12 +82,12 @@ class TestDataImporter:
         importer.import_data()
 
         processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)[0]['intents']
-        assert 'deny' in processor.fetch_intents(bot)[0]['intents']
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
         assert len(list(processor.fetch_responses(bot))) == 2
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 2
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -102,14 +102,14 @@ class TestDataImporter:
         importer.import_data()
 
         processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)[0]['intents']
-        assert 'deny' in processor.fetch_intents(bot)[0]['intents']
-        assert 'location' in processor.fetch_intents(bot)[0]['intents']
-        assert 'affirm' in processor.fetch_intents(bot)[0]['intents']
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
+        assert 'location' in processor.fetch_intents(bot)
+        assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 4
+        assert len(processor.fetch_actions(bot)) == 3
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -125,7 +125,7 @@ class TestDataImporter:
         importer.import_data()
 
         processor = MongoProcessor()
-        intents = processor.fetch_intents(bot)[0]['intents']
+        intents = processor.fetch_intents(bot)
         assert 'greet' in intents
         assert 'deny' in intents
         assert 'location' in intents
@@ -133,7 +133,7 @@ class TestDataImporter:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 4
+        assert len(processor.fetch_actions(bot)) == 3
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
         assert len(processor.fetch_intents(bot_2)) == 0
@@ -164,11 +164,11 @@ class TestDataImporter:
         importer.import_data()
 
         processor = MongoProcessor()
-        intents = processor.fetch_intents(bot)[0]['intents']
+        intents = processor.fetch_intents(bot)
         assert 'greet' in intents
         assert 'refute' in intents
         assert 'deny' in intents
         assert len(processor.fetch_stories(bot)) == 3
         assert len(list(processor.fetch_training_examples(bot))) == 10
         assert len(list(processor.fetch_responses(bot))) == 2
-        assert len(processor.fetch_actions(bot)[0]['actions']) == 2
+        assert len(processor.fetch_actions(bot)) == 2

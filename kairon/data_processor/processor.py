@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
+import yaml
 from fastapi import File
 from loguru import logger as logging
 from mongoengine import Document
@@ -17,6 +18,7 @@ from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
 from rasa.shared.core.slots import CategoricalSlot, FloatSlot
+from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
@@ -39,7 +41,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS
 )
 from .data_objects import (
     Responses,
@@ -67,7 +69,7 @@ from .data_objects import (
 )
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
-from ..validator.training_data_validator import TrainingDataValidator
+from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
 from mongoengine.queryset.visitor import Q
@@ -2460,23 +2462,104 @@ class MongoProcessor:
         """
         Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
-    def prepare_training_data_for_validation(self, bot: Text):
+    def validate_and_save_http_actions(self, bot: Text, user: Text, location: Text, overwrite: bool):
+        http_actions = Utility.read_yaml(os.path.join(location, 'http_action.yml'))
+        TrainingDataValidator.validate_http_actions(http_actions)
+        if overwrite:
+            self.delete_http_action(bot, user)
+        self.save_http_action(http_actions, bot, user)
+
+    def validate_and_save_config(self, bot: Text, user: Text, location: Text):
+        if os.path.exists(os.path.join(location, 'config.yml')):
+            config = Utility.read_yaml(os.path.join(location, 'config.yml'))
+        elif os.path.exists(os.path.join(location, 'config.yaml')):
+            config = Utility.read_yaml(os.path.join(location, 'config.yaml'))
+        else:
+            raise AppException('Config file not found')
+        self.save_config(config, bot, user)
+
+    async def validate_and_prepare_data(self, bot: Text, user: Text, training_files: List, overwrite: bool):
+        """
+        Saves training data (zip, file or files) and validates whether at least one
+        training file exists in the received set of files. If some training files are
+        missing then, it prepares the rest of the data from database.
+        In case only http actions are received, then it is validated and saved.
+        Finally, a list of files received are returned.
+        """
+        bot_data_home_dir = await Utility.save_uploaded_data(bot, training_files)
+        files_to_prepare = Utility.validate_and_get_requirements(bot_data_home_dir, True)
+        files_received = REQUIREMENTS - files_to_prepare
+        non_event_data = False
+
+        if {'http_actions'} == files_received or {'config'} == files_received \
+                or {'config', 'http_actions'} == files_received:
+            self.save_non_validator_data(bot_data_home_dir, bot, user, overwrite)
+            non_event_data = True
+        else:
+            self.prepare_training_data_for_validation(bot, bot_data_home_dir, files_to_prepare)
+        return files_received, non_event_data
+
+    def save_non_validator_data(self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool):
+        """
+        Saves http actions and config file.
+        """
+        http_actions = None
+        actions_path = os.path.join(data_home_dir, 'http_action.yml')
+        if os.path.exists(actions_path):
+            http_actions = Utility.read_yaml(os.path.join(data_home_dir, 'http_action.yml'))
+            errors = TrainingDataValidator.validate_http_actions(http_actions)
+            if errors:
+                raise AppException(errors[0])
+        if os.path.exists(os.path.join(data_home_dir, 'config.yml')):
+            config = Utility.read_yaml(os.path.join(data_home_dir, 'config.yml'))
+            self.save_config(config, bot, user)
+
+        if http_actions:
+            if overwrite:
+                self.delete_http_action(bot, user)
+            self.save_http_action(http_actions, bot, user)
+
+    def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
+                                             which: set = REQUIREMENTS):
         """
         Writes training data into files and makes them available for validation.
         @param bot: bot id.
+        @param bot_data_home_dir: location where data needs to be written
+        @param which: which training data is to be written
         @return:
         """
-        nlu = self.load_nlu(bot)
-        domain = self.load_domain(bot)
-        stories = self.load_stories(bot)
-        config = self.load_config(bot)
-        rules = self.get_rules_for_training(bot)
-        directory = Utility.write_training_data(
-            nlu,
-            domain,
-            config,
-            stories,
-            rules,
-        )
-        training_data_home = os.path.join('training_data', bot, str(datetime.utcnow()))
-        shutil.move(directory, training_data_home)
+        if not bot_data_home_dir:
+            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+        Utility.make_dirs(data_path)
+
+        if 'nlu' in which:
+            nlu_path = os.path.join(data_path, "nlu.yml")
+            nlu = self.load_nlu(bot)
+            nlu_as_str = nlu.nlu_as_yaml().encode()
+            Utility.write_to_file(nlu_path, nlu_as_str)
+
+        if 'domain' in which:
+            domain_path = os.path.join(bot_data_home_dir, DEFAULT_DOMAIN_PATH)
+            domain = self.load_domain(bot)
+            if isinstance(domain, Domain):
+                domain_as_str = domain.as_yaml().encode()
+                Utility.write_to_file(domain_path, domain_as_str)
+            elif isinstance(domain, Dict):
+                yaml.safe_dump(domain, open(domain_path, "w"))
+
+        if 'stories' in which:
+            stories_path = os.path.join(data_path, "stories.yml")
+            stories = self.load_stories(bot)
+            YAMLStoryWriter().dump(stories_path, stories.story_steps)
+
+        if 'config' in which:
+            config_path = os.path.join(bot_data_home_dir, DEFAULT_CONFIG_PATH)
+            config = self.load_config(bot)
+            config_as_str = yaml.dump(config).encode()
+            Utility.write_to_file(config_path, config_as_str)
+
+        if 'rules' in which:
+            rules_path = os.path.join(data_path, "rules.yml")
+            rules = self.get_rules_for_training(bot)
+            YAMLStoryWriter().dump(rules_path, rules.story_steps)

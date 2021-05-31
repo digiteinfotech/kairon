@@ -3,7 +3,7 @@ import os
 
 from kairon.cli.data_importer import validate_and_import
 from kairon.cli.training import train
-from kairon.events.events import Events
+from kairon.events.events import EventsTrigger
 from kairon.utils import Utility
 from mongoengine import connect
 import mock
@@ -89,7 +89,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Events, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -99,7 +99,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Events, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -109,7 +109,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Events, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -119,5 +119,5 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Events, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
         cli()
