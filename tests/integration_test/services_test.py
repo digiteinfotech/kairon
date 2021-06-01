@@ -106,6 +106,16 @@ def test_account_registration():
     assert actual["message"] == "Account Registered!"
 
 
+def test_api_wrong_password():
+    response = client.post(
+        "/api/auth/login", data={"username": "integration@demo.ai", "password": "welcome@1"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["success"]
+    assert actual["message"] == "Incorrect username or password"
+
+
 def test_api_login():
     email = "integration@demo.ai"
     response = client.post(

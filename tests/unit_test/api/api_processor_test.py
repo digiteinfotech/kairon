@@ -1,11 +1,14 @@
 import asyncio
+import datetime
 import os
 
+import jwt
 from mongoengine import connect
 from mongoengine.errors import ValidationError
 import pytest
 from pydantic import SecretStr
 
+from kairon.api.auth import Authentication
 from kairon.api.processor import AccountProcessor
 from kairon.utils import Utility
 from kairon.exceptions import AppException
@@ -634,3 +637,21 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
+
+    def test_create_authentication_token_with_expire_time(self, monkeypatch):
+        start_date = datetime.datetime.now()
+        token = Authentication.create_access_token(data={"sub": "test"},token_expire=180)
+        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds()/60) == 180
+        assert payload.get('sub') == 'test'
+
+        start_date = datetime.datetime.now()
+        token = Authentication.create_access_token(data={"sub": "test"})
+        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 10080
+
+        monkeypatch.setattr(Authentication, 'ACCESS_TOKEN_EXPIRE_MINUTES', None)
+        start_date = datetime.datetime.now()
+        token = Authentication.create_access_token(data={"sub": "test"})
+        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15

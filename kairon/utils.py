@@ -938,7 +938,7 @@ class Utility:
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
-        token = Authentication.create_access_token(data={"sub": email})
+        token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
         background_tasks.add_task(
             start_training, bot, user, token.decode('utf8')
         )
