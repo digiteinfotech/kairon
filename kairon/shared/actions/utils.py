@@ -63,7 +63,7 @@ class ActionUtility:
             logging.error(str(e))
             http_response_as_json = response.text
 
-        return http_response_as_json
+        return http_response_as_json, http_url
 
     @staticmethod
     def prepare_request(tracker: Tracker, http_action_config_params: List[HttpActionRequestBody]):
