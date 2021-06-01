@@ -45,13 +45,13 @@ class ActionUtility:
                     http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
                 response = requests.get(http_url, headers=header)
             elif request_method.lower() in ['post', 'put', 'delete']:
-                response = requests.request(request_method.lower(), http_url, json=request_body, headers=header)
+                response = requests.request(request_method.upper(), http_url, json=request_body, headers=header)
             else:
-                raise HttpActionFailure("Got non-200 status code")
+                raise HttpActionFailure("Invalid request method!")
             logger.debug("raw response: " + str(response.text))
             logger.debug("status " + str(response.status_code))
 
-            if response.status_code != 200:
+            if response.status_code not in [200, 202, 201, 204]:
                 raise HttpActionFailure("Got non-200 status code")
         except Exception as e:
             logger.error(str(e))
@@ -63,7 +63,7 @@ class ActionUtility:
             logging.error(str(e))
             http_response_as_json = response.text
 
-        return http_response_as_json
+        return http_response_as_json, http_url
 
     @staticmethod
     def prepare_request(tracker: Tracker, http_action_config_params: List[HttpActionRequestBody]):

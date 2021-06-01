@@ -15,8 +15,8 @@ from kairon.api.models import (
     ListData,
     Response,
     Endpoint,
-    Config,
-    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, AddStoryRequest,
+    RasaConfig,
+    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest,
     StoryType
 )
@@ -264,7 +264,7 @@ async def remove_responses(
 
 @router.post("/stories", response_model=Response)
 async def add_story(
-        story: AddStoryRequest, current_user: User = Depends(auth.get_current_user)
+        story: StoryRequest, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Adds a story (conversational flow) in the particular bot
@@ -283,7 +283,7 @@ async def add_story(
 
 @router.put("/stories", response_model=Response)
 async def update_story(
-        story: AddStoryRequest, current_user: User = Depends(auth.get_current_user)
+        story: StoryRequest, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Updates a story (conversational flow) in the particular bot
@@ -550,7 +550,7 @@ async def get_config(current_user: User = Depends(auth.get_current_user), ):
 
 @router.put("/config", response_model=Response)
 async def set_config(
-        config: Config, current_user: User = Depends(auth.get_current_user),
+        config: RasaConfig, current_user: User = Depends(auth.get_current_user),
 ):
     """
     Saves or Updates the bot pipeline and policies configurations

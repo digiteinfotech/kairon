@@ -111,6 +111,16 @@ def test_account_registration():
     assert actual["message"] == "Account Registered!"
 
 
+def test_api_wrong_password():
+    response = client.post(
+        "/api/auth/login", data={"username": "integration@demo.ai", "password": "welcome@1"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["success"]
+    assert actual["message"] == "Incorrect username or password"
+
+
 def test_api_login():
     email = "integration@demo.ai"
     response = client.post(
@@ -233,6 +243,7 @@ def test_upload_limit_exceeded(monkeypatch):
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert not actual["success"]
+
 
 
 @responses.activate
@@ -797,13 +808,15 @@ def test_add_story_invalid_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] ==  [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'", 'type': 'type_error.enum'}]
+    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
+                                  'type': 'type_error.enum'}]
 
 
 def test_add_story_empty_event():
     response = client.post(
         "/api/bot/stories",
-        json={"name": "test_add_story_empty_event","type": "STORY", "steps": []},
+        json={"name": "test_add_story_empty_event", "type": "STORY", "steps": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -933,7 +946,8 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -977,7 +991,8 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -1019,7 +1034,7 @@ def test_delete_non_existing_story():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Data does not exists"
+    assert actual["message"] == "Flow does not exists"
 
 
 def test_get_stories():
@@ -1485,7 +1500,7 @@ def test_augment_paraphrase_gpt():
             "success": True,
             "data": {
                 "paraphrases": ['Where is digite located?',
-                              'Where is digite situated?']
+                                'Where is digite situated?']
             },
             "message": None,
             "error_code": 0,
@@ -1504,7 +1519,7 @@ def test_augment_paraphrase_gpt():
     assert actual["error_code"] == 0
     assert actual["data"] == {
         "paraphrases": ['Where is digite located?',
-                      'Where is digite situated?']
+                        'Where is digite situated?']
     }
     assert Utility.check_empty_string(actual["message"])
 
@@ -1532,7 +1547,9 @@ def test_augment_paraphrase_gpt_validation():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
+
 
 @responses.activate
 def test_augment_paraphrase_gpt_fail():
@@ -1624,7 +1641,8 @@ def test_augment_paraphrase_no_of_questions():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
 
 
 def test_get_user_details():
@@ -3254,13 +3272,15 @@ def test_add_rule_invalid_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] ==  [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'", 'type': 'type_error.enum'}]
+    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
+                                  'type': 'type_error.enum'}]
 
 
 def test_add_rule_empty_event():
     response = client.post(
         "/api/bot/stories",
-        json={"name": "test_add_rule_empty_event","type": "RULE", "steps": []},
+        json={"name": "test_add_rule_empty_event", "type": "RULE", "steps": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3390,7 +3410,8 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -3434,7 +3455,8 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -3476,7 +3498,29 @@ def test_delete_non_existing_rule():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Data does not exists"
+    assert actual["message"] == "Flow does not exists"
+
+
+def test_add_rule_with_multiple_intents():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "location", "type": "INTENT"},
+                {"name": "utter_location", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': "Found rules 'test_path' that contain more than intent.\nPlease use stories for this case", 'type': 'value_error'}]
+    assert actual["data"] is None
 
 
 def test_validate():

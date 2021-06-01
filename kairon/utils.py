@@ -999,7 +999,7 @@ class Utility:
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
-        token = Authentication.create_access_token(data={"sub": email})
+        token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
         background_tasks.add_task(
             start_training, bot, user, token.decode('utf8')
         )
@@ -1018,6 +1018,24 @@ class Utility:
             if service_name and server_url:
                 apm = make_apm_client(request)
                 return apm
+
+    @staticmethod
+    def validate_flow_events(events, type, name):
+        Utility.validate_document_list(events)
+        if events[0].type != "user":
+            raise ValidationError("First event should be an user")
+
+        if events[len(events) - 1].type == "user":
+            raise ValidationError("user event should be followed by action")
+
+        intents = 0
+        for i, j in enumerate(range(1, len(events))):
+            if events[i].type == "user":
+                intents = intents + 1
+            if events[i].type == "user" and events[j].type == "user":
+                raise ValidationError("Found 2 consecutive user events")
+            if type == "RULE" and intents > 1:
+                raise ValidationError(f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
     @staticmethod
     def read_yaml(path: Text, raise_exception: bool = False):
@@ -1043,7 +1061,8 @@ class Utility:
     def get_event_url(event_type: str, raise_exc: bool = False):
         url = None
         if "DATA_IMPORTER" == event_type:
-            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and Utility.environment['model']['data_importer'].get('event_url'):
+            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
+                    Utility.environment['model']['data_importer'].get('event_url'):
                 url = Utility.environment['model']['data_importer'].get('event_url')
         elif "TRAINING" == event_type:
             if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):

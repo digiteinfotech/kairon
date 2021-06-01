@@ -2868,10 +2868,10 @@ class TestModelProcessor:
     def test_add_none_complex_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             story_dict = {'name': None, 'steps': steps, 'type': 'STORY'}
@@ -2880,10 +2880,10 @@ class TestModelProcessor:
     def test_add_empty_complex_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
             story_dict = {'name': "", 'steps': steps, 'type': 'STORY'}
@@ -2892,10 +2892,10 @@ class TestModelProcessor:
     def test_add_blank_complex_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
             story_dict = {'name': " ", 'steps': steps, 'type': 'STORY'}
@@ -2920,6 +2920,41 @@ class TestModelProcessor:
         with pytest.raises(Exception):
             story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY'}
             processor.add_complex_story(story_dict, "tests", "testUser")
+
+    def test_add_complex_story_with_invalid_event(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="First event should be an user"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="user event should be followed by action"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "mood_sad", "type": "INTENT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_complex_story(self):
         processor = MongoProcessor()
@@ -2982,13 +3017,48 @@ class TestModelProcessor:
             story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
+    def test_update_complex_story_with_invalid_event(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="First event should be an user"):
+            processor.update_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+        ]
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="user event should be followed by action"):
+            processor.update_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "mood_sad", "type": "INTENT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
+            processor.update_complex_story(rule_dict, "tests", "testUser")
+
     def test_update_complex_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
             story_dict = {'name': None, 'steps': events, 'type': 'STORY'}
@@ -2997,10 +3067,10 @@ class TestModelProcessor:
     def test_update_empty_complex_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
             story_dict = {'name': "", 'steps': events, 'type': 'STORY'}
@@ -3009,10 +3079,10 @@ class TestModelProcessor:
     def test_update_blank_complex_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
             story_dict = {'name': " ", 'steps': events, 'type': 'STORY'}
@@ -3289,14 +3359,11 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
-        assert len(story.events) == 6
+        assert len(story.events) == 3
         actions = processor.list_actions("tests")
         assert actions == []
 
@@ -3306,9 +3373,6 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
@@ -3321,9 +3385,6 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
@@ -3335,9 +3396,6 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
             rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
@@ -3346,10 +3404,8 @@ class TestTrainingDataProcessor:
     def test_add_none_rule(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': None, 'steps': steps, 'type': 'RULE'}
@@ -3358,10 +3414,8 @@ class TestTrainingDataProcessor:
     def test_add_empty_rule(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': "", 'steps': steps, 'type': 'RULE'}
@@ -3370,10 +3424,8 @@ class TestTrainingDataProcessor:
     def test_add_blank_rule_name(self):
         processor = MongoProcessor()
         steps = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': " ", 'steps': steps, 'type': 'rule'}
@@ -3385,7 +3437,7 @@ class TestTrainingDataProcessor:
             rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
-    def test_update_rule(self):
+    def test_add_rule_with_multiple_intents(self):
         processor = MongoProcessor()
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -3394,6 +3446,53 @@ class TestTrainingDataProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+    def test_add_rule_with_invalid_event(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="First event should be an user"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="user event should be followed by action"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "mood_sad", "type": "INTENT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+
+    def test_update_rule(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
         ]
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
@@ -3406,16 +3505,12 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_nonsense", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
-            {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
         rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
-        assert rule.events[1].name == "utter_nonsense"
+        assert rule.events[3].name == "utter_greet"
 
     def test_update_non_existing_rule(self):
         processor = MongoProcessor()
@@ -3423,9 +3518,6 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_nonsense", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         with pytest.raises(Exception):
             rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE'}
@@ -3434,10 +3526,8 @@ class TestTrainingDataProcessor:
     def test_update_rule_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': None, 'steps': events, 'type': 'RULE'}
@@ -3452,10 +3542,8 @@ class TestTrainingDataProcessor:
     def test_update_empty_rule_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': "", 'steps': events, 'type': 'RULE'}
@@ -3464,10 +3552,8 @@ class TestTrainingDataProcessor:
     def test_update_blank_rule_name(self):
         processor = MongoProcessor()
         events = [
-            {"name": "greeting", "type": "user"},
-            {"name": "utter_greet", "type": "action"},
-            {"name": "mood_great", "type": "user"},
-            {"name": "utter_greet", "type": "action"}
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': " ", 'steps': events, 'type': 'RULE'}
@@ -3485,9 +3571,6 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_nonsense", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
-            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
@@ -3497,6 +3580,30 @@ class TestTrainingDataProcessor:
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.delete_complex_story("non existing", "RULE", "tests", "testUser")
+
+    def test_update_rules_with_multiple_intents(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
+        ]
+        with pytest.raises(ValidationError, match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            processor.update_complex_story(rule_dict, "tests", "testUser")
+
+    def test_update_rules_with_invalid_type(self):
+        processor = MongoProcessor()
+        events = [
+            {"name": "greeting", "type": "USER"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"}
+        ]
+        with pytest.raises(AppException, match="Invalid event type!"):
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_empty_rule(self):
         processor = MongoProcessor()
@@ -3509,13 +3616,46 @@ class TestTrainingDataProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
-            {"name": "mood_great", "type": "INTENT"},
-            {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         rule_dict = {"name": "rule2", 'steps': steps, 'type': 'RULE'}
         processor.add_complex_story(rule_dict, "tests", "testUser")
         processor.delete_complex_story("RUle2", "RULE", "tests", "testUser")
+
+    def test_update_rule_with_invalid_event(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="First event should be an user"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="user event should be followed by action"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_nonsense", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "mood_sad", "type": "INTENT"},
+            {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
+        ]
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
+            processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_rule(self):
         processor = MongoProcessor()
