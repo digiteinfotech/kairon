@@ -1114,7 +1114,7 @@ class TestActions:
             action_name="test_run_post_with_parameters",
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8081/mock",
-            request_method="GET",
+            request_method="POST",
             params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
@@ -1151,6 +1151,130 @@ class TestActions:
         def mock_get(method, url, headers):
             if headers and headers['Authorization'] == auth_token and url == http_url:
                 return MockResponse(url, headers)
+
+        monkeypatch.setattr(requests, "request", mock_get)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_run_put_with_parameters_and_auth_token(self, monkeypatch):
+        auth_token = "bearer 1234567898"
+        action = HttpActionConfig(
+            auth_token=auth_token,
+            action_name="test_run_post_with_parameters",
+            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            http_url="http://localhost:8081/mock",
+            request_method="PUT",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        }
+
+        class MockResponse(object):
+            def __init__(self, url, headers, params):
+                self.status_code = 200
+                self.url = url
+                self.headers = headers
+                self.params = params
+
+            def json(self):
+                return resp_msg
+
+            def text(self):
+                return json.dumps(resp_msg)
+
+        def mock_get(method, url, json, headers):
+            if json == {} and headers and headers['Authorization'] == auth_token and url == http_url:
+                return MockResponse(url, headers, json)
+
+        monkeypatch.setattr(requests, "request", mock_get)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_run_post_with_parameters_and_auth_token(self, monkeypatch):
+        auth_token = "bearer 1234567898"
+        action = HttpActionConfig(
+            auth_token=auth_token,
+            action_name="test_run_post_with_parameters",
+            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            http_url="http://localhost:8081/mock",
+            request_method="DELETE",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        }
+
+        class MockResponse(object):
+            def __init__(self, url, headers, params):
+                self.status_code = 200
+                self.url = url
+                self.headers = headers
+                self.params = params
+
+            def json(self):
+                return resp_msg
+
+            def text(self):
+                return json.dumps(resp_msg)
+
+        def mock_get(method, url, json, headers):
+            if json == {} and headers and headers['Authorization'] == auth_token and url == http_url:
+                return MockResponse(url, headers, json)
 
         monkeypatch.setattr(requests, "request", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
