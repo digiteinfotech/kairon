@@ -28,6 +28,7 @@ class ActionProcessor:
         request_body = None
         status = "SUCCESS"
         http_url = None
+        request_method = None
         try:
             logger.info(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
@@ -41,9 +42,10 @@ class ActionProcessor:
                                                                                         action_name=action)
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
             logger.info("request_body: " + str(request_body))
+            request_method = http_action_config['request_method']
             http_response, http_url = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
                                                                http_url=http_action_config['http_url'],
-                                                               request_method=http_action_config['request_method'],
+                                                               request_method=request_method,
                                                                request_body=request_body)
             logger.info("http response: " + str(http_response))
 
@@ -67,7 +69,7 @@ class ActionProcessor:
                 action=action,
                 sender=tracker.sender_id,
                 url=http_url,
-                request_params=request_body,
+                request_params=None if request_method and request_method.lower() == "get" else request_body,
                 api_response=str(http_response),
                 bot_response=str(bot_response),
                 exception=exception,
