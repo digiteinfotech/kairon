@@ -10,7 +10,7 @@ def make_app():
     return Application([
         (r"/", MainHandler),
         (r"/webhook", ActionHandler),
-    ], compress_response=True)
+    ], compress_response=True, debug=True)
 
 
 if __name__ == "__main__":
