@@ -27,7 +27,7 @@ data_generation:
   kairon_url: ${KAIRON_URL}
 
 elasticsearch:
-  enable: ${ENABLE_APM:false}
-  apm_server_url: ${APM_SERVER_URL:"http://localhost:8082"}
+  enable: ${ENABLE_APM}
+  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"dev"}
