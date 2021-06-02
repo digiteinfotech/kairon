@@ -109,7 +109,7 @@ class TestDataImporter:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)) == 3
+        assert len(processor.fetch_actions(bot)) == 4
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @pytest.mark.asyncio
@@ -133,7 +133,7 @@ class TestDataImporter:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)) == 3
+        assert len(processor.fetch_actions(bot)) == 4
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
         assert len(processor.fetch_intents(bot_2)) == 0
@@ -161,14 +161,12 @@ class TestDataImporter:
         assert not summary.get('config')
         assert not summary.get('exception')
 
+        importer.validator.intents = []
         importer.import_data()
 
         processor = MongoProcessor()
-        intents = processor.fetch_intents(bot)
-        assert 'greet' in intents
-        assert 'refute' in intents
-        assert 'deny' in intents
-        assert len(processor.fetch_stories(bot)) == 3
-        assert len(list(processor.fetch_training_examples(bot))) == 10
-        assert len(list(processor.fetch_responses(bot))) == 2
-        assert len(processor.fetch_actions(bot)) == 2
+        assert len(processor.fetch_intents(bot)) == 0
+        assert len(processor.fetch_stories(bot)) == 0
+        assert len(list(processor.fetch_training_examples(bot))) == 0
+        assert len(list(processor.fetch_responses(bot))) == 0
+        assert len(processor.fetch_actions(bot)) == 0

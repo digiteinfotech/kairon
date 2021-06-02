@@ -3567,3 +3567,19 @@ def test_upload_valid_and_invalid_data():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+
+
+def test_upload_with_http_error(monkeypatch):
+    files = (('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("http_action.yml", open("tests/testing_data/error/http_action.yml", "rb"))))
+
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Required http action fields not found"
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert not actual["success"]
