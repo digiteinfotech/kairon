@@ -116,6 +116,9 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
+        assert domain.forms.__len__() == 2
+        assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
+        assert domain.forms['ticket_file_form'] == {'file': [{'type': 'from_entity', 'entity': 'file'}]}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 41
         assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 11
@@ -174,6 +177,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
+        assert domain.forms['ticket_attributes_form'] == {}
         assert isinstance(domain.forms, dict)
         print(domain.user_actions)
         assert domain.user_actions.__len__() == 36
