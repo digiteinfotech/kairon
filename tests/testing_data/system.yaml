@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongomock://localhost:10000/test"}
+  url: ${DATABASE_URL:"mongomock://localhost/test"}
   test_db: ${TEST_DB:"test_conversations"}
   load_test: ${DATABASE_URL:"mongomock://localhost:27017/conversations"}
 
