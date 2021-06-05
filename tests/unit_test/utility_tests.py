@@ -133,7 +133,7 @@ class TestUtility:
 
     def test_initiate_apm_client_enabled(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        assert Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client()
 
     def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
@@ -152,4 +152,15 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
 
-        assert Utility.initiate_apm_client()
+        assert Utility.initiate_apm_client() is None
+
+    def test_initiate_apm_client_with_url_present(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
+
+        client = Utility.initiate_apm_client()
+
+        assert str(client._api_endpoint_url).__contains__("http://localhost:8082")
+        assert client.get_service_info()['name'] == "kairon"
+        assert client.get_service_info()['environment'] == "development"
