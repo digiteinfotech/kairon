@@ -31,3 +31,4 @@ elasticsearch:
   apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"dev"}
+  secret_token: ${APM_SECRET_TOKEN}
