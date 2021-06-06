@@ -160,7 +160,17 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
 
         client = Utility.initiate_apm_client()
+        config = client.config._config
+        assert config.server_url == "http://localhost:8082"
+        assert config.service_name == "kairon"
+        assert config.environment == "development"
+        assert config.secret_token is None
 
-        assert str(client._api_endpoint_url).__contains__("http://localhost:8082")
-        assert client.get_service_info()['name'] == "kairon"
-        assert client.get_service_info()['environment'] == "development"
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'secret_token', "12345")
+
+        client = Utility.initiate_apm_client()
+        config = client.config._config
+        assert config.server_url == "http://localhost:8082"
+        assert config.service_name == "kairon"
+        assert config.environment == "development"
+        assert config.secret_token == "12345"
