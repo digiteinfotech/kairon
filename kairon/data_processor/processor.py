@@ -2565,7 +2565,7 @@ class ModelProcessor:
         """
         try:
             doc = ModelTraining.objects(bot=bot).get(
-                status=MODEL_TRAINING_STATUS.INPROGRESS
+                status__iexact=MODEL_TRAINING_STATUS.INPROGRESS
             )
             doc.status = status
             doc.end_timestamp = datetime.utcnow()

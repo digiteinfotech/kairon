@@ -1,9 +1,11 @@
+import asyncio
 import glob
 import os
 from datetime import datetime
 from io import BytesIO
 from typing import List
 
+import elasticmock
 import pytest
 import responses
 from fastapi import UploadFile
@@ -35,6 +37,7 @@ from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
 from kairon.api.auth import Authentication
+from elasticmock import elasticmock
 
 
 class TestMongoProcessor:
@@ -792,6 +795,28 @@ class TestMongoProcessor:
         model_path = start_training("tests", "testUser")
         assert model_path
         model_training = ModelTraining.objects(bot="tests", status="Done")
+        assert model_training.__len__() == 1
+        assert model_training.first().model_path == model_path
+
+    @elasticmock
+    def test_start_training_done_with_intrumentation(self, monkeypatch):
+        def mongo_store(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
+
+        processor = MongoProcessor()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(processor.save_from_path(
+                "./tests/testing_data/initial", bot="test_initial", user="testUser"
+            ))
+
+        model_path = start_training("test_initial", "testUser", reload=False)
+        assert model_path
+        model_training = ModelTraining.objects(bot="test_initial", status="Done")
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
 
