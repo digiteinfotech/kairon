@@ -12,6 +12,7 @@ from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
@@ -879,7 +880,8 @@ class MongoProcessor:
                     entity=entity.get('entity')) for entity in event.entities]
                 yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
             elif isinstance(event, ActionExecuted):
-                yield StoryEvents(type=event.type_name, name=event.action_name)
+                if event.action_name != RULE_SNIPPET_ACTION_NAME:
+                    yield StoryEvents(type=event.type_name, name=event.action_name)
             elif isinstance(event, ActiveLoop):
                 yield StoryEvents(type=event.type_name, name=event.name)
             elif isinstance(event, SlotSet):
