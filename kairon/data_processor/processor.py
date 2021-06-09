@@ -880,8 +880,7 @@ class MongoProcessor:
                     entity=entity.get('entity')) for entity in event.entities]
                 yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
             elif isinstance(event, ActionExecuted):
-                if event.action_name != RULE_SNIPPET_ACTION_NAME:
-                    yield StoryEvents(type=event.type_name, name=event.action_name)
+                yield StoryEvents(type=event.type_name, name=event.action_name)
             elif isinstance(event, ActiveLoop):
                 yield StoryEvents(type=event.type_name, name=event.name)
             elif isinstance(event, SlotSet):
