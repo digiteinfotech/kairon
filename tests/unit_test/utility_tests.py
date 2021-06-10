@@ -411,3 +411,18 @@ class TestUtility:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+
+    def test_build_event_request(self):
+        request = {'BOT': 'mood_bot', "USER": "bot_user"}
+        request_body = Utility.build_event_request(request)
+        assert isinstance(request_body, list)
+        assert request_body[0]['name'] == 'BOT'
+        assert request_body[0]['value'] == 'mood_bot'
+        assert request_body[0]['name'] == 'USER'
+        assert request_body[0]['value'] == 'bot_user'
+        assert len(request_body) == 2
+
+    def test_build_event_request_empty(self):
+        request_body = Utility.build_event_request({})
+        assert isinstance(request_body, list)
+        assert not request_body

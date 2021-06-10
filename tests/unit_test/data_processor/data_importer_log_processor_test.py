@@ -4,7 +4,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
@@ -52,6 +52,7 @@ class TestDataImporterLogProcessor:
         assert not log.get('training_examples')
         assert not log.get('domain')
         assert not log.get('config')
+        assert not log.get('files_received')
         assert log.get('exception') == 'Validation failed'
         assert not log['is_data_uploaded']
         assert log['start_timestamp']
@@ -59,10 +60,16 @@ class TestDataImporterLogProcessor:
         assert log.get('status') == 'Failure'
         assert log['event_status'] == EVENT_STATUS.FAIL.value
 
+    def test_get_files_received_empty(self):
+        bot = 'test'
+        files = DataImporterLogProcessor.get_files_received_for_latest_event(bot)
+        assert isinstance(files, set)
+        assert not files
+
     def test_add_log_success(self):
         bot = 'test'
         user = 'test'
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False)
+        DataImporterLogProcessor.add_log(bot, user, files_received=list(REQUIREMENTS.copy()), is_data_uploaded=False)
         DataImporterLogProcessor.add_log(bot, user,
                                          status='Success',
                                          event_status=EVENT_STATUS.COMPLETED.value)
@@ -78,8 +85,15 @@ class TestDataImporterLogProcessor:
         assert not log[0]['is_data_uploaded']
         assert log[0]['start_timestamp']
         assert log[0].get('end_timestamp')
+        assert all(file in log[0]['files_received'] for file in REQUIREMENTS)
         assert log[0].get('status') == 'Success'
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+    def test_get_files_received(self):
+        bot = 'test'
+        files = DataImporterLogProcessor.get_files_received_for_latest_event(bot)
+        assert isinstance(files, set)
+        assert files == REQUIREMENTS
 
     def test_is_event_in_progress_false(self):
         bot = 'test'

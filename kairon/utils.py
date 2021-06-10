@@ -1074,3 +1074,12 @@ class Utility:
         if raise_exc:
             raise AppException("Could not find event url")
         return url
+
+    @staticmethod
+    def build_event_request(env_var: dict):
+        """Creates request body for lambda."""
+        event_request = []
+        for key in env_var.keys():
+            key_and_val = {'name': key, 'value': env_var[key]}
+            event_request.append(key_and_val)
+        return event_request

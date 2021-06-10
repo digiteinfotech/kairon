@@ -7,9 +7,11 @@ from datetime import datetime
 import pytest
 import responses
 from mongoengine import connect
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
+from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -27,6 +29,25 @@ class TestEvents:
         yield None
         shutil.rmtree(tmp_dir)
 
+    @pytest.fixture()
+    def get_training_data(self):
+        async def _read_and_get_data(path: str):
+            domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
+            training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
+            config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            http_actions_path = os.path.join(path, 'http_action.yml')
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=training_data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+            http_actions = Utility.read_yaml(http_actions_path)
+            return nlu, story_graph, domain, config, http_actions
+
+        return _read_and_get_data
+
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_only(self, monkeypatch):
         bot = 'test_events'
@@ -39,6 +60,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS-{"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -68,6 +90,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
@@ -97,6 +120,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 3
@@ -126,6 +150,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 4
@@ -155,6 +180,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 5
@@ -193,6 +219,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions", "rules"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 6
@@ -233,6 +260,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 7
@@ -269,15 +297,16 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': '--import-data'},
+                               {'name': 'OVERWRITE', 'value': ''}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         responses.stop()
-        request = json.loads(responses.calls[0].request.body)
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == '--import-data'
-        assert request['OVERWRITE'] == ''
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -305,16 +334,17 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': '--import-data'},
+                               {'name': 'OVERWRITE', 'value': '--overwrite'}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         responses.stop()
         request = json.loads(responses.calls[1].request.body)
-
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == '--import-data'
-        assert request['OVERWRITE'] == '--overwrite'
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -342,16 +372,16 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': ''},
+                               {'name': 'OVERWRITE', 'value': ''}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         responses.stop()
-        request = json.loads(responses.calls[2].request.body)
-
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == ''
-        assert request['OVERWRITE'] == ''
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -393,3 +423,219 @@ class TestEvents:
         assert logs[0]['end_timestamp']
         assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_nlu_only(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        nlu_path = os.path.join(test_data_path, 'data')
+        Utility.make_dirs(nlu_path)
+        shutil.copy2('tests/testing_data/validator/valid/data/nlu.yml', nlu_path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data('tests/testing_data/validator/valid')
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_domain(domain, bot, user)
+        mongo_processor.save_stories(story_graph.story_steps, bot, user)
+        mongo_processor.add_or_overwrite_config(config, bot, user)
+        mongo_processor.save_rules(story_graph.story_steps, bot, user)
+        mongo_processor.save_http_action(http_actions, bot, user)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=["nlu"])
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents')
+        assert not logs[0].get('stories')
+        assert not logs[0].get('utterances')
+        assert not logs[0].get('http_actions')
+        assert not logs[0].get('training_examples')
+        assert not logs[0].get('domain')
+        assert not logs[0].get('config')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
+        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_stories_only(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer_stories_only'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        data_path = os.path.join(test_data_path, 'data')
+        Utility.make_dirs(data_path)
+        shutil.copy2('tests/testing_data/validator/valid/data/stories.yml', data_path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data('tests/testing_data/validator/valid')
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_domain(domain, bot, user)
+        mongo_processor.save_nlu(nlu, bot, user)
+        mongo_processor.add_or_overwrite_config(config, bot, user)
+        mongo_processor.save_rules(story_graph.story_steps, bot, user)
+        mongo_processor.save_http_action(http_actions, bot, user)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=["stories"])
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents')
+        assert not logs[0].get('stories')
+        assert not logs[0].get('utterances')
+        assert not logs[0].get('http_actions')
+        assert not logs[0].get('training_examples')
+        assert not logs[0].get('domain')
+        assert not logs[0].get('config')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
+        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_rules_only(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer_rules_only'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        data_path = os.path.join(test_data_path, 'data')
+        Utility.make_dirs(data_path)
+        shutil.copy2('tests/testing_data/validator/valid/data/rules.yml', data_path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data('tests/testing_data/validator/valid')
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_domain(domain, bot, user)
+        mongo_processor.save_nlu(nlu, bot, user)
+        mongo_processor.add_or_overwrite_config(config, bot, user)
+        mongo_processor.save_stories(story_graph.story_steps, bot, user)
+        mongo_processor.save_http_action(http_actions, bot, user)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=["rules"])
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents')
+        assert not logs[0].get('stories')
+        assert not logs[0].get('utterances')
+        assert not logs[0].get('http_actions')
+        assert not logs[0].get('training_examples')
+        assert not logs[0].get('domain')
+        assert not logs[0].get('config')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
+        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_domain_only(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer_domain_only'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        Utility.make_dirs(test_data_path)
+        shutil.copy2('tests/testing_data/validator/valid/domain.yml', test_data_path)
+        nlu, story_graph, domain, config, http_actions = await get_training_data('tests/testing_data/validator/valid')
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_stories(story_graph.story_steps, bot, user)
+        mongo_processor.save_nlu(nlu, bot, user)
+        mongo_processor.add_or_overwrite_config(config, bot, user)
+        mongo_processor.save_rules(story_graph.story_steps, bot, user)
+        mongo_processor.save_http_action(http_actions, bot, user)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=["domain"])
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents')
+        assert not logs[0].get('stories')
+        assert not logs[0].get('utterances')
+        assert not logs[0].get('http_actions')
+        assert not logs[0].get('training_examples')
+        assert not logs[0].get('domain')
+        assert not logs[0].get('config')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
+        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_validate_existing_data(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer_domain_only'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        Utility.make_dirs(test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user)
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('intents')
+        assert not logs[0].get('stories')
+        assert not logs[0].get('utterances')
+        assert not logs[0].get('http_actions')
+        assert not logs[0].get('training_examples')
+        assert not logs[0].get('domain')
+        assert not logs[0].get('config')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
+        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
