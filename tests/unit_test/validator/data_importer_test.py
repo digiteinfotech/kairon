@@ -7,9 +7,10 @@ import pytest
 from mongoengine import connect
 
 from kairon import Utility
+from kairon.data_processor.constant import REQUIREMENTS
 from kairon.data_processor.processor import MongoProcessor
-from kairon.importer.data_importer import DataImporter
 from kairon.exceptions import AppException
+from kairon.importer.data_importer import DataImporter
 
 
 def pytest_namespace():
@@ -31,7 +32,7 @@ class TestDataImporter:
     @pytest.mark.asyncio
     async def test_validate_success(self):
         path = 'tests/testing_data/validator/valid'
-        importer = DataImporter(path, 'test_data_import', 'test', False, False)
+        importer = DataImporter(path, 'test_data_import', 'test', set(), False, False)
         summary = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
@@ -45,7 +46,7 @@ class TestDataImporter:
     @pytest.mark.asyncio
     async def test_validate_failure(self):
         path = 'tests/testing_data/validator/common_training_examples'
-        importer = DataImporter(path, 'test_data_import', 'test')
+        importer = DataImporter(path, 'test_data_import', 'test', set())
         summary = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
@@ -59,14 +60,14 @@ class TestDataImporter:
     @pytest.mark.asyncio
     async def test_validate_exception(self):
         path = 'tests/testing_data/validator/invalid_yaml'
-        importer = DataImporter(path, 'test_data_import', 'test')
+        importer = DataImporter(path, 'test_data_import', 'test', set())
         with pytest.raises(AppException):
             await importer.validate()
 
     @pytest.mark.asyncio
     async def test_validate_invalid_path(self):
         path = 'tests/testing_data/validator/invalid_path'
-        importer = DataImporter(path, 'test_data_import', 'test')
+        importer = DataImporter(path, 'test_data_import', 'test', set())
         with pytest.raises(AppException):
             await importer.validate()
 
@@ -77,7 +78,7 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user, True, True)
+        importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, True)
         await importer.validate()
         importer.import_data()
 
@@ -97,7 +98,7 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user, True, False)
+        importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, False)
         await importer.validate()
         importer.import_data()
 
@@ -120,7 +121,7 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user, False)
+        importer = DataImporter(test_data_path, bot, user, set(), False)
         await importer.validate()
         importer.import_data()
 
@@ -150,7 +151,7 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user)
+        importer = DataImporter(test_data_path, bot, user, REQUIREMENTS.copy(), True)
         summary = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')

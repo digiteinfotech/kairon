@@ -1,7 +1,7 @@
 import pytest
 import os
 
-from kairon.cli.data_importer import validate_and_import
+from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.events.events import EventsTrigger
 from kairon.utils import Utility

@@ -431,20 +431,12 @@ async def upload_files(
     """
     Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and http_action.yml files.
     """
-    DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
-    DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
-    files_received, non_event_data = await mongo_processor.validate_and_prepare_data(current_user.get_bot(),
-                                                                                     current_user.get_user(),
-                                                                                     training_files,
-                                                                                     overwrite)
-    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(), is_data_uploaded=True,
-                                     files_received=list(files_received))
-    if non_event_data:
-        return {"message": "Files uploaded"}
-    else:
+    is_event_data = await mongo_processor.validate_and_log(current_user.get_bot(), current_user.get_user(),
+                                                           training_files, overwrite)
+    if is_event_data:
         background_tasks.add_task(EventsTrigger.trigger_data_importer, current_user.get_bot(), current_user.get_user(),
                                   import_data, overwrite)
-        return {"message": "Event triggered! Check logs."}
+    return {"message": "Upload in progress! Check logs."}
 
 
 @router.post("/upload/data_generation/file", response_model=Response)

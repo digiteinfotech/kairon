@@ -12,7 +12,8 @@ class DataImporter:
     before initiating the import process.
     """
 
-    def __init__(self, path: Text, bot: Text, user: Text, save_data: bool = True, overwrite: bool = True):
+    def __init__(self, path: Text, bot: Text, user: Text, files_to_save: set, save_data: bool = True,
+                 overwrite: bool = True):
         """Initialize data importer"""
 
         self.path = path
@@ -20,6 +21,7 @@ class DataImporter:
         self.user = user
         self.save_data = save_data
         self.overwrite = overwrite
+        self.files_to_save = files_to_save
 
     async def validate(self):
         """
@@ -37,14 +39,15 @@ class DataImporter:
         """
         Saves training data into database.
         """
-        if self.save_data:
+        if self.save_data and self.files_to_save:
             if self.validator.config and self.validator.domain and self.validator.story_graph and self.validator.intents:
                 from kairon.data_processor.processor import MongoProcessor
 
                 processor = MongoProcessor()
-                processor.save_training_data(self.validator.config,
+                processor.save_training_data(self.bot, self.user,
+                                             self.validator.config,
                                              self.validator.domain,
                                              self.validator.story_graph,
                                              self.validator.intents,
-                                             self.validator.http_actions, self.bot, self.user,
-                                             self.overwrite)
+                                             self.validator.http_actions,
+                                             self.overwrite, self.files_to_save)

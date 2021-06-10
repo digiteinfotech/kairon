@@ -9,7 +9,7 @@ import responses
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -39,6 +39,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS-{"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -68,6 +69,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
@@ -155,6 +157,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 5
@@ -193,6 +196,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions", "rules"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 6
@@ -233,6 +237,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 7
@@ -269,15 +274,16 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': '--import-data'},
+                               {'name': 'OVERWRITE', 'value': ''}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         responses.stop()
-        request = json.loads(responses.calls[0].request.body)
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == '--import-data'
-        assert request['OVERWRITE'] == ''
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -305,16 +311,17 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': '--import-data'},
+                               {'name': 'OVERWRITE', 'value': '--overwrite'}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         responses.stop()
         request = json.loads(responses.calls[1].request.body)
-
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == '--import-data'
-        assert request['OVERWRITE'] == '--overwrite'
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -342,16 +349,16 @@ class TestEvents:
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!"},
-                      status=200)
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': ''},
+                               {'name': 'OVERWRITE', 'value': ''}])],
+                      )
         responses.start()
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         responses.stop()
-        request = json.loads(responses.calls[2].request.body)
-
-        assert request['BOT'] == bot
-        assert request['USER'] == user
-        assert request['IMPORT_DATA'] == ''
-        assert request['OVERWRITE'] == ''
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
