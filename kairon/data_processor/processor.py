@@ -1,6 +1,5 @@
 import itertools
 import os
-import shutil
 from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
@@ -12,8 +11,8 @@ from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
+from mongoengine.queryset.visitor import Q
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
@@ -42,7 +41,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS
 )
 from .data_objects import (
     Responses,
@@ -70,10 +69,10 @@ from .data_objects import (
 )
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
+from ..importer.processor import DataImporterLogProcessor
 from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
-from mongoengine.queryset.visitor import Q
 
 
 class MongoProcessor:
@@ -169,7 +168,7 @@ class MongoProcessor:
             http_actions = Utility.read_yaml(http_actions_yml)
             TrainingDataValidator.validate_http_actions(http_actions)
 
-            self.save_training_data(config, domain, story_graph, nlu, http_actions, bot, user, overwrite)
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, overwrite, REQUIREMENTS.copy())
         except InvalidDomain as e:
             logging.exception(e)
             raise AppException(
@@ -180,17 +179,24 @@ class MongoProcessor:
             logging.exception(e)
             raise AppException(e)
 
-    def save_training_data(self, config: dict, domain: Domain, story_graph: StoryGraph, nlu: TrainingData,
-                           http_actions: dict, bot: Text, user: Text, overwrite: bool = False):
+    def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
+                           story_graph: StoryGraph = None, nlu: TrainingData = None, http_actions: dict = None,
+                           overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
-            self.delete_bot_data(bot, user)
+            self.delete_bot_data(bot, user, what)
 
-        self.save_config(config, bot, user)
-        self.save_domain(domain, bot, user)
-        self.save_stories(story_graph.story_steps, bot, user)
-        self.save_nlu(nlu, bot, user)
-        self.save_rules(story_graph.story_steps, bot, user)
-        self.save_http_action(http_actions, bot, user)
+        if 'domain' in what:
+            self.save_domain(domain, bot, user)
+        if 'stories' in what:
+            self.save_stories(story_graph.story_steps, bot, user)
+        if 'nlu' in what:
+            self.save_nlu(nlu, bot, user)
+        if 'config' in what:
+            self.add_or_overwrite_config(config, bot, user)
+        if 'rules' in what:
+            self.save_rules(story_graph.story_steps, bot, user)
+        if 'http_actions' in what:
+            self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -220,20 +226,27 @@ class MongoProcessor:
             for file in files
         ]
 
-    def delete_bot_data(self, bot: Text, user: Text):
+    def delete_bot_data(self, bot: Text, user: Text, what = REQUIREMENTS.copy()):
         """
         deletes bot data
 
         :param bot: bot id
         :param user: user id
+        :param what: training data that should be deleted
         :return: None
         """
-        self.delete_domain(bot, user)
-        self.delete_stories(bot, user)
-        self.delete_nlu(bot, user)
-        self.delete_config(bot, user)
-        self.delete_rules(bot, user)
-        self.delete_http_action(bot, user)
+        if 'domain' in what:
+            self.delete_domain(bot, user)
+        if 'stories' in what:
+            self.delete_stories(bot, user)
+        if 'nlu' in what:
+            self.delete_nlu(bot, user)
+        if 'config' in what:
+            self.delete_config(bot, user)
+        if 'rules' in what:
+            self.delete_rules(bot, user)
+        if 'http_actions' in what:
+            self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -1004,6 +1017,21 @@ class MongoProcessor:
             config_errors = TrainingDataValidator.validate_rasa_config(configs)
             if config_errors:
                 raise AppException(config_errors[0])
+            return self.add_or_overwrite_config(configs, bot, user)
+        except Exception as e:
+            logging.exception(e)
+            raise AppException(e)
+
+    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
+        """
+        saves bot configuration
+
+        :param configs: configuration
+        :param bot: bot id
+        :param user: user id
+        :return: config unique id
+        """
+        try:
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = configs["pipeline"]
             config_obj.language = configs["language"]
@@ -1012,9 +1040,7 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException(e)
+
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def delete_config(self, bot: Text, user: Text):
@@ -2457,21 +2483,24 @@ class MongoProcessor:
         """
         Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
-    def validate_and_save_http_actions(self, bot: Text, user: Text, location: Text, overwrite: bool):
-        http_actions = Utility.read_yaml(os.path.join(location, 'http_action.yml'))
-        TrainingDataValidator.validate_http_actions(http_actions)
-        if overwrite:
-            self.delete_http_action(bot, user)
-        self.save_http_action(http_actions, bot, user)
-
-    def validate_and_save_config(self, bot: Text, user: Text, location: Text):
-        if os.path.exists(os.path.join(location, 'config.yml')):
-            config = Utility.read_yaml(os.path.join(location, 'config.yml'))
-        elif os.path.exists(os.path.join(location, 'config.yaml')):
-            config = Utility.read_yaml(os.path.join(location, 'config.yaml'))
+    async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
+        DataImporterLogProcessor.is_limit_exceeded(bot)
+        DataImporterLogProcessor.is_event_in_progress(bot)
+        files_received, is_event_data, non_event_validation_summary = await self.validate_and_prepare_data(bot,
+                                                                                                           user,
+                                                                                                           training_files,
+                                                                                                           overwrite)
+        if is_event_data:
+            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
         else:
-            raise AppException('Config file not found')
-        self.save_config(config, bot, user)
+            status = 'Failure'
+            if not non_event_validation_summary.get('http_actions') and not non_event_validation_summary.get('config'):
+                status = 'Success'
+            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, status=status,
+                                             event_status=EVENT_STATUS.COMPLETED.value,
+                                             summary=non_event_validation_summary, files_received=list(files_received))
+
+        return is_event_data
 
     async def validate_and_prepare_data(self, bot: Text, user: Text, training_files: List, overwrite: bool):
         """
@@ -2481,38 +2510,45 @@ class MongoProcessor:
         In case only http actions are received, then it is validated and saved.
         Finally, a list of files received are returned.
         """
+        non_event_validation_summary = None
         bot_data_home_dir = await Utility.save_uploaded_data(bot, training_files)
         files_to_prepare = Utility.validate_and_get_requirements(bot_data_home_dir, True)
         files_received = REQUIREMENTS - files_to_prepare
-        non_event_data = False
+        is_event_data = False
 
-        if {'http_actions'} == files_received or {'config'} == files_received \
-                or {'config', 'http_actions'} == files_received:
-            self.save_non_validator_data(bot_data_home_dir, bot, user, overwrite)
-            non_event_data = True
-        else:
+        if files_received.difference({'config', 'http_actions'}):
             self.prepare_training_data_for_validation(bot, bot_data_home_dir, files_to_prepare)
-        return files_received, non_event_data
+            is_event_data = True
+        else:
+            non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
+        return files_received, is_event_data, non_event_validation_summary
 
-    def save_non_validator_data(self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool):
+    def save_data_without_event(self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool):
         """
         Saves http actions and config file.
         """
         http_actions = None
+        config = None
+        error_summary = {}
         actions_path = os.path.join(data_home_dir, 'http_action.yml')
+        config_path = os.path.join(data_home_dir, 'config.yml')
         if os.path.exists(actions_path):
-            http_actions = Utility.read_yaml(os.path.join(data_home_dir, 'http_action.yml'))
+            http_actions = Utility.read_yaml(actions_path)
             errors = TrainingDataValidator.validate_http_actions(http_actions)
-            if errors:
-                raise AppException(errors[0])
-        if os.path.exists(os.path.join(data_home_dir, 'config.yml')):
-            config = Utility.read_yaml(os.path.join(data_home_dir, 'config.yml'))
-            self.save_config(config, bot, user)
+            error_summary['http_actions'] = errors
+        if os.path.exists(config_path):
+            config = Utility.read_yaml(config_path)
+            errors = TrainingDataValidator.validate_rasa_config(config)
+            error_summary['config'] = errors
 
-        if http_actions:
-            if overwrite:
-                self.delete_http_action(bot, user)
-            self.save_http_action(http_actions, bot, user)
+        if not error_summary.get('http_actions') and not error_summary.get('config'):
+            if http_actions:
+                if overwrite:
+                    self.delete_http_action(bot, user)
+                self.save_http_action(http_actions, bot, user)
+            if config:
+                self.add_or_overwrite_config(config, bot, user)
+        return error_summary
 
     def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
                                              which: set = REQUIREMENTS):

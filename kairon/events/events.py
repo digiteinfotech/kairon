@@ -32,16 +32,17 @@ class EventsTrigger:
             if Utility.get_event_url("DATA_IMPORTER"):
                 import_flag = '--import-data' if save_data else ''
                 overwrite_flag = '--overwrite' if overwrite else ''
-                json = {'BOT': bot, 'USER': user, "IMPORT_DATA": import_flag, "OVERWRITE": overwrite_flag}
+                env_var = {'BOT': bot, 'USER': user, "IMPORT_DATA": import_flag, "OVERWRITE": overwrite_flag}
+                event_request = Utility.build_event_request(env_var)
                 Utility.http_request("POST",
                                      Utility.environment['model']['data_importer'].get('event_url'),
-                                     None, user, json)
+                                     None, user, event_request)
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.TASKSPAWNED.value)
             else:
                 path = Utility.get_latest_file(os.path.join('training_data', bot))
+                files_received = DataImporterLogProcessor.get_files_received_for_latest_event(bot)
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.PARSE.value)
-
-                data_importer = DataImporter(path, bot, user, save_data, overwrite)
+                data_importer = DataImporter(path, bot, user, files_received, save_data, overwrite)
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.VALIDATING.value)
 
                 summary = await data_importer.validate()

@@ -15,12 +15,13 @@ class DataImporterLogProcessor:
     """
 
     @staticmethod
-    def add_log(bot: str, user: str, summary: dict = None, is_data_uploaded: bool = True, files_received: list = [],
+    def add_log(bot: str, user: str, summary: dict = None, is_data_uploaded: bool = True, files_received: list = None,
                 exception: str = None, status: str = None, event_status: str = EVENT_STATUS.INITIATED.value):
         """
         Adds/updated log for data importer event.
         @param bot: bot id.
         @param user: kairon username.
+        @param files_received: files received for upload.
         @param summary: validation summary (errors in intents, stories, training examples, responses).
         @param is_data_uploaded: Was the data uploaded or was the event triggered on existing kairon data.
         @param exception: Exception occurred during event.
@@ -32,14 +33,6 @@ class DataImporterLogProcessor:
             doc = ValidationLogs.objects(bot=bot, user=user).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
-            if summary:
-                doc.intents = summary.get('intents')
-                doc.utterances = summary.get('utterances')
-                doc.stories = summary.get('stories')
-                doc.training_examples = summary.get('training_examples')
-                doc.domain = summary.get('domain')
-                doc.config = summary.get('config')
-                doc.http_actions = summary.get('http_actions')
         except DoesNotExist as e:
             logger.error(str(e))
             logger.info("Adding new log.")
@@ -50,12 +43,20 @@ class DataImporterLogProcessor:
                 user=user,
                 start_timestamp=datetime.utcnow(),
             )
+        if summary:
+            doc.intents = summary.get('intents')
+            doc.utterances = summary.get('utterances')
+            doc.stories = summary.get('stories')
+            doc.training_examples = summary.get('training_examples')
+            doc.domain = summary.get('domain')
+            doc.config = summary.get('config')
+            doc.http_actions = summary.get('http_actions')
         doc.event_status = event_status
         if exception:
             doc.exception = exception
         if status:
             doc.status = status
-        if event_status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]:
+        if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             doc.end_timestamp = datetime.utcnow()
         doc.save()
 
@@ -115,3 +116,13 @@ class DataImporterLogProcessor:
             log.pop('bot')
             log.pop('user')
             yield log
+
+    @staticmethod
+    def get_files_received_for_latest_event(bot: str):
+        """
+        Fetch set of files received for latest event.
+        @param bot: bot id.
+        """
+        files_received = next(DataImporterLogProcessor.get_logs(bot)).get("files_received")
+        files_received = set(files_received) if files_received else set()
+        return files_received
