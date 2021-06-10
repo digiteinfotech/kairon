@@ -1014,6 +1014,8 @@ class Utility:
             request = {"SERVER_URL": server_url,
                        "SERVICE_NAME": service_name,
                        'ENVIRONMENT': env, }
+            if Utility.environment["elasticsearch"].get("secret_token"):
+                request['SECRET_TOKEN'] = Utility.environment["elasticsearch"].get("secret_token")
             logger.debug(f'apm: {request}')
             if service_name and server_url:
                 apm = make_apm_client(request)

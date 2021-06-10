@@ -13,6 +13,7 @@ from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
@@ -73,7 +74,6 @@ from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
 from mongoengine.queryset.visitor import Q
-
 
 
 class MongoProcessor:
@@ -610,18 +610,12 @@ class MongoProcessor:
 
     def __extract_forms(self, forms, bot: Text, user: Text):
 
-        saved_forms = self.fetch_forms(bot, status=True)
+        saved_forms = list(self.fetch_forms(bot, status=True))
 
-        for form in forms:
-            if isinstance(form,str):
-                object = self.__save_form_logic(form, {}, saved_forms, bot, user)
-                if object:
-                    yield object
-            elif isinstance(form, Dict):
-                for name, mapping in form.items():
-                    object = self.__save_form_logic(form, mapping, saved_forms, bot, user)
-                    if object:
-                        yield object
+        for form, mappings in forms.items():
+            form_object = self.__save_form_logic(form, mappings, saved_forms, bot, user)
+            if form_object:
+                yield form_object
 
     def __save_form_logic(self, name, mapping, saved_forms, bot, user):
         if {name: mapping} not in saved_forms:

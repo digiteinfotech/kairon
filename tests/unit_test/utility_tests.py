@@ -230,7 +230,7 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment['action'], "url", None)
         actual = Utility.get_action_url({})
         assert actual is None
-        
+
     def test_make_dirs_exception(self, resource_make_dirs):
         assert os.path.exists(pytest.temp_path)
         with pytest.raises(AppException) as e:
@@ -275,7 +275,7 @@ class TestUtility:
 
     def test_initiate_apm_client_enabled(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        assert Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client()
 
     def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
@@ -294,7 +294,28 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
 
-        assert Utility.initiate_apm_client()
+        assert Utility.initiate_apm_client() is None
+
+    def test_initiate_apm_client_with_url_present(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
+
+        client = Utility.initiate_apm_client()
+        config = client.config._config
+        assert config.server_url == "http://localhost:8082"
+        assert config.service_name == "kairon"
+        assert config.environment == "development"
+        assert config.secret_token is None
+
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'secret_token', "12345")
+
+        client = Utility.initiate_apm_client()
+        config = client.config._config
+        assert config.server_url == "http://localhost:8082"
+        assert config.service_name == "kairon"
+        assert config.environment == "development"
+        assert config.secret_token == "12345"
 
     def test_validate_path_not_found(self):
         with pytest.raises(AppException):

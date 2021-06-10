@@ -36,3 +36,4 @@ openai
 mock
 rasa_sdk==2.1.2
 elastic-apm
+ElasticMock

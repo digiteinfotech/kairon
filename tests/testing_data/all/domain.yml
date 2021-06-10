@@ -283,12 +283,6 @@ actions:
 - utter_bad_feedback
 
 forms:
-  ticket_attributes_form:
-    priority:
-      - type: from_entity
-        entity: priority
-  ticket_file_form:
-    file:
-      - type: from_entity
-        entity: file
+- ticket_attributes_form
+- ticket_file_form
 
