@@ -1,0 +1,244 @@
+version: "2.0"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+    - good evening
+    - hey there
+    - watsup
+    - howdy
+- intent: greet_again
+  examples: |
+    - welcome back
+    - good to see you back
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+    - nope
+    - modify the priority
+    - just change the priority
+    - i don't agree with this priority
+    - not now
+    - not required
+    - forget it
+    - not needed
+    - not relevant
+    - maybe later
+    - later
+    - change the priority please
+    - modify the priority please
+    - change the priority
+    - change priority
+    - modify priority
+- intent: log_ticket
+  examples: |
+    - I am getting error while connecting to VPN.
+    - I am not able to connect to demo application from office desktop.
+    - My laptop battery is getting drained too quickly.
+    - Need to increase machine RAM for installing SOLR setup.
+    - My laptop screen is showing black spots.
+    - My laptop mouse pad giving trouble.
+    - I need LDAP Sever on AWS for automation run.
+    - I need oracle client installed on my laptop.
+    - Can anyone look into Sahi Pro installation for my laptop?
+    - I need access to coursera portal for AI related courses.
+    - I require youtube access for watching share point tutorials.
+    - There is a virus attack on my laptop
+    - There seems a virus attack on my laptop
+    - virus attack
+    - My computer has had a virus attack
+    - Enable notification of Dhruva
+    - Symantec Antivirus is not working
+    - Not able to sent mails via outlook
+    - Issue with weblogic10 server
+    - Skype - Installation
+    - Incomplete mails in outlook.
+    - Emails are failing
+    - Headphones replacement
+    - Issue with microsoft word
+    - USB Mouse required
+    - Desktop freezes / Hang-up
+    - Outlook Error
+    - Access rights for Automation setup
+    - Installation of oracle
+    - VSS to be installed on machine
+    - JBOSS Required
+    - Issue With Msp
+    - unable to login to VSS
+    - Please download the oracle11g
+    - jdk 1.5 installation
+    - Unable to Print from my machine
+    - Headset and mic is not working properly
+    - Create database security policy
+- intent: affirm_attachment
+  examples: |
+    - please attach
+    - please upload
+    - yes i confirm
+- intent: affirm
+  examples: |
+    - yes
+    - correct
+    - affirmative that is fine yes
+    - sure, please go ahead
+    - that is good
+    - yes sir
+    - affirmative
+    - ya
+    - fine
+    - ok
+    - agreed
+    - agreed yep
+    - right
+    - yup
+    - go ahead
+    - done
+    - ok done
+    - affirmative please
+    - yep
+    - sounds good
+    - sounds good right
+    - yes sir please
+    - yes sounds good
+    - yep that is good
+    - i am ok with that
+    - yep that is correct
+    - yes right
+    - yes correct
+    - yes you understood me i am ok with that
+    - correct sir thank you
+    - affirmative right
+    - indeed
+    - of course
+    - that sounds good
+    - yes now
+    - yes required
+    - required
+    - needed it
+    - it is relevant
+    - sure
+    - ya why not
+    - yes please
+    - ya sure
+    - ya please
+    - yes go ahead
+    - yes looks fine
+    - ya sounds good
+    - yes looks ok to me
+    - good suggestion
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - Thanks for approaching, bye.
+- intent: get_ticket_status
+  examples: |
+    - What is the current status of my ticket [TKT456](ticketID)
+    - get me the status of [TKT123](ticketID)
+    - show me the current status of [TKT456](ticketID)
+    - i need status of [TKT234](ticketID)
+    - gimme status of [TKT456](ticketID)
+    - find the status of [TKT678](ticketID)
+    - can you help me with the status of [TKT675](ticketID)
+    - get me status of [TKT555](ticketID)
+    - help me status of [TKT234](ticketID)
+    - track the status of [TKT789](ticketID)
+    - what is the progress on [TKT345](ticketID)
+    - report the progress of [TKT789](ticketID)
+    - gimme status of [TKT4566](ticketID)
+- intent: small_talk
+  examples: |
+    - What language are you written in
+    - Who are you?
+    - You are arrogant
+    - do you drink
+    - how much do you earn
+    - DO YOU PLAY SOCCER
+    - You are not immortal
+    - You do not make any sense
+    - You should be ashamed
+    - do you know gossip
+    - How is your health?
+    - Are you a programmer?
+    - Do you wish you could eat food?
+    - what is the stock market
+- intent: thank
+  examples: |
+    - Thanks, that was great help
+    - Thanks that was helpful
+    - That was indeed helpful
+    - thnx
+    - thank u
+    - thank you
+    - thanks
+    - Thank you
+    - Thanks
+    - Thank you so much
+    - Thanks bot
+    - Thanks for that
+    - cheers
+    - cheers bro
+    - ok thanks!
+    - perfect thank you
+    - thanks a ton
+    - thanks for the help
+    - thanks a lot
+    - amazing, thanks
+    - cool, thanks
+    - cool thank you
+    - thanks!
+    - thanks that was great help
+    - great, thanks
+- intent: get_procurement_tickets
+  examples: |
+    - get my pending tickets
+    - show procurement pending tickets
+    - get tickets awaiting my approval
+    - get tickets pending my approval
+    - All tasks waiting my approval
+- intent: performance_feedback
+  examples: |
+    - i would like to give some feedback for the bot
+    - i want to give feedback for bot
+    - can i give some feedback?
+    - can i say something regarding the bot performance?
+- intent: user_pos_feedback
+  examples: |
+    - i [like](fdResponse) the performance of this bot
+    - i [like](fdResponse) the answers given by this bot
+    - i [like](fdResponse) this bot
+- intent: user_neg_feedback
+  examples: |
+    - i [hate](fdResponse) the performance of this bot
+    - i [hate](fdResponse) the answers given by this bot
+    - i [hate](fdResponse) this bot
+- synonym: critical
+  examples: |
+    - urgent
+    - showstopper
+    - asap
+- regex: file
+  examples: |
+    - [azAz09]*
+- regex: file_text
+  examples: |
+    - [azAz09\s+]*
+- regex: priority
+  examples: |
+    - [azAz\s+]*
+- regex: ticketID
+  examples: |
+    - [azAz09]*
+- lookup: priority
+  examples: |
+    - high issues
+    - med issues
+    - low issues

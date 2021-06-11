@@ -884,14 +884,13 @@ class TestActions:
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
             status=200,
         )
-
+        responses.start()
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
