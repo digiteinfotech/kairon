@@ -867,6 +867,7 @@ class MongoProcessor:
                     SLOTS.AUTO_FILL.value: slot.auto_fill,
                 }
             value[SLOTS.TYPE.value] = slot.type
+            value['influence_conversation'] = slot.influence_conversation
             results.append({key: value})
         return dict(ChainMap(*results))
 
