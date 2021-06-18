@@ -22,7 +22,7 @@ build-dev:
     - kairon
   only:
     - master
-  stage: build-dev
+  stage: build
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api-dev:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
@@ -37,7 +37,7 @@ build-release:
     - kairon
   only:
     - release
-  stage: build-release
+  stage: build
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
