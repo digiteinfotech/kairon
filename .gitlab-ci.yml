@@ -1,6 +1,7 @@
 stages:
   - test
-  - build
+  - build-dev
+  - build-release
   - cleanup
 
 before_script:
@@ -22,7 +23,7 @@ build-dev:
     - kairon
   only:
     - master
-  stage: build
+  stage: build-dev
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api-dev:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
@@ -37,7 +38,7 @@ build-release:
     - kairon
   only:
     - release
-  stage: build
+  stage: build-release
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
