@@ -101,3 +101,5 @@ ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_HTTP_ACTIONS_FORMATS = {'http_action.yaml', 'http_action.yml'}
 REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'http_actions'}
+
+DEFAULT_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
