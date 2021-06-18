@@ -17,12 +17,27 @@ test:
     - python3.7 -m pip install git+https://github.com/sfahad1414/question_generation.git
     - python3.7 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --ignore tests/load_test/
 
-build:
+build-dev:
   tags:
     - kairon
   only:
     - master
-  stage: build
+  stage: build-dev
+  script:
+    -  docker build -f ./docker/Dockerfile_api -t kairon-api-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
+    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase-dev:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation-dev:latest .
+    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer-dev:latest .
+
+build-release:
+  tags:
+    - kairon
+  only:
+    - release
+  stage: build-release
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
