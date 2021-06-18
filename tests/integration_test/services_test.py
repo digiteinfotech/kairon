@@ -3645,3 +3645,106 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
 
+
+def test_get_config():
+    response = client.get("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data'] == {'nlu_confidence_threshold': None, 'action_fallback': None, 'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
+
+
+def test_set_epoch_and_fallback():
+    request = {"nlu_epochs": 200,
+               "response_epochs": 300,
+               "ted_epochs": 400,
+               "nlu_confidence_threshold": 70,
+               "action_fallback": "action_default_fallback"}
+    response = client.post(
+        "/api/bot/response/utter_default",
+        json={"data": "Sorry I didnt get that. Can you rephrase?"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance added!"
+
+    response = client.put("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json=request)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+
+def test_get_config_all():
+    response = client.get("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']
+
+
+def test_set_epoch_and_fallback_modify_action_only():
+    request = {"nlu_confidence_threshold": 30,
+               "action_fallback": "utter_default"}
+    response = client.put("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json=request)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+
+def test_set_epoch_and_fallback_empty_pipeline_and_policies():
+    request = {"nlu_confidence_threshold": 20}
+    response = client.put("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json=request)
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'nlu_confidence_threshold'], 'msg': 'Please choose a threshold between 30 and 90', 'type': 'value_error'}]
+
+
+def test_set_epoch_and_fallback_empty_request():
+    response = client.put("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json={})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'At least one field is required'
+
+
+def test_delete_action_fallback_only():
+    response = client.delete("/api/bot/config/properties?delete_nlu_fallback=False",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config deleted'
+
+
+def test_delete_fallback_nlu_fallback_only():
+    response = client.delete("/api/bot/config/properties?delete_action_fallback=False",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config deleted'
+
+
+def test_delete_fallback_config_not_present():
+    response = client.delete("/api/bot/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config deleted'

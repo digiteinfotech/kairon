@@ -358,6 +358,7 @@ class Rules(Document):
             raise ValidationError("events cannot be empty")
         Utility.validate_flow_events(self.events, "RULE", self.block_name)
 
+
 class Configs(Document):
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)

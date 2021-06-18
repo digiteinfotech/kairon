@@ -19,6 +19,7 @@ from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
 from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.utils.io import read_config_file
 
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
@@ -33,7 +34,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback
+                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs
                                                 )
 from kairon.data_processor.processor import MongoProcessor
 from kairon.data_processor.agent_processor import AgentProcessor
@@ -2505,6 +2506,338 @@ class TestMongoProcessor:
         assert non_event_validation_summary['http_actions'][0] == 'Required http action fields not found'
         assert files_received == {'http_actions', 'config'}
         assert not is_event_data
+
+    def test_save_component_properties_all(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400,
+                  "nlu_confidence_threshold": 60,
+                  "action_fallback": "action_default_fallback"}
+        Responses(name='utter_default', bot='test_all', user='test',
+                  text=ResponseText(text='Sorry I didnt get that. Can you rephrase?')).save()
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_all', 'test')
+        config = processor.load_config('test_all')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 200
+        reponse = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert reponse['name'] == 'ResponseSelector'
+        assert reponse['epochs'] == 300
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert action_fallback['name'] == 'TEDPolicy'
+        assert action_fallback['epochs'] == 400
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.6
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 200},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 300},
+                {"name": "FallbackClassifier",
+                 "threshold": 0.6}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 400},
+                {"name": "RulePolicy",
+                 'core_fallback_threshold': 0.3,
+                 'core_fallback_action_name': 'action_default_fallback'}]
+        }
+        assert config == expected
+
+    def test_get_config_properties(self):
+        expected = {'nlu_confidence_threshold': 0.6,
+                    'action_fallback': 'action_default_fallback',
+                    'ted_epochs': 400,
+                    'nlu_epochs': 200,
+                    'response_epochs': 300}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_all')
+        assert config == expected
+
+    def test_save_component_properties_epoch_only(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_epoch_only', 'test')
+        config = processor.load_config('test_epoch_only')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 200
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 300
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 400
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 200},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 300}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 400},
+                {"name": "RulePolicy"}]
+        }
+        assert config == expected
+
+    def test_get_config_properties_epoch_only(self):
+        expected = {'nlu_confidence_threshold': None,
+                    'action_fallback': None,
+                    'ted_epochs': 400,
+                    'nlu_epochs': 200,
+                    'response_epochs': 300}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_epoch_only')
+        assert config == expected
+
+    def test_save_component_properties_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties({}, 'test_properties_empty', 'test')
+        assert str(e).__contains__('At least one field is required')
+        config = processor.load_config('test_properties_empty')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 100
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 100
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 200
+
+    def test_get_config_properties_fallback_not_set(self):
+        expected = {'nlu_confidence_threshold': None,
+                    'action_fallback': None,
+                    'ted_epochs': 200,
+                    'nlu_epochs': 100,
+                    'response_epochs': 100}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
+        assert config == expected
+
+    def test_save_component_properties_component_not_exists(self):
+        configs = Configs._from_son(
+            read_config_file("./template/config/default.yml")
+        ).to_mongo().to_dict()
+        del configs['pipeline'][5]
+        del configs['pipeline'][6]
+        del configs['policies'][1]
+        processor = MongoProcessor()
+        processor.save_config(configs, 'test_component_not_exists', 'test')
+
+        config = {"nlu_epochs": 100,
+                  "response_epochs": 200,
+                  "ted_epochs": 300}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_component_not_exists', 'test')
+        config = processor.load_config('test_component_not_exists')
+        diet = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert diet['name'] == 'DIETClassifier'
+        assert diet['epochs'] == 100
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 200
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 300
+
+    def test_save_component_properties_nlu_fallback_only(self):
+        nlu_fallback = {"nlu_confidence_threshold": 60}
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
+        config = processor.load_config('test_nlu_fallback_only')
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.6
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 1
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 100},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 100},
+                {"name": "FallbackClassifier",
+                 "threshold": 0.6}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 200},
+                {"name": "RulePolicy"}]
+        }
+        assert config == expected
+
+    def test_save_component_properties_all_nlu_fallback_update_threshold(self):
+        nlu_fallback = {"nlu_confidence_threshold": 70}
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
+        config = processor.load_config('test_nlu_fallback_only')
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.7
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 1
+
+    def test_save_component_properties_action_fallback_only(self):
+        nlu_fallback = {'action_fallback': 'action_say_bye'}
+        Actions(name='action_say_bye', bot='test_action_fallback_only', user='test').save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 100},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 100}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 200},
+                {"core_fallback_action_name": "action_say_bye",
+                 "core_fallback_threshold": 0.3,
+                 "name": "RulePolicy"}]
+        }
+        assert config == expected
+
+    def test_save_component_properties_all_action_fallback_update(self):
+        nlu_fallback = {'action_fallback': 'action_say_bye_bye'}
+        Actions(name='action_say_bye_bye', bot='test_action_fallback_only', user='test').save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_action_not_exists(self):
+        nlu_fallback = {'action_fallback': 'action_say_hello'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        assert str(e).__contains__("Action fallback action_say_hello does not exists")
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_utter_default_not_set(self):
+        nlu_fallback = {'action_fallback': 'action_default_fallback'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        assert str(e).__contains__("Utterance utter_default not defined")
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_utter_default_set(self):
+        nlu_fallback = {'action_fallback': 'action_default_fallback'}
+        Responses(name='utter_default', bot='test_action_fallback_only', user='test',
+                  text={'text': 'Sorry I didnt get that. Can you rephrase?'}).save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_delete_fallback_properties_nlu(self):
+        processor = MongoProcessor()
+        processor.delete_fallback_properties('test_action_fallback_only', 'test', True, False)
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_delete_fallback_properties_action(self):
+        processor = MongoProcessor()
+        processor.delete_fallback_properties('test_action_fallback_only', 'test', False, True)
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 1
+
+    def test_delete_fallback_properties_fallback_not_configured(self):
+        processor = MongoProcessor()
+        processor.delete_fallback_properties('test_action_fallback_only', 'test', True, True)
+        config = processor.load_config('test_action_fallback_only')
+        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 1
 
 
 # pylint: disable=R0201

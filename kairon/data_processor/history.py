@@ -8,6 +8,7 @@ from rasa.core.tracker_store import MongoTrackerStore
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from .processor import MongoProcessor
+from ..importer.validator.file_validator import DEFAULT_ACTIONS
 
 
 class ChatHistory:
@@ -161,20 +162,26 @@ class ChatHistory:
         :param month: default is current month and max is last 6 months
         :return: list of visitor fallback
         """
-
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        default_actions = list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
         with client as client:
             db = client.get_database(database)
             conversations = db.get_collection(collection)
             values = []
             try:
                 values = list(conversations.aggregate([{"$unwind": "$events"},
-                                                      {"$match": {"events.event": "action", "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                                      {"$match": {"events.event": "action",
+                                                                  "events.name": {"$nin": default_actions},
+                                                                  "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                                                       {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
                                                                   "events": {"$push": "$events"}}},
                                                       {"$unwind": "$events"},
-                                                      {"$match": {
-                                                          "events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                                                      {"$match": {"events.name": fallback_action}},
                                                       {"$group": {"_id": None, "total_count": {"$first": "$total_count"},
                                                                   "fallback_count": {"$sum": 1}}},
                                                       {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}

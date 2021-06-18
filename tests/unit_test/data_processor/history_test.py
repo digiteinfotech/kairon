@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 
 import pytest
 from mongoengine import connect
@@ -25,6 +26,14 @@ class TestHistory:
         )
         return json_data[0]['events'], None
 
+    def get_history_conversations(self):
+        json_data = json.load(
+            open("tests/testing_data/history/conversations_history.json")
+        )
+        for event in json_data[0]['events'][15:]:
+            event['timestamp'] = float(datetime.utcnow().strftime("%s"))
+        return json_data[0], None
+
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
         return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27169"), None
@@ -34,6 +43,18 @@ class TestHistory:
         monkeypatch.setattr(
             ChatHistory, "get_tracker_and_domain", self.get_tracker_and_domain_data
         )
+
+    @pytest.fixture
+    def mock_fallback_user_data(self, monkeypatch):
+        def db_client(*args, **kwargs):
+            client = MongoClient()
+            db = client.get_database("conversation")
+            conversations = db.get_collection("conversations")
+            history, _ = self.get_history_conversations()
+            conversations.insert(history)
+            return client, "conversation", "conversations", None
+
+        monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
 
     @pytest.fixture
     def mock_mongo_client(self, monkeypatch):
@@ -118,10 +139,31 @@ class TestHistory:
             assert hit_fall_back["total_count"] == 0
             assert message is None
 
-    def test_visitor_hit_fallback(self, mock_mongo_client):
-        hit_fall_back, message = ChatHistory.visitor_hit_fallback("tests")
-        assert hit_fall_back["fallback_count"] == 0
-        assert hit_fall_back["total_count"] == 0
+    def test_visitor_hit_fallback(self, mock_fallback_user_data, monkeypatch):
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback'}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
+        assert hit_fall_back["fallback_count"] == 1
+        assert hit_fall_back["total_count"] == 3
+        assert message is None
+
+    def test_visitor_hit_fallback_action_not_configured(self, mock_fallback_user_data, monkeypatch):
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy"}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
+        assert hit_fall_back["fallback_count"] == 1
+        assert hit_fall_back["total_count"] == 3
+        assert message is None
+
+    def test_visitor_hit_fallback_custom_action(self, mock_fallback_user_data, monkeypatch):
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy", 'core_fallback_action_name': 'utter_location_query'}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
+        assert hit_fall_back["fallback_count"] == 1
+        assert hit_fall_back["total_count"] == 3
         assert message is None
 
     def test_conversation_time_error(self, mock_mongo_processor):

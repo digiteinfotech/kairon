@@ -1083,3 +1083,26 @@ class Utility:
             key_and_val = {'name': key, 'value': env_var[key]}
             event_request.append(key_and_val)
         return event_request
+
+    @staticmethod
+    def add_or_update_epoch(configs: dict, epochs_to_set: dict):
+        if epochs_to_set.get("nlu_epochs"):
+            component = next((comp for comp in configs['pipeline'] if comp["name"] == 'DIETClassifier'), {})
+            if not component:
+                component['name'] = 'DIETClassifier'
+                configs['pipeline'].append(component)
+            component['epochs'] = epochs_to_set.get("nlu_epochs")
+
+        if epochs_to_set.get("response_epochs"):
+            component = next((comp for comp in configs['pipeline'] if comp["name"] == 'ResponseSelector'), {})
+            if not component:
+                component['name'] = 'ResponseSelector'
+                configs['pipeline'].append(component)
+            component['epochs'] = epochs_to_set.get("response_epochs")
+
+        if epochs_to_set.get("ted_epochs"):
+            component = next((comp for comp in configs['policies'] if comp["name"] == 'TEDPolicy'), {})
+            if not component:
+                component['name'] = 'TEDPolicy'
+                configs['policies'].append(component)
+            component['epochs'] = epochs_to_set.get("ted_epochs")
