@@ -17,7 +17,7 @@ from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
-from rasa.shared.core.slots import CategoricalSlot, FloatSlot
+from rasa.shared.core.slots import CategoricalSlot, FloatSlot, UnfeaturizedSlot, ListSlot, TextSlot, BooleanSlot, AnySlot
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
@@ -2367,10 +2367,95 @@ class MongoProcessor:
         slot.initial_value = slot_value.get('initial_value')
         slot.type = slot_value.get('type')
         slot.influence_conversation = slot_value.get('influence_conversation')
+
+        slot.auto_fill = slot_value.get('auto_fill')
+
+        if slot_value.get('type') == "categorical":
+            slot.values = slot_value.values
+        elif slot_value.get('type') == "float":
+            slot.max_value = slot_value.get('max_value')
+            slot.min_value = slot_value.get('min_value')
+
         slot.user = user
         slot.bot = bot
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
+
+    def delete_slot(
+            self, slot: Text, bot: Text, user: Text
+    ):
+        """
+        deletes slots
+        :param slot: slot name
+        :param bot: bot id
+        :param user: user id
+        :return: AppException
+        """
+        if Utility.check_empty_string(slot):
+            raise AssertionError("Intent Name cannot be empty or blank spaces")
+
+        try:
+            slotObject = Slots.objects(name__iexact=slot, bot=bot, status=True).get()
+
+        except DoesNotExist as custEx:
+            logging.exception(custEx)
+            raise AppException(
+                "Invalid SlotName: Unable to remove document: " + str(custEx)
+            )
+
+        try:
+            Utility.delete_document([Slots], bot=bot, user=user, name__iexact=slot)
+        except Exception as ex:
+            logging.exception(ex)
+            raise AppException("Unable to remove slot document " + str(ex))
+
+    def edit_slot(
+            self, slot_value: Dict, bot: Text, user: Text
+    ):
+        """
+        update slot
+        :param slot_value:
+        :param bot:
+        :param user:
+        :return: None
+        """
+
+        slot_type_choices = [
+            FloatSlot.type_name,
+            CategoricalSlot.type_name,
+            UnfeaturizedSlot.type_name,
+            ListSlot.type_name,
+            TextSlot.type_name,
+            BooleanSlot.type_name,
+            AnySlot.type_name
+        ]
+
+        try:
+            slotObject = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
+
+        except DoesNotExist as custEx:
+            logging.exception(custEx)
+            raise AppException(
+                "Invalid SlotName: Unable to update document: " + str(custEx)
+            )
+
+        try:
+            slotObject.auto_fill = slot_value.get('auto_fill')
+            if slot_value.get('type') in slot_type_choices:
+                slotObject.type = slot_value.get('type')
+
+            if slotObject.type == CategoricalSlot.type_name:
+                slotObject.values = slot_value.get('values')
+            elif slotObject.type == FloatSlot.type_name:
+                slotObject.max_value = slot_value.get('max_value')
+                slotObject.min_value = slot_value.get('min_value')
+
+            slotObject.influence_conversation = slot_value.get('influence_conversation')
+            slotObject.user = user
+            slotObject.timestamp = datetime.utcnow()
+            slotObject.save()
+        except Exception as ex:
+            raise AppException(str(ex))
 
     @staticmethod
     def get_row_count(document: Document, bot: str):
