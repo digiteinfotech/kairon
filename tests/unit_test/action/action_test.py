@@ -1,5 +1,7 @@
 import json
 import os
+import urllib.parse
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
@@ -14,6 +16,7 @@ from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import HttpActionFailure
 from kairon.utils import Utility
+import requests
 
 
 class TestActions:
@@ -44,10 +47,11 @@ class TestActions:
             method=responses.GET,
             url=http_url,
             json={'data': 'test_data', 'test_class': [{'key': 'value'}, {'key2': 'value2'}]},
-            status=200
+            status=200,
+            headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
@@ -65,10 +69,30 @@ class TestActions:
             status=200
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
+        assert len(response['test_class']) == 2
+        assert response['test_class'][1]['key2'] == 'value2'
+        assert 'Authorization' not in responses.calls[0].request.headers
+
+    @responses.activate
+    def test_execute_http_request_get_with_params(self):
+        from urllib.parse import urlencode, quote_plus
+        http_url = 'http://localhost:8080/mock'
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            json={'data': 'test_data', 'test_class': [{'key': 'value'}, {'key2': 'value2'}]},
+            status=200
+        )
+        params = {"test":"val1", "test2":"val2"}
+        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                           request_method=responses.GET, request_body=params)
+        assert response
+        assert response['data'] == 'test_data'
+        assert url == http_url+"?"+urlencode(params, quote_via=quote_plus)
         assert len(response['test_class']) == 2
         assert response['test_class'][1]['key2'] == 'value2'
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -85,10 +109,11 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.json_params_matcher(request_params)],
+            headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -108,7 +133,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -126,10 +151,11 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.json_params_matcher(request_params)],
+            headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -149,7 +175,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -167,10 +193,11 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.json_params_matcher(request_params)],
+            headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -187,9 +214,10 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
+            headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=None)
         assert response
         assert response == resp_msg
@@ -231,7 +259,7 @@ class TestActions:
             ]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -566,6 +594,35 @@ class TestActions:
         assert log['exception'].__contains__('No HTTP action found for bot')
 
     @pytest.mark.asyncio
+    async def test_run_invalid_http_action(self, mock_get_http_action_exception):
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        actions_name = "test_run_invalid_http_action1"
+        HttpActionConfig(
+            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
+            action_name=actions_name,
+            response="json",
+            http_url="http://www.google.com",
+            request_method="GET",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        await ActionProcessor.process_action(dispatcher, tracker, domain, actions_name)
+        str(dispatcher.messages[0]['text']).__contains__(
+            "I have failed to process your request: No HTTP action found for bot")
+        log = HttpActionLog.objects(sender="sender1",
+                                    bot="5f50fd0a56b698ca10d35d2e",
+                                    status="FAILURE").get()
+        assert log['exception'].__contains__('No HTTP action found for bot')
+
+    @pytest.mark.asyncio
     async def test_run_no_bot(self):
         action_name = "new_http_action"
         slots = {"bot": None, "param2": "param2value"}
@@ -648,6 +705,62 @@ class TestActions:
         assert log['action']
         assert log['bot_response']
         assert log['api_response']
+
+    @pytest.mark.asyncio
+    async def test_run_with_params(self, monkeypatch):
+        from urllib.parse import urlencode, quote_plus
+        http_url = "http://www.google.com"
+        http_response = "This should be response"
+        request_params = [HttpActionRequestBody(key='key1', value="value1"),
+                          HttpActionRequestBody(key='key2', value="value2")]
+        action = HttpActionConfig(
+            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
+            action_name="http_action_with_params",
+            response=http_response,
+            http_url=http_url,
+            request_method="GET",
+            params_list=request_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=http_response,
+            status=200,
+        )
+
+        action_name = "http_action_with_params"
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender_test_run_with_params", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'This should be response'
+        log = HttpActionLog.objects(sender="sender_test_run_with_params",
+                                    status="SUCCESS").get()
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent']
+        assert log['action']
+        assert log['bot_response']
+        assert log['api_response']
+        assert log['url'] == http_url+"?"+urlencode({"key1": "value1", "key2": "value2"}, quote_via=quote_plus)
+        assert not log['request_params']
 
     @pytest.mark.asyncio
     async def test_run_with_post(self, monkeypatch):
@@ -771,14 +884,13 @@ class TestActions:
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
             status=200,
         )
-
+        responses.start()
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -915,3 +1027,124 @@ class TestActions:
             assert False
         except HttpActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
+
+    @pytest.mark.asyncio
+    async def test_run_get_with_parameters(self, monkeypatch):
+        request_params = [HttpActionRequestBody(key='key1', value="value1"),
+                          HttpActionRequestBody(key='key2', value="value2")]
+        action = HttpActionConfig(
+            auth_token="",
+            action_name="test_run_get_with_parameters",
+            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            params_list=request_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        }
+
+        class MockResponse(object):
+            def __init__(self, url, headers):
+                self.status_code = 200
+                self.url = url
+                self.headers = headers
+
+            def json(self):
+                return resp_msg
+
+            def text(self):
+                return json.dumps(resp_msg)
+
+        def mock_get(url, headers):
+            if headers and url == http_url+'?'+urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
+                return MockResponse(url, headers)
+        monkeypatch.setattr(requests, "get", mock_get)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_run_get_with_parameters(self, monkeypatch):
+        action = HttpActionConfig(
+            auth_token="",
+            action_name="test_run_get_with_parameters",
+            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        }
+
+        class MockResponse(object):
+            def __init__(self, url, headers):
+                self.status_code = 200
+                self.url = url
+                self.headers = headers
+
+            def json(self):
+                return resp_msg
+
+            def text(self):
+                return json.dumps(resp_msg)
+
+        def mock_get(url, headers):
+            if url == http_url:
+                return MockResponse(url, headers)
+
+        monkeypatch.setattr(requests, "get", mock_get)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
+        assert actual is not None
+        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'

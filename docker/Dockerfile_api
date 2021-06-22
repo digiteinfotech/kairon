@@ -27,6 +27,7 @@ RUN python3 -m pip install loguru
 RUN python3 -m pip install smart-config==0.1.3
 RUN python3 -m pip install tensorflow==2.3.2
 RUN python3 -m pip install numpy==1.19.5
+RUN python3 -m pip install elastic-apm
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp

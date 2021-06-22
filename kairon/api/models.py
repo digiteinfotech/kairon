@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Any, Dict
 import validators
-from kairon.data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
@@ -66,21 +66,6 @@ class StoryEventType(str, Enum):
     form = "form"
     slot = "slot"
 
-
-class StoryEventRequest(BaseModel):
-    name: str
-    type: StoryEventType
-    value: str = None
-
-
-class StoryRequest(BaseModel):
-    name: str
-    events: List[StoryEventRequest]
-
-    def get_events(self):
-        return [event.dict() for event in self.events]
-
-
 class RegisterAccount(BaseModel):
     email: str
     first_name: str
@@ -136,7 +121,7 @@ class Endpoint(BaseModel):
     tracker_endpoint: EndPointTracker = None
 
 
-class Config(BaseModel):
+class RasaConfig(BaseModel):
     language: str = "en"
     pipeline: List[Dict]
     policies: List[Dict]
@@ -270,7 +255,7 @@ class TrainingDataGeneratorResponseModel(BaseModel):
 
 
 class TrainingDataGeneratorStatusModel(BaseModel):
-    status: TRAINING_DATA_GENERATOR_STATUS
+    status: EVENT_STATUS
     response: List[TrainingData] = None
     exception: str = None
 
@@ -282,14 +267,23 @@ class StoryStepType(str, Enum):
     action = "ACTION"
 
 
+class StoryType(str, Enum):
+    story = "STORY"
+    rule = "RULE"
+
+
 class StoryStepRequest(BaseModel):
     name: str
     type: StoryStepType
 
 
-class AddStoryRequest(BaseModel):
+class StoryRequest(BaseModel):
     name: str
+    type: StoryType
     steps: List[StoryStepRequest]
+
+    class Config:
+        use_enum_values = True
 
     def get_steps(self):
         return [step.dict() for step in self.steps]
@@ -297,23 +291,24 @@ class AddStoryRequest(BaseModel):
     @validator("steps")
     def validate_request_method(cls, v, values, **kwargs):
         if not v:
-            raise ValueError("Steps are required to form story")
+            raise ValueError("Steps are required to form Flow")
 
         if v[0].type != StoryStepType.intent:
             raise ValueError("First step should be an intent")
 
-        if v[len(v)-1].type == StoryStepType.intent:
+        if v[len(v) - 1].type == StoryStepType.intent:
             raise ValueError("Intent should be followed by utterance or action")
 
+        intents = 0
         for i, j in enumerate(range(1, len(v))):
+            if v[i].type == StoryStepType.intent:
+                intents = intents + 1
             if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.intent:
                 raise ValueError("Found 2 consecutive intents")
+        if 'type' in values:
+            if values['type'] == StoryType.rule and intents > 1:
+                raise ValueError(f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
         return v
-
-
-class SimpleStoryRequest(BaseModel):
-    action: str
-    intent: str
 
 
 class FeedbackRequest(BaseModel):
@@ -324,8 +319,28 @@ class FeedbackRequest(BaseModel):
 
 class GPTRequest(BaseModel):
     api_key: str
-    data: list
+    data: List[str]
     engine: str = "davinci"
     temperature: float = 0.75
     max_tokens: int = 100
     num_responses: int = 10
+
+    @validator("data")
+    def validate_gpt_questions(cls, v, values, **kwargs):
+        if len(v) <= 0:
+            raise ValueError("Question Please!")
+        elif len(v) > 5:
+            raise ValueError("Max 5 Questions are allowed!")
+        return v
+
+
+class ParaphrasesRequest(BaseModel):
+    data: List[str]
+
+    @validator("data")
+    def validate_paraphrases_questions(cls, v, values, **kwargs):
+        if len(v) <= 0:
+            raise ValueError("Question Please!")
+        elif len(v) > 5:
+            raise ValueError("Max 5 Questions are allowed!")
+        return v

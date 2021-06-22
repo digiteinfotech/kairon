@@ -1,0 +1,15 @@
+intents:
+- greet
+- affirm
+
+responses:
+  utter_greet:
+  - text: Bye
+  utter_offer_help:
+  - text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures
+              that the network runs smoothly. We also address all hardware/software requests."
+
+actions:
+- utter_greet
+- utter_offer_help
+

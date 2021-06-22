@@ -27,7 +27,7 @@ class TestHistory:
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
-        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27019"), None
+        return domain, MongoTrackerStore(domain, host="mongodb://192.168.100.140:27169"), None
 
     @pytest.fixture
     def mock_get_tracker_and_domain(self, monkeypatch):
@@ -56,7 +56,7 @@ class TestHistory:
         monkeypatch.setattr(ChatHistory, "get_mongo_connection", client)
 
     def endpoint_details(self, *args, **kwargs):
-        return {"tracker_endpoint": {"url": "mongodb://localhost:27019", "db": "conversation"}}
+        return {"tracker_endpoint": {"url": "mongodb://localhost:27169", "db": "conversation"}}
 
     @pytest.fixture
     def mock_mongo_processor(self, monkeypatch):

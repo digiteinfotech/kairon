@@ -13,10 +13,12 @@ from rasa.utils.common import TempDirectoryPath
 
 from kairon.data_processor.constant import MODEL_TRAINING_STATUS
 from kairon.data_processor.importer import MongoDataImporter
-from kairon.data_processor.processor import AgentProcessor, ModelProcessor
+from kairon.data_processor.agent_processor import AgentProcessor
+from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.utils import Utility
+import elasticapm
 
 
 async def train_model(
@@ -130,6 +132,7 @@ def train_model_for_bot(bot: str):
     del domain
     del stories
     del config
+    Utility.move_old_models(output, model)
     return model
 
 
@@ -151,6 +154,10 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
         Utility.train_model_event(bot, user, token)
     else:
         try:
+            apm_client = Utility.initiate_apm_client()
+            if apm_client:
+                elasticapm.instrument()
+                apm_client.begin_transaction(transaction_type="script")
             model_file = train_model_for_bot(bot)
             training_status = MODEL_TRAINING_STATUS.DONE.value
             agent_url = Utility.environment['model']['train'].get('agent_url')
@@ -165,6 +172,8 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
             training_status = MODEL_TRAINING_STATUS.FAIL.value
             exception = str(e)
         finally:
+            if apm_client:
+                apm_client.end_transaction(name=__name__, result="success")
             ModelProcessor.set_training_status(
                 bot=bot,
                 user=user,

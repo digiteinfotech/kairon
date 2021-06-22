@@ -61,16 +61,16 @@ class Authentication:
 
     @staticmethod
     def create_access_token( *, data: dict, is_integration=False, token_expire: int=0):
-        expires_delta = timedelta(minutes=Authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode = data.copy()
         if not is_integration:
-            if expires_delta:
-                expire = datetime.utcnow() + expires_delta
+            if token_expire > 0:
+                expire = datetime.utcnow() + timedelta(minutes=token_expire)
             else:
-                if token_expire > 0:
-                    expire = datetime.utcnow() + timedelta(minutes=token_expire)
+                if Authentication.ACCESS_TOKEN_EXPIRE_MINUTES:
+                    expires_delta = timedelta(minutes=Authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
                 else:
-                    expire = datetime.utcnow() + timedelta(minutes=15)
+                    expires_delta = timedelta(minutes=15)
+                expire = datetime.utcnow() + expires_delta
             to_encode.update({"exp": expire})
         encoded_jwt = encode(to_encode, Authentication.SECRET_KEY, algorithm=Authentication.ALGORITHM)
         return encoded_jwt

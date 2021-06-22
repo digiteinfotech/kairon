@@ -1,0 +1,20 @@
+intents:
+- greet
+- affirm
+- deny
+
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+  utter_goodbye:
+  - text: Bye
+  utter_affirm:
+  - text: Great, carry on!
+  utter_thanks:
+  - text: Thanks you very much.
+
+actions:
+- utter_greet
+- utter_goodbye
+- utter_affirm
+- utter_thanks

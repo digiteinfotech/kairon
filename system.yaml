@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://192.168.101.148:27019/conversations"}
+  url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 security:
@@ -17,6 +17,10 @@ model:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
     event_url: ${TRAIN_EVENT_URL}
     agent_url: ${AGENT_URL}
+  data_importer:
+    limit_per_day: ${IMPORTING_LIMIT_PER_DAY:5}
+    event_url: ${IMPORTER_EVENT_URL}
+    agent_url: ${AGENT_URL}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
@@ -25,3 +29,10 @@ data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   event_url: ${DATA_GENERATION_EVENT_URL}
   kairon_url: ${KAIRON_URL}
+
+elasticsearch:
+  enable: ${ENABLE_APM:false}
+  apm_server_url: ${APM_SERVER_URL}
+  service_name: ${APM_APPLICATION_NAME:"Kairon"}
+  env_type: ${KAIRON_ENV_TYPE:"development"}
+  secret_token: ${APM_SECRET_TOKEN}

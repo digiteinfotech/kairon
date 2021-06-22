@@ -1,6 +1,9 @@
+import json
 import os
 import re
+import shutil
 import tarfile
+import tempfile
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -12,13 +15,17 @@ from mongoengine import connect
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
+from kairon.api.auth import Authentication
 from kairon.api.data_objects import Bot
 from kairon.api.models import StoryEventType
 from kairon.api.processor import AccountProcessor
-from kairon.data_processor.constant import UTTERANCE_TYPE, TRAINING_DATA_GENERATOR_STATUS
+from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses
-from kairon.data_processor.processor import MongoProcessor, ModelProcessor, TrainingDataGenerationProcessor
+from kairon.data_processor.model_processor import ModelProcessor
+from kairon.data_processor.processor import MongoProcessor
+from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
+from kairon.importer.data_objects import ValidationLogs
 from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.utils import Utility
 
@@ -37,7 +44,9 @@ def setup():
 
 def pytest_configure():
     return {'token_type': None,
-            'access_token': None
+            'access_token': None,
+            'username': None,
+            'bot': None
             }
 
 
@@ -103,10 +112,21 @@ def test_account_registration():
     assert actual["message"] == "Account Registered!"
 
 
+def test_api_wrong_password():
+    response = client.post(
+        "/api/auth/login", data={"username": "integration@demo.ai", "password": "welcome@1"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["success"]
+    assert actual["message"] == "Incorrect username or password"
+
+
 def test_api_login():
+    email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@1"},
     )
     actual = response.json()
     assert all(
@@ -119,180 +139,212 @@ def test_api_login():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
+    pytest.username = email
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    pytest.bot = response['data']['user']['bot']
 
 
-def test_upload_missing_data():
-    files = {
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
+@pytest.fixture()
+def resource_test_upload_zip():
+    data_path = 'tests/testing_data/yml_training_files'
+    tmp_dir = tempfile.gettempdir()
+    zip_file = os.path.join(tmp_dir, 'test')
+    shutil.make_archive(zip_file, 'zip', data_path)
+    pytest.zip = open(zip_file + '.zip', 'rb').read()
+    yield "resource_test_upload_zip"
+    os.remove(zip_file + '.zip')
+    shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+
+def test_upload_zip(resource_test_upload_zip):
+    files = (('training_files', ("data.zip", pytest.zip)),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))))
     response = client.post(
-        "/api/bot/upload",
+        "/api/bot/upload?import_data=true&overwrite=false",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert (
-            actual["message"]
-            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
-    )
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert not actual["success"]
-
-
-def test_upload_error():
-    files = {
-        "nlu": ("nlu.md", None),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
-    response = client.post(
-        "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
-    )
-    actual = response.json()
-    assert (
-            actual["message"]
-            == [{'loc': ['body', 'nlu'], 'msg': 'field required', 'type': 'value_error.missing'}]
-    )
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert not actual["success"]
-
-
-def test_upload(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.md",
-            open("tests/testing_data/all/data/nlu.md", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-    }
-    response = client.post(
-        "/api/bot/upload",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
-    )
-    actual = response.json()
-    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
 
 
-def test_upload_with_http_error(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
+def test_upload():
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+              ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+    response = client.post(
+        "/api/bot/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.md",
-            open("tests/testing_data/all/data/nlu.md", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/all/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.md",
-            open("tests/testing_data/all/data/stories.md", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/all/config.yml", "rb"),
-        ),
-        "http_action": (
-            "http_action.yml",
-            open("tests/testing_data/error/http_action.yml", "rb"),
-        ),
-    }
+
+def test_upload_yml():
+    files = (('training_files', ("nlu.yml", open("tests/testing_data/valid_yml/data/nlu.yml", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/valid_yml/domain.yml", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/valid_yml/data/stories.yml", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/valid_yml/config.yml", "rb"))),
+             (
+             'training_files', ("http_action.yml", open("tests/testing_data/valid_yml/http_action.yml", "rb")))
+             )
     response = client.post(
         "/api/bot/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files,
     )
     actual = response.json()
-    assert actual["message"] == "Required http action fields not found"
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_train(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    def _mock_training_limit(*arge, **kwargs):
+        return False
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+
+    response = client.post(
+        "/api/bot/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+
+
+def test_upload_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 2)
+    response = client.post(
+        "/api/bot/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={'training_files': ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Daily limit exceeded.'
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert not actual["success"]
 
 
-def test_upload_yml(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
+@responses.activate
+def test_upload_using_event_overwrite(monkeypatch):
+    token = Authentication.create_access_token(data={'sub': pytest.username})
+    responses.add(
+        responses.POST,
+        "http://localhost/upload",
+        status=200,
+        match=[
+        responses.json_params_matcher([{'name': 'BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username}, {'name': 'IMPORT_DATA', 'value': '--import-data'}, {'name': 'OVERWRITE', 'value': '--overwrite'}])],
+    )
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    files = {
-        "nlu": (
-            "nlu.yml",
-            open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"),
-        ),
-        "domain": (
-            "domain.yml",
-            open("tests/testing_data/yml_training_files/domain.yml", "rb"),
-        ),
-        "stories": (
-            "stories.yml",
-            open("tests/testing_data/yml_training_files/data/stories.yml", "rb"),
-        ),
-        "config": (
-            "config.yml",
-            open("tests/testing_data/yml_training_files/config.yml", "rb"),
-        ),
-        "http_action": (
-            "http_action.yml",
-            open("tests/testing_data/yml_training_files/http_action.yml", "rb"),
-        ),
-    }
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'event_url', "http://localhost/upload")
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", "http://localhost/upload")
     response = client.post(
-        "/api/bot/upload",
+        "/api/bot/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
+        files=(('training_files', ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+               ('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+               (
+               'training_files', ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+               ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+               (
+                   'training_files',
+                   ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+               )
     )
     actual = response.json()
-    assert actual["message"] == "Data uploaded successfully!"
+    assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
+    assert actual["message"] == "Upload in progress! Check logs."
+
+    # update status
+    log = ValidationLogs.objects(event_status=EVENT_STATUS.TASKSPAWNED.value).get()
+    log.event_status = EVENT_STATUS.COMPLETED.value
+    log.save()
+
+
+@responses.activate
+def test_upload_using_event_append(monkeypatch):
+    token = Authentication.create_access_token(data={'sub': pytest.username})
+    responses.add(
+        responses.POST,
+        "http://localhost/upload",
+        status=200,
+        match=[
+        responses.json_params_matcher([{'name': 'BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username}, {'name': 'IMPORT_DATA', 'value': '--import-data'}, {'name': 'OVERWRITE', 'value': ''}])],
+    )
+
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'event_url', "http://localhost/upload")
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", "http://localhost/upload")
+    response = client.post(
+        "/api/bot/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=(('training_files', ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+               ('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+               (
+               'training_files', ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+               ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+               (
+                   'training_files',
+                   ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+               )
+    )
+    actual = response.json()
     assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Upload in progress! Check logs."
+
+
+def test_get_data_importer_logs():
+    response = client.get(
+        "/api/bot/importer/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 5
+    assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+    assert actual['data'][0]['is_data_uploaded']
+    assert actual['data'][0]['start_timestamp']
+    assert not actual["message"]
+
+    # update status for older task
+    log = ValidationLogs.objects(event_status=EVENT_STATUS.TASKSPAWNED.value).get()
+    log.event_status = EVENT_STATUS.COMPLETED.value
+    log.save()
 
 
 def test_get_slots():
@@ -315,7 +367,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 29
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -329,7 +381,7 @@ def test_get_all_intents():
     actual = response.json()
     assert "data" in actual
     print(actual['data'])
-    assert len(actual["data"]) == 29
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -516,7 +568,7 @@ def test_get_all_responses():
     )
     actual = response.json()
     print(actual["data"])
-    assert len(actual["data"]) == 25
+    assert len(actual["data"]) == 12
     assert actual["data"][0]['name']
     assert actual["data"][0]['texts'][0]['text']
     assert not actual["data"][0]['customs']
@@ -627,6 +679,7 @@ def test_remove_utterance_attached_to_story():
         "/api/bot/stories",
         json={
             "name": "test_remove_utterance_attached_to_story",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -637,7 +690,7 @@ def test_remove_utterance_attached_to_story():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
     response = client.delete(
         "/api/bot/response/True",
         json={"data": "utter_greet"},
@@ -650,9 +703,14 @@ def test_remove_utterance_attached_to_story():
 
 
 def test_remove_utterance():
+    client.post(
+        "/api/bot/response/utter_remove_utterance",
+        json={"data": "this will be removed"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     response = client.delete(
         "/api/bot/response/True",
-        json={"data": "utter_delete"},
+        json={"data": "utter_remove_utterance"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -719,6 +777,27 @@ def test_add_story():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
+            "steps": [
+                {"name": "test_greet", "type": "INTENT"},
+                {"name": "utter_test_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_story_invalid_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "TEST",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -727,23 +806,24 @@ def test_add_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
-    assert actual["data"]["_id"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
+                                  'type': 'type_error.enum'}]
 
 
 def test_add_story_empty_event():
     response = client.post(
         "/api/bot/stories",
-        json={"name": "test_add_story_empty_event", "steps": []},
+        json={"name": "test_add_story_empty_event", "type": "STORY", "steps": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form story', 'type': 'value_error'}]
+        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
 
 
 def test_add_story_lone_intent():
@@ -751,6 +831,7 @@ def test_add_story_lone_intent():
         "/api/bot/stories",
         json={
             "name": "test_add_story_lone_intent",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -771,6 +852,7 @@ def test_add_story_consecutive_intents():
         "/api/bot/stories",
         json={
             "name": "test_add_story_consecutive_intents",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "INTENT"},
@@ -790,7 +872,8 @@ def test_add_story_multiple_actions():
     response = client.post(
         "/api/bot/stories",
         json={
-            "name": "test_add_story_consecutive_intents",
+            "name": "test_add_story_consecutive_actions",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "HTTP_ACTION"},
@@ -802,7 +885,7 @@ def test_add_story_multiple_actions():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
 
 
 def test_add_story_utterance_as_first_step():
@@ -810,6 +893,7 @@ def test_add_story_utterance_as_first_step():
         "/api/bot/stories",
         json={
             "name": "test_add_story_consecutive_intents",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "BOT"},
                 {"name": "utter_greet", "type": "HTTP_ACTION"},
@@ -830,6 +914,7 @@ def test_add_story_missing_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -848,6 +933,7 @@ def test_add_story_invalid_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -860,7 +946,8 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -871,6 +958,7 @@ def test_update_story():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -879,10 +967,10 @@ def test_update_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    assert actual["message"] == "Flow updated successfully"
+    assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story updated successfully"
-    assert actual["data"]["_id"]
 
 
 def test_update_story_invalid_event_type():
@@ -890,6 +978,7 @@ def test_update_story_invalid_event_type():
         "/api/bot/stories",
         json={
             "name": "test_path",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -902,7 +991,8 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']}, 'loc': ['body', 'steps', 0, 'type'],
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
                  'type': 'type_error.enum'}]
     )
@@ -913,37 +1003,38 @@ def test_delete_story():
         "/api/bot/stories",
         json={
             "name": "test_path1",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet", "type": "BOT"},
+                {"name": "utter_greet_delete", "type": "BOT"},
             ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    assert actual["message"] == "Flow added successfully"
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
 
     response = client.delete(
-        "/api/bot/stories/test_path1",
+        "/api/bot/stories/test_path1/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story deleted successfully"
+    assert actual["message"] == "Flow deleted successfully"
 
 
 def test_delete_non_existing_story():
     response = client.delete(
-        "/api/bot/stories/test_path2",
+        "/api/bot/stories/test_path2/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Story does not exists"
+    assert actual["message"] == "Flow does not exists"
 
 
 def test_get_stories():
@@ -984,7 +1075,7 @@ def test_get_utterance_from_not_exist_intent():
     assert Utility.check_empty_string(actual["message"])
 
 
-def test_train(monkeypatch):
+def test_train_on_updated_data(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -1308,7 +1399,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 30
+    assert len(actual["data"]) == 20
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -1409,7 +1500,7 @@ def test_augment_paraphrase_gpt():
             "success": True,
             "data": {
                 "paraphrases": ['Where is digite located?',
-                              'Where is digite situated?']
+                                'Where is digite situated?']
             },
             "message": None,
             "error_code": 0,
@@ -1428,9 +1519,36 @@ def test_augment_paraphrase_gpt():
     assert actual["error_code"] == 0
     assert actual["data"] == {
         "paraphrases": ['Where is digite located?',
-                      'Where is digite situated?']
+                        'Where is digite situated?']
     }
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_augment_paraphrase_gpt_validation():
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": [], "api_key": "MockKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
+
+    response = client.post(
+        "/api/augment/paraphrases/gpt",
+        json={"data": ["hi", "hello", "thanks", "hello", "bye", "how are you"], "api_key": "MockKey"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [
+        {'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
 
 
 @responses.activate
@@ -1498,6 +1616,33 @@ def test_augment_paraphrase():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_augment_paraphrase_no_of_questions():
+    response = client.post(
+        "/api/augment/paraphrases",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": []},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
+
+    response = client.post(
+        "/api/augment/paraphrases",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": ["Hi", "Hello", "How are you", "Bye", "Thanks", "Welcome"]},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == [
+        {'loc': ['body', 'data'], 'msg': 'Max 5 Questions are allowed!', 'type': 'value_error'}]
 
 
 def test_get_user_details():
@@ -2592,6 +2737,7 @@ def test_list_actions():
         "/api/bot/stories",
         json={
             "name": "test_path_action",
+            "type": "STORY",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "action_greet", "type": "ACTION"},
@@ -2601,7 +2747,7 @@ def test_list_actions():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["message"] == "Story added successfully"
+    assert actual["message"] == "Flow added successfully"
     assert actual['data']["_id"]
     assert actual["success"]
 
@@ -2637,7 +2783,7 @@ def test_train_using_event(monkeypatch):
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2674,7 +2820,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.COMPLETED,
+        "status": EVENT_STATUS.COMPLETED,
         "response": training_data
     }
     response = client.put(
@@ -2781,7 +2927,7 @@ def test_get_training_data_history_1(monkeypatch):
     assert actual["message"] is None
     training_data = actual["data"]['training_history'][0]
 
-    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+    assert training_data['status'] == EVENT_STATUS.COMPLETED.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
     assert training_data['last_update_timestamp'] == end_timestamp
@@ -2803,7 +2949,7 @@ def test_get_training_data_history_1(monkeypatch):
 
 def test_update_training_data_generator_status_exception(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED,
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2817,7 +2963,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.FAIL,
+        "status": EVENT_STATUS.FAIL,
         "exception": 'Exception message'
     }
     response = client.put(
@@ -2842,7 +2988,7 @@ def test_get_training_data_history_2(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] is None
     training_data = actual["data"]['training_history'][0]
-    assert training_data['status'] == TRAINING_DATA_GENERATOR_STATUS.FAIL.value
+    assert training_data['status'] == EVENT_STATUS.FAIL.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
     assert training_data['last_update_timestamp'] == end_timestamp
@@ -2851,7 +2997,7 @@ def test_get_training_data_history_2(monkeypatch):
 
 def test_fetch_latest(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED,
     }
     response = client.put(
         "/api/bot/update/data/generator/status",
@@ -2867,7 +3013,7 @@ def test_fetch_latest(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert actual["data"]['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
     assert actual["message"] is None
 
 
@@ -3034,7 +3180,7 @@ def test_list_action_server_logs():
 
 def test_add_training_data_invalid_id(monkeypatch):
     request_body = {
-        "status": TRAINING_DATA_GENERATOR_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED
     }
     client.put(
         "/api/bot/update/data/generator/status",
@@ -3088,3 +3234,414 @@ def test_feedback():
     assert actual["error_code"] == 0
     assert not actual["data"]
     assert actual["message"] == 'Thanks for your feedback!'
+
+
+def test_add_rule():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+
+
+def test_add_rule_invalid_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "TEST",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
+                                  'type': 'type_error.enum'}]
+
+
+def test_add_rule_empty_event():
+    response = client.post(
+        "/api/bot/stories",
+        json={"name": "test_add_rule_empty_event", "type": "RULE", "steps": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
+
+
+def test_add_rule_lone_intent():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_lone_intent",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "greet_again", "type": "INTENT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Intent should be followed by utterance or action', 'type': 'value_error'}]
+
+
+def test_add_rule_consecutive_intents():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_intents",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'Found 2 consecutive intents', 'type': 'value_error'}]
+
+
+def test_add_rule_multiple_actions():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_actions",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+
+
+def test_add_rule_utterance_as_first_step():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_add_rule_consecutive_intents",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "BOT"},
+                {"name": "utter_greet", "type": "HTTP_ACTION"},
+                {"name": "utter_greet_again", "type": "HTTP_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'steps'], 'msg': 'First step should be an intent', 'type': 'value_error'}]
+
+
+def test_add_rule_missing_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'loc': ['body', 'steps', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    )
+
+
+def test_add_rule_invalid_event_type():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
+                 'type': 'type_error.enum'}]
+    )
+
+
+def test_update_rule():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow updated successfully"
+    assert actual["data"]["_id"]
+
+
+def test_update_rule_invalid_event_type():
+    response = client.put(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "data"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION']},
+                 'loc': ['body', 'steps', 0, 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION'",
+                 'type': 'type_error.enum'}]
+    )
+
+
+def test_delete_rule():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path1",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+
+    response = client.delete(
+        "/api/bot/stories/test_path1/RULE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow deleted successfully"
+
+
+def test_delete_non_existing_rule():
+    response = client.delete(
+        "/api/bot/stories/test_path2/RULE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Flow does not exists"
+
+
+def test_add_rule_with_multiple_intents():
+    response = client.post(
+        "/api/bot/stories",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+                {"name": "location", "type": "INTENT"},
+                {"name": "utter_location", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': "Found rules 'test_path' that contain more than intent.\nPlease use stories for this case", 'type': 'value_error'}]
+    assert actual["data"] is None
+
+
+def test_validate():
+    response = client.post(
+        "/api/bot/validate",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Event triggered! Check logs.'
+
+
+def test_upload_missing_data():
+    files = (('training_files', ("domain.yml", BytesIO(open("tests/testing_data/all/domain.yml", "rb").read()))),
+             ('training_files', ("stories.md", BytesIO(open("tests/testing_data/all/data/stories.md", "rb").read()))),
+             ('training_files', ("config.yml", BytesIO(open("tests/testing_data/all/config.yml", "rb").read()))),
+            )
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == 'Upload in progress! Check logs.'
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_upload_valid_and_invalid_data():
+    files = (('training_files', ("nlu_1.md", None)),
+             ('training_files', ("domain_5.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config_6.yml", open("tests/testing_data/all/config.yml", "rb"))))
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == 'Upload in progress! Check logs.'
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_upload_with_http_error():
+    config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
+    config.get('pipeline').append({'name': "XYZ"})
+    files = (('training_files', ("config.yml", json.dumps(config).encode())),
+             ('training_files', ("http_action.yml", open("tests/testing_data/error/http_action.yml", "rb"))))
+
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        "/api/bot/importer/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 4
+    assert actual['data'][0]['status'] == 'Failure'
+    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data'][0]['is_data_uploaded']
+    assert actual['data'][0]['start_timestamp']
+    assert actual['data'][0]['start_timestamp']
+    assert actual['data'][0]['start_timestamp']
+    assert actual['data'][0]['http_actions'] == ['Required http action fields not found']
+    assert actual['data'][0]['config'] == ['Invalid component XYZ']
+
+
+def test_upload_actions_and_config():
+    files = (('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+             ('training_files', ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb"))))
+
+    response = client.post(
+        "/api/bot/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        "/api/bot/importer/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 5
+    assert actual['data'][0]['status'] == 'Success'
+    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data'][0]['is_data_uploaded']
+    assert actual['data'][0]['start_timestamp']
+    assert actual['data'][0]['start_timestamp']
+    assert actual['data'][0]['start_timestamp']
+    assert not actual['data'][0]['http_actions']
+    assert not actual['data'][0]['config']
+
+    response = client.get(
+        "/api/bot/action/httpaction",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 5
+

@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 
 from kairon.api.auth import Authentication
-from kairon.api.models import Response, User, ListData, TextData, GPTRequest
+from kairon.api.models import Response, User, ParaphrasesRequest, TextData, GPTRequest
 from kairon.utils import Utility
 
 router = APIRouter()
@@ -12,7 +12,7 @@ auth = Authentication()
 
 @router.post("/paraphrases", response_model=Response)
 async def paraphrases(
-        request_data: ListData, current_user: User = Depends(auth.get_current_user)
+        request_data: ParaphrasesRequest, current_user: User = Depends(auth.get_current_user)
 ):
     """
     Generates other similar text by augmenting original text
@@ -42,7 +42,6 @@ async def questions(
 @router.post("/paraphrases/gpt", response_model=Response)
 async def gpt_paraphrases(request_data: GPTRequest,  current_user: User = Depends(auth.get_current_user)):
     """Generates variations for given list of sentences/questions using GPT3"""
-
     response = requests.post(
         Utility.environment["augmentation"]["paraphrase_gpt_url"], json=request_data.dict()
     )

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
+from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -30,6 +30,7 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
+from rasa.shared.core.domain import _validate_slot_mappings
 
 
 class Entity(EmbeddedDocument):
@@ -170,6 +171,7 @@ class Entities(Document):
 
 class Forms(Document):
     name = StringField(required=True)
+    mapping = DictField(default={})
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -178,6 +180,10 @@ class Forms(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Form name cannot be empty or blank spaces")
+        try:
+            _validate_slot_mappings({self.name: self.mapping})
+        except Exception as e:
+            raise ValidationError(e)
 
 
 class ResponseButton(EmbeddedDocument):
@@ -242,6 +248,9 @@ class Actions(Document):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Action name cannot be empty or blank spaces")
+
+        if self.name.startswith('utter_'):
+            raise ValidationError("Action name cannot start with utter_")
 
 
 class SessionConfigs(Document):
@@ -316,7 +325,7 @@ class StoryEvents(EmbeddedDocument):
 class Stories(Document):
     block_name = StringField(required=True)
     start_checkpoints = ListField(StringField(), required=True)
-    end_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField())
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -324,24 +333,30 @@ class Stories(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
-        Utility.validate_document_list(self.events)
         if Utility.check_empty_string(self.block_name):
-            raise ValidationError("Story path name cannot be empty or blank spaces")
+            raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
-            raise ValidationError("Stories cannot be empty")
+            raise ValidationError("events cannot be empty")
+        Utility.validate_flow_events(self.events, "STORY", self.block_name)
 
 
 class Rules(Document):
     block_name = StringField(required=True)
     condition_events_indices = ListField(IntField(), default=[])
     start_checkpoints = ListField(StringField(), required=True)
-    end_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField())
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.block_name):
+            raise ValidationError("rule name cannot be empty or blank spaces")
+        elif not self.events:
+            raise ValidationError("events cannot be empty")
+        Utility.validate_flow_events(self.events, "RULE", self.block_name)
 
 class Configs(Document):
     language = StringField(required=True, default="en")
@@ -447,7 +462,7 @@ class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     document_path = StringField(default=None)
-    status = StringField(default=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
+    status = StringField(default=EVENT_STATUS.INITIATED)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)

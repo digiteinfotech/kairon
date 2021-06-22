@@ -1,0 +1,23 @@
+version: "2.0"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+- intent: affirm
+  examples: |
+    - yes
+    - correct
+    - affirmative that is fine yes
+- intent: location
+  examples: |
+    - i am in [Uttarakhand](location)
+    - [Bageshwar](location) is where I am
+    - Going to [Tungnath](location)

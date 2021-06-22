@@ -5,31 +5,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
 
+import yaml
 from fastapi import File
 from loguru import logger as logging
-from mongoengine import Document, Q
+from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
+from mongoengine.queryset.visitor import Q
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
-from rasa.core.agent import Agent
 from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
+from rasa.shared.core.events import SlotSet
 from rasa.shared.core.slots import CategoricalSlot, FloatSlot
+from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
-from rasa.shared.core.events import SlotSet
 from rasa.shared.importers.rasa import Domain
-from rasa.shared.nlu.training_data.training_data import TrainingData
-from rasa.shared.nlu.training_data.message import Message
-from rasa.train import DEFAULT_MODELS_PATH
-from rasa.shared.utils.io import read_config_file, read_yaml_file
 from rasa.shared.importers.rasa import RasaFileImporter
+from rasa.shared.nlu.constants import TEXT
+from rasa.shared.nlu.training_data.message import Message
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.utils.io import read_config_file
+
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from rasa.shared.nlu.constants import TEXT
-from .cache import AgentCache
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -40,7 +41,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    MODEL_TRAINING_STATUS, UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, TRAINING_DATA_GENERATOR_DIR,
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS
 )
 from .data_objects import (
     Responses,
@@ -62,18 +63,16 @@ from .data_objects import (
     EndPointTracker,
     Slots,
     StoryEvents,
-    ModelTraining,
     ModelDeployment,
-    TrainingDataGenerator,
-    TrainingDataGeneratorResponse,
-    TrainingExamplesTrainingDataGenerator,
     Rules,
     Feedback
 )
-from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
-from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
+from ..importer.processor import DataImporterLogProcessor
+from ..importer.validator.file_validator import TrainingDataValidator
+from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
+from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
 
 
 class MongoProcessor:
@@ -158,6 +157,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            http_actions_yml = os.path.join(path, 'http_action.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                         domain_path=domain_path,
                                         training_data_paths=training_data_path)
@@ -165,17 +165,10 @@ class MongoProcessor:
             story_graph = await importer.get_stories()
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
-            http_actions = self.read_http_file(path)
+            http_actions = Utility.read_yaml(http_actions_yml)
+            TrainingDataValidator.validate_http_actions(http_actions)
 
-            if overwrite:
-                self.delete_bot_data(bot, user)
-
-            self.save_config(config, bot, user)
-            self.save_domain(domain, bot, user)
-            self.save_stories(story_graph.story_steps, bot, user)
-            self.save_nlu(nlu, bot, user)
-            self.save_rules(story_graph.story_steps, bot, user)
-            self.save_http_action(http_actions, bot, user)
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, overwrite, REQUIREMENTS.copy())
         except InvalidDomain as e:
             logging.exception(e)
             raise AppException(
@@ -185,6 +178,25 @@ class MongoProcessor:
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
+
+    def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
+                           story_graph: StoryGraph = None, nlu: TrainingData = None, http_actions: dict = None,
+                           overwrite: bool = False, what: set = REQUIREMENTS.copy()):
+        if overwrite:
+            self.delete_bot_data(bot, user, what)
+
+        if 'domain' in what:
+            self.save_domain(domain, bot, user)
+        if 'stories' in what:
+            self.save_stories(story_graph.story_steps, bot, user)
+        if 'nlu' in what:
+            self.save_nlu(nlu, bot, user)
+        if 'config' in what:
+            self.add_or_overwrite_config(config, bot, user)
+        if 'rules' in what:
+            self.save_rules(story_graph.story_steps, bot, user)
+        if 'http_actions' in what:
+            self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -214,20 +226,27 @@ class MongoProcessor:
             for file in files
         ]
 
-    def delete_bot_data(self, bot: Text, user: Text):
+    def delete_bot_data(self, bot: Text, user: Text, what = REQUIREMENTS.copy()):
         """
         deletes bot data
 
         :param bot: bot id
         :param user: user id
+        :param what: training data that should be deleted
         :return: None
         """
-        self.delete_domain(bot, user)
-        self.delete_stories(bot, user)
-        self.delete_nlu(bot, user)
-        self.delete_config(bot, user)
-        self.delete_rules(bot, user)
-        self.delete_http_action(bot, user)
+        if 'domain' in what:
+            self.delete_domain(bot, user)
+        if 'stories' in what:
+            self.delete_stories(bot, user)
+        if 'nlu' in what:
+            self.delete_nlu(bot, user)
+        if 'config' in what:
+            self.delete_config(bot, user)
+        if 'rules' in what:
+            self.delete_rules(bot, user)
+        if 'http_actions' in what:
+            self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -284,8 +303,9 @@ class MongoProcessor:
         """
         self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
-        self.__save_forms(domain.form_names, bot, user)
-        self.__save_actions(list(set(domain.user_actions) - set(domain.form_names)), bot, user)
+        self.__save_forms(domain.forms, bot, user)
+        actions = list(filter(lambda actions: not actions.startswith('utter_') and actions not in domain.form_names, domain.user_actions))
+        self.__save_actions(actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
@@ -391,14 +411,9 @@ class MongoProcessor:
 
     def __fetch_all_synonyms_value(self, bot: Text):
         synonyms = list(
-            EntitySynonyms.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
-            )
+            EntitySynonyms.objects(bot=bot, status=True).values_list('value')
         )
-        if synonyms:
-            return synonyms[0]["values"]
-        else:
-            return []
+        return synonyms
 
     def __extract_synonyms(self, synonyms, bot: Text, user: Text):
         saved_synonyms = self.__fetch_all_synonyms_value(bot)
@@ -455,15 +470,10 @@ class MongoProcessor:
 
     def __fetch_all_lookup_values(self, bot: Text):
         lookup_tables = list(
-            LookupTables.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "values": {"$push": "$value"}, }}]
-            )
+            LookupTables.objects(bot=bot, status=True).values_list('value')
         )
 
-        if lookup_tables:
-            return lookup_tables[0]["values"]
-        else:
-            return []
+        return lookup_tables
 
     def __extract_lookup_tables(self, lookup_tables, bot: Text, user: Text):
         saved_lookup = self.__fetch_all_lookup_values(bot)
@@ -501,15 +511,9 @@ class MongoProcessor:
 
     def __fetch_all_regex_patterns(self, bot: Text):
         regex_patterns = list(
-            RegexFeatures.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "patterns": {"$push": "$pattern"}, }}]
-            )
+            RegexFeatures.objects(bot=bot, status=True).values_list('pattern')
         )
-
-        if regex_patterns:
-            return regex_patterns[0]["patterns"]
-        else:
-            return []
+        return regex_patterns
 
     def __extract_regex_features(self, regex_features, bot: Text, user: Text):
         saved_regex_patterns = self.__fetch_all_regex_patterns(bot)
@@ -572,17 +576,12 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: List of intents
         """
-        intents = Intents.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "intents": {"$push": "$name"}}}]
-        )
+        intents = Intents.objects(bot=bot, status=status).values_list('name')
         return list(intents)
 
     def __prepare_training_intents(self, bot: Text):
         intents = self.fetch_intents(bot)
-        if intents:
-            return intents[0]["intents"]
-        else:
-            return []
+        return intents
 
     def __prepare_training_intents_and_properties(self, bot: Text):
         intent_properties = []
@@ -615,23 +614,26 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of entities
         """
-        entities = Entities.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "entities": {"$push": "$name"}}}]
-        )
+        entities = Entities.objects(bot=bot, status=status).values_list('name')
         return list(entities)
 
     def __prepare_training_domain_entities(self, bot: Text):
         entities = self.fetch_domain_entities(bot)
-        if entities:
-            return entities[0]["entities"]
-        else:
-            return []
+        return entities
 
     def __extract_forms(self, forms, bot: Text, user: Text):
-        saved_forms = self.__prepare_training_forms(bot)
-        for form in forms:
-            if form not in saved_forms:
-                yield Forms(name=form, bot=bot, user=user)
+
+        saved_forms = list(self.fetch_forms(bot, status=True))
+
+        for form, mappings in forms.items():
+            form_object = self.__save_form_logic(form, mappings, saved_forms, bot, user)
+            if form_object:
+                yield form_object
+
+    def __save_form_logic(self, name, mapping, saved_forms, bot, user):
+        if {name: mapping} not in saved_forms:
+            return Forms(name=name, mapping=mapping, bot=bot, user=user)
+        return None
 
     def __save_forms(self, forms, bot: Text, user: Text):
         if forms:
@@ -647,17 +649,18 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of forms
         """
-        forms = Forms.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "forms": {"$push": "$name"}}}]
-        )
-        return list(forms)
+        forms = Forms.objects(bot=bot, status=status)
+        for form in forms:
+            yield {form.name: form.mapping}
+
 
     def __prepare_training_forms(self, bot: Text):
-        forms = self.fetch_forms(bot)
-        if forms:
-            return forms[0]["forms"]
-        else:
-            return []
+        forms = list(self.fetch_forms(bot))
+        form_dict = {}
+        for form in forms:
+            for name, mapping in form.items():
+                form_dict[name] = mapping
+        return form_dict
 
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
@@ -679,17 +682,12 @@ class MongoProcessor:
         :param status: user id
         :return: list of actions
         """
-        actions = Actions.objects(bot=bot, status=status).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}}}]
-        )
+        actions = Actions.objects(bot=bot, status=status).values_list('name')
         return list(actions)
 
     def __prepare_training_actions(self, bot: Text):
         actions = self.fetch_actions(bot)
-        if actions:
-            return actions[0]["actions"]
-        else:
-            return []
+        return actions
 
     def __extract_session_config(
             self, session_config: SessionConfig, bot: Text, user: Text
@@ -818,14 +816,9 @@ class MongoProcessor:
 
     def __fetch_slot_names(self, bot: Text):
         saved_slots = list(
-            Slots.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "slots": {"$push": "$name"}}}]
-            )
+            Slots.objects(bot=bot, status=True).values_list('name')
         )
-        slots_list = []
-        if saved_slots:
-            slots_list = saved_slots[0]["slots"]
-        return slots_list
+        return saved_slots
 
     def __extract_slots(self, slots, bot: Text, user: Text):
         """
@@ -913,14 +906,9 @@ class MongoProcessor:
 
     def __fetch_story_block_names(self, bot: Text):
         saved_stories = list(
-            Stories.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
-            )
+            Stories.objects(bot=bot, status=True).values_list('block_name')
         )
-        result = []
-        if saved_stories:
-            result = saved_stories[0]["block"]
-        return result
+        return saved_stories
 
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         saved_stories = self.__fetch_story_block_names(bot)
@@ -1026,7 +1014,24 @@ class MongoProcessor:
         :return: config unique id
         """
         try:
-            Utility.validate_rasa_config(configs)
+            config_errors = TrainingDataValidator.validate_rasa_config(configs)
+            if config_errors:
+                raise AppException(config_errors[0])
+            return self.add_or_overwrite_config(configs, bot, user)
+        except Exception as e:
+            logging.exception(e)
+            raise AppException(e)
+
+    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
+        """
+        saves bot configuration
+
+        :param configs: configuration
+        :param bot: bot id
+        :param user: user id
+        :return: config unique id
+        """
+        try:
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = configs["pipeline"]
             config_obj.language = configs["language"]
@@ -1035,9 +1040,7 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException(e)
+
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def delete_config(self, bot: Text, user: Text):
@@ -1109,14 +1112,13 @@ class MongoProcessor:
             story_name = "path_" + data.intent.strip().lower()
             utterance = "utter_" + data.intent.strip().lower()
             events = [
-                {"name": data.intent.strip().lower(), "type": "user"},
-                {"name": utterance.strip().lower(), "type": "action"}]
+                {"name": data.intent.strip().lower(), "type": "INTENT"},
+                {"name": utterance.strip().lower(), "type": "BOT"}]
             try:
-                doc_id = self.add_story(
-                    story_name.lower(),
-                    events=events,
+                doc_id = self.add_complex_story(
+                    story= {'name': story_name.lower(), 'steps': events, 'type': 'STORY'},
                     bot=bot,
-                    user=user,
+                    user=user
                 )
                 status['story'] = doc_id
             except AppException as e:
@@ -1465,14 +1467,13 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
 
-        if not Utility.is_exist(
-                Actions,
-                raise_error=raise_exception,
-                exp_message="Action exists!",
-                name__iexact=name.strip(),
-                bot=bot,
-                status=True
-        ):
+        if not name.startswith('utter_') and not Utility.is_exist(
+                                                Actions,
+                                                raise_error=raise_exception,
+                                                exp_message="Action exists!",
+                                                name__iexact=name.strip(),
+                                                bot=bot,
+                                                status=True):
             action = (
                 Actions(name=name.strip().lower(), bot=bot, user=user).save().to_mongo().to_dict()
             )
@@ -1536,10 +1537,6 @@ class MongoProcessor:
             )
         )[0]
         value = response.save().to_mongo().to_dict()
-        if not Utility.is_exist(
-                Actions, raise_error=False, name__iexact=name, bot=bot, status=True
-        ):
-            Actions(name=name.strip().lower(), bot=bot, user=user).save()
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -1674,39 +1671,6 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def add_story(self, name: Text, events: List[Dict], bot: Text, user: Text):
-        """
-        save story in mongodb
-        
-        :param name: story name
-        :param events: story events list
-        :param bot: bot id
-        :param user: user id
-        :return: story id
-        :raises: AppException: Story already exist!
-
-        :todo need to add the logic to add action, slots and forms if it does not exist
-        """
-        if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
-
-        self.__check_event_existence(
-            events, bot=bot, exp_message="Story already exist!"
-        )
-        return (
-            Stories(
-                block_name=name.strip().lower(),
-                events=events,
-                bot=bot,
-                user=user,
-                start_checkpoints=[STORY_START],
-            )
-                .save()
-                .to_mongo()
-                .to_dict()["_id"]
-                .__str__()
-        )
-
     def __complex_story_prepare_steps(self, steps: List[Dict], bot, user):
         """
         convert kairon story events to rasa story events
@@ -1726,9 +1690,11 @@ class MongoProcessor:
                     type="action"))
                 if step['type']  == "ACTION":
                     self.add_action(step['name'], bot, user, raise_exception=False)
+            else:
+                raise AppException("Invalid event type!")
         return events
 
-    def add_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+    def add_complex_story(self, story: Dict, bot: Text, user: Text):
         """
         save story in mongodb
 
@@ -1740,107 +1706,113 @@ class MongoProcessor:
         :raises: AppException: Story already exist!
 
         """
+        name = story['name']
+        steps = story['steps']
+        type = story['type']
         if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
-
-        Utility.is_exist(Stories, exp_message="Story already exists!", bot=bot, status=True,
-                         block_name__iexact=name)
+            raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
-            raise AppException("Story steps are required")
+            raise AppException("steps are required")
 
         events = self.__complex_story_prepare_steps(steps, bot, user)
 
-        story_id = (
-            Stories(
-                block_name=name.strip().lower(),
-                events=events,
-                bot=bot,
-                user=user,
-                start_checkpoints=[STORY_START],
-            ).save().to_mongo().to_dict()["_id"].__str__()
+        data_class = None
+        if type == "STORY":
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
+        else:
+            raise AppException("Invalid type")
+
+        Utility.is_exist_query(data_class,
+                               query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
+                               exp_message="FLow already exists!")
+
+        data_object = data_class(
+            block_name=name.strip().lower(),
+            events=events,
+            bot=bot,
+            user=user,
+            start_checkpoints=[STORY_START],
+        )
+
+        id = (
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
 
-        return story_id
+        return id
 
-    def update_complex_story(self, name: Text, steps: List[Dict], bot: Text, user: Text):
+    def update_complex_story(self, story: Dict, bot: Text, user: Text):
         """
         Updates story in mongodb
 
-        :param name: story name
-        :param steps: story steps list
+        :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
         :return: story id
         :raises: AppException: Story already exist!
 
         """
+        name = story['name']
+        steps = story['steps']
+        type = story['type']
         if Utility.check_empty_string(name):
-            raise AppException("Story path name cannot be empty or blank spaces")
+            raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
-            raise AppException("Story steps are required")
+            raise AppException("steps are required")
+
+        if type == 'STORY':
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
+        else:
+            raise AppException("Invalid type")
 
         try:
-            story = Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("Story does not exists")
+            raise AppException("FLow does not exists")
 
-        story['events'] = self.__complex_story_prepare_steps(steps, bot, user)
+        events = self.__complex_story_prepare_steps(steps, bot, user)
+        data_object['events'] = events
+        Utility.is_exist_query(data_class,
+                               query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
+                               exp_message="FLow already exists!")
 
         story_id = (
-            story.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
         return story_id
 
-    def delete_complex_story(self, name: str, bot: Text, user: Text):
+    def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
         """
         Soft deletes complex story.
-        :param name: Story name
+        :param name: Flow name
+        :param type: Flow Type
         :param user: user id
         :param bot: bot id
         :return:
         """
-        try:
-            Stories.objects(bot=bot, status=True, block_name__iexact=name).get()
-        except DoesNotExist:
-            raise AppException("Story does not exists")
-        Utility.delete_document(
-            [Stories], bot=bot, user=user, block_name__iexact=name
-        )
 
-
-    def __fetch_list_of_events(self, bot: Text):
-        saved_events = list(
-            Stories.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$name", "events": {"$push": "$events"}}}]
-            )
-        )
-
-        saved_items = list(
-            itertools.chain.from_iterable([items["events"] for items in saved_events])
-        )
-
-        return saved_items
-
-    def __check_event_existence(
-            self, events: List[Dict], bot: Text, exp_message: Text = None, raise_error=True
-    ):
-        saved_items = self.__fetch_list_of_events(bot)
-
-        if events in saved_items:
-            if raise_error:
-                if Utility.check_empty_string(exp_message):
-                    raise AppException("Exception message cannot be empty")
-                raise AppException(exp_message)
-            else:
-                return True
+        data_class = None
+        if type == 'STORY':
+            data_class = Stories
+        elif type == 'RULE':
+            data_class = Rules
         else:
-            if not raise_error:
-                return False
+            raise AppException("Invalid type")
+        try:
+            data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+        except DoesNotExist:
+            raise AppException("Flow does not exists")
+        Utility.delete_document(
+            [data_class], bot=bot, user=user, block_name__iexact=name
+        )
 
     def get_stories(self, bot: Text):
         """
@@ -1851,16 +1823,20 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
-        for value in Stories.objects(bot=bot, status=True):
+        data_list = list(Stories.objects(bot=bot, status=True))
+        data_list.extend(list(Rules.objects(bot=bot, status=True)))
+        for value in data_list:
+            final_data = {}
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
             events = item.pop("events")
-            item.pop("bot")
-            item.pop("user")
-            item.pop("timestamp")
-            item.pop("status")
-            item["_id"] = item["_id"].__str__()
-
+            final_data["_id"] = item["_id"].__str__()
+            if isinstance(value, Stories):
+                final_data['type'] = 'STORY'
+            elif isinstance(value, Rules):
+                final_data['type'] = 'RULE'
+            else:
+                continue
             steps = []
             for event in events:
                 step = {}
@@ -1879,9 +1855,9 @@ class MongoProcessor:
                 if step:
                     steps.append(step)
 
-            item['name'] = block_name
-            item['steps'] = steps
-            yield item
+            final_data['name'] = block_name
+            final_data['steps'] = steps
+            yield final_data
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):
         """
@@ -2169,20 +2145,6 @@ class MongoProcessor:
         except DoesNotExist as e:
             raise AppException(e)
 
-    def delete_story(self, story: str, user: str, bot: str):
-        """
-        Soft deletes the story.
-        :param story: Story name
-        :param user: user id
-        :param bot: bot id
-        :return:
-        """
-        try:
-            Utility.delete_document([Stories], block_name__iexact=story, bot=bot, user=user)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException(e)
-
     def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):
         """
         Updates Http configuration.
@@ -2293,26 +2255,17 @@ class MongoProcessor:
         return list(self.__prepare_document_list(actions, "action_name"))
 
     def list_actions(self, bot: Text):
-        actions = list(Actions.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$name"}, }}]
-        ))
+        actions = list(Actions.objects(bot=bot, status=True).values_list('name'))
 
         if actions:
             http_actions = self.list_http_action_names(bot)
-            print(http_actions)
-            return [action for action in actions[0]['actions'] if not str(action).startswith("utter_") and action not in http_actions]
+            return [action for action in actions if not str(action).startswith("utter_") and action not in http_actions]
         else:
-            return []
+            return actions
 
     def list_http_action_names(self, bot: Text):
-        actions = list(HttpActionConfig.objects(bot=bot, status=True).aggregate(
-            [{"$group": {"_id": "$bot", "actions": {"$push": "$action_name"}, }}]
-        ))
-
-        if actions:
-            return actions[0]['actions']
-        else:
-            return []
+        actions = list(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        return actions
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         try:
@@ -2386,14 +2339,9 @@ class MongoProcessor:
     @staticmethod
     def fetch_rule_block_names(bot: Text):
         saved_stories = list(
-            Rules.objects(bot=bot, status=True).aggregate(
-                [{"$group": {"_id": "$bot", "block": {"$push": "$block_name"}, }}]
-            )
+            Rules.objects(bot=bot, status=True).values_list('block_name')
         )
-        result = []
-        if saved_stories:
-            result = saved_stories[0]["block"]
-        return result
+        return saved_stories
 
     def save_rules(self, story_steps, bot: Text, user: Text):
         if story_steps:
@@ -2445,48 +2393,6 @@ class MongoProcessor:
 
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
-
-    def read_http_file(self, path: Text, raise_exception: bool = False):
-        http_actions = None
-        http_actions_yml = os.path.join(path, 'http_action.yml')
-        if os.path.exists(http_actions_yml):
-            http_actions = Utility.load_yaml(http_actions_yml)
-            self.validate_http_file(http_actions)
-        else:
-            if raise_exception:
-                raise AppException('Path does not exists!')
-        return http_actions
-
-    def validate_http_file(self, content: dict):
-        required_fields = ['action_name', 'response', 'http_url', 'request_method']
-        action_names = []
-
-        if not content or not content.get('http_actions'):
-            return
-
-        actions = content.get('http_actions')
-        for http_obj in actions:
-            if all(name in http_obj for name in required_fields):
-                if (not http_obj.get('request_method') or
-                        http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}):
-                    raise AppException('Invalid request method: ' + http_obj['action_name'])
-
-                if http_obj['action_name'] not in action_names:
-
-                    if http_obj.get('params_list'):
-                        for param in http_obj.get('params_list'):
-                            if not param.get('key'):
-                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
-                                raise AppException('Invalid params_list for http action: ' + http_obj['action_name'])
-                            if param.get('parameter_type') == 'slot' and not param.get('value'):
-                                param['value'] = param.get('key')
-
-                    action_names.append(http_obj['action_name'])
-                else:
-                    raise AppException("Duplicate http action found")
-            else:
-                raise AppException("Required http action fields not found")
 
     def save_http_action(self, http_action: dict, bot: Text, user: Text):
         """
@@ -2566,377 +2472,125 @@ class MongoProcessor:
 
     @staticmethod
     def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
+        """
+        Add user feedback.
+        @param rating: user given rating.
+        @param bot: bot id.
+        @param user: Kairon username.
+        @param scale: Scale on which rating is given. %.0 is the default value.
+        @param feedback: feedback if any.
+        @return:
+        """
         Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
-class AgentProcessor:
-    """
-    Class contains logic for loading bot agents
-    """
-
-    mongo_processor = MongoProcessor()
-    cache_provider: AgentCache = Utility.create_cache()
-
-    @staticmethod
-    def get_agent(bot: Text) -> Agent:
-        """
-        fetch the bot agent from cache if exist otherwise load it into the cache
-
-        :param bot: bot id
-        :return: Agent Object
-        """
-        if not AgentProcessor.cache_provider.is_exists(bot):
-            AgentProcessor.reload(bot)
-        return AgentProcessor.cache_provider.get(bot)
-
-    @staticmethod
-    def get_latest_model(bot: Text):
-        """
-        fetches the latest model from the path
-
-        :param bot: bot id
-        :return: latest model path
-        """
-        return Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
-
-    @staticmethod
-    def reload(bot: Text):
-        """
-        reload bot agent
-
-        :param bot: bot id
-        :return: None
-        """
-        try:
-            endpoint = AgentProcessor.mongo_processor.get_endpoints(
-                bot, raise_exception=False
-            )
-            action_endpoint = Utility.get_action_url(endpoint)
-            model_path = AgentProcessor.get_latest_model(bot)
-            domain = AgentProcessor.mongo_processor.load_domain(bot)
-            mongo_store = Utility.get_local_mongo_store(bot, domain)
-            interpreter = Utility.get_interpreter(model_path)
-            agent = Agent.load(
-                model_path, interpreter=interpreter, action_endpoint=action_endpoint, tracker_store=mongo_store
-            )
-            AgentProcessor.cache_provider.set(bot, agent)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException("Bot has not been trained yet !")
-
-
-class ModelProcessor:
-    """
-    Class contains logic for model training history
-    """
-
-    @staticmethod
-    def set_training_status(
-            bot: Text,
-            user: Text,
-            status: Text,
-            model_path: Text = None,
-            exception: Text = None,
-    ):
-        """
-        add or update bot training history
-
-        :param bot: bot id
-        :param user: user id
-        :param status: InProgress, Done, Fail
-        :param model_path: new model path
-        :param exception: exception while training
-        :return: None
-        """
-        try:
-            doc = ModelTraining.objects(bot=bot).get(
-                status=MODEL_TRAINING_STATUS.INPROGRESS
-            )
-            doc.status = status
-            doc.end_timestamp = datetime.utcnow()
-        except DoesNotExist:
-            doc = ModelTraining()
-            doc.status = status
-            doc.start_timestamp = datetime.utcnow()
-            if status in [MODEL_TRAINING_STATUS.FAIL, MODEL_TRAINING_STATUS.DONE]:
-                doc.end_timestamp = datetime.utcnow()
-
-        doc.bot = bot
-        doc.user = user
-        doc.model_path = model_path
-        doc.exception = exception
-        doc.save()
-
-    @staticmethod
-    def is_training_inprogress(bot: Text, raise_exception=True):
-        """
-        checks if there is any bot training in progress
-
-        :param bot: bot id
-        :param raise_exception: whether to raise an exception, default is True
-        :return: None
-        :raises: AppException
-        """
-        if ModelTraining.objects(
-                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
-        ).count():
-            if raise_exception:
-                raise AppException("Previous model training in progress.")
-            else:
-                return True
+    async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
+        DataImporterLogProcessor.is_limit_exceeded(bot)
+        DataImporterLogProcessor.is_event_in_progress(bot)
+        files_received, is_event_data, non_event_validation_summary = await self.validate_and_prepare_data(bot,
+                                                                                                           user,
+                                                                                                           training_files,
+                                                                                                           overwrite)
+        if is_event_data:
+            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
         else:
-            return False
+            status = 'Failure'
+            if not non_event_validation_summary.get('http_actions') and not non_event_validation_summary.get('config'):
+                status = 'Success'
+            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, status=status,
+                                             event_status=EVENT_STATUS.COMPLETED.value,
+                                             summary=non_event_validation_summary, files_received=list(files_received))
 
-    @staticmethod
-    def is_daily_training_limit_exceeded(bot: Text, raise_exception=True):
+        return is_event_data
+
+    async def validate_and_prepare_data(self, bot: Text, user: Text, training_files: List, overwrite: bool):
         """
-        checks if daily bot training limit is exhausted
-
-        :param bot: bot id
-        :param raise_exception: whether to raise and exception
-        :return: boolean
-        :raises: AppException
+        Saves training data (zip, file or files) and validates whether at least one
+        training file exists in the received set of files. If some training files are
+        missing then, it prepares the rest of the data from database.
+        In case only http actions are received, then it is validated and saved.
+        Finally, a list of files received are returned.
         """
-        today = datetime.today()
+        non_event_validation_summary = None
+        bot_data_home_dir = await Utility.save_uploaded_data(bot, training_files)
+        files_to_prepare = Utility.validate_and_get_requirements(bot_data_home_dir, True)
+        files_received = REQUIREMENTS - files_to_prepare
+        is_event_data = False
 
-        today_start = today.replace(hour=0, minute=0, second=0)
-        doc_count = ModelTraining.objects(
-            bot=bot, start_timestamp__gte=today_start
-        ).count()
-        if doc_count >= Utility.environment['model']['train']["limit_per_day"]:
-            if raise_exception:
-                raise AppException("Daily model training limit exceeded.")
-            else:
-                return True
+        if files_received.difference({'config', 'http_actions'}):
+            is_event_data = True
         else:
-            return False
+            non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
+        return files_received, is_event_data, non_event_validation_summary
 
-    @staticmethod
-    def get_training_history(bot: Text):
+    def save_data_without_event(self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool):
         """
-        fetches bot training history
-
-        :param bot: bot id
-        :return: yield dict of training history
+        Saves http actions and config file.
         """
-        for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
-            item = value.to_mongo().to_dict()
-            item.pop("bot")
-            item["_id"] = item["_id"].__str__()
-            yield item
+        http_actions = None
+        config = None
+        error_summary = {}
+        actions_path = os.path.join(data_home_dir, 'http_action.yml')
+        config_path = os.path.join(data_home_dir, 'config.yml')
+        if os.path.exists(actions_path):
+            http_actions = Utility.read_yaml(actions_path)
+            errors = TrainingDataValidator.validate_http_actions(http_actions)
+            error_summary['http_actions'] = errors
+        if os.path.exists(config_path):
+            config = Utility.read_yaml(config_path)
+            errors = TrainingDataValidator.validate_rasa_config(config)
+            error_summary['config'] = errors
 
+        if not error_summary.get('http_actions') and not error_summary.get('config'):
+            files_to_save = set()
+            if http_actions:
+                files_to_save.add('http_actions')
+            if config:
+                files_to_save.add('config')
+            self.save_training_data(bot, user, http_actions=http_actions, config=config,
+                                    overwrite=overwrite, what=files_to_save)
+        return error_summary
 
-class TrainingDataGenerationProcessor:
-    """
-    Class contains logic for adding/updating training data generator status and history
-    """
-    @staticmethod
-    def validate_history_id(doc_id):
-        try:
-            history = TrainingDataGenerator.objects().get(id=doc_id)
-            if not history.response:
-                raise AppException("No Training Data Generated")
-        except DoesNotExist:
-            raise AppException("Matching history_id not found!")
-
-    @staticmethod
-    def retreive_response_and_set_status(request_data, bot, user):
-        training_data_list = None
-        if request_data.response:
-            training_data_list = []
-            for training_data in request_data.response:
-                training_examples = []
-                for example in training_data.training_examples:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example
-                        )
-                    )
-
-                training_data_list.append(
-                    TrainingDataGeneratorResponse(
-                        intent=training_data.intent,
-                        training_examples=training_examples,
-                        response=training_data.response
-                    ))
-        TrainingDataGenerationProcessor.set_status(
-            status=request_data.status,
-            response=training_data_list,
-            exception=request_data.exception,
-            bot=bot,
-            user=user
-        )
-
-    @staticmethod
-    def set_status(
-            bot: Text,
-            user: Text,
-            status: Text,
-            document_path=None,
-            response=None,
-            exception: Text = None,
-    ):
+    def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
+                                             which: set = REQUIREMENTS):
         """
-        add or update training data generator status
-
-        :param bot: bot id
-        :param user: user id
-        :param status: InProgress, Done, Fail
-        :param response: data generation response
-        :param exception: exception while training
-        :return: None
+        Writes training data into files and makes them available for validation.
+        @param bot: bot id.
+        @param bot_data_home_dir: location where data needs to be written
+        @param which: which training data is to be written
+        @return:
         """
-        try:
-            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
-                    Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get()
-            doc.status = status
-        except DoesNotExist:
-            doc = TrainingDataGenerator()
-            doc.status = TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
-            doc.document_path = document_path
-            doc.start_timestamp = datetime.utcnow()
+        if not bot_data_home_dir:
+            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+        Utility.make_dirs(data_path)
 
-        doc.last_update_timestamp = datetime.utcnow()
-        if status in [TRAINING_DATA_GENERATOR_STATUS.FAIL, TRAINING_DATA_GENERATOR_STATUS.COMPLETED]:
-            doc.end_timestamp = datetime.utcnow()
-            doc.last_update_timestamp = doc.end_timestamp
-        doc.bot = bot
-        doc.user = user
-        doc.response = response
-        doc.exception = exception
-        doc.save()
+        if 'nlu' in which:
+            nlu_path = os.path.join(data_path, "nlu.yml")
+            nlu = self.load_nlu(bot)
+            nlu_as_str = nlu.nlu_as_yaml().encode()
+            Utility.write_to_file(nlu_path, nlu_as_str)
 
-    @staticmethod
-    def fetch_latest_workload(
-            bot: Text,
-            user: Text,
-    ):
-        """
-        fetch latest training data generator task
+        if 'domain' in which:
+            domain_path = os.path.join(bot_data_home_dir, DEFAULT_DOMAIN_PATH)
+            domain = self.load_domain(bot)
+            if isinstance(domain, Domain):
+                domain_as_str = domain.as_yaml().encode()
+                Utility.write_to_file(domain_path, domain_as_str)
+            elif isinstance(domain, Dict):
+                yaml.safe_dump(domain, open(domain_path, "w"))
 
-        :param bot: bot id
-        :param user: user id
-        :return: None
-        """
-        try:
-            doc = TrainingDataGenerator.objects(bot=bot, user=user).filter(
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED.value) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED.value) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS.value)).get().to_mongo().to_dict()
-            doc.pop('_id')
-        except DoesNotExist:
-            doc = None
-        return doc
+        if 'stories' in which:
+            stories_path = os.path.join(data_path, "stories.yml")
+            stories = self.load_stories(bot)
+            YAMLStoryWriter().dump(stories_path, stories.story_steps)
 
-    @staticmethod
-    def is_in_progress(bot: Text, raise_exception=True):
-        """
-        checks if there is any training data generation in progress
+        if 'config' in which:
+            config_path = os.path.join(bot_data_home_dir, DEFAULT_CONFIG_PATH)
+            config = self.load_config(bot)
+            config_as_str = yaml.dump(config).encode()
+            Utility.write_to_file(config_path, config_as_str)
 
-        :param bot: bot id
-        :param raise_exception: whether to raise an exception, default is True
-        :return: None
-        :raises: AppException
-        """
-        if TrainingDataGenerator.objects(bot=bot).filter(
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INITIATED) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.INPROGRESS) |
-                Q(status=TRAINING_DATA_GENERATOR_STATUS.TASKSPAWNED)).count():
-            if raise_exception:
-                raise AppException("Previous data generation process not completed")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def get_training_data_generator_history(bot: Text):
-        """
-        fetches training data generator history
-
-        :param bot: bot id
-        :return: yield dict of training history
-        """
-        return list(TrainingDataGenerationProcessor.__get_all_history(bot))
-
-    @staticmethod
-    def __get_all_history(bot: Text):
-        """
-        fetches training data generator history
-
-        :param bot: bot id
-        :return: yield dict of training history
-        """
-        for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
-            item = value.to_mongo().to_dict()
-            if item.get('document_path'):
-                item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
-            item.pop("bot")
-            item.pop("user")
-            item["_id"] = item["_id"].__str__()
-            yield item
-
-    @staticmethod
-    def check_data_generation_limit(bot: Text, raise_exception=True):
-        """
-        checks if daily training data generation limit is exhausted
-
-        :param bot: bot id
-        :param raise_exception: whether to raise and exception
-        :return: boolean
-        :raises: AppException
-        """
-        today = datetime.today()
-
-        today_start = today.replace(hour=0, minute=0, second=0)
-        doc_count = TrainingDataGenerator.objects(
-            bot=bot, start_timestamp__gte=today_start
-        ).count()
-        if doc_count >= Utility.environment['data_generation']["limit_per_day"]:
-            if raise_exception:
-                raise AppException("Daily file processing limit exceeded.")
-            else:
-                return True
-        else:
-            return False
-
-    @staticmethod
-    def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
-        history = TrainingDataGenerator.objects().get(id=doc_id)
-        updated_training_data_with_flag = []
-        for training_data in history.response:
-            intent = training_data.intent
-            response = training_data.response
-            existing_training_examples = [example.training_example for example in training_data.training_examples]
-            training_examples = []
-
-            if persisted_training_data.get(intent):
-                examples_added = persisted_training_data.get(training_data.intent)
-                examples_not_added = list(set(existing_training_examples) - set(examples_added))
-
-                for example in examples_not_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example
-                        )
-                    )
-
-                for example in examples_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example,
-                            is_persisted=True
-                        )
-                    )
-            else:
-                training_examples = training_data.training_examples
-
-            updated_training_data_with_flag.append(
-                TrainingDataGeneratorResponse(
-                    intent=intent,
-                    training_examples=training_examples,
-                    response=response
-                ))
-        history.response = updated_training_data_with_flag
-        history.save()
+        if 'rules' in which:
+            rules_path = os.path.join(data_path, "rules.yml")
+            rules = self.get_rules_for_training(bot)
+            YAMLStoryWriter().dump(rules_path, rules.story_steps)
