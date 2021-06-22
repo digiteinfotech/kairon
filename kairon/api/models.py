@@ -344,3 +344,14 @@ class ParaphrasesRequest(BaseModel):
         elif len(v) > 5:
             raise ValueError("Max 5 Questions are allowed!")
         return v
+
+
+class SlotRequest(BaseModel):
+    name: str
+    type: str
+    initial_value: Any
+    auto_fill: bool = True
+    values: List[str] = None
+    max_value: float = None
+    min_value: float = None
+    influence_conversation: bool = False
