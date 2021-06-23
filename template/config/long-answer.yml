@@ -12,6 +12,8 @@ pipeline:
     max_ngram: 4
   - name: DIETClassifier
     epochs: 100
+  - name: FallbackClassifier
+    threshold: 0.7
   - name: EntitySynonymMapper
   - name: ResponseSelector
     epochs: 100
@@ -21,3 +23,5 @@ policies:
   - name: TEDPolicy
     epochs: 200
   - name: RulePolicy
+    core_fallback_action_name: "action_default_fallback"
+    core_fallback_threshold: 0.3

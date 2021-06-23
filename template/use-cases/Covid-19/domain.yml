@@ -155,6 +155,8 @@ responses:
   - text: You are wellcome!
   utter_form_thanks:
   - text: Thank you for the details! How may I help you?
+  utter_default:
+    - text: Sorry I didn't get that. Can you rephrase?
 actions:
 - utter_greet
 - utter_cheer_up

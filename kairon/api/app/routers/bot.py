@@ -17,8 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest,
-    StoryType,
-    SlotRequest
+    StoryType, ComponentConfig
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS
@@ -555,6 +554,35 @@ async def set_config(
     return {"message": "Config saved!"}
 
 
+@router.put("/config/properties", response_model=Response)
+async def set_epoch_and_fallback_properties(config: ComponentConfig, current_user: User = Depends(auth.get_current_user)):
+    """
+    Set properties (epoch and fallback) in the bot pipeline and policies configurations
+    """
+    mongo_processor.save_component_properties(config.dict(), current_user.get_bot(), current_user.get_user())
+    return {"message": "Config saved"}
+
+
+@router.delete("/config/properties", response_model=Response)
+async def delete_fallback_properties(delete_nlu_fallback: bool = True, delete_action_fallback: bool = True,
+                                     current_user: User = Depends(auth.get_current_user)):
+    """
+    Deletes Fallback configuration
+    """
+    mongo_processor.delete_fallback_properties(current_user.get_bot(), current_user.get_user(),
+                                               delete_nlu_fallback, delete_action_fallback)
+    return {"message": "Config deleted"}
+
+
+@router.get("/config/properties", response_model=Response)
+async def list_epoch_and_fallback_properties(current_user: User = Depends(auth.get_current_user)):
+    """
+    List properties (epoch and fallback) in the bot pipeline and policies configurations
+    """
+    config = mongo_processor.list_epoch_and_fallback_config(current_user.get_bot())
+    return {"data": config}
+
+
 @router.get("/templates/use-case", response_model=Response)
 async def get_templates(current_user: User = Depends(auth.get_current_user)):
     """
@@ -748,75 +776,6 @@ async def get_latest_data_generation_status(
     """
     slots = list(mongo_processor.get_existing_slots(current_user.get_bot()))
     return {"data": slots}
-
-
-@router.post("/slots", response_model=Response)
-async def add_slots(
-        request_data: SlotRequest,
-        current_user: User = Depends(auth.get_current_user)
-):
-
-    slot_value = {
-        "name": request_data.name,
-        "type": request_data.type,
-        "initial_value": request_data.initial_value,
-        "auto_fill": request_data.auto_fill,
-        "values": request_data.values,
-        "max_value": request_data.max_value,
-        "min_value": request_data.min_value,
-        "influence_conversation": request_data.influence_conversation
-    }
-
-    try:
-        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=True)
-    except AppException as ae:
-        if str(ae) == "Slot already exists!":
-            return {"message": str(ae)}
-        else:
-            raise AppException(str(ae))
-
-    return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
-
-
-@router.delete("/slots/{slot}", response_model=Response)
-async def delete_slots(
-        slot: str = Path(default=None, description="slot name", example="bot"),
-        current_user: User = Depends(auth.get_current_user)
-):
-    """
-    deletes an existing slot
-    :param slot:
-    :param current_user:
-    :return:
-    """
-    mongo_processor.delete_slot(slot=slot, bot=current_user.get_bot(), user=current_user.get_user())
-
-    return {"message": "Slot deleted!"}
-
-
-@router.put("/slot/{slot}", response_model=Response)
-async def edit_slots(
-        request_data: SlotRequest,
-        current_user: User = Depends(auth.get_current_user)
-):
-    try:
-
-        slot_value = {
-            "name": request_data.name,
-            "type": request_data.type,
-            "initial_value": request_data.initial_value,
-            "auto_fill": request_data.auto_fill,
-            "values": request_data.values,
-            "max_value": request_data.max_value,
-            "min_value": request_data.min_value,
-            "influence_conversation": request_data.influence_conversation
-        }
-
-        mongo_processor.edit_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot())
-    except Exception as e:
-        raise AppException(e)
-
-    return {"message": "Slot updated!"}
 
 
 @router.post("/feedback", response_model=Response)

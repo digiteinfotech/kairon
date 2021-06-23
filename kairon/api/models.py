@@ -127,6 +127,26 @@ class RasaConfig(BaseModel):
     policies: List[Dict]
 
 
+class ComponentConfig(BaseModel):
+    nlu_epochs: int = None
+    response_epochs: int = None
+    ted_epochs: int = None
+    nlu_confidence_threshold: int = None
+    action_fallback: str = None
+
+    @validator('nlu_epochs', 'response_epochs', 'ted_epochs')
+    def validate_epochs(cls, v):
+        if v is not None and v < 1:
+            raise ValueError("Choose a positive number as epochs")
+        return v
+
+    @validator("nlu_confidence_threshold")
+    def validate_confidence_threshold(cls, v):
+        if v and (v > 90 or v < 30):
+            raise ValueError("Please choose a threshold between 30 and 90")
+        return v
+
+
 class Password(BaseModel):
     data: str
     password: SecretStr
