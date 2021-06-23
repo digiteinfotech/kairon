@@ -304,7 +304,7 @@ class MongoProcessor:
         self.__save_intents(domain.intent_properties, bot, user)
         self.__save_domain_entities(domain.entities, bot, user)
         self.__save_forms(domain.forms, bot, user)
-        actions = list(filter(lambda actions: not actions.startswith('utter_') and actions not in domain.form_names, domain.user_actions))
+        actions = list(filter(lambda actions: not actions.startswith('utter_'), domain.user_actions))
         self.__save_actions(actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
         self.__save_slots(domain.slots, bot, user)
@@ -883,6 +883,7 @@ class MongoProcessor:
                     SLOTS.AUTO_FILL.value: slot.auto_fill,
                 }
             value[SLOTS.TYPE.value] = slot.type
+            value['influence_conversation'] = slot.influence_conversation
             results.append({key: value})
         return dict(ChainMap(*results))
 
