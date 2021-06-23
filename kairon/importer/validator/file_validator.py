@@ -36,6 +36,7 @@ class TrainingDataValidator(Validator):
         super().__init__(validator.domain, validator.intents, validator.story_graph)
         self.validator = validator
         self.summary = {}
+        self.component_count = {}
 
     @classmethod
     async def from_importer(cls, importer: TrainingDataImporter):
@@ -87,6 +88,7 @@ class TrainingDataValidator(Validator):
         """
         duplicate_training_example = []
         duplication_hash = defaultdict(set)
+        self.component_count['training_examples'] = len(self.intents.intent_examples)
         for example in self.intents.intent_examples:
             text = example.get(constants.TEXT)
             duplication_hash[text].add(example.get("intent"))
@@ -110,6 +112,7 @@ class TrainingDataValidator(Validator):
         @param max_history:
         @return:
         """
+        self.component_count['stories'] = len(self.story_graph.story_steps) if self.story_graph else 0
         trackers = TrainingDataGenerator(
             self.story_graph,
             domain=self.domain,
@@ -137,6 +140,7 @@ class TrainingDataValidator(Validator):
         """
         intents_mismatch_summary = []
         nlu_data_intents = {e.data["intent"] for e in self.intents.intent_examples}
+        self.component_count['intents'] = len(nlu_data_intents)
 
         for intent in self.domain.intents:
             if intent not in nlu_data_intents and intent not in DEFAULT_INTENTS:
@@ -199,6 +203,7 @@ class TrainingDataValidator(Validator):
         utterance_mismatch_summary = []
         actions = self.domain.action_names
         utterance_templates = set(self.domain.templates)
+        self.component_count['utterances'] = len(self.domain.templates)
 
         for utterance in utterance_templates:
             if utterance not in actions:
@@ -319,8 +324,15 @@ class TrainingDataValidator(Validator):
         Checks whether domain is empty or not.
         @return:
         """
+        self.component_count['domain'] = {}
+        self.component_count['domain']['intents'] = len(self.domain.intents)
+        self.component_count['domain']['utterances'] = len(self.domain.templates)
+        self.component_count['domain']['actions'] = len(self.domain.user_actions)
+        self.component_count['domain']['forms'] = len(self.domain.form_names)
+        self.component_count['domain']['slots'] = len(self.domain.slots)
+        self.component_count['domain']['entities'] = len(self.domain.entities)
         if self.domain.is_empty():
-            self.summary['domain'] = "domain.yml is empty!"
+            self.summary['domain'] = ["domain.yml is empty!"]
 
     @staticmethod
     def validate_http_actions(http_actions: Dict):
@@ -369,6 +381,8 @@ class TrainingDataValidator(Validator):
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
+        self.component_count['http_actions'] = len(self.http_actions.get('http_actions')) \
+            if self.http_actions and self.http_actions.get('http_actions') else 0
         errors = TrainingDataValidator.validate_http_actions(self.http_actions)
         self.summary['http_actions'] = errors
         if errors and raise_exception:

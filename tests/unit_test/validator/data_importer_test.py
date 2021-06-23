@@ -33,7 +33,7 @@ class TestDataImporter:
     async def test_validate_success(self):
         path = 'tests/testing_data/validator/valid'
         importer = DataImporter(path, 'test_data_import', 'test', REQUIREMENTS.copy(), False, False)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -53,7 +53,7 @@ class TestDataImporter:
         shutil.copytree(path, bot_home)
         shutil.copy2(http_actions, bot_home)
         importer = DataImporter(bot_home, bot, user, REQUIREMENTS.copy(), False, False)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -67,7 +67,7 @@ class TestDataImporter:
     async def test_validate_failure(self):
         path = 'tests/testing_data/validator/common_training_examples'
         importer = DataImporter(path, 'test_data_import', 'test', REQUIREMENTS.copy())
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -172,7 +172,7 @@ class TestDataImporter:
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS.copy(), True)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')

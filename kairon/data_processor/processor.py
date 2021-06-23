@@ -41,7 +41,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, DEFAULT_FALLBACK_RESPONSE
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, DEFAULT_FALLBACK_RESPONSE, COMPONENT_COUNT
 )
 from .data_objects import (
     Responses,
@@ -1040,6 +1040,13 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
+        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
+        if not rule_policy:
+            rule_policy['name'] = 'RulePolicy'
+            config_obj["policies"].append(rule_policy)
+        if not rule_policy.get('core_fallback_action_name'):
+            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
+            rule_policy['core_fallback_threshold'] = 0.3
 
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
@@ -1130,6 +1137,75 @@ class MongoProcessor:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
                 self.add_text_response(DEFAULT_FALLBACK_RESPONSE, 'utter_default', bot, user)
         self.save_config(config, bot, user)
+
+    def save_component_properties(self, configs: dict, bot: Text, user: Text):
+        """
+        Set properties (epoch and fallback) in the bot pipeline and policies configurations
+
+        :param configs: nlu fallback threshold, action fallback threshold and fallback action, epochs for policies.
+        :param bot: bot id
+        :param user: user id
+        :return: config unique id
+        """
+        nlu_confidence_threshold = configs.get("nlu_confidence_threshold")
+        action_fallback = configs.get("action_fallback")
+        nlu_epochs = configs.get("nlu_epochs")
+        response_epochs = configs.get("response_epochs")
+        ted_epochs = configs.get("ted_epochs")
+
+        if not nlu_epochs and not response_epochs and not ted_epochs and not nlu_confidence_threshold and not action_fallback:
+            raise AppException("At least one field is required")
+
+        present_config = self.load_config(bot)
+        if nlu_confidence_threshold:
+            nlu_confidence_threshold = nlu_confidence_threshold/100
+            fallback_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+            if fallback_classifier_idx:
+                del present_config['pipeline'][fallback_classifier_idx]
+            diet_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
+            fallback = {'name': 'FallbackClassifier', 'threshold': nlu_confidence_threshold}
+            present_config['pipeline'].insert(diet_classifier_idx + 1, fallback)
+            rule_policy = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            if not rule_policy:
+                rule_policy['name'] = 'RulePolicy'
+                present_config['policies'].append(rule_policy)
+
+        if action_fallback:
+            if action_fallback == 'action_default_fallback':
+                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                                    name__iexact='utter_default')
+                if not utterance_exists:
+                    raise AppException("Utterance utter_default not defined")
+            else:
+                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                                    name__iexact=action_fallback)
+                if not (utterance_exists or
+                        Utility.is_exist(Actions, raise_error=False, bot=bot, status=True, name__iexact=action_fallback)):
+                    raise AppException(f"Action fallback {action_fallback} does not exists")
+            fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            if not fallback:
+                fallback['name'] = 'RulePolicy'
+                present_config['policies'].append(fallback)
+            fallback['core_fallback_action_name'] = action_fallback
+            fallback['core_fallback_threshold'] = 0.3
+
+        Utility.add_or_update_epoch(present_config, configs)
+        self.save_config(present_config, bot, user)
+
+    def list_epoch_and_fallback_config(self, bot: Text):
+        config = self.load_config(bot)
+        selected_config = {}
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')
+        selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
+        selected_config['ted_epochs'] = ted_policy.get('epochs')
+        selected_config['nlu_epochs'] = diet_classifier.get('epochs')
+        selected_config['response_epochs'] = response_selector.get('epochs')
+        return selected_config
 
     def delete_config(self, bot: Text, user: Text):
         """
@@ -2578,15 +2654,15 @@ class MongoProcessor:
                                                                                                            user,
                                                                                                            training_files,
                                                                                                            overwrite)
-        if is_event_data:
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
-        else:
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
+        if not is_event_data:
             status = 'Failure'
-            if not non_event_validation_summary.get('http_actions') and not non_event_validation_summary.get('config'):
+            summary = non_event_validation_summary['summary']
+            component_count = non_event_validation_summary['component_count']
+            if not summary.get('http_actions') and not summary.get('config'):
                 status = 'Success'
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, status=status,
-                                             event_status=EVENT_STATUS.COMPLETED.value,
-                                             summary=non_event_validation_summary, files_received=list(files_received))
+            DataImporterLogProcessor.update_summary(bot, user, component_count, summary, status=status,
+                                                    event_status=EVENT_STATUS.COMPLETED.value)
 
         return is_event_data
 
@@ -2617,6 +2693,7 @@ class MongoProcessor:
         http_actions = None
         config = None
         error_summary = {}
+        component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'http_action.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
         if os.path.exists(actions_path):
@@ -2632,11 +2709,12 @@ class MongoProcessor:
             files_to_save = set()
             if http_actions:
                 files_to_save.add('http_actions')
+                component_count['http_actions'] = len(http_actions.get('http_actions'))
             if config:
                 files_to_save.add('config')
             self.save_training_data(bot, user, http_actions=http_actions, config=config,
                                     overwrite=overwrite, what=files_to_save)
-        return error_summary
+        return {'summary': error_summary, 'component_count': component_count}
 
     def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
                                              which: set = REQUIREMENTS):

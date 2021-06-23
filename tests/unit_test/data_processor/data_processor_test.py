@@ -2503,7 +2503,7 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
-        assert non_event_validation_summary['http_actions'][0] == 'Required http action fields not found'
+        assert non_event_validation_summary['summary']['http_actions'] == ['Required http action fields not found']
         assert files_received == {'http_actions', 'config'}
         assert not is_event_data
 
