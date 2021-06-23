@@ -203,7 +203,7 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 3
         assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
@@ -244,7 +244,7 @@ class TestEvents:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 5
         assert len(processor.fetch_actions(bot)) == 4
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
@@ -283,7 +283,7 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 3
         assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
@@ -451,7 +451,7 @@ class TestEvents:
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
-        assert not logs[0].get('utterances').get('data')
+        assert len(logs[0].get('utterances').get('data')) == 1
         assert not logs[0].get('http_actions').get('data')
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
@@ -496,7 +496,7 @@ class TestEvents:
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
-        assert not logs[0].get('utterances').get('data')
+        assert len(logs[0].get('utterances').get('data')) == 1
         assert not logs[0].get('http_actions').get('data')
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
@@ -541,7 +541,7 @@ class TestEvents:
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
-        assert not logs[0].get('utterances').get('data')
+        assert len (logs[0].get('utterances').get('data')) == 1
         assert not logs[0].get('http_actions').get('data')
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
@@ -599,7 +599,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -621,7 +621,7 @@ class TestEvents:
         assert len(logs) == 2
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
-        assert not logs[0].get('utterances').get('data')
+        assert len(logs[0].get('utterances').get('data')) == 1
         assert not logs[0].get('http_actions').get('data')
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')

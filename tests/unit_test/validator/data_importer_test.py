@@ -107,7 +107,7 @@ class TestDataImporter:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 3
         assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
@@ -129,7 +129,7 @@ class TestDataImporter:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 5
         assert len(processor.fetch_actions(bot)) == 4
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
@@ -153,7 +153,7 @@ class TestDataImporter:
         assert 'affirm' in intents
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 5
         assert len(processor.fetch_actions(bot)) == 4
         assert len(processor.fetch_rule_block_names(bot)) == 3
 
