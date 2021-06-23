@@ -7,7 +7,6 @@ from datetime import datetime
 from io import BytesIO
 from typing import List
 
-import elasticmock
 import pytest
 import responses
 from fastapi import UploadFile
@@ -105,6 +104,57 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_add_or_overwrite_config_no_existing_config(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
+        assert rule_policy['core_fallback_threshold'] == 0.75
+
+    def test_add_or_overwrite_config(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        idx = next((idx for idx, comp in enumerate(config["policies"]) if comp['name'] == 'RulePolicy'), {})
+        del config['policies'][idx]
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_add_or_overwrite_config_user_fallback(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        comp = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        comp['epoch'] = 200
+        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp['core_fallback_action_name'] = 'action_error'
+        comp['core_fallback_threshold'] = 0.5
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        assert diet_classifier['epoch'] == 200
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_error'
+        assert rule_policy['core_fallback_threshold'] == 0.5
+
     @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
@@ -142,14 +192,14 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
         assert domain.forms['ticket_file_form'] == {'file': [{'type': 'from_entity', 'entity': 'file'}]}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 41
+        assert domain.user_actions.__len__() == 42
         assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 11
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
@@ -203,13 +253,13 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {}
         assert isinstance(domain.forms, dict)
         print(domain.user_actions)
-        assert domain.user_actions.__len__() == 36
+        assert domain.user_actions.__len__() == 37
         assert processor.list_actions('all').__len__() == 11
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
@@ -251,11 +301,11 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 36
+        assert domain.user_actions.__len__() == 37
         assert domain.intents.__len__() == 29
         assert processor.list_actions('all').__len__() == 11
         assert not Utility.check_empty_string(
@@ -282,10 +332,10 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 1
         assert domain.slots[0].name == 'bot'
         assert domain.slots[0].value == 'tests'
-        assert domain.templates.keys().__len__() == 9
+        assert domain.templates.keys().__len__() == 10
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 9
+        assert domain.user_actions.__len__() == 10
         assert domain.intents.__len__() == 14
 
     def test_load_stories(self):
@@ -1440,7 +1490,7 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
 
@@ -1461,7 +1511,7 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
                                           status=True))) == 2
@@ -1484,7 +1534,7 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
                                           status=True))) == 2
@@ -1733,10 +1783,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 41
+        assert domain.user_actions.__len__() == 42
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1783,10 +1833,10 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 36
+        assert domain.user_actions.__len__() == 37
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1839,10 +1889,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 26
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 41
+        assert domain.user_actions.__len__() == 42
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1896,10 +1946,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 28
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 47
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1948,10 +1998,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 28
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 47
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2007,10 +2057,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 28
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 47
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2067,10 +2117,10 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
         assert domain.intent_properties.__len__() == 30
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 28
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 47
         assert domain.intents.__len__() == 30
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 3
@@ -2856,63 +2906,6 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
-        assert rule_policy['core_fallback_threshold'] == 0.3
-
-    def test_delete_fallback_properties_nlu(self):
-        processor = MongoProcessor()
-        processor.delete_fallback_properties('test_action_fallback_only', 'test', True, False)
-        config = processor.load_config('test_action_fallback_only')
-        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
-        assert rule_policy['core_fallback_threshold'] == 0.3
-
-    def test_delete_fallback_properties_action(self):
-        processor = MongoProcessor()
-        processor.delete_fallback_properties('test_action_fallback_only', 'test', False, True)
-        config = processor.load_config('test_action_fallback_only')
-        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
-        assert rule_policy['core_fallback_threshold'] == 0.3
-
-    def test_delete_fallback_properties_fallback_not_configured(self):
-        configs = Configs._from_son(
-            read_config_file("./template/config/default.yml")
-        ).to_mongo().to_dict()
-        del configs['pipeline'][6]
-        del configs['policies'][2]
-        processor = MongoProcessor()
-        processor.save_config(configs, 'test_delete_fallback_not_configured', 'test')
-
-        processor = MongoProcessor()
-        processor.delete_fallback_properties('test_delete_fallback_not_configured', 'test', True, True)
-        config = processor.load_config('test_delete_fallback_not_configured')
-        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
-        assert rule_policy['core_fallback_threshold'] == 0.3
-        assert Responses.objects(name='utter_default', bot='test_delete_fallback_not_configured').get()
-
-    def test_delete_fallback_properties_action_fallback(self):
-        nlu_fallback = {'action_fallback': 'action_say_bye_bye'}
-        processor = MongoProcessor()
-        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
-        config = processor.load_config('test_action_fallback_only')
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
-        assert rule_policy['core_fallback_threshold'] == 0.3
-
-        processor.delete_fallback_properties('test_action_fallback_only', 'test', False, True)
-        config = processor.load_config('test_action_fallback_only')
-        assert not next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         assert len(rule_policy) == 3
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
