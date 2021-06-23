@@ -107,9 +107,9 @@ class TestDataImporter:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_import_data_append(self):
@@ -129,9 +129,9 @@ class TestDataImporter:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_import_data_dont_save(self):
@@ -153,9 +153,9 @@ class TestDataImporter:
         assert 'affirm' in intents
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
         assert len(processor.fetch_intents(bot_2)) == 0
         assert len(processor.fetch_stories(bot_2)) == 0

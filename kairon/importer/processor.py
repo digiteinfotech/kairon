@@ -78,6 +78,7 @@ class DataImporterLogProcessor:
         doc.stories = TrainingComponentLog(count=component_count['stories'], data=summary.get('stories'))
         doc.training_examples = TrainingComponentLog(count=component_count['training_examples'], data=summary.get('training_examples'))
         doc.config = TrainingComponentLog(data=summary.get('config'))
+        doc.rules = TrainingComponentLog(count=component_count['rules'], data=summary.get('rules'))
         doc.http_actions = TrainingComponentLog(count=component_count['http_actions'], data=summary.get('http_actions'))
         doc.domain = DomainLog(
             intents_count=component_count['domain'].get('intents'),

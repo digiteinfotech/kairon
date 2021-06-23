@@ -12,6 +12,7 @@ from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
 from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
+from kairon.data_processor.data_objects import Configs
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -203,9 +204,9 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_append(self, monkeypatch):
@@ -244,9 +245,9 @@ class TestEvents:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
@@ -283,9 +284,9 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_event(self, monkeypatch):
@@ -436,7 +437,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -481,7 +485,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -526,7 +533,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -570,7 +580,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 

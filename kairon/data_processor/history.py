@@ -167,6 +167,7 @@ class ChatHistory:
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         fallback_action = action_fallback.get("core_fallback_action_name")
         fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         default_actions = list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
         with client as client:
@@ -181,7 +182,7 @@ class ChatHistory:
                                                       {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
                                                                   "events": {"$push": "$events"}}},
                                                       {"$unwind": "$events"},
-                                                      {"$match": {"events.name": fallback_action}},
+                                                      {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
                                                       {"$group": {"_id": None, "total_count": {"$first": "$total_count"},
                                                                   "fallback_count": {"$sum": 1}}},
                                                       {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}

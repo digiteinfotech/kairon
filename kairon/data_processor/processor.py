@@ -41,7 +41,8 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, DEFAULT_FALLBACK_RESPONSE, COMPONENT_COUNT
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT,
+    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE
 )
 from .data_objects import (
     Responses,
@@ -191,10 +192,10 @@ class MongoProcessor:
             self.save_stories(story_graph.story_steps, bot, user)
         if 'nlu' in what:
             self.save_nlu(nlu, bot, user)
-        if 'config' in what:
-            self.add_or_overwrite_config(config, bot, user)
         if 'rules' in what:
             self.save_rules(story_graph.story_steps, bot, user)
+        if 'config' in what:
+            self.add_or_overwrite_config(config, bot, user)
         if 'http_actions' in what:
             self.save_http_action(http_actions, bot, user)
 
@@ -1040,103 +1041,8 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
-        if not rule_policy:
-            rule_policy['name'] = 'RulePolicy'
-            config_obj["policies"].append(rule_policy)
-        if not rule_policy.get('core_fallback_action_name'):
-            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
-            rule_policy['core_fallback_threshold'] = 0.3
-
+        self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
-
-    def save_component_properties(self, configs: dict, bot: Text, user: Text):
-        """
-        Set properties (epoch and fallback) in the bot pipeline and policies configurations
-
-        :param configs: nlu fallback threshold, action fallback threshold and fallback action, epochs for policies.
-        :param bot: bot id
-        :param user: user id
-        :return: config unique id
-        """
-        nlu_confidence_threshold = configs.get("nlu_confidence_threshold")
-        action_fallback = configs.get("action_fallback")
-        nlu_epochs = configs.get("nlu_epochs")
-        response_epochs = configs.get("response_epochs")
-        ted_epochs = configs.get("ted_epochs")
-
-        if not nlu_epochs and not response_epochs and not ted_epochs and not nlu_confidence_threshold and not action_fallback:
-            raise AppException("At least one field is required")
-
-        present_config = self.load_config(bot)
-        if nlu_confidence_threshold:
-            nlu_confidence_threshold = nlu_confidence_threshold/100
-            fallback_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
-            if fallback_classifier_idx:
-                del present_config['pipeline'][fallback_classifier_idx]
-            diet_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
-            fallback = {'name': 'FallbackClassifier', 'threshold': nlu_confidence_threshold}
-            present_config['pipeline'].insert(diet_classifier_idx + 1, fallback)
-            rule_policy = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
-            if not rule_policy:
-                rule_policy['name'] = 'RulePolicy'
-                present_config['policies'].append(rule_policy)
-
-        if action_fallback:
-            if action_fallback == 'action_default_fallback':
-                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
-                                                    name__iexact='utter_default')
-                if not utterance_exists:
-                    raise AppException("Utterance utter_default not defined")
-            else:
-                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
-                                                    name__iexact=action_fallback)
-                if not (utterance_exists or
-                        Utility.is_exist(Actions, raise_error=False, bot=bot, status=True, name__iexact=action_fallback)):
-                    raise AppException(f"Action fallback {action_fallback} does not exists")
-            fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
-            if not fallback:
-                fallback['name'] = 'RulePolicy'
-                present_config['policies'].append(fallback)
-            fallback['core_fallback_action_name'] = action_fallback
-            fallback['core_fallback_threshold'] = 0.3
-
-        Utility.add_or_update_epoch(present_config, configs)
-        self.save_config(present_config, bot, user)
-
-    def list_epoch_and_fallback_config(self, bot: Text):
-        config = self.load_config(bot)
-        selected_config = {}
-        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
-        diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
-        response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')
-        selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
-        selected_config['ted_epochs'] = ted_policy.get('epochs')
-        selected_config['nlu_epochs'] = diet_classifier.get('epochs')
-        selected_config['response_epochs'] = response_selector.get('epochs')
-        return selected_config
-
-    def delete_fallback_properties(self, bot: Text, user: Text, delete_nlu_fallback: bool = True, delete_action_fallback: bool = True):
-        config = self.load_config(bot)
-        if delete_nlu_fallback:
-            index = next((index for index, comp in enumerate(config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
-            if index:
-                del config['pipeline'][index]
-
-        if delete_action_fallback:
-            rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), {})
-            if not rule_policy:
-                rule_policy['name'] = 'RulePolicy'
-                config['policies'].append(rule_policy)
-            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
-            rule_policy['core_fallback_threshold'] = 0.3
-
-            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
-                self.add_text_response(DEFAULT_FALLBACK_RESPONSE, 'utter_default', bot, user)
-        self.save_config(config, bot, user)
 
     def save_component_properties(self, configs: dict, bot: Text, user: Text):
         """
@@ -2760,3 +2666,56 @@ class MongoProcessor:
             rules_path = os.path.join(data_path, "rules.yml")
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+        idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
+        if idx:
+            del config_obj["policies"][idx]
+        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
+        if not rule_policy:
+            rule_policy['name'] = 'RulePolicy'
+            config_obj["policies"].append(rule_policy)
+        if not rule_policy.get('core_fallback_action_name'):
+            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
+        if not rule_policy.get('core_fallback_threshold'):
+            rule_policy['core_fallback_threshold'] = 0.3
+            self.add_default_fallback_data(bot, user, False, True)
+
+        property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+        if not property_idx:
+            property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
+            fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
+            config_obj['pipeline'].insert(property_idx + 1, fallback)
+            self.add_default_fallback_data(bot, user, True, False)
+
+    @staticmethod
+    def fetch_nlu_fallback_action(bot: Text):
+        action = None
+        event = StoryEvents(name='nlu_fallback', type="user")
+        try:
+            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
+            for event in rule.events:
+                if 'action' == event.type:
+                    action = event.name
+                    break
+        except DoesNotExist as e:
+            logging.error(e)
+        return action
+
+    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
+        if nlu_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
+                self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
+            steps = [
+                {"name": "nlu_fallback", "type": "INTENT"},
+                {"name": "utter_please_rephrase", "type": "BOT"}
+            ]
+            rule = {'name': DEFAULT_NLU_FALLBACK_RULE, 'steps': steps, 'type': 'RULE'}
+            try:
+                self.add_complex_story(rule, bot, user)
+            except AppException as e:
+                logging.error(str(e))
+
+        if action_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
+                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)

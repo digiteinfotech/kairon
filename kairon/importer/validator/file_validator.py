@@ -6,6 +6,7 @@ from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.generator import TrainingDataGenerator
+from rasa.shared.core.training_data.structures import StoryStep, RuleStep
 from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.constants import UTTER_PREFIX
 from rasa.validator import Validator
@@ -112,7 +113,14 @@ class TrainingDataValidator(Validator):
         @param max_history:
         @return:
         """
-        self.component_count['stories'] = len(self.story_graph.story_steps) if self.story_graph else 0
+        self.component_count['stories'] = 0
+        self.component_count['rules'] = 0
+        for steps in self.story_graph.story_steps:
+            if isinstance(steps, RuleStep):
+                self.component_count['rules'] += 1
+            elif isinstance(steps, StoryStep):
+                self.component_count['stories'] += 1
+
         trackers = TrainingDataGenerator(
             self.story_graph,
             domain=self.domain,

@@ -26,6 +26,7 @@ class ValidationLogs(Document):
     training_examples = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     domain = EmbeddedDocumentField(DomainLog, default=DomainLog)
     config = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
+    rules = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     http_actions = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     exception = StringField(default="")
     is_data_uploaded = BooleanField(default=False)
