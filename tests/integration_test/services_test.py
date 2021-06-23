@@ -3768,30 +3768,3 @@ def test_set_epoch_and_fallback_negative_epochs():
     assert actual["error_code"] == 422
     assert actual["message"][0] == {'loc': ['body', 'response_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
     assert actual["message"][1] == {'loc': ['body', 'ted_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
-
-
-def test_delete_action_fallback_only():
-    response = client.delete("/api/bot/config/properties?delete_nlu_fallback=False",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'
-
-
-def test_delete_fallback_nlu_fallback_only():
-    response = client.delete("/api/bot/config/properties?delete_action_fallback=False",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'
-
-
-def test_delete_fallback_config_not_present():
-    response = client.delete("/api/bot/config/properties",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'
