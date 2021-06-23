@@ -208,7 +208,7 @@
             "event" : "action", 
             "timestamp" : 1582714997.5523076, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
@@ -235,7 +235,7 @@
             "event" : "action", 
             "timestamp" : 1582714997.5763245, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
@@ -423,7 +423,7 @@
             "event" : "action", 
             "timestamp" : 1582715035.0805962, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
