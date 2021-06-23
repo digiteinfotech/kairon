@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, TRAINING_DATA_GENERATOR_STATUS
+from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -31,6 +31,7 @@ from validators import url, ValidationFailure
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.core.domain import _validate_slot_mappings
+
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -461,7 +462,7 @@ class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     document_path = StringField(default=None)
-    status = StringField(default=TRAINING_DATA_GENERATOR_STATUS.INITIATED)
+    status = StringField(default=EVENT_STATUS.INITIATED)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)

@@ -1,0 +1,10 @@
+intents:
+- greet
+- deny
+
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+
+actions:
+- utter_greet

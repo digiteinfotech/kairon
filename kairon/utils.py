@@ -49,7 +49,9 @@ from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
-from .data_processor.constant import TRAINING_DATA_GENERATOR_STATUS
+from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
+    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
+    REQUIREMENTS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
@@ -207,16 +209,20 @@ class Utility:
             return Utility.pwd_context.hash(password)
 
     @staticmethod
-    def get_latest_file(folder):
+    def get_latest_file(folder, extension_pattern="*"):
         """
-        fetches latest file from folder
+        Fetches latest file.
+        If extension is provided, latest file with that extension is retrieved.
+        By default, latest file in the folder is retrieved and can be of any type.
+        Example extension patterns: "*.tar.gz", "*.zip", etc.
 
         :param folder: folder path
+        :param extension_pattern: file extension as a regular expression
         :return: latest file
         """
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        return max(iglob(os.path.join(folder, "*.tar.gz")), key=os.path.getctime)
+        return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
@@ -278,8 +284,89 @@ class Utility:
         return "".join(choice(chars) for _ in range(size))
 
     @staticmethod
-    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None):
+    def make_dirs(path: Text, raise_exception_if_exists=False):
+        if os.path.exists(path):
+            if raise_exception_if_exists:
+                raise AppException('Directory exists!')
+        else:
+            os.makedirs(path)
+
+    @staticmethod
+    async def save_uploaded_data(bot: Text, training_files: [File]):
+        if not training_files:
+            raise AppException("No files received!")
+
+        if training_files[0].filename.endswith('.zip'):
+            bot_data_home_dir = await Utility.save_training_files_as_zip(bot, training_files[0])
+        else:
+            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+            data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+            Utility.make_dirs(data_path)
+
+            for file in training_files:
+                if file.filename in ALLOWED_NLU_FORMATS.union(ALLOWED_STORIES_FORMATS).union(ALLOWED_RULES_FORMATS):
+                    path = os.path.join(data_path, file.filename)
+                    Utility.write_to_file(path, await file.read())
+                elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(ALLOWED_HTTP_ACTIONS_FORMATS):
+                    path = os.path.join(bot_data_home_dir, file.filename)
+                    Utility.write_to_file(path, await file.read())
+
+        return bot_data_home_dir
+
+    @staticmethod
+    async def save_training_files_as_zip(bot: Text, training_file: File):
+        tmp_dir = tempfile.mkdtemp()
+        try:
+            zipped_file = os.path.join(tmp_dir, training_file.filename)
+            Utility.write_to_file(zipped_file, await training_file.read())
+            unzip_path = os.path.join('training_data', bot, str(datetime.utcnow()))
+            shutil.unpack_archive(zipped_file, unzip_path, 'zip')
+            return unzip_path
+        except Exception as e:
+            logger.error(e)
+            raise AppException("Invalid zip")
+        finally:
+            Utility.delete_directory(tmp_dir)
+
+    @staticmethod
+    def validate_and_get_requirements(bot_data_home_dir: Text, delete_dir_on_exception: bool = False):
+        """
+        Checks whether at least one of the required files are present and
+        finds other files required for validation during import.
+        @param bot_data_home_dir: path where data exists
+        @param delete_dir_on_exception: whether directory needs to be deleted in case of exception.
+        """
+        requirements = set()
+        data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
+
+        if not os.path.exists(bot_data_home_dir):
+            raise AppException("Bot data home directory not found")
+
+        files_received = set(os.listdir(bot_data_home_dir))
+        if os.path.exists(data_path):
+            files_received = files_received.union(os.listdir(data_path))
+
+        if ALLOWED_NLU_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('nlu')
+        if ALLOWED_STORIES_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('stories')
+        if ALLOWED_DOMAIN_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('domain')
+        if ALLOWED_CONFIG_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('config')
+        if ALLOWED_RULES_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('rules')
+        if ALLOWED_HTTP_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('http_actions')
+
+        if requirements == REQUIREMENTS:
+            if delete_dir_on_exception:
+                Utility.delete_directory(bot_data_home_dir)
+            raise AppException('Invalid files received')
+        return requirements
+
+    @staticmethod
+    async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None, http_action: File = None):
         """
         convert mongo data  to individual files
 
@@ -663,32 +750,6 @@ class Utility:
         return sum(files, [])
 
     @staticmethod
-    def validate_rasa_config(config: Dict):
-        """
-        validates bot config.yml content for invalid entries
-
-        :param config: configuration
-        :return: None
-        """
-        from rasa.nlu.registry import registered_components as nlu_components
-        if config['pipeline']:
-            for item in config['pipeline']:
-                component_cfg = item['name']
-                if not (component_cfg in nlu_components or
-                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter"]):
-                    raise AppException("Invalid component " + component_cfg)
-        else:
-            raise AppException("You didn't define any pipeline")
-
-        if config['policies']:
-            core_policies = Utility.get_rasa_core_policies()
-            for policy in config['policies']:
-                if policy['name'] not in core_policies:
-                    raise AppException("Invalid policy " + policy['name'])
-        else:
-            raise AppException("You didn't define any policies")
-
-    @staticmethod
     def get_rasa_core_policies():
         from rasa.core.policies import registry
         file1 = open(registry.__file__, 'r')
@@ -859,7 +920,7 @@ class Utility:
             from .data_processor.processor import TrainingDataGenerationProcessor
             TrainingDataGenerationProcessor.set_status(bot=bot,
                                                        user=user,
-                                                       status=TRAINING_DATA_GENERATOR_STATUS.FAIL.value,
+                                                       status=EVENT_STATUS.FAIL.value,
                                                        exception=str(e))
 
     @staticmethod
@@ -928,7 +989,7 @@ class Utility:
         :param email: user email for generating token for reload
         :param process_type: either upload or train
         """
-        from .data_processor.processor import ModelProcessor
+        from .data_processor.model_processor import ModelProcessor
         from .api.auth import Authentication
         from .data_processor.constant import MODEL_TRAINING_STATUS
         from .train import start_training
@@ -977,3 +1038,48 @@ class Utility:
                 raise ValidationError("Found 2 consecutive user events")
             if type == "RULE" and intents > 1:
                 raise ValidationError(f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
+
+    @staticmethod
+    def read_yaml(path: Text, raise_exception: bool = False):
+        content = None
+        if os.path.exists(path):
+            content = yaml.load(open(path), Loader=yaml.SafeLoader)
+        else:
+            if raise_exception:
+                raise AppException('Path does not exists!')
+        return content
+
+    @staticmethod
+    def replace_file_name(msg: str, root_dir: str):
+        regex = '((\'*\"*{0}).*(/{1}\'*\"*))'
+        files = ['nlu.yml', 'domain.yml', 'config.yml', 'stories.yml', 'nlu.yaml', 'domain.yaml', 'config.yaml',
+                 'stories.yaml', 'nlu.md', 'stories.md']
+        for file in files:
+            file_regex = regex.format(root_dir, file)
+            msg = re.sub(file_regex, file, msg)
+        return msg
+
+    @staticmethod
+    def get_event_url(event_type: str, raise_exc: bool = False):
+        url = None
+        if "DATA_IMPORTER" == event_type:
+            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
+                    Utility.environment['model']['data_importer'].get('event_url'):
+                url = Utility.environment['model']['data_importer'].get('event_url')
+        elif "TRAINING" == event_type:
+            if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
+                url = Utility.environment['model']['train'].get('event_url')
+        else:
+            raise AppException("Invalid event type received")
+        if raise_exc:
+            raise AppException("Could not find event url")
+        return url
+
+    @staticmethod
+    def build_event_request(env_var: dict):
+        """Creates request body for lambda."""
+        event_request = []
+        for key in env_var.keys():
+            key_and_val = {'name': key, 'value': env_var[key]}
+            event_request.append(key_and_val)
+        return event_request

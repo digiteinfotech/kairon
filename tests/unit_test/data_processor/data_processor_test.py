@@ -1,6 +1,8 @@
 import asyncio
 import glob
 import os
+import shutil
+import tempfile
 from datetime import datetime
 from io import BytesIO
 from typing import List
@@ -12,15 +14,17 @@ from fastapi import UploadFile
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from rasa.core.agent import Agent
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
-from rasa.shared.importers.rasa import Domain
+from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
-from kairon.data_processor.constant import UTTERANCE_TYPE, CUSTOM_ACTIONS, TRAINING_DATA_GENERATOR_STATUS, STORY_EVENT
+from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
+    ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
                                                 Entities,
@@ -31,8 +35,10 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator, Rules, Feedback
                                                 )
-from kairon.data_processor.processor import MongoProcessor, AgentProcessor, ModelProcessor, \
-    TrainingDataGenerationProcessor
+from kairon.data_processor.processor import MongoProcessor
+from kairon.data_processor.agent_processor import AgentProcessor
+from kairon.data_processor.model_processor import ModelProcessor
+from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
@@ -48,6 +54,25 @@ class TestMongoProcessor:
                                     "ata/system.yaml"
         Utility.load_evironment()
         connect(host=Utility.environment["database"]['url'])
+
+    @pytest.fixture()
+    def get_training_data(self):
+
+        async def _read_and_get_data(path: str):
+            domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
+            training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
+            config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            http_actions_path = os.path.join(path, 'http_action.yml')
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=training_data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+            http_actions = Utility.read_yaml(http_actions_path)
+            return nlu, story_graph, domain, config, http_actions
+        return _read_and_get_data
 
     @pytest.mark.asyncio
     async def test_load_from_path(self):
@@ -777,7 +802,7 @@ class TestMongoProcessor:
         model = train_model_for_bot("tests")
         assert model
         folder = "models/tests"
-        file = Utility.get_latest_file(folder)
+        file = Utility.get_latest_file(folder, '*.tar.gz')
         Utility.move_old_models(folder, file)
         assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
 
@@ -1483,94 +1508,6 @@ class TestMongoProcessor:
         assert not actions
         assert isinstance(actions, dict)
 
-    def test_validate_http_action_empty_content(self):
-        test_dict = {'http_actions': []}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-        assert not processor.validate_http_file({})
-
-    def test_validate_http_action_error_duplicate(self):
-        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
-                                       "request_method": 'POST'},
-                                      {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
-                                       "request_method": 'POST'}]}
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_error_missing_field(self):
-        test_dict = {
-            'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_invalid_request_method(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'slot', "value": 'slot'}],
-                                       "request_method": "OPTIONS", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": '', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list_2(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list_3(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [
-                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                           {"key": 'username', "parameter_type": 'slot', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        processor.validate_http_file(test_dict)
-        assert test_dict['http_actions'][0]['params_list'][1]['value'] == 'username'
-
-    def test_validate_http_action_params_list_4(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": None}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list_5(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list_6(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [], "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-
-    def test_validate_http_action_empty_params_list_7(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        processor = MongoProcessor()
-        assert not processor.validate_http_file(test_dict)
-
     def test_save_http_action_already_exists(self):
         test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
                                        "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
@@ -1755,6 +1692,819 @@ class TestMongoProcessor:
         assert feedback[1]['scale'] == 5.0
         assert not feedback[1]['feedback']
         assert feedback[1]['timestamp']
+
+    @pytest.mark.asyncio
+    async def test_save_training_data_all(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 41
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    @pytest.mark.asyncio
+    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data):
+        path = 'tests/testing_data/all'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 36
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert not rules
+        actions = mongo_processor.load_http_action(bot)
+        assert not actions
+
+    @pytest.mark.asyncio
+    async def test_save_training_data_all_overwrite(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 41
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    @pytest.mark.asyncio
+    async def test_save_training_data_all_append(self, get_training_data):
+        path = 'tests/testing_data/validator/append'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, False)
+
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 295
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 18
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 30
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 3
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 46
+        assert domain.intents.__len__() == 30
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    def test_delete_nlu_only(self):
+        bot = 'test'
+        user = 'test'
+        mongo_processor = MongoProcessor()
+        mongo_processor.delete_bot_data(bot, user, {"nlu"})
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 0
+        assert training_data.entity_synonyms.__len__() == 0
+        assert training_data.regex_features.__len__() == 0
+        assert training_data.lookup_tables.__len__() == 0
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 18
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 30
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 3
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 46
+        assert domain.intents.__len__() == 30
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    @pytest.mark.asyncio
+    async def test_save_nlu_only(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, nlu=nlu, overwrite=True, what={'nlu'})
+
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+
+    def test_delete_stories_only(self):
+        bot = 'test'
+        user = 'test'
+        mongo_processor = MongoProcessor()
+        mongo_processor.delete_bot_data(bot, user, {"stories"})
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 0
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert domain.intent_properties.__len__() == 30
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 3
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 46
+        assert domain.intents.__len__() == 30
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "unfeaturized"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    @pytest.mark.asyncio
+    async def test_save_stories_only(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, story_graph=story_graph, overwrite=True, what={'stories'})
+
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+
+    def test_delete_config_and_actions_only(self):
+        bot = 'test'
+        user = 'test'
+        mongo_processor = MongoProcessor()
+        mongo_processor.delete_bot_data(bot, user, {"config", "http_actions"})
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert domain.intent_properties.__len__() == 30
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 46
+        assert domain.intents.__len__() == 30
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert not actions
+        assert mongo_processor.load_config(bot)
+
+    @pytest.mark.asyncio
+    async def test_save_actions_and_config_only(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        config['language'] = 'fr'
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config=config, http_actions=http_actions, overwrite=True,
+                                           what={'http_actions', 'config'})
+
+        assert len(mongo_processor.load_http_action(bot)['http_actions']) == 5
+        config = mongo_processor.load_config(bot)
+        assert config['language'] == 'fr'
+        assert config['pipeline']
+        assert config['policies']
+
+    def test_delete_rules_and_domain_only(self):
+        bot = 'test'
+        user = 'test'
+        mongo_processor = MongoProcessor()
+        mongo_processor.delete_bot_data(bot, user, {"rules", "domain"})
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 0
+        assert domain.intent_properties.__len__() == 5
+        assert domain.templates.keys().__len__() == 0
+        assert domain.entities.__len__() == 0
+        assert domain.form_names.__len__() == 0
+        assert domain.user_actions.__len__() == 0
+        assert domain.intents.__len__() == 5
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 0
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_actions']) == 5
+
+    @pytest.mark.asyncio
+    async def test_save_rules_and_domain_only(self, get_training_data):
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, story_graph=story_graph, domain=domain, overwrite=True,
+                                           what={'rules', 'domain'})
+
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 3
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 9
+        assert domain.intent_properties.__len__() == 29
+        assert domain.templates.keys().__len__() == 25
+        assert domain.entities.__len__() == 8
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 36
+        assert domain.intents.__len__() == 29
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation_with_home_dir(self):
+        tmp_dir = tempfile.mkdtemp()
+        pytest.dir = tmp_dir
+        yield 'resource_prepare_training_data_for_validation_with_home_dir'
+        Utility.delete_directory(pytest.dir)
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation(self):
+        yield 'resource_prepare_training_data_for_validation'
+        Utility.delete_directory(os.path.join('training_data', 'test'))
+
+    def test_prepare_training_data_for_validation_no_data(self, resource_prepare_training_data_for_validation):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot)
+        bot_home = os.path.join('training_data', bot)
+        assert os.path.exists(bot_home)
+        dirs = os.listdir(bot_home)
+        files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
+            os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+
+    def test_prepare_training_data_for_validation_with_home_dir(self, resource_prepare_training_data_for_validation_with_home_dir):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.dir)
+        bot_home = pytest.dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(bot_home)).union(os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation_nlu_only(self):
+        pytest.nlu_only_tmp_dir = tempfile.mkdtemp()
+        yield 'resource_prepare_training_data_for_validation_nlu_only'
+        Utility.delete_directory(pytest.nlu_only_tmp_dir)
+
+    @pytest.fixture()
+    def resource_prepare_training_data_for_validation_rules_only(self):
+        pytest.nlu_only_tmp_dir = tempfile.mkdtemp()
+        yield 'resource_prepare_training_data_for_validation_rules_only'
+        Utility.delete_directory(pytest.nlu_only_tmp_dir)
+
+    def test_prepare_training_data_for_validation_nlu_domain_only(self, resource_prepare_training_data_for_validation_nlu_only):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'nlu', 'domain'})
+        bot_home = pytest.nlu_only_tmp_dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(os.path.join(bot_home))).union(
+            os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 0
+
+    def test_prepare_training_data_for_validation_rules_only(self, resource_prepare_training_data_for_validation_rules_only):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'rules'})
+        bot_home = pytest.nlu_only_tmp_dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(os.path.join(bot_home))).union(
+            os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+
+    def test_prepare_training_data_for_validation(self, resource_prepare_training_data_for_validation):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot)
+        bot_home = os.path.join('training_data', bot)
+        assert os.path.exists(bot_home)
+        dirs = os.listdir(bot_home)
+        files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
+            os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+
+    @pytest.fixture()
+    def resource_unzip_and_validate(self):
+        pytest.bot = 'test_validate_and_prepare_data'
+        data_path = 'tests/testing_data/yml_training_files'
+        tmp_dir = tempfile.gettempdir()
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.make_archive(zip_file, 'zip', data_path)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_unzip_and_validate"
+        os.remove(zip_file + '.zip')
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_zip(self, resource_unzip_and_validate):
+        processor = MongoProcessor()
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert REQUIREMENTS == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.fixture()
+    def resource_save_and_validate_training_files(self):
+        pytest.bot = 'test_validate_and_prepare_data'
+        config_path = 'tests/testing_data/yml_training_files/config.yml'
+        domain_path = 'tests/testing_data/yml_training_files/domain.yml'
+        nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
+        stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
+        http_action_path = 'tests/testing_data/yml_training_files/http_action.yml'
+        rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
+        pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
+        pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
+        pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
+        pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
+        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(open(http_action_path, 'rb').read()))
+        pytest.rules = UploadFile(filename="rules.yml", file=BytesIO(open(rules_path, 'rb').read()))
+        pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
+        yield "resource_save_and_validate_training_files"
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_save_actions_and_config_append(self):
+        import json
+
+        pytest.bot = 'test_validate_and_prepare_data'
+        config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
+        actions = {"http_actions": [{"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com", "request_method": "GET", "response": "json"}]}
+        actions = json.dumps(actions).encode('utf-8')
+        pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
+        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(actions))
+        yield "resource_validate_and_prepare_data_save_actions_and_config_append"
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert REQUIREMENTS == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_nlu_only(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.nlu]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'nlu'} == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_stories_only(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.stories]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'stories'} == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_config(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.config]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("config")
+        assert not non_event_validation_summary.get("http_actions")
+        assert processor.list_http_actions(pytest.bot).__len__() == 0
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.rules]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'rules'} == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'http_actions'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("http_actions")
+        assert not non_event_validation_summary.get("config")
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.domain]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'domain'} == files_received
+        assert is_event_data
+        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
+        assert not non_event_validation_summary
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self, resource_save_and_validate_training_files):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions, pytest.config]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        assert {'http_actions', 'config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("http_actions")
+        assert not non_event_validation_summary.get("config")
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_actions_and_config_append(self, resource_validate_and_prepare_data_save_actions_and_config_append):
+        processor = MongoProcessor()
+        training_file = [pytest.http_actions, pytest.config]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, False)
+        assert {'http_actions', 'config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("http_actions")
+        assert not non_event_validation_summary.get("config")
+        assert processor.list_http_actions(pytest.bot).__len__() == 6
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language'] == 'fr'
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_no_valid_file_in_zip(self):
+        data_path = 'tests/testing_data/validator'
+        tmp_dir = tempfile.gettempdir()
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.make_archive(zip_file, 'zip', data_path)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_no_valid_file_in_zip"
+        os.remove(zip_file + '.zip')
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_no_valid_file_received(self, resource_validate_and_prepare_data_no_valid_file_in_zip):
+        processor = MongoProcessor()
+        bot = 'test_validate_and_prepare_data'
+        with pytest.raises(AppException) as e:
+            await processor.validate_and_prepare_data(bot, 'test', [pytest.zip], True)
+        assert str(e).__contains__('Invalid files received')
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_zip_actions_config(self):
+        tmp_dir = tempfile.mkdtemp()
+        pytest.bot = 'validate_and_prepare_data_zip_actions_config'
+        zip_file = os.path.join(tmp_dir, 'test')
+        shutil.copy2('tests/testing_data/yml_training_files/http_action.yml', tmp_dir)
+        shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
+        shutil.make_archive(zip_file, 'zip', tmp_dir)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_zip_actions_config"
+        shutil.rmtree(tmp_dir)
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_zip_actions_config(self, resource_validate_and_prepare_data_zip_actions_config):
+        processor = MongoProcessor()
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert {'http_actions', 'config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("http_actions")
+        assert not non_event_validation_summary.get("config")
+        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        config = processor.load_config(pytest.bot)
+        assert config['pipeline']
+        assert config['policies']
+        assert config['language']
+
+    @pytest.fixture()
+    def resource_validate_and_prepare_data_invalid_zip_actions_config(self):
+        import json
+        tmp_dir = tempfile.mkdtemp()
+        pytest.bot = 'validate_and_prepare_data_zip_actions_config'
+        zip_file = os.path.join(tmp_dir, 'test')
+        actions = Utility.read_yaml('tests/testing_data/yml_training_files/http_action.yml')
+        actions['http_actions'][0].pop('action_name')
+        Utility.write_to_file(os.path.join(tmp_dir, 'http_action.yml'), json.dumps(actions).encode())
+        shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
+        shutil.make_archive(zip_file, 'zip', tmp_dir)
+        pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
+        yield "resource_validate_and_prepare_data_zip_actions_config"
+        shutil.rmtree(tmp_dir)
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
+        processor = MongoProcessor()
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        assert non_event_validation_summary['http_actions'][0] == 'Required http action fields not found'
+        assert files_received == {'http_actions', 'config'}
+        assert not is_event_data
 
 
 # pylint: disable=R0201
@@ -2734,7 +3484,7 @@ class TestTrainingDataProcessor:
             user="testUser2").get()
         assert status['bot'] == 'tests2'
         assert status['user'] == 'testUser2'
-        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+        assert status['status'] == EVENT_STATUS.INITIATED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None
@@ -2746,7 +3496,7 @@ class TestTrainingDataProcessor:
         )
         assert status['bot'] == 'tests2'
         assert status['user'] == 'testUser2'
-        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.INITIATED.value
+        assert status['status'] == EVENT_STATUS.INITIATED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None
@@ -2780,7 +3530,7 @@ class TestTrainingDataProcessor:
         TrainingDataGenerationProcessor.set_status(
             bot="tests2",
             user="testUser2",
-            status=TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value,
+            status=EVENT_STATUS.COMPLETED.value,
             response=[TrainingDataGeneratorResponse(
                 intent="intent1",
                 training_examples=training_examples1,
@@ -2798,7 +3548,7 @@ class TestTrainingDataProcessor:
             user="testUser2").get()
         assert status['bot'] == 'tests2'
         assert status['user'] == 'testUser2'
-        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None
@@ -2831,7 +3581,7 @@ class TestTrainingDataProcessor:
             user="testUser2").get()
         assert status['bot'] == 'tests2'
         assert status['user'] == 'testUser2'
-        assert status['status'] == TRAINING_DATA_GENERATOR_STATUS.COMPLETED.value
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
         assert status['last_update_timestamp'] is not None

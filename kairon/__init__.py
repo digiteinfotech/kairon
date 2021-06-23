@@ -1,28 +1,42 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
 from mongoengine import connect
+
+from kairon.cli import importer, training
 from kairon.utils import Utility
-from kairon.train import start_training
-from loguru import logger
+
+"""
+CLI to train or import(and validate) data into kairon.
+
+Usage:
+    Train:
+        kairon train <botid> <userid>
+        kairon train <botid> <userid> <token>
+    
+    Import data:
+        kairon data-importer <botid> <userid>
+        kairon data-importer <botid> <userid> --import-data
+        kairon data-importer <botid> <userid> --import-data --overwrite
+"""
 
 
-def create_arg_parser():
-    parser = ArgumentParser()
-    parser.add_argument('--train', '-t', action='store_const', const='-t', help="Initiate model training")
-    parser.add_argument('bot', type=str, help="Bot id for which command is executed", action='store')
-    parser.add_argument('user', type=str, help="Kairon user who is initiating the command", action='store')
-    parser.add_argument('token', help="JWT token for the user", action='store')
+def create_argument_parser():
+    parser = ArgumentParser(
+        prog="kairon",
+        formatter_class=ArgumentDefaultsHelpFormatter,
+        description="Kairon command line interface."
+    )
+    parent_parser = ArgumentParser(add_help=False)
+    parent_parsers = [parent_parser]
+    subparsers = parser.add_subparsers(help="Kairon commands")
+    training.add_subparser(subparsers, parents=parent_parsers)
+    importer.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 
 def cli():
-    parser = create_arg_parser()
+    parser = create_argument_parser()
     arguments = parser.parse_args()
-    arguments_dict = arguments.__dict__
     Utility.load_evironment()
-    connect(host=Utility.environment['database']['url'])
-    logger.info(arguments.bot)
-    logger.info(arguments.user)
-    logger.info("token exists " + str("token" in arguments_dict))
-    logger.debug("-t: " + arguments.train)
-    if arguments.train.lower() == '--train' or arguments.train.lower() == '-t':
-        start_training(arguments.bot, arguments.user, arguments_dict.get("token"))
+    connect(host=Utility.environment["database"]['url'])
+    arguments.func(arguments)
