@@ -58,7 +58,6 @@ class TestMongoProcessor:
 
     @pytest.fixture()
     def get_training_data(self):
-
         async def _read_and_get_data(path: str):
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
@@ -73,6 +72,7 @@ class TestMongoProcessor:
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             return nlu, story_graph, domain, config, http_actions
+
         return _read_and_get_data
 
     @pytest.mark.asyncio
@@ -805,7 +805,7 @@ class TestMongoProcessor:
         folder = "models/tests"
         file = Utility.get_latest_file(folder, '*.tar.gz')
         Utility.move_old_models(folder, file)
-        assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
+        assert len(list(glob.glob(folder + '/*.tar.gz'))) == 1
 
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
@@ -837,8 +837,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.get_event_loop()
         loop.run_until_complete(processor.save_from_path(
-                "./tests/testing_data/initial", bot="test_initial", user="testUser"
-            ))
+            "./tests/testing_data/initial", bot="test_initial", user="testUser"
+        ))
 
         model_path = start_training("test_initial", "testUser", reload=False)
         assert model_path
@@ -1004,7 +1004,6 @@ class TestMongoProcessor:
         assert stories[0]['steps'][0]['type'] == 'INTENT'
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
-
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -1281,8 +1280,22 @@ class TestMongoProcessor:
 
         with pytest.raises(AppException):
             msg = processor.add_slot(
-                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
-            assert msg == 'Slot exists'
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user, raise_exception_if_exists=True)
+            assert msg == 'Slot already exists!'
+
+    def test_delete_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        processor.delete_slot(slot_name='bot', bot=bot, user=user)
+
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot.status is False
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='bot_doesnt_exist', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
 
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()
@@ -2175,7 +2188,8 @@ class TestMongoProcessor:
         assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
         assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
 
-    def test_prepare_training_data_for_validation_with_home_dir(self, resource_prepare_training_data_for_validation_with_home_dir):
+    def test_prepare_training_data_for_validation_with_home_dir(self,
+                                                                resource_prepare_training_data_for_validation_with_home_dir):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.dir)
@@ -2200,7 +2214,8 @@ class TestMongoProcessor:
         yield 'resource_prepare_training_data_for_validation_rules_only'
         Utility.delete_directory(pytest.nlu_only_tmp_dir)
 
-    def test_prepare_training_data_for_validation_nlu_domain_only(self, resource_prepare_training_data_for_validation_nlu_only):
+    def test_prepare_training_data_for_validation_nlu_domain_only(self,
+                                                                  resource_prepare_training_data_for_validation_nlu_only):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'nlu', 'domain'})
@@ -2214,7 +2229,8 @@ class TestMongoProcessor:
         assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
         assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 0
 
-    def test_prepare_training_data_for_validation_rules_only(self, resource_prepare_training_data_for_validation_rules_only):
+    def test_prepare_training_data_for_validation_rules_only(self,
+                                                             resource_prepare_training_data_for_validation_rules_only):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'rules'})
@@ -2258,7 +2274,8 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_zip(self, resource_unzip_and_validate):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert REQUIREMENTS == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2295,7 +2312,9 @@ class TestMongoProcessor:
 
         pytest.bot = 'test_validate_and_prepare_data'
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
-        actions = {"http_actions": [{"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com", "request_method": "GET", "response": "json"}]}
+        actions = {"http_actions": [
+            {"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com",
+             "request_method": "GET", "response": "json"}]}
         actions = json.dumps(actions).encode('utf-8')
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
         pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(actions))
@@ -2306,7 +2325,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert REQUIREMENTS == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2322,7 +2342,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_nlu_only(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.nlu]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'nlu'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2338,7 +2359,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_stories_only(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.stories]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'stories'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2354,7 +2376,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_config(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("config")
@@ -2369,7 +2392,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.rules]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'rules'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2385,7 +2409,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_actions(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.http_actions]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'http_actions'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2396,7 +2421,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.domain]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'domain'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2409,10 +2435,12 @@ class TestMongoProcessor:
         assert not non_event_validation_summary
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self, resource_save_and_validate_training_files):
+    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self,
+                                                                               resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.http_actions, pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2424,10 +2452,12 @@ class TestMongoProcessor:
         assert config['language']
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_save_actions_and_config_append(self, resource_validate_and_prepare_data_save_actions_and_config_append):
+    async def test_validate_and_prepare_data_save_actions_and_config_append(self,
+                                                                            resource_validate_and_prepare_data_save_actions_and_config_append):
         processor = MongoProcessor()
         training_file = [pytest.http_actions, pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, False)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, False)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2449,7 +2479,8 @@ class TestMongoProcessor:
         os.remove(zip_file + '.zip')
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_no_valid_file_received(self, resource_validate_and_prepare_data_no_valid_file_in_zip):
+    async def test_validate_and_prepare_data_no_valid_file_received(self,
+                                                                    resource_validate_and_prepare_data_no_valid_file_in_zip):
         processor = MongoProcessor()
         bot = 'test_validate_and_prepare_data'
         with pytest.raises(AppException) as e:
@@ -2470,9 +2501,11 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_zip_actions_config(self, resource_validate_and_prepare_data_zip_actions_config):
+    async def test_validate_and_prepare_data_zip_actions_config(self,
+                                                                resource_validate_and_prepare_data_zip_actions_config):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2500,9 +2533,11 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self,
+                                                                        resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert non_event_validation_summary['http_actions'][0] == 'Required http action fields not found'
         assert files_received == {'http_actions', 'config'}
         assert not is_event_data
@@ -2613,7 +2648,7 @@ class TestMongoProcessor:
                 {"name": "TEDPolicy",
                  "epochs": 400},
                 {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
-                 'core_fallback_threshold': 0.3 }]
+                 'core_fallback_threshold': 0.3}]
         }
         assert config == expected
 
@@ -4066,7 +4101,6 @@ class TestTrainingDataProcessor:
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
-
     def test_add_rule_invalid_type(self):
         processor = MongoProcessor()
         steps = [
@@ -4136,7 +4170,8 @@ class TestTrainingDataProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE'}
-        with pytest.raises(ValidationError, match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
+        with pytest.raises(ValidationError,
+                           match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_rule_with_invalid_event(self):
@@ -4173,7 +4208,6 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
-
 
     def test_update_rule(self):
         processor = MongoProcessor()
@@ -4224,7 +4258,7 @@ class TestTrainingDataProcessor:
     def test_fetch_stories_with_rules(self):
         processor = MongoProcessor()
         data = list(processor.get_stories("tests"))
-        assert all( item['type'] in ['STORY', 'RULE'] for item in data)
+        assert all(item['type'] in ['STORY', 'RULE'] for item in data)
         assert len(data) == 8
 
     def test_update_empty_rule_name(self):
@@ -4277,7 +4311,8 @@ class TestTrainingDataProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"}
         ]
-        with pytest.raises(ValidationError, match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
+        with pytest.raises(ValidationError,
+                           match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
             rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
