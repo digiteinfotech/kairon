@@ -1403,8 +1403,22 @@ class TestMongoProcessor:
 
         with pytest.raises(AppException):
             msg = processor.add_slot(
-                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
-            assert msg == 'Slot exists'
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user, raise_exception_if_exists=True)
+            assert msg == 'Slot already exists!'
+
+    def test_delete_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        processor.delete_slot(slot_name='bot', bot=bot, user=user)
+
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot.status is False
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='bot_doesnt_exist', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
 
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()
