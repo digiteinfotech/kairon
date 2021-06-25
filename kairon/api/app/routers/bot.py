@@ -17,9 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest,
-    StoryType,
-    SlotRequest
-    StoryType, ComponentConfig
+    StoryType, ComponentConfig, SlotRequest
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS
@@ -770,7 +768,7 @@ async def get_latest_data_generation_status(
 
 
 @router.get("/slots", response_model=Response)
-async def get_latest_data_generation_status(
+async def get_slots(
         current_user: User = Depends(auth.get_current_user),
 ):
     """
@@ -785,25 +783,17 @@ async def add_slots(
         request_data: SlotRequest,
         current_user: User = Depends(auth.get_current_user)
 ):
-
-    slot_value = {
-        "name": request_data.name,
-        "type": request_data.type,
-        "initial_value": request_data.initial_value,
-        "auto_fill": request_data.auto_fill,
-        "values": request_data.values,
-        "max_value": request_data.max_value,
-        "min_value": request_data.min_value,
-        "influence_conversation": request_data.influence_conversation
-    }
-
+    """
+    adds a new slot
+    :param request_data:
+    :param current_user:
+    :return: Success message with slot id
+    """
     try:
+        slot_value = request_data.dict()
         slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=True)
     except AppException as ae:
-        if str(ae) == "Slot already exists!":
-            return {"message": str(ae)}
-        else:
-            raise AppException(str(ae))
+        raise AppException(str(ae))
 
     return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
 
@@ -817,32 +807,27 @@ async def delete_slots(
     deletes an existing slot
     :param slot:
     :param current_user:
-    :return:
+    :return: Success message
     """
-    mongo_processor.delete_slot(slot=slot, bot=current_user.get_bot(), user=current_user.get_user())
+    mongo_processor.delete_slot(slot_name=slot, bot=current_user.get_bot(), user=current_user.get_user())
 
     return {"message": "Slot deleted!"}
 
 
-@router.put("/slot/{slot}", response_model=Response)
+@router.put("/slots", response_model=Response)
 async def edit_slots(
         request_data: SlotRequest,
         current_user: User = Depends(auth.get_current_user)
 ):
+    """
+    Updates an existing slot
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
     try:
-
-        slot_value = {
-            "name": request_data.name,
-            "type": request_data.type,
-            "initial_value": request_data.initial_value,
-            "auto_fill": request_data.auto_fill,
-            "values": request_data.values,
-            "max_value": request_data.max_value,
-            "min_value": request_data.min_value,
-            "influence_conversation": request_data.influence_conversation
-        }
-
-        mongo_processor.edit_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot())
+        slot_value = request_data.dict()
+        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=False)
     except Exception as e:
         raise AppException(e)
 

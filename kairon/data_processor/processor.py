@@ -2356,6 +2356,28 @@ class MongoProcessor:
         return actions
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+        """
+        Adds slot if it doesn't exist, updates slot if it exists
+        :param slot_value: slot data dict
+        :param bot: bot id
+        :param user: user id
+        :param raise_exception_if_exists: set True to add new slot, False to update slot
+        :return: slot id
+        """
+
+        slot_choices = [
+            FloatSlot.type_name,
+            CategoricalSlot.type_name,
+            UnfeaturizedSlot.type_name,
+            ListSlot.type_name,
+            TextSlot.type_name,
+            BooleanSlot.type_name,
+            AnySlot.type_name
+        ]
+
+        if Utility.check_empty_string(slot_value['name']):
+            raise AppException("Slot Name cannot be empty or blank spaces")
+
         try:
             slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
             if raise_exception_if_exists:
@@ -2364,10 +2386,13 @@ class MongoProcessor:
             slot = Slots()
             slot.name = slot_value['name']
 
-        slot.initial_value = slot_value.get('initial_value')
-        slot.type = slot_value.get('type')
-        slot.influence_conversation = slot_value.get('influence_conversation')
+        if slot_value.get('type') in slot_choices:
+            slot.type = slot_value.get('type')
+        else:
+            raise AppException("Invalid slot type.")
 
+        slot.initial_value = slot_value.get('initial_value')
+        slot.influence_conversation = slot_value.get('influence_conversation')
         slot.auto_fill = slot_value.get('auto_fill')
 
         if slot_value.get('type') == "categorical":
@@ -2378,84 +2403,31 @@ class MongoProcessor:
 
         slot.user = user
         slot.bot = bot
+        slot.timestamp = datetime.utcnow()
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
 
     def delete_slot(
-            self, slot: Text, bot: Text, user: Text
+            self, slot_name: Text, bot: Text, user: Text
     ):
         """
         deletes slots
-        :param slot: slot name
+        :param slot_name: slot name
         :param bot: bot id
         :param user: user id
         :return: AppException
         """
-        if Utility.check_empty_string(slot):
-            raise AssertionError("Intent Name cannot be empty or blank spaces")
 
         try:
-            slotObject = Slots.objects(name__iexact=slot, bot=bot, status=True).get()
-
+            slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
+            slot.status = False
+            slot.timestamp = datetime.utcnow()
+            slot.save()
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
-                "Invalid SlotName: Unable to remove document: " + str(custEx)
+                "Slot does not exist."
             )
-
-        try:
-            Utility.delete_document([Slots], bot=bot, user=user, name__iexact=slot)
-        except Exception as ex:
-            logging.exception(ex)
-            raise AppException("Unable to remove slot document " + str(ex))
-
-    def edit_slot(
-            self, slot_value: Dict, bot: Text, user: Text
-    ):
-        """
-        update slot
-        :param slot_value:
-        :param bot:
-        :param user:
-        :return: None
-        """
-
-        slot_type_choices = [
-            FloatSlot.type_name,
-            CategoricalSlot.type_name,
-            UnfeaturizedSlot.type_name,
-            ListSlot.type_name,
-            TextSlot.type_name,
-            BooleanSlot.type_name,
-            AnySlot.type_name
-        ]
-
-        try:
-            slotObject = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
-
-        except DoesNotExist as custEx:
-            logging.exception(custEx)
-            raise AppException(
-                "Invalid SlotName: Unable to update document: " + str(custEx)
-            )
-
-        try:
-            slotObject.auto_fill = slot_value.get('auto_fill')
-            if slot_value.get('type') in slot_type_choices:
-                slotObject.type = slot_value.get('type')
-
-            if slotObject.type == CategoricalSlot.type_name:
-                slotObject.values = slot_value.get('values')
-            elif slotObject.type == FloatSlot.type_name:
-                slotObject.max_value = slot_value.get('max_value')
-                slotObject.min_value = slot_value.get('min_value')
-
-            slotObject.influence_conversation = slot_value.get('influence_conversation')
-            slotObject.user = user
-            slotObject.timestamp = datetime.utcnow()
-            slotObject.save()
-        except Exception as ex:
-            raise AppException(str(ex))
 
     @staticmethod
     def get_row_count(document: Document, bot: str):
