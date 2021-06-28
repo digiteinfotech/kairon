@@ -22,7 +22,8 @@ responses:
     - text: Great!
   utter_location:
     - text: '{location} is nice place.'
-
+  utter_please_rephrase:
+    - text: 'Im sorry, I didnt quite understand that. Could you rephrase?'
 actions:
 - action_say_hello
 - action_say_bye

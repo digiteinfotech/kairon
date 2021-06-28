@@ -145,7 +145,7 @@ class TestHistory:
         monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
         assert hit_fall_back["fallback_count"] == 1
-        assert hit_fall_back["total_count"] == 3
+        assert hit_fall_back["total_count"] == 4
         assert message is None
 
     def test_visitor_hit_fallback_action_not_configured(self, mock_fallback_user_data, monkeypatch):
@@ -154,7 +154,7 @@ class TestHistory:
         monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
         assert hit_fall_back["fallback_count"] == 1
-        assert hit_fall_back["total_count"] == 3
+        assert hit_fall_back["total_count"] == 4
         assert message is None
 
     def test_visitor_hit_fallback_custom_action(self, mock_fallback_user_data, monkeypatch):
@@ -163,7 +163,19 @@ class TestHistory:
         monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
         assert hit_fall_back["fallback_count"] == 1
-        assert hit_fall_back["total_count"] == 3
+        assert hit_fall_back["total_count"] == 4
+        assert message is None
+
+    def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_fallback_user_data):
+        steps = [
+            {"name": "nlu_fallback", "type": "INTENT"},
+            {"name": "utter_please_rephrase", "type": "BOT"}
+        ]
+        rule = {'name': 'fallback_rule', 'steps': steps, 'type': 'RULE'}
+        MongoProcessor().add_complex_story(rule, "5b029887-bed2-4bbb-aa25-bd12fda26244", 'test')
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
+        assert hit_fall_back["fallback_count"] == 2
+        assert hit_fall_back["total_count"] == 4
         assert message is None
 
     def test_conversation_time_error(self, mock_mongo_processor):

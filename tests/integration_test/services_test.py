@@ -337,11 +337,39 @@ def test_get_data_importer_logs():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
     assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'http_actions'}
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
+    assert actual['data'][2]['start_timestamp']
+    assert actual['data'][2]['end_timestamp']
+    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'http_actions'}
+    del actual['data'][2]['start_timestamp']
+    del actual['data'][2]['end_timestamp']
+    del actual['data'][2]['files_received']
+    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 0, 'data': []},
+                                 'rules': {'count': 1, 'data': []},
+                                 'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
+                                 'domain': {'intents_count': 19, 'actions_count': 26, 'slots_count': 9,
+                                            'utterances_count': 13, 'forms_count': 2, 'entities_count': 8, 'data': []},
+                                 'config': {'count': 0, 'data': []}, 'http_actions': {'count': 5, 'data': []},
+                                 'is_data_uploaded': True, 'status': 'Success', 'exception': '', 'event_status': 'Completed'}
+    assert actual['data'][3]['intents']['count'] == 16
+    assert actual['data'][3]['intents']['data']
+    assert actual['data'][3]['utterances']['count'] == 0
+    assert actual['data'][3]['stories']['count'] == 16
+    assert actual['data'][3]['stories']['data']
+    assert actual['data'][3]['training_examples'] == {'count': 292, 'data': []}
+    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 8, 'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data'][3]['config'] == {'count': 0, 'data': []}
+    assert actual['data'][3]['http_actions'] == {'count': 0, 'data': []}
+    assert actual['data'][3]['is_data_uploaded']
+    assert set(actual['data'][3]['files_received']) == {'stories', 'domain', 'config', 'nlu'}
+    assert actual['data'][3]['status'] == 'Failure'
+    assert actual['data'][3]['event_status'] == 'Completed'
+    assert actual['data'][4]['rules']['count'] == 3
     assert not actual["message"]
 
-    # update status for older task
+    # update status for upload event
     log = ValidationLogs.objects(event_status=EVENT_STATUS.TASKSPAWNED.value).get()
     log.event_status = EVENT_STATUS.COMPLETED.value
     log.save()
@@ -568,7 +596,7 @@ def test_get_all_responses():
     )
     actual = response.json()
     print(actual["data"])
-    assert len(actual["data"]) == 12
+    assert len(actual["data"]) == 13
     assert actual["data"][0]['name']
     assert actual["data"][0]['texts'][0]['text']
     assert not actual["data"][0]['customs']
@@ -3600,8 +3628,8 @@ def test_upload_with_http_error():
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['http_actions'] == ['Required http action fields not found']
-    assert actual['data'][0]['config'] == ['Invalid component XYZ']
+    assert actual['data'][0]['http_actions']['data'] == ['Required http action fields not found']
+    assert actual['data'][0]['config']['data'] == ['Invalid component XYZ']
 
 
 def test_upload_actions_and_config():
@@ -3633,8 +3661,9 @@ def test_upload_actions_and_config():
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
-    assert not actual['data'][0]['http_actions']
-    assert not actual['data'][0]['config']
+    assert actual['data'][0]['http_actions']['count'] == 5
+    assert not actual['data'][0]['http_actions']['data']
+    assert not actual['data'][0]['config']['data']
 
     response = client.get(
         "/api/bot/action/httpaction",
@@ -3646,13 +3675,13 @@ def test_upload_actions_and_config():
     assert len(actual["data"]) == 5
 
 
-def test_get_config():
+def test_get_editable_config():
     response = client.get("/api/bot/config/properties",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'] == {'nlu_confidence_threshold': None, 'action_fallback': None, 'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
+    assert actual['data'] == {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback', 'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
 
 
 def test_set_epoch_and_fallback():
@@ -3741,30 +3770,3 @@ def test_set_epoch_and_fallback_negative_epochs():
     assert actual["error_code"] == 422
     assert actual["message"][0] == {'loc': ['body', 'response_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
     assert actual["message"][1] == {'loc': ['body', 'ted_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
-
-
-def test_delete_action_fallback_only():
-    response = client.delete("/api/bot/config/properties?delete_nlu_fallback=False",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'
-
-
-def test_delete_fallback_nlu_fallback_only():
-    response = client.delete("/api/bot/config/properties?delete_action_fallback=False",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'
-
-
-def test_delete_fallback_config_not_present():
-    response = client.delete("/api/bot/config/properties",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Config deleted'

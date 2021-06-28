@@ -33,7 +33,7 @@ class TestDataImporter:
     async def test_validate_success(self):
         path = 'tests/testing_data/validator/valid'
         importer = DataImporter(path, 'test_data_import', 'test', REQUIREMENTS.copy(), False, False)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -53,7 +53,7 @@ class TestDataImporter:
         shutil.copytree(path, bot_home)
         shutil.copy2(http_actions, bot_home)
         importer = DataImporter(bot_home, bot, user, REQUIREMENTS.copy(), False, False)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -67,7 +67,7 @@ class TestDataImporter:
     async def test_validate_failure(self):
         path = 'tests/testing_data/validator/common_training_examples'
         importer = DataImporter(path, 'test_data_import', 'test', REQUIREMENTS.copy())
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
@@ -107,9 +107,9 @@ class TestDataImporter:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_import_data_append(self):
@@ -129,9 +129,9 @@ class TestDataImporter:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_import_data_dont_save(self):
@@ -153,9 +153,9 @@ class TestDataImporter:
         assert 'affirm' in intents
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
         assert len(processor.fetch_intents(bot_2)) == 0
         assert len(processor.fetch_stories(bot_2)) == 0
@@ -172,7 +172,7 @@ class TestDataImporter:
         test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS.copy(), True)
-        summary = await importer.validate()
+        summary, component_count = await importer.validate()
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
