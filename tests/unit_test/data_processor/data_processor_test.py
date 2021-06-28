@@ -271,8 +271,8 @@ class TestMongoProcessor:
         assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
         assert domain.forms['ticket_file_form'] == {'file': [{'type': 'from_entity', 'entity': 'file'}]}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 43
-        assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 11
+        assert domain.user_actions.__len__() == 45
+        assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -331,8 +331,8 @@ class TestMongoProcessor:
         assert domain.forms['ticket_attributes_form'] == {}
         assert isinstance(domain.forms, dict)
         print(domain.user_actions)
-        assert domain.user_actions.__len__() == 38
-        assert processor.list_actions('all').__len__() == 11
+        assert domain.user_actions.__len__() == 40
+        assert processor.list_actions('all').__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -377,9 +377,9 @@ class TestMongoProcessor:
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
-        assert processor.list_actions('all').__len__() == 11
+        assert processor.list_actions('all').__len__() == 13
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -1858,7 +1858,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1908,7 +1908,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1964,7 +1964,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2021,7 +2021,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2073,7 +2073,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2132,7 +2132,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2192,7 +2192,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
@@ -2268,7 +2268,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 36
+        assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
