@@ -45,12 +45,13 @@ class EventsTrigger:
                 data_importer = DataImporter(path, bot, user, files_received, save_data, overwrite)
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.VALIDATING.value)
 
-                summary = await data_importer.validate()
+                summary, component_count = await data_importer.validate()
                 is_data_valid = all([not summary[key] for key in summary.keys()])
                 validation_status = 'Success' if is_data_valid else 'Failure'
-                DataImporterLogProcessor.add_log(bot, user, summary,
-                                                 status=validation_status,
-                                                 event_status=EVENT_STATUS.SAVE.value)
+                DataImporterLogProcessor.update_summary(bot, user, component_count, summary,
+                                                        status=validation_status,
+                                                        event_status=EVENT_STATUS.SAVE.value)
+
                 if is_data_valid:
                     data_importer.import_data()
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.COMPLETED.value)

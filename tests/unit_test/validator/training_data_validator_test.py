@@ -93,7 +93,7 @@ class TestTrainingDataValidator:
         assert validator.summary['utterances']
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
-        assert validator.summary['domain'] == 'domain.yml is empty!'
+        assert validator.summary['domain'] == ['domain.yml is empty!']
         assert not validator.summary.get('config')
 
     @pytest.mark.asyncio

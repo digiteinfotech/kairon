@@ -38,7 +38,7 @@ class DataImporter:
         self.validator = await TrainingDataValidator.from_training_files(data_path, domain_path,
                                                                          config_path, self.path)
         self.validator.validate_training_data(False)
-        return self.validator.summary
+        return self.validator.summary, self.validator.component_count
 
     def import_data(self):
         """

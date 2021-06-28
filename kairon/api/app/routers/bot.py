@@ -563,17 +563,6 @@ async def set_epoch_and_fallback_properties(config: ComponentConfig, current_use
     return {"message": "Config saved"}
 
 
-@router.delete("/config/properties", response_model=Response)
-async def delete_fallback_properties(delete_nlu_fallback: bool = True, delete_action_fallback: bool = True,
-                                     current_user: User = Depends(auth.get_current_user)):
-    """
-    Deletes Fallback configuration
-    """
-    mongo_processor.delete_fallback_properties(current_user.get_bot(), current_user.get_user(),
-                                               delete_nlu_fallback, delete_action_fallback)
-    return {"message": "Config deleted"}
-
-
 @router.get("/config/properties", response_model=Response)
 async def list_epoch_and_fallback_properties(current_user: User = Depends(auth.get_current_user)):
     """

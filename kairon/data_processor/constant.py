@@ -101,5 +101,10 @@ ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_HTTP_ACTIONS_FORMATS = {'http_action.yaml', 'http_action.yml'}
 REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'http_actions'}
+COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
+                   'http_actions': 0, 'rules': 0,
+                   'domain': {'intents': 0, 'actions': 0, 'slots': 0, 'utterances': 0, 'forms': 0, 'entities': 0}}
 
-DEFAULT_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
+DEFAULT_NLU_FALLBACK_RULE = 'Ask the user to rephrase whenever they send a message with low NLU confidence'
+DEFAULT_NLU_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
+DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
