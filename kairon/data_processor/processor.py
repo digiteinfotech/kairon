@@ -41,7 +41,8 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, DEFAULT_FALLBACK_RESPONSE
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT,
+    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE
 )
 from .data_objects import (
     Responses,
@@ -191,10 +192,10 @@ class MongoProcessor:
             self.save_stories(story_graph.story_steps, bot, user)
         if 'nlu' in what:
             self.save_nlu(nlu, bot, user)
-        if 'config' in what:
-            self.add_or_overwrite_config(config, bot, user)
         if 'rules' in what:
             self.save_rules(story_graph.story_steps, bot, user)
+        if 'config' in what:
+            self.add_or_overwrite_config(config, bot, user)
         if 'http_actions' in what:
             self.save_http_action(http_actions, bot, user)
 
@@ -1040,7 +1041,7 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-
+        self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def save_component_properties(self, configs: dict, bot: Text, user: Text):
@@ -1111,25 +1112,6 @@ class MongoProcessor:
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
         selected_config['response_epochs'] = response_selector.get('epochs')
         return selected_config
-
-    def delete_fallback_properties(self, bot: Text, user: Text, delete_nlu_fallback: bool = True, delete_action_fallback: bool = True):
-        config = self.load_config(bot)
-        if delete_nlu_fallback:
-            index = next((index for index, comp in enumerate(config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
-            if index:
-                del config['pipeline'][index]
-
-        if delete_action_fallback:
-            rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), {})
-            if not rule_policy:
-                rule_policy['name'] = 'RulePolicy'
-                config['policies'].append(rule_policy)
-            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
-            rule_policy['core_fallback_threshold'] = 0.3
-
-            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
-                self.add_text_response(DEFAULT_FALLBACK_RESPONSE, 'utter_default', bot, user)
-        self.save_config(config, bot, user)
 
     def delete_config(self, bot: Text, user: Text):
         """
@@ -2578,15 +2560,15 @@ class MongoProcessor:
                                                                                                            user,
                                                                                                            training_files,
                                                                                                            overwrite)
-        if is_event_data:
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
-        else:
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
+        if not is_event_data:
             status = 'Failure'
-            if not non_event_validation_summary.get('http_actions') and not non_event_validation_summary.get('config'):
+            summary = non_event_validation_summary['summary']
+            component_count = non_event_validation_summary['component_count']
+            if not summary.get('http_actions') and not summary.get('config'):
                 status = 'Success'
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, status=status,
-                                             event_status=EVENT_STATUS.COMPLETED.value,
-                                             summary=non_event_validation_summary, files_received=list(files_received))
+            DataImporterLogProcessor.update_summary(bot, user, component_count, summary, status=status,
+                                                    event_status=EVENT_STATUS.COMPLETED.value)
 
         return is_event_data
 
@@ -2617,6 +2599,7 @@ class MongoProcessor:
         http_actions = None
         config = None
         error_summary = {}
+        component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'http_action.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
         if os.path.exists(actions_path):
@@ -2632,11 +2615,12 @@ class MongoProcessor:
             files_to_save = set()
             if http_actions:
                 files_to_save.add('http_actions')
+                component_count['http_actions'] = len(http_actions.get('http_actions'))
             if config:
                 files_to_save.add('config')
             self.save_training_data(bot, user, http_actions=http_actions, config=config,
                                     overwrite=overwrite, what=files_to_save)
-        return error_summary
+        return {'summary': error_summary, 'component_count': component_count}
 
     def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
                                              which: set = REQUIREMENTS):
@@ -2682,3 +2666,56 @@ class MongoProcessor:
             rules_path = os.path.join(data_path, "rules.yml")
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+        idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
+        if idx:
+            del config_obj["policies"][idx]
+        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
+        if not rule_policy:
+            rule_policy['name'] = 'RulePolicy'
+            config_obj["policies"].append(rule_policy)
+        if not rule_policy.get('core_fallback_action_name'):
+            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
+        if not rule_policy.get('core_fallback_threshold'):
+            rule_policy['core_fallback_threshold'] = 0.3
+            self.add_default_fallback_data(bot, user, False, True)
+
+        property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+        if not property_idx:
+            property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
+            fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
+            config_obj['pipeline'].insert(property_idx + 1, fallback)
+            self.add_default_fallback_data(bot, user, True, False)
+
+    @staticmethod
+    def fetch_nlu_fallback_action(bot: Text):
+        action = None
+        event = StoryEvents(name='nlu_fallback', type="user")
+        try:
+            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
+            for event in rule.events:
+                if 'action' == event.type:
+                    action = event.name
+                    break
+        except DoesNotExist as e:
+            logging.error(e)
+        return action
+
+    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
+        if nlu_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
+                self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
+            steps = [
+                {"name": "nlu_fallback", "type": "INTENT"},
+                {"name": "utter_please_rephrase", "type": "BOT"}
+            ]
+            rule = {'name': DEFAULT_NLU_FALLBACK_RULE, 'steps': steps, 'type': 'RULE'}
+            try:
+                self.add_complex_story(rule, bot, user)
+            except AppException as e:
+                logging.error(str(e))
+
+        if action_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
+                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)

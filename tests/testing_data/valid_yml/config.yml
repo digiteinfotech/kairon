@@ -1,4 +1,4 @@
-language: en
+language: fr
 pipeline:
 - name: WhitespaceTokenizer
 - name: RegexFeaturizer
@@ -19,7 +19,5 @@ policies:
   max_history: 5
   name: TEDPolicy
 - name: RulePolicy
-- core_threshold: 0.3
-  fallback_action_name: action_small_talk
-  name: FallbackPolicy
-  nlu_threshold: 0.75
+  core_fallback_action_name: action_small_talk
+  core_fallback_threshold: 0.75
