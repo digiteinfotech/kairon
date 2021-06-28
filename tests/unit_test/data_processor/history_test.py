@@ -31,8 +31,18 @@ class TestHistory:
             open("tests/testing_data/history/conversations_history.json")
         )
         for event in json_data[0]['events'][15:]:
-            event['timestamp'] = float(datetime.utcnow().strftime("%s"))
+            event['timestamp'] = datetime.utcnow().timestamp()
         return json_data[0], None
+
+    def get_history_conversations_new(self):
+        json_data = json.load(
+            open("tests/testing_data/history/conversations_history.json")
+        )
+        for event in json_data[0:2]:
+            event['latest_event_time'] = datetime.utcnow().timestamp()
+            for ev in event['events']:
+                ev['timestamp'] = datetime.utcnow().timestamp()
+        return json_data[0:2], None
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
         domain = Domain.from_file("tests/testing_data/initial/domain.yml")
@@ -51,6 +61,18 @@ class TestHistory:
             db = client.get_database("conversation")
             conversations = db.get_collection("conversations")
             history, _ = self.get_history_conversations()
+            conversations.insert(history)
+            return client, "conversation", "conversations", None
+
+        monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
+
+    @pytest.fixture
+    def mock_fallback_user_data_new(self, monkeypatch):
+        def db_client(*args, **kwargs):
+            client = MongoClient()
+            db = client.get_database("conversation")
+            conversations = db.get_collection("conversations")
+            history, _ = self.get_history_conversations_new()
             conversations.insert(history)
             return client, "conversation", "conversations", None
 
@@ -302,3 +324,31 @@ class TestHistory:
         retention, message = ChatHistory.user_retention_range("tests")
         assert retention['retention_range'] == {}
         assert message is None
+
+    def test_fallback_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            f_count, message = ChatHistory.fallback_count_range("tests")
+            assert not f_count
+            assert message is None
+
+    def test_fallback_range(self, mock_mongo_client):
+        f_count, message = ChatHistory.fallback_count_range("tests")
+        assert f_count["fallback_counts"] == {}
+        assert message is None
+
+    def test_flatten_conversation_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            f_count, message = ChatHistory.flatten_conversations("tests")
+            assert not f_count
+            assert message is None
+
+    def test_flatten_conversation_range(self, mock_mongo_client):
+        f_count, message = ChatHistory.flatten_conversations("tests")
+        assert f_count["conversation_data"] == {}
+        assert message is None
+
+    def test_flatten_conversation_with_data(self, mock_fallback_user_data_new):
+        f_data, message = ChatHistory.flatten_conversations("tests")
+        assert f_data["conversation_data"]["5b029887-bed2-4bbb-aa25-bd12fda26244"][0][0] == "Hi"
+        assert message is None
+

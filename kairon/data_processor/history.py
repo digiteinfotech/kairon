@@ -497,6 +497,11 @@ class ChatHistory:
         :return: number of successful conversations
         """
 
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -518,7 +523,7 @@ class ChatHistory:
                     conversations.aggregate([
                         {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                         {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$match": {"events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                        {"$match": {"events.name": fallback_action}},
                         {"$group": {"_id": "$sender_id"}},
                         {"$group": {"_id": None, "count": {"$sum": 1}}},
                         {"$project": {"_id": 0, "count": 1}}
@@ -712,6 +717,11 @@ class ChatHistory:
         :return: dictionary of counts of successful bot conversations for the previous months
         """
 
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -731,7 +741,7 @@ class ChatHistory:
                     conversations.aggregate([
                         {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                         {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$match": {"events.policy": {"$regex": ".*fallback*.", "$options": "$i"}}},
+                        {"$match": {"events.name": fallback_action}},
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
 
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
@@ -798,3 +808,90 @@ class ChatHistory:
                 {"retention_range": retention},
                 message
             )
+
+    @staticmethod
+    def fallback_count_range(bot: Text, month: int = 6):
+        """
+        Computes the trend for fallback counts
+
+        :param bot: bot id
+        :param month: default is 6 months
+        :return: dictionary of fallback counts for the previous months
+        """
+
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            fallback_counts = []
+            try:
+
+                fallback_counts = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events"}},
+                                             {"$match": {"events.event": "action",
+                                                         "events.timestamp": {
+                                                             "$gte": Utility.get_timestamp_previous_month(
+                                                                 month)}}},
+                                             {"$match": {"events.name": fallback_action}},
+                                             {"$addFields": {"month": {
+                                                 "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                                             {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                             {"$project": {"_id": 1, "count": 1}}
+                                             ]))
+            except Exception as e:
+                message = str(e)
+            f_count_range = {d['_id']: d['count'] for d in fallback_counts}
+            return (
+                {"fallback_counts": f_count_range},
+                message
+            )
+
+    @staticmethod
+    def flatten_conversations(bot: Text, month: int = 3):
+        """
+        Retrieves the flattened conversation data of the bot
+
+        :param bot: bot id
+        :param month: default is 3 months
+        :return: dictionary of the bot users and their conversation data
+        """
+
+        client, database, collection, message = ChatHistory.get_mongo_connection(bot)
+        with client as client:
+            db = client.get_database(database)
+            conversations = db.get_collection(collection)
+            user_data = []
+            try:
+
+                user_data = list(conversations.aggregate(
+                    [{"$match": {"latest_event_time": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                     {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                     {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                     {"$match": {"$or": [{"events.event": {"$in": ['bot', 'user']}}, {
+                         "$and": [{"events.event": "action"},
+                                  {"events.name": {"$nin": ['action_listen', 'action_session_start']}}]}]}},
+                     {"$project": {"_id": 0, "sender_id": "$sender_id", "text": "$events.text",
+                                   "intent": "$events.parse_data.intent.name",
+                                   "confidence": "$events.parse_data.intent.confidence", "action": "$events.name",
+                                   "type": "$events.event"}}]))
+            except Exception as e:
+                message = str(e)
+            triples = [user_data[i:i+3] for i in range(len(user_data)) if user_data[i]['type'] == 'user']
+            final_data = {}
+            for list_step in triples:
+                metrics = [list_step[0].get('text'), list_step[0].get('intent'), list_step[0].get('confidence'),
+                           list_step[1].get('action'), list_step[2].get('text')]
+                if final_data.get(list_step[0]['sender_id']):
+                    final_data[list_step[0]['sender_id']].append(metrics)
+                else:
+                    final_data[list_step[0]['sender_id']] = [metrics]
+            return (
+                {"conversation_data": final_data},
+                message
+            )
+

@@ -294,3 +294,29 @@ def test_user_retention_range(mock_auth, mock_db_client):
     assert actual["data"]["retention_range"] == {}
     assert actual["message"] is None
     assert actual["success"]
+
+
+def test_fallback_count_range(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/trend/user/fallback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_counts"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_flat_conversations(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/user/flat_conversations",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["conversation_data"] == {}
+    assert actual["message"] is None
+    assert actual["success"]

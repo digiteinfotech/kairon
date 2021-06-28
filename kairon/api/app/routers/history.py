@@ -72,13 +72,13 @@ async def conversation_time(month: HistoryMonth = 1,current_user: User = Depends
 
 
 @router.get("/metrics/user/engaged", response_model=Response)
-async def count_engaged_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user)):
+async def count_engaged_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user), limit: int = 10):
 
     """
     Fetches the number of engaged users of the bot
     """
     engaged_user_count, message = ChatHistory.engaged_users(
-        current_user.get_bot(), month
+        current_user.get_bot(), month, limit
     )
     return {"data": engaged_user_count, "message": message}
 
@@ -117,13 +117,13 @@ async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depe
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
-async def engaged_users_trend(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+async def engaged_users_trend(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user), limit: int = 10):
 
     """
     Fetches the counts of engaged users of the bot for previous months
     """
     range_value, message = ChatHistory.engaged_users_range(
-        current_user.get_bot(), month
+        current_user.get_bot(), month, limit
     )
     return {"data": range_value, "message": message}
 
@@ -159,4 +159,26 @@ async def retention_trend(month: HistoryMonth = 6, current_user: User = Depends(
         current_user.get_bot(), month
     )
     return {"data": range_value, "message": message}
+
+
+@router.get("/metrics/trend/user/fallback", response_model=Response)
+async def fallback_trend(month: HistoryMonth = 6, current_user: User = Depends(auth.get_current_user)):
+    """
+    Fetches the fallback count of the bot for previous months
+    """
+    range_value, message = ChatHistory.fallback_count_range(
+        current_user.get_bot(), month
+    )
+    return {"data": range_value, "message": message}
+
+
+@router.get("/metrics/user/flat_conversations", response_model=Response)
+async def flat_conversations(current_user: User = Depends(auth.get_current_user), month: int = 3):
+    """
+    Fetches the flattened conversation data of the bot for previous months
+    """
+    flat_data, message = ChatHistory.flatten_conversations(
+        current_user.get_bot(), month
+    )
+    return {"data": flat_data, "message": message}
 
