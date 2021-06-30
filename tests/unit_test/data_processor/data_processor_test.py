@@ -1434,6 +1434,32 @@ class TestMongoProcessor:
                 raise_exception_if_exists=False)
             assert msg == 'Invalid slot type.'
 
+    def test_add_float_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "float", "initial_value": 0.2, "max_value": 0.5, "min_value": 0.1,
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'float'
+        assert slot['initial_value'] == 0.2
+        assert slot['influence_conversation']
+        assert slot['max_value'] == 0.5
+        assert slot['min_value'] == 0.1
+
+    def test_add_categorical_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "float", "initial_value": ["red", "blue"],
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'float'
+        assert slot['initial_value'] == ["red", "blue"]
+        assert slot['influence_conversation']
+
     def test_delete_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'
