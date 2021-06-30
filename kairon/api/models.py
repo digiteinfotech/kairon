@@ -21,14 +21,14 @@ class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    bot: str
+    bot: list
     account: int
     status: bool
     alias_user: str = None
     is_integration_user: bool
 
     def get_bot(self):
-        return self.bot
+        return self.bot[0]
 
     def get_user(self):
         if self.is_integration_user:
@@ -66,6 +66,7 @@ class StoryEventType(str, Enum):
     form = "form"
     slot = "slot"
 
+
 class RegisterAccount(BaseModel):
     email: str
     first_name: str
@@ -73,7 +74,6 @@ class RegisterAccount(BaseModel):
     password: SecretStr
     confirm_password: SecretStr
     account: str
-    bot: str
 
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")

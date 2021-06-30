@@ -227,7 +227,7 @@ class MongoProcessor:
             for file in files
         ]
 
-    def delete_bot_data(self, bot: Text, user: Text, what = REQUIREMENTS.copy()):
+    def delete_bot_data(self, bot: Text, user: Text, what=REQUIREMENTS.copy()):
         """
         deletes bot data
 

@@ -13,10 +13,13 @@ from kairon.utils import Utility
 from mongomock import MongoClient
 client = TestClient(app)
 
+
 def pytest_configure():
     return {'token_type': None,
-            'access_token': None
+            'access_token': None,
+            'bot': None
             }
+
 
 @pytest.fixture(autouse=True)
 def setup():
@@ -26,21 +29,32 @@ def setup():
 
 
 def user_details(*args, **kwargs):
+    pytest.bot = "integration"
     return {
         "email": "integration@demo.com",
         "password": Utility.get_password_hash("welcome@1"),
         "first_name": "integration",
         "last_name": "test",
         "status": True,
-        "bot": "integration",
+        "bot": [pytest.bot],
         "account": 1,
         "is_integration_user": False,
+    }
+
+
+def bot_details(*args, **kwargs):
+    return {
+        "user": "integration@demo.com",
+        "status": True,
+        "bot": pytest.bot,
+        "account": 1,
     }
 
 
 @pytest.fixture
 def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
+    monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
 
 
 def endpoint_details(*args, **kwargs):
@@ -90,8 +104,6 @@ def mock_chat_history(monkeypatch):
     monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
 
 
-
-
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     response = client.post(
         "/api/auth/login",
@@ -102,7 +114,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     pytest.token_type = token_response["data"]["token_type"]
 
     response = client.get(
-        "/api/history/users",
+        f"/api/history/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -115,7 +127,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 
 def test_chat_history_users(mock_auth, mock_chat_history):
     response = client.get(
-        "/api/history/users",
+        f"/api/history/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -128,7 +140,7 @@ def test_chat_history_users(mock_auth, mock_chat_history):
 
 def test_chat_history(mock_auth, mock_chat_history):
     response = client.get(
-        "/api/history/users/5e564fbcdcf0d5fad89e3acd",
+        f"/api/history/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -141,7 +153,7 @@ def test_chat_history(mock_auth, mock_chat_history):
 
 def test_visitor_hit_fallback(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/fallback",
+        f"/api/history/{pytest.bot}/metrics/fallback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -155,7 +167,7 @@ def test_visitor_hit_fallback(mock_auth, mock_db_client):
 
 def test_conversation_steps(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/conversation/steps",
+        f"/api/history/{pytest.bot}/metrics/conversation/steps",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -168,7 +180,7 @@ def test_conversation_steps(mock_auth, mock_db_client):
 
 def test_conversation_time(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/conversation/time",
+        f"/api/history/{pytest.bot}/metrics/conversation/time",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -181,7 +193,7 @@ def test_conversation_time(mock_auth, mock_db_client):
 
 def test_user_with_metrics(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/users",
+        f"/api/history/{pytest.bot}/metrics/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -194,7 +206,7 @@ def test_user_with_metrics(mock_auth, mock_db_client):
 
 def test_engaged_users(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/user/engaged",
+        f"/api/history/{pytest.bot}/metrics/user/engaged",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -207,7 +219,7 @@ def test_engaged_users(mock_auth, mock_db_client):
 
 def test_new_users(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/user/new",
+        f"/api/history/{pytest.bot}/metrics/user/new",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -220,7 +232,7 @@ def test_new_users(mock_auth, mock_db_client):
 
 def test_successful_conversation(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/conversation/success",
+        f"/api/history/{pytest.bot}/metrics/conversation/success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -233,7 +245,7 @@ def test_successful_conversation(mock_auth, mock_db_client):
 
 def test_user_retention(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/user/retention",
+        f"/api/history/{pytest.bot}/metrics/user/retention",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -246,7 +258,7 @@ def test_user_retention(mock_auth, mock_db_client):
 
 def test_engaged_user_range(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/trend/user/engaged",
+        f"/api/history/{pytest.bot}/metrics/trend/user/engaged",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -259,7 +271,7 @@ def test_engaged_user_range(mock_auth, mock_db_client):
 
 def test_new_user_range(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/trend/user/new",
+        f"/api/history/{pytest.bot}/metrics/trend/user/new",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -272,7 +284,7 @@ def test_new_user_range(mock_auth, mock_db_client):
 
 def test_successful_conversation_range(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/trend/conversation/success",
+        f"/api/history/{pytest.bot}/metrics/trend/conversation/success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -285,7 +297,7 @@ def test_successful_conversation_range(mock_auth, mock_db_client):
 
 def test_user_retention_range(mock_auth, mock_db_client):
     response = client.get(
-        "/api/history/metrics/trend/user/retention",
+        f"/api/history/{pytest.bot}/metrics/trend/user/retention",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
