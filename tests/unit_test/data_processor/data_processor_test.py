@@ -1401,10 +1401,38 @@ class TestMongoProcessor:
         assert slot['initial_value'] == bot
         assert not slot['influence_conversation']
 
+    def test_add_duplicate_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
         with pytest.raises(AppException):
             msg = processor.add_slot(
-                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user, raise_exception_if_exists=True)
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=True)
             assert msg == 'Slot already exists!'
+
+    def test_add_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Slot Name cannot be empty or blank spaces'
+
+    def test_add_invalid_slot_type(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "bot", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Invalid slot type.'
 
     def test_delete_slot(self):
         processor = MongoProcessor()
@@ -1416,8 +1444,22 @@ class TestMongoProcessor:
         slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
         assert slot.status is False
 
+    def test_delete_inexistent_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
         with pytest.raises(AppException) as e:
             processor.delete_slot(slot_name='bot_doesnt_exist', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
+
+    def test_delete_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='', bot=bot, user=user)
         assert str(e).__contains__('Slot does not exist.')
 
     def test_fetch_rule_block_names(self):
