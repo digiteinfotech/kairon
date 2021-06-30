@@ -502,6 +502,7 @@ class ChatHistory:
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         fallback_action = action_fallback.get("core_fallback_action_name")
         fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -523,7 +524,7 @@ class ChatHistory:
                     conversations.aggregate([
                         {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                         {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$match": {"events.name": fallback_action}},
+                        {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
                         {"$group": {"_id": "$sender_id"}},
                         {"$group": {"_id": None, "count": {"$sum": 1}}},
                         {"$project": {"_id": 0, "count": 1}}
@@ -722,6 +723,7 @@ class ChatHistory:
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         fallback_action = action_fallback.get("core_fallback_action_name")
         fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -741,7 +743,7 @@ class ChatHistory:
                     conversations.aggregate([
                         {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                         {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$match": {"events.name": fallback_action}},
+                        {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
 
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
@@ -824,6 +826,7 @@ class ChatHistory:
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         fallback_action = action_fallback.get("core_fallback_action_name")
         fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -837,7 +840,7 @@ class ChatHistory:
                                                          "events.timestamp": {
                                                              "$gte": Utility.get_timestamp_previous_month(
                                                                  month)}}},
-                                             {"$match": {"events.name": fallback_action}},
+                                             {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
                                              {"$addFields": {"month": {
                                                  "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
                                              {"$group": {"_id": "$month", "count": {"$sum": 1}}},

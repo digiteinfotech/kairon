@@ -185,6 +185,11 @@ class HistoryMonth(BaseModel):
     month: History_Month_Enum
 
 
+class ConversationFilter(BaseModel):
+    month: History_Month_Enum = 1
+    engaged_users_threshold: int = 10
+
+
 class ParameterChoice(str, Enum):
     value = "value"
     slot = "slot"

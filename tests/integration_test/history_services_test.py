@@ -205,6 +205,20 @@ def test_engaged_users(mock_auth, mock_db_client):
     assert actual["success"]
 
 
+def test_engaged_users_with_value(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/user/engaged",
+        json={'month': 1, 'engaged_users_threshold': 10},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["engaged_users"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
 def test_new_users(mock_auth, mock_db_client):
     response = client.get(
         "/api/history/metrics/user/new",
@@ -247,6 +261,20 @@ def test_user_retention(mock_auth, mock_db_client):
 def test_engaged_user_range(mock_auth, mock_db_client):
     response = client.get(
         "/api/history/metrics/trend/user/engaged",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]['engaged_user_range'] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_engaged_user_range_with_value(mock_auth, mock_db_client):
+    response = client.get(
+        "/api/history/metrics/trend/user/engaged",
+        json = {'month': 1, 'engaged_users_threshold': 10},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
