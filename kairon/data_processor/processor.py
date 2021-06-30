@@ -2357,35 +2357,33 @@ class MongoProcessor:
             AnySlot.type_name
         ]
 
-        if Utility.check_empty_string(slot_value['name']):
+        if Utility.check_empty_string(slot_value.get('name')):
             raise AppException("Slot Name cannot be empty or blank spaces")
 
+        if slot_value.get('type') not in slot_choices:
+            raise AppException("Invalid slot type.")
+
         try:
-            slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            slot = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
             if raise_exception_if_exists:
                 raise AppException("Slot already exists!")
         except DoesNotExist:
             slot = Slots()
-            slot.name = slot_value['name']
+            slot.name = slot_value.get('name')
 
-        if slot_value.get('type') in slot_choices:
-            slot.type = slot_value.get('type')
-        else:
-            raise AppException("Invalid slot type.")
-
+        slot.type = slot_value.get('type')
         slot.initial_value = slot_value.get('initial_value')
         slot.influence_conversation = slot_value.get('influence_conversation')
         slot.auto_fill = slot_value.get('auto_fill')
 
-        if slot_value.get('type') == "categorical":
+        if slot_value.get('type') == CategoricalSlot.type_name:
             slot.values = slot_value.values
-        elif slot_value.get('type') == "float":
+        elif slot_value.get('type') == FloatSlot.type_name:
             slot.max_value = slot_value.get('max_value')
             slot.min_value = slot_value.get('min_value')
 
         slot.user = user
         slot.bot = bot
-        slot.timestamp = datetime.utcnow()
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
 
@@ -2403,7 +2401,6 @@ class MongoProcessor:
         try:
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             slot.status = False
-            slot.timestamp = datetime.utcnow()
             slot.save()
         except DoesNotExist as custEx:
             logging.exception(custEx)
