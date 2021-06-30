@@ -9,16 +9,19 @@ import pytest
 from pydantic import SecretStr
 
 from kairon.api.auth import Authentication
+from kairon.api.data_objects import User
 from kairon.api.processor import AccountProcessor
+from kairon.data_processor.data_objects import Configs, Rules, Responses
 from kairon.utils import Utility
 from kairon.exceptions import AppException
+from stress_test.data_objects import Bot
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
-
 def pytest_configure():
-    return {'bot': None}
+    return {'bot': None, 'account': None}
+
 
 class TestAccountProcessor:
     @pytest.fixture(autouse=True)
@@ -30,6 +33,7 @@ class TestAccountProcessor:
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
         account = AccountProcessor.get_account(account_response["_id"])
         assert account_response
+        pytest.account = account_response["_id"]
         assert account_response["_id"] == account["_id"]
         assert account_response["name"] == account["name"]
         account_response = AccountProcessor.add_account("ebay", "testAdmin")
@@ -58,15 +62,34 @@ class TestAccountProcessor:
         with pytest.raises(AppException):
             AccountProcessor.add_account(None, "testAdmin")
 
+    def test_list_bots_none(self):
+        assert not list(AccountProcessor.list_bots(5))
+
     def test_add_bot(self):
-        bot_response = AccountProcessor.add_bot("test", 1, "testAdmin")
-        assert bot_response
-        pytest.bot = bot_response["_id"].__str__()
+        bot_response = AccountProcessor.add_bot("test", pytest.account, "fshaikh@digite.com", True)
+        bot = Bot.objects(name="test").get().to_mongo().to_dict()
+        assert bot['_id'].__str__() == bot_response['_id'].__str__()
+        config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
+        assert config['language']
+        assert config['pipeline'][6]['name'] == 'FallbackClassifier'
+        assert config['pipeline'][6]['threshold'] == 0.7
+        assert config['policies'][2]['name'] == 'RulePolicy'
+        assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
+        assert config['policies'][2]['core_fallback_threshold'] == 0.3
+        assert Rules.objects(bot=bot['_id'].__str__()).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
+        assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
+        pytest.bot = bot_response['_id'].__str__()
+
+    def test_list_bots(self):
+        bot = list(AccountProcessor.list_bots(pytest.account))
+        assert bot[0]['name'] == 'test'
+        assert bot[0]['_id']
 
     def test_get_bot(self):
         bot_response = AccountProcessor.get_bot(pytest.bot)
         assert bot_response
-        assert bot_response["account"] == 1
+        assert bot_response["account"] == pytest.account
 
     def test_add_duplicate_bot(self):
         with pytest.raises(Exception):
@@ -88,6 +111,10 @@ class TestAccountProcessor:
         with pytest.raises(AppException):
             AccountProcessor.add_bot(None, 1, "testAdmin")
 
+    def test_add_none_user(self):
+        with pytest.raises(AppException):
+            AccountProcessor.add_bot('test', 1, None)
+
     def test_add_user(self):
         user = AccountProcessor.add_user(
             email="fshaikh@digite.com",
@@ -101,6 +128,56 @@ class TestAccountProcessor:
         assert user
         assert user["password"] != "12345"
         assert user["status"]
+
+    def test_add_bot_for_existing_user(self):
+        bot_response = AccountProcessor.add_bot("test_version_2", pytest.account, "fshaikh@digite.com", False)
+        bot = Bot.objects(name="test_version_2").get().to_mongo().to_dict()
+        assert bot['_id'].__str__() == bot_response['_id'].__str__()
+        user = User.objects(email="fshaikh@digite.com").get()
+        assert len(user.bot) == 2
+        config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
+        assert config['language']
+        assert config['pipeline'][6]['name'] == 'FallbackClassifier'
+        assert config['pipeline'][6]['threshold'] == 0.7
+        assert config['policies'][2]['name'] == 'RulePolicy'
+        assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
+        assert config['policies'][2]['core_fallback_threshold'] == 0.3
+        assert Rules.objects(bot=bot['_id'].__str__()).get()
+        assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
+
+    def test_list_bots_2(self):
+        bot = list(AccountProcessor.list_bots(pytest.account))
+        assert bot[0]['name'] == 'test'
+        assert bot[0]['_id']
+        assert bot[1]['name'] == 'test_version_2'
+        assert bot[1]['_id']
+
+    def test_update_bot_name(self):
+        AccountProcessor.update_bot('test_bot', pytest.bot)
+        bot = list(AccountProcessor.list_bots(pytest.account))
+        assert bot[0]['name'] == 'test_bot'
+        assert bot[0]['_id']
+
+    def test_update_bot_not_exists(self):
+        with pytest.raises(AppException):
+            AccountProcessor.update_bot('test_bot', '5f256412f98b97335c168ef0')
+
+    def test_update_bot_empty_name(self):
+        with pytest.raises(AppException):
+            AccountProcessor.update_bot(' ', '5f256412f98b97335c168ef0')
+
+    def test_delete_bot(self):
+        bot = list(AccountProcessor.list_bots(pytest.account))
+        pytest.deleted_bot = bot[1]['_id']
+        AccountProcessor.delete_bot(bot[1]['_id'])
+
+    def test_delete_bot_not_exists(self):
+        with pytest.raises(AppException):
+            AccountProcessor.delete_bot(pytest.deleted_bot)
+
+    def test_add_bot_to_user_not_present(self):
+        with pytest.raises(AppException):
+            AccountProcessor.add_bot_for_user(pytest.deleted_bot, "fshaikh")
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):
@@ -348,17 +425,11 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", bot_response)
         monkeypatch.setattr(AccountProcessor, "get_account", account_response)
 
-    def test_get_user_details_bot_inactive(self, mock_bot_inactive):
-        with pytest.raises(ValidationError):
-            user_details = AccountProcessor.get_user_details("demo@demo.ai")
-            assert all(
-                user_details[key] is False
-                if key == "is_integration_user"
-                else user_details[key]
-                for key in AccountProcessor.get_user_details(
-                    user_details["email"]
-                ).keys()
-            )
+    def test_get_user_details_bot_inactive(self, mock_bot_inactive, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'EMAIL_ENABLED', True)
+        with pytest.raises(AppException) as e:
+            AccountProcessor.get_user_details("demo@demo.ai")
+        assert str(e).__contains__('Please verify your mail')
 
     @pytest.fixture
     def mock_account_inactive(self, monkeypatch):
@@ -413,18 +484,6 @@ class TestAccountProcessor:
             "first_name": "Test_First",
             "last_name": "Test_Last",
             "password": "welcome@1",
-        }
-        with pytest.raises(AppException):
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
-
-    def test_account_setup_missing_bot_name(self):
-        account = {
-            "account": "TestAccount",
-            "email": "demo@ac.in",
-            "first_name": "Test_First",
-            "last_name": "Test_Last",
-            "password": "Welcome@1",
         }
         with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
