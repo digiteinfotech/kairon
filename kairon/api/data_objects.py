@@ -7,7 +7,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField
+    DictField, ListField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -23,7 +23,7 @@ class User(Document):
     role = StringField(required=True, default="trainer")
     is_integration_user = BooleanField(default=False)
     account = LongField(required=True)
-    bot = StringField(required=True)
+    bot = ListField(StringField(), required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
