@@ -345,6 +345,6 @@ def test_flat_conversations(mock_auth, mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["conversation_data"] == {}
+    assert actual["data"]["conversation_data"] == []
     assert actual["message"] is None
     assert actual["success"]

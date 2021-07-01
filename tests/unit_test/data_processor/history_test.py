@@ -344,11 +344,11 @@ class TestHistory:
 
     def test_flatten_conversation_range(self, mock_mongo_client):
         f_count, message = ChatHistory.flatten_conversations("tests")
-        assert f_count["conversation_data"] == {}
+        assert f_count["conversation_data"] == []
         assert message is None
 
     def test_flatten_conversation_with_data(self, mock_fallback_user_data_new):
         f_data, message = ChatHistory.flatten_conversations("tests")
-        assert f_data["conversation_data"]["5b029887-bed2-4bbb-aa25-bd12fda26244"][0][0] == "Hi"
+        assert f_data["conversation_data"][0]['events'][0]['text'] == "Hi"
         assert message is None
 

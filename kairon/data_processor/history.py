@@ -871,30 +871,24 @@ class ChatHistory:
             user_data = []
             try:
 
-                user_data = list(conversations.aggregate(
-                    [{"$match": {"latest_event_time": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                     {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                     {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                     {"$match": {"$or": [{"events.event": {"$in": ['bot', 'user']}}, {
-                         "$and": [{"events.event": "action"},
-                                  {"events.name": {"$nin": ['action_listen', 'action_session_start']}}]}]}},
-                     {"$project": {"_id": 0, "sender_id": "$sender_id", "text": "$events.text",
-                                   "intent": "$events.parse_data.intent.name",
-                                   "confidence": "$events.parse_data.intent.confidence", "action": "$events.name",
-                                   "type": "$events.event"}}]))
+                user_data = list(
+                    conversations.aggregate([{"$match": {"latest_event_time": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$match": {"$or": [{"events.event": {"$in": ['bot', 'user']}}, {
+                                              "$and": [{"events.event": "action"}, {"events.name": {
+                                                  "$nin": ['action_listen', 'action_session_start']}}]}]}},
+                                          {"$project": {"sender_id": 1, "events.text": 1,
+                                                        "events.intent": "$events.parse_data.intent.name",
+                                                        "events.confidence": "$events.parse_data.intent.confidence",
+                                                        "events.name": 1, "events.event": 1}},
+                                          {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}}
+                                          ]))
             except Exception as e:
                 message = str(e)
-            triples = [user_data[i:i+3] for i in range(len(user_data)) if user_data[i]['type'] == 'user']
-            final_data = {}
-            for list_step in triples:
-                metrics = [list_step[0].get('text'), list_step[0].get('intent'), list_step[0].get('confidence'),
-                           list_step[1].get('action'), list_step[2].get('text')]
-                if final_data.get(list_step[0]['sender_id']):
-                    final_data[list_step[0]['sender_id']].append(metrics)
-                else:
-                    final_data[list_step[0]['sender_id']] = [metrics]
+
             return (
-                {"conversation_data": final_data},
+                {"conversation_data": user_data},
                 message
             )
 

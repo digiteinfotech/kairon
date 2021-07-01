@@ -174,7 +174,7 @@ async def fallback_trend(month: HistoryMonth = 6, current_user: User = Depends(a
 
 
 @router.get("/metrics/user/flat_conversations", response_model=Response)
-async def flat_conversations(current_user: User = Depends(auth.get_current_user), month: int = 3):
+async def flat_conversations(month: int = 3, current_user: User = Depends(auth.get_current_user)):
     """
     Fetches the flattened conversation data of the bot for previous months
     """
