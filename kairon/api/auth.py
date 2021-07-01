@@ -59,6 +59,28 @@ class Authentication:
             user_model.alias_user = alias_user
         return user_model
 
+    async def get_current_user_and_bot(self, request: Request, token: str = Depends(Utility.oauth2_scheme)):
+        user = await self.get_current_user(request, token)
+        bot_id = request.path_params.get('bot')
+        if Utility.check_empty_string(bot_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='Bot is required',
+            )
+        if bot_id not in user.bot:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='Access denied for bot',
+            )
+        bot = AccountProcessor.get_bot(bot_id)
+        if not bot["status"]:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Inactive Bot Please contact system admin!",
+            )
+        user.bot = bot_id
+        return user
+
     @staticmethod
     def create_access_token( *, data: dict, is_integration=False, token_expire: int=0):
         to_encode = data.copy()
