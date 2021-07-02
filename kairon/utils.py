@@ -924,13 +924,15 @@ class Utility:
                                                        exception=str(e))
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
+    def http_request(method: str, url: str, token: str, user: str, json: Dict = None, has_json_response = False):
         logger.info("agent event started " + url)
         headers = {'content-type': 'application/json', 'X-USER': user}
         if token:
             headers['Authorization'] = 'Bearer ' + token
         response = requests.request(method, url, headers=headers, json=json)
         logger.info("agent event completed" + response.content.decode('utf8'))
+        if has_json_response:
+            return response.json()
         return response.content.decode('utf8')
 
     @staticmethod
@@ -999,7 +1001,7 @@ class Utility:
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
-        token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
+        token, iat = Authentication.create_access_token(data={"sub": email}, token_expire=180)
         background_tasks.add_task(
             start_training, bot, user, token.decode('utf8')
         )
@@ -1106,3 +1108,7 @@ class Utility:
                 component['name'] = 'TEDPolicy'
                 configs['policies'].append(component)
             component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def time_diff_in_minutes(t1: datetime, t2: datetime):
+        return (t1 - t2).total_seconds()/60

@@ -195,7 +195,7 @@ class MongoProcessor:
         if 'rules' in what:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
-            self.add_or_overwrite_config(config, bot, user)
+            self.add_or_overwrite_config(config, bot, user, False)
         if 'http_actions' in what:
             self.save_http_action(http_actions, bot, user)
 
@@ -1018,18 +1018,19 @@ class MongoProcessor:
             config_errors = TrainingDataValidator.validate_rasa_config(configs)
             if config_errors:
                 raise AppException(config_errors[0])
-            return self.add_or_overwrite_config(configs, bot, user)
+            return self.add_or_overwrite_config(configs, bot, user, False)
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
 
-    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
+    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text, is_integration: bool):
         """
         saves bot configuration
 
         :param configs: configuration
         :param bot: bot id
         :param user: user id
+        :param is_integration: is integration user
         :return: config unique id
         """
         try:
@@ -1041,7 +1042,7 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        self.add_default_fallback_config(config_obj, bot, user)
+        self.add_default_fallback_config(config_obj, bot, user, is_integration)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
     def save_component_properties(self, configs: dict, bot: Text, user: Text):
@@ -1188,7 +1189,8 @@ class MongoProcessor:
                 doc_id = self.add_complex_story(
                     story= {'name': story_name.lower(), 'steps': events, 'type': 'STORY'},
                     bot=bot,
-                    user=user
+                    user=user,
+                    is_integration=is_integration
                 )
                 status['story'] = doc_id
             except AppException as e:
@@ -1210,7 +1212,7 @@ class MongoProcessor:
 
             try:
                 utterance_id = self.add_text_response(
-                    data.response, utterance, bot, user
+                    data.response, utterance, bot, user, is_integration
                 )
                 status['responses'] = utterance_id
             except AppException as e:
@@ -1305,6 +1307,7 @@ class MongoProcessor:
                         entities=new_entities,
                         bot=bot,
                         user=user,
+                        is_integration=is_integration
                     )
 
                     saved = training_example.save().to_mongo().to_dict()
@@ -1351,7 +1354,36 @@ class MongoProcessor:
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist as e:
+            logging.error(e)
             raise AppException("Invalid training example!")
+
+    def delete_training_example(
+            self, id: Text, bot: Text, is_integration: bool
+    ):
+        """
+        delete training example
+
+        :param id: training example id
+        :param bot: bot id
+        :param is_integration: integration status
+        :return: None
+        """
+        if Utility.check_empty_string(id):
+            raise AppException("Invalid id received")
+        if Utility.is_exist(
+                TrainingExamples,
+                raise_error=False,
+                id=id,
+                bot=bot,
+                status=True,
+        ):
+            training_example = TrainingExamples.objects(bot=bot, id=id).get()
+            if is_integration and not training_example.is_integration:
+                raise AppException("Cannot be deleted by an integration user")
+            training_example.status = False
+            training_example.save()
+        else:
+            raise AppException("Training Example does not exists!")
 
     def search_training_examples(self, search: Text, bot: Text):
         """
@@ -1571,13 +1603,14 @@ class MongoProcessor:
         if slots:
             Slots.objects.insert(slots)
 
-    def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
+    def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text, is_integration: bool):
         """
         saves bot text utterance
         :param utterance: text utterance
         :param name: utterance name
         :param bot: bot id
         :param user: user id
+        :param is_integration: integration status
         :return: bot utterance id
         """
         if Utility.check_empty_string(utterance):
@@ -1585,10 +1618,11 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
-            utterances={"text": utterance.strip()}, name=name.strip().lower(), bot=bot, user=user
+            utterances={"text": utterance.strip()}, name=name.strip().lower(), bot=bot, user=user,
+            is_integration=is_integration
         )
 
-    def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
+    def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text, is_integration: bool):
         """
         save bot utterance
 
@@ -1606,6 +1640,7 @@ class MongoProcessor:
                 values=[utterances], key=name.strip().lower(), bot=bot, user=user
             )
         )[0]
+        response.is_integration = is_integration
         value = response.save().to_mongo().to_dict()
         return value["_id"].__str__()
 
@@ -1655,6 +1690,7 @@ class MongoProcessor:
             response.timestamp = datetime.utcnow()
             response.save()
         except DoesNotExist as e:
+            logging.error(e)
             raise AppException("Utterance does not exist!")
 
     def get_response(self, name: Text, bot: Text):
@@ -1764,15 +1800,15 @@ class MongoProcessor:
                 raise AppException("Invalid event type!")
         return events
 
-    def add_complex_story(self, story: Dict, bot: Text, user: Text):
+    def add_complex_story(self, story: Dict, bot: Text, user: Text, is_integration: bool):
         """
         save story in mongodb
 
-        :param name: story name
-        :param steps: story steps list
+        :param story: dict containing name, steps and type (RULE or STORY)
         :param bot: bot id
         :param user: user id
         :return: story id
+        :param is_integration: integration status
         :raises: AppException: Story already exist!
 
         """
@@ -1805,6 +1841,7 @@ class MongoProcessor:
             bot=bot,
             user=user,
             start_checkpoints=[STORY_START],
+            is_integration=is_integration
         )
 
         id = (
@@ -1859,13 +1896,14 @@ class MongoProcessor:
         )
         return story_id
 
-    def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
+    def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text, is_integration: bool):
         """
         Soft deletes complex story.
         :param name: Flow name
         :param type: Flow Type
         :param user: user id
         :param bot: bot id
+        :param is_integration: integration status
         :return:
         """
 
@@ -1877,7 +1915,13 @@ class MongoProcessor:
         else:
             raise AppException("Invalid type")
         try:
-            data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+            story = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+
+            if is_integration and not story.is_integration:
+                raise AppException("Cannot delete flow created by login user")
+
+            story.status = False
+            story.save()
         except DoesNotExist:
             raise AppException("Flow does not exists")
         Utility.delete_document(
@@ -2181,15 +2225,20 @@ class MongoProcessor:
             logging.exception(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_utterance(self, utterance_name: str, bot: str, user: str):
+    def delete_utterance(self, utterance_name: str, bot: str, is_integration: bool):
         if not (utterance_name and utterance_name.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
-            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, user=user, status=True))
+            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, status=True))
             if not responses:
                 raise DoesNotExist("Utterance does not exists")
+
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
             if not story:
+                for response in responses:
+                    if is_integration and not response.is_integration:
+                        raise AppException("Cannot delete utterance containing response created by login user")
+
                 for response in responses:
                     response.status = False
                     response.save()
@@ -2198,13 +2247,13 @@ class MongoProcessor:
         except DoesNotExist as e:
             raise AppException(e)
 
-    def delete_response(self, utterance_id: str, bot: str, user: str):
+    def delete_response(self, utterance_id: str, bot: str, user: str, is_integration: bool):
         if not (utterance_id and utterance_id.strip()):
             raise AppException("Utterance Id cannot be empty or spaces")
         try:
             response = Responses.objects(bot=bot, status=True).get(id=utterance_id)
-            if response is None:
-                raise DoesNotExist()
+            if is_integration and not response.is_integration:
+                raise AppException("Cannot delete response created by login user")
             utterance_name = response['name']
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
             responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
@@ -2247,12 +2296,13 @@ class MongoProcessor:
         http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
         return http_config_id
 
-    def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
+    def add_http_action_config(self, http_action_config: Dict, user: str, bot: str, is_integration: bool):
         """
         Adds a new Http action.
         :param http_action_config: dict object containing configuration for the Http action
         :param user: user id
         :param bot: bot id
+        :param is_integration: integration status
         :return: Http configuration id for saved Http action config
         """
         Utility.is_exist(HttpActionConfig, exp_message="Action exists",
@@ -2273,26 +2323,32 @@ class MongoProcessor:
             request_method=http_action_config['request_method'],
             params_list=http_action_params,
             bot=bot,
-            user=user
+            user=user,
+            is_integration=is_integration
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(http_action_config['action_name'].lower(), bot, user, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
         return doc_id
 
-    def delete_http_action_config(self, action: str, user: str, bot: str):
+    def delete_http_action_config(self, action: str, user: str, bot: str, is_integration: bool):
         """
         Soft deletes configuration for Http action.
         :param action: Http action to be deleted.
         :param user: user id
         :param bot: bot id
+        :param is_integration: integration status
         :return:
         """
-        is_exists = Utility.is_exist(HttpActionConfig, action_name__iexact=action, bot=bot, user=user,
-                                     raise_error=False)
-        if not is_exists:
+        try:
+            http_action = HttpActionConfig.objects(action_name__iexact=action, bot=bot, user=user).get()
+
+            if is_integration and not http_action.is_integration:
+                raise AppException("Cannot delete http action created by login user")
+            http_action.status = False
+            http_action.save()
+        except DoesNotExist:
             raise AppException("No HTTP action found for bot " + bot + " and action " + action)
-        Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
         Utility.delete_document([Actions], name__iexact=action, bot=bot, user=user)
 
     def get_http_action_config(self, bot: str, action_name: str):
@@ -2667,7 +2723,7 @@ class MongoProcessor:
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
 
-    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text, is_integration: bool):
         idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
         if idx:
             del config_obj["policies"][idx]
@@ -2679,14 +2735,14 @@ class MongoProcessor:
             rule_policy['core_fallback_action_name'] = 'action_default_fallback'
         if not rule_policy.get('core_fallback_threshold'):
             rule_policy['core_fallback_threshold'] = 0.3
-            self.add_default_fallback_data(bot, user, False, True)
+            self.add_default_fallback_data(bot, user, False, True, is_integration)
 
         property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
         if not property_idx:
             property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
             fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
             config_obj['pipeline'].insert(property_idx + 1, fallback)
-            self.add_default_fallback_data(bot, user, True, False)
+            self.add_default_fallback_data(bot, user, True, False, is_integration)
 
     @staticmethod
     def fetch_nlu_fallback_action(bot: Text):
@@ -2702,20 +2758,20 @@ class MongoProcessor:
             logging.error(e)
         return action
 
-    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
+    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True, is_integration=False):
         if nlu_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
-                self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
+                self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user, is_integration)
             steps = [
                 {"name": "nlu_fallback", "type": "INTENT"},
                 {"name": "utter_please_rephrase", "type": "BOT"}
             ]
             rule = {'name': DEFAULT_NLU_FALLBACK_RULE, 'steps': steps, 'type': 'RULE'}
             try:
-                self.add_complex_story(rule, bot, user)
+                self.add_complex_story(rule, bot, user, is_integration)
             except AppException as e:
                 logging.error(str(e))
 
         if action_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
-                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)
+                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user, False)

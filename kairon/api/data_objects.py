@@ -27,6 +27,7 @@ class User(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    last_password_reset_requested = DateTimeField()
 
     def validate(self, clean=True):
         if (
@@ -76,3 +77,11 @@ class UserEmailConfirmation(Document):
             raise ValidationError("Email cannot be empty or blank spaces")
         elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Invalid email address")
+
+
+class Integrations(Document):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    issued_at = DateTimeField(required=True)
+    status = StringField(required=True, choices=["active", "inactive", "deleted"])

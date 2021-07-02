@@ -607,7 +607,7 @@ def test_remove_training_examples_empty_id():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Unable to remove document"
+    assert actual["message"] == f"Invalid id received"
 
 
 def test_edit_training_examples():
@@ -1458,9 +1458,22 @@ def test_deploy_server_error(mock_endpoint):
     assert actual["message"] == "An unexpected error occurred."
 
 
-def test_integration_token():
+def test_get_integrations_empty():
     response = client.get(
         f"/api/auth/{pytest.bot}/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 0
+
+
+def test_integration_token():
+    response = client.post(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={"data": 'integration_token'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1471,8 +1484,8 @@ def test_integration_token():
     assert token["data"]["token_type"]
     assert (
             token["message"]
-            == """It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system."""
+            == """Please copy this token to a safe location.
+        It will not be shown again."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -1507,8 +1520,9 @@ def test_integration_token():
 
 
 def test_integration_token_missing_x_user():
-    response = client.get(
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={"data": 'new_integration_token'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1519,8 +1533,8 @@ def test_integration_token_missing_x_user():
     assert actual["data"]["token_type"]
     assert (
             actual["message"]
-            == """It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system."""
+            == """Please copy this token to a safe location.
+        It will not be shown again."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -1535,6 +1549,19 @@ def test_integration_token_missing_x_user():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Alias user missing for integration"
+
+
+def test_get_integrations_2():
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(pytest.bot)
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 2
 
 
 @mongomock.patch(servers=(('localhost', 27019),))
@@ -2480,8 +2507,9 @@ def test_overwrite_password_for_non_matching_passwords():
 
 
 def test_add_and_delete_intents_by_integration_user():
-    response = client.get(
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'data': 'new_token'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2525,9 +2553,10 @@ def test_add_and_delete_intents_by_integration_user():
     assert actual['success']
 
 
-def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
-    response = client.get(
+def test_add_non_integration_intent_and_delete_intent_by_integration_user():
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'data': 'token for adding and deleting intent'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2536,6 +2565,7 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert token["error_code"] == 0
     assert token["data"]["access_token"]
     assert token["data"]["token_type"]
+    pytest.test_delete_token = token["data"]["token_type"] + " " + token["data"]["access_token"]
 
     response = client.post(
         f"/api/bot/{pytest.bot}/intents",
@@ -2563,6 +2593,170 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert actual['error_code'] == 422
     assert actual['message'] == "This intent cannot be deleted by an integration user"
     assert not actual['success']
+
+
+def test_add_integration_token_limit_exceeded():
+    response = client.post(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={"data": "limit_exceeded"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    assert not token["success"]
+    assert token["error_code"] == 422
+    assert token["message"] == f"Integration limit exceeded"
+
+
+def test_disable_integration_token():
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token/token for adding and deleting intent",
+        json={"data": "inactive"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    print(token)
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["message"] == f"Status updated"
+
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][1]['name'] == 'token for adding and deleting intent'
+    assert actual["data"][1]['issued_at']
+    assert actual["data"][1]['status'] == 'inactive'
+
+
+def test_use_disabled_token():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.test_delete_token, "X-USER": "integration1",},
+        json={"data": "non_integration_intent"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Could not validate credentials"
+
+
+def test_enable_integration_token_and_use():
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token/token for adding and deleting intent",
+        json={"data": "active"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    print(token)
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["message"] == f"Status updated"
+
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][1]['name'] == 'token for adding and deleting intent'
+    assert actual["data"][1]['issued_at']
+    assert actual["data"][1]['status'] == 'active'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.test_delete_token, "X-USER": "integration1"},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_access_bot_using_different_bot_integration_token():
+    response = client.post(
+        "/api/account/bot",
+        json={"data": "covid-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['message'] == 'Bot created'
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']) == 2
+    bot = response['data'][1]['_id']
+
+    response = client.post(
+        f"/api/auth/{bot}/integration/token",
+        json={'data': 'token for adding and deleting intent'},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    token = response.json()
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["data"]["access_token"]
+    assert token["data"]["token_type"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": token["data"]["token_type"] + " " + token["data"]["access_token"],
+                 "X-USER": "integration1"},
+        json={"data": "non_integration_intent"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Could not validate credentials"
+
+
+def test_delete_integration_token():
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token/token for adding and deleting intent",
+        json={"data": "deleted"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    token = response.json()
+    print(token)
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["message"] == f"Status updated"
+
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+
+
+def test_use_deleted_token():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.test_delete_token, "X-USER": "integration1",},
+                 json = {"data": "non_integration_intent"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Could not validate credentials"
 
 
 def test_add_http_action_malformed_url():
@@ -4079,3 +4273,23 @@ def test_set_epoch_and_fallback_negative_epochs():
     assert actual["error_code"] == 422
     assert actual["message"][0] == {'loc': ['body', 'response_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
     assert actual["message"][1] == {'loc': ['body', 'ted_epochs'], 'msg': 'Choose a positive number as epochs', 'type': 'value_error'}
+
+
+@responses.activate
+def test_chat_using_url_agent_url(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost:5050/api/bot/chat",
+        json={"success":True,"message":None,"data":{"response":[{"recipient_id":"udit.pandey@digite.com","text":"How may i help you?"}]},"error_code":0},
+        status=200
+    )
+    monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost:5050")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/chat",
+        json={"data": "hi"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['response'] == [{"recipient_id":"udit.pandey@digite.com","text":"How may i help you?"}]
