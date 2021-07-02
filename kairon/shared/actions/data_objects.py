@@ -38,6 +38,7 @@ class HttpActionConfig(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
     def validate(self, clean=True):
         if self.action_name is None or not self.action_name.strip():

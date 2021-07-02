@@ -171,12 +171,7 @@ async def remove_training_examples(
     """
     Deletes existing training example
     """
-    mongo_processor.remove_document(
-        TrainingExamples,
-        request_data.data,
-        current_user.get_bot(),
-        current_user.get_user(),
-    )
+    mongo_processor.delete_training_example(request_data.data, current_user.get_bot(), current_user.get_integration_status())
     return {"message": "Training Example removed!"}
 
 
@@ -214,7 +209,8 @@ async def add_responses(
     Adds utterance value in particular utterance
     """
     utterance_id = mongo_processor.add_text_response(
-        request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user()
+        request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user(),
+        current_user.get_integration_status()
     )
     return {"message": "Utterance added!", "data": {"_id": utterance_id}}
 
@@ -252,11 +248,11 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
+            request_data.data.lower(), current_user.get_bot(), current_user.get_integration_status()
         )
     else:
         mongo_processor.delete_response(
-            request_data.data, current_user.get_bot(), current_user.get_user()
+            request_data.data, current_user.get_bot(), current_user.get_user(), current_user.get_integration_status()
         )
     return {
         "message": "Utterance removed!",
@@ -277,6 +273,7 @@ async def add_story(
                 story.dict(),
                 current_user.get_bot(),
                 current_user.get_user(),
+                current_user.get_integration_status()
             )
         },
     }
@@ -322,6 +319,7 @@ async def delete_stories(story: str = Path(default=None, description="Story name
         type,
         current_user.get_bot(),
         current_user.get_user(),
+        current_user.get_integration_status()
     )
     return {
         "message": "Flow deleted successfully"
@@ -350,7 +348,7 @@ async def chat(
     """
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
         agent_url = Utility.environment['model']['train'].get('agent_url')
-        token = auth.create_access_token(data={"sub": current_user.email})
+        token, iat = auth.create_access_token(data={"sub": current_user.email})
         response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'), current_user.get_user(), json={'data': request_data.data})
     else:
         model = AgentProcessor.get_agent(current_user.get_bot())
@@ -455,7 +453,7 @@ async def upload_data_generation_file(
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
                                                user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
                                                document_path=file_path)
-    token = auth.create_access_token(data={"sub": current_user.email})
+    token, iat = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
         Utility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
     )
@@ -620,7 +618,8 @@ async def add_http_action(request_data: HttpActionConfigRequest, current_user: U
     Stores the http action config and story event
     """
     http_config_id = mongo_processor.add_http_action_config(request_data.dict(), current_user.get_user(),
-                                                            current_user.get_bot())
+                                                            current_user.get_bot(),
+                                                            current_user.get_integration_status())
     response = {"http_config_id": http_config_id}
     message = "Http action added!"
     return Response(data=response, message=message)
@@ -633,8 +632,8 @@ async def get_http_action(action: str = Path(default=None, description="action n
     Returns configuration set for the HTTP action
     """
     http_action_config = mongo_processor.get_http_action_config(action_name=action,
-                                                                           bot=current_user.bot)
-    action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
+                                                                           bot=current_user.get_bot())
+    action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.get_bot())
     return Response(data=action_config)
 
 
@@ -643,7 +642,7 @@ async def list_http_actions(current_user: User = Depends(auth.get_current_user_a
     """
     Returns list of http actions for bot.
     """
-    actions = mongo_processor.list_http_actions(bot=current_user.bot)
+    actions = mongo_processor.list_http_actions(bot=current_user.get_bot())
     return Response(data=actions)
 
 
@@ -652,7 +651,7 @@ async def list_actions(current_user: User = Depends(auth.get_current_user_and_bo
     """
     Returns list of actions for bot.
     """
-    actions = mongo_processor.list_actions(bot=current_user.bot)
+    actions = mongo_processor.list_actions(bot=current_user.get_bot())
     return Response(data=actions)
 
 
@@ -677,7 +676,8 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     """
     try:
         mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
-                                                  bot=current_user.bot)
+                                                  bot=current_user.get_bot(),
+                                                  is_integration=current_user.get_integration_status())
     except Exception as e:
         raise AppException(e)
     message = "HTTP action deleted"

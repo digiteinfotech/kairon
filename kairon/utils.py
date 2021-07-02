@@ -56,6 +56,7 @@ from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
+from kairon.data_processor.constant import TOKEN_TYPE
 
 
 class Utility:
@@ -999,7 +1000,7 @@ class Utility:
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
-        token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
+        token, iat = Authentication.create_access_token(data={"sub": email}, token_expire=180)
         background_tasks.add_task(
             start_training, bot, user, token.decode('utf8')
         )
@@ -1106,3 +1107,7 @@ class Utility:
                 component['name'] = 'TEDPolicy'
                 configs['policies'].append(component)
             component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def time_diff_in_minutes(t1: datetime, t2: datetime):
+        return (t1 - t2).total_seconds()/60

@@ -8,6 +8,7 @@ security:
   algorithm: "HS256"
   token_expire: ${TOKEN_EXPIRE:10080}
   test_user_password: "Welcome@1"
+  token_limit: ${NUM_TOKENS:2}
 
 augmentation:
   paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrases"}

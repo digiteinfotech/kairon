@@ -56,6 +56,7 @@ class TrainingExamples(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
     meta = {"indexes": [{"fields": ["$text"]}]}
 
@@ -225,6 +226,7 @@ class Responses(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
@@ -331,6 +333,7 @@ class Stories(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.block_name):
@@ -350,6 +353,7 @@ class Rules(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.block_name):
@@ -367,6 +371,7 @@ class Configs(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    is_integration = BooleanField(default=False)
 
 
 class EndPointTracker(EmbeddedDocument):
