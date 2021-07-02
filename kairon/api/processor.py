@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 
-from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation, Integrations
 from kairon.data_processor.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
     EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
     TrainingDataGenerator, TrainingExamples
@@ -88,7 +88,7 @@ class AccountProcessor:
             AccountProcessor.add_bot_for_user(bot_id, user)
         processor = MongoProcessor()
         config = processor.load_config(bot_id)
-        processor.add_or_overwrite_config(config, bot_id, user)
+        processor.add_or_overwrite_config(config, bot_id, user, False)
         processor.add_default_fallback_data(bot_id, user, True, True)
         return bot
 
@@ -258,35 +258,6 @@ class AccountProcessor:
         return user
 
     @staticmethod
-    def get_integration_user(bot: str, account: int):
-        """
-        creates integration user if it does not exist
-
-        :param bot: bot id
-        :param account: account id
-        :return: dict
-        """
-        if not Utility.is_exist(
-            User, raise_error=False, bot=bot, is_integration_user=True, status=True
-        ):
-            email = bot + "@integration.com"
-            password = Utility.generate_password()
-            return AccountProcessor.add_user(
-                email=email,
-                password=password,
-                first_name=bot,
-                last_name=bot,
-                account=account,
-                bot=bot,
-                user="auto_gen",
-                is_integration_user=True,
-            )
-        else:
-            return (
-                User.objects(bot=bot).get(is_integration_user=True).to_mongo().to_dict()
-            )
-
-    @staticmethod
     async def account_setup(account_setup: Dict, user: Text):
         """
         create new account
@@ -409,7 +380,13 @@ class AccountProcessor:
         if AccountProcessor.EMAIL_ENABLED:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+            issued_at = datetime.utcnow()
+            try:
+                user = User.objects(email=mail.strip()).get()
+                if user.last_password_reset_requested and Utility.time_diff_in_minutes(issued_at, user.last_password_reset_requested) < 420:
+                    raise AppException("Last sent reset password link still active")
+                user.last_password_reset_requested = issued_at
+            except DoesNotExist:
                 raise AppException("Error! There is no user with the following mail id")
             if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
                 raise AppException("Error! The following user's mail is not verified")
@@ -417,6 +394,7 @@ class AccountProcessor:
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
             body = Utility.email_conf['email']['templates']['password_reset_body'] + link
             subject = Utility.email_conf['email']['templates']['password_reset_subject']
+            user.save()
             return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")
@@ -463,3 +441,88 @@ class AccountProcessor:
             return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")
+
+
+class IntegrationsProcessor:
+
+    @staticmethod
+    def is_valid_token(email: Text, issued_at: datetime, bot: Text = None, raise_exception: bool = False):
+        """
+        Validated token based on claims received (email and issued_at).
+        @param email: email received in claim
+        @param issued_at: issue date and time received in claim
+        @param bot: bot id if the request is bot specific
+        @param raise_exception: raises exception if true
+        @return:
+        """
+        try:
+            if Utility.check_empty_string(bot):
+                integration_info = Integrations.objects(user=email, issued_at=issued_at, status="active").get()
+            else:
+                integration_info = Integrations.objects(bot=bot, user=email, issued_at=issued_at, status="active").get()
+            if integration_info:
+                return True
+        except DoesNotExist as e:
+            logging.error(e)
+        if raise_exception:
+            raise AppException("Invalid token")
+        return False
+
+    @staticmethod
+    def get_integrations(bot: Text):
+        """
+        Retrieves integrations for bot.
+
+        :param bot: bot id
+        :param raise_exception: Throws exception if true. Set to false by default.
+        :return: dict
+        """
+        for integration in Integrations.objects(bot=bot, status__ne="deleted"):
+            integration = integration.to_mongo().to_dict()
+            integration.pop("_id")
+            integration.pop("bot")
+            integration.pop("user")
+            yield integration
+
+    @staticmethod
+    def update_integrations(name: Text, status: Text, bot: Text):
+        """
+        Updates status of integrations created for bot.
+
+        :param name: name of integration
+        :param status: one of active, inactive, deleted.
+        :param bot: bot id
+        :param raise_exception: Throws exception if true. Set to false by default.
+        :return: dict
+        """
+        try:
+            if status not in {"active", "inactive", "deleted"}:
+                raise AppException("status can only be: active, inactive, deleted")
+            integration = Integrations.objects(name=name, bot=bot, status__ne="deleted").get()
+            integration.status = status
+            integration.save()
+        except DoesNotExist as e:
+            logging.error(e)
+            raise AppException("Integration token not found")
+
+    @staticmethod
+    def add_integration(name: Text, issued_at: datetime, bot: Text, user: Text):
+        """
+        Retrieves integrations for bot.
+
+        :param name: name of the token
+        :param issued_at: token issue date and time
+        :param bot: bot id
+        :param user: user for whom it is to be created
+        :return: integration access token
+        """
+        creation_limit = Utility.environment['security'].get('token_limit') or 2
+        if Integrations.objects(bot=bot, status__ne="deleted").count() >= creation_limit:
+            raise AppException("Integration limit exceeded")
+        Utility.is_exist(Integrations,
+                         exp_message="Name exists",
+                         name=name, bot=bot, user=user, status__ne="deleted")
+        integration = Integrations(name=name, bot=bot, user=user, status="active")
+        integration.issued_at = issued_at
+        integration.save()
+

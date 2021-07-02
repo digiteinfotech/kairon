@@ -5,8 +5,10 @@ from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode, encode
 
 from kairon.utils import Utility
-from .models import User, TokenData
+from .processor import IntegrationsProcessor
+from .models import User
 from .processor import AccountProcessor
+from kairon.data_processor.constant import TOKEN_TYPE
 
 Utility.load_evironment()
 
@@ -38,25 +40,23 @@ class Authentication:
         try:
             payload = decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
             username: str = payload.get("sub")
-            if username is None:
+            token_type: str = payload.get("token_type")
+            issued_at: int = payload.get("iat")
+            if not username or not token_type:
                 raise credentials_exception
-            token_data = TokenData(username=username)
         except PyJWTError:
             raise credentials_exception
-        user = AccountProcessor.get_user_details(token_data.username)
+        user = AccountProcessor.get_user_details(username)
         if user is None:
             raise credentials_exception
 
         user_model = User(**user)
-        if user["is_integration_user"]:
+        if token_type == TOKEN_TYPE.INTEGRATION.value:
             alias_user = request.headers.get("X-USER")
-            if Utility.check_empty_string(alias_user):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Alias user missing for integration",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
+            bot_id = request.path_params.get('bot')
+            Authentication.validate_integration_claims(username, issued_at, alias_user, bot_id)
             user_model.alias_user = alias_user
+            user_model.is_integration_user = True
         return user_model
 
     async def get_current_user_and_bot(self, request: Request, token: str = Depends(Utility.oauth2_scheme)):
@@ -82,20 +82,24 @@ class Authentication:
         return user
 
     @staticmethod
-    def create_access_token( *, data: dict, is_integration=False, token_expire: int=0):
+    def create_access_token(*, data: dict, is_integration=False, token_expire: int = 0):
         to_encode = data.copy()
+        issued_at = datetime.utcnow()
         if not is_integration:
             if token_expire > 0:
-                expire = datetime.utcnow() + timedelta(minutes=token_expire)
+                expire = issued_at + timedelta(minutes=token_expire)
             else:
                 if Authentication.ACCESS_TOKEN_EXPIRE_MINUTES:
                     expires_delta = timedelta(minutes=Authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
                 else:
                     expires_delta = timedelta(minutes=15)
-                expire = datetime.utcnow() + expires_delta
-            to_encode.update({"exp": expire})
+                expire = issued_at + expires_delta
+            to_encode.update({"exp": expire, "token_type": TOKEN_TYPE.LOGIN.value})
+        else:
+            to_encode.update({"iat": datetime.timestamp(issued_at),
+                              "token_type": TOKEN_TYPE.INTEGRATION.value})
         encoded_jwt = encode(to_encode, Authentication.SECRET_KEY, algorithm=Authentication.ALGORITHM)
-        return encoded_jwt
+        return encoded_jwt, issued_at
 
     def __authenticate_user(self, username: str, password: str):
         user = AccountProcessor.get_user_details(username)
@@ -120,14 +124,32 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token = Authentication.create_access_token(data={"sub": user["email"]})
+        access_token, issued_at = Authentication.create_access_token(data={"sub": user["email"]})
         return access_token
 
-    def generate_integration_token(self, bot: Text, account: int):
+    @staticmethod
+    def generate_integration_token(name: Text, bot: Text, user: Text):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
-        integration_user = AccountProcessor.get_integration_user(bot, account)
-        access_token = Authentication.create_access_token(
-            data={"sub": integration_user["email"]}, is_integration=True
+        access_token, issued_at = Authentication.create_access_token(
+            data={"sub": user}, is_integration=True
         )
+        IntegrationsProcessor.add_integration(name, issued_at, bot, user)
         return access_token
+
+    @staticmethod
+    def validate_integration_claims(username: Text, issued_at: int, alias_user: Text, bot: Text = None):
+        if Utility.check_empty_string(alias_user):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Alias user missing for integration",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        is_valid_token = IntegrationsProcessor.is_valid_token(username, datetime.fromtimestamp(issued_at), bot=bot)
+        if not is_valid_token:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+

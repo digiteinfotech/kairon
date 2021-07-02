@@ -1,6 +1,6 @@
 import asyncio
-import datetime
 import os
+from datetime import datetime, timedelta
 
 import jwt
 from mongoengine import connect
@@ -9,8 +9,8 @@ import pytest
 from pydantic import SecretStr
 
 from kairon.api.auth import Authentication
-from kairon.api.data_objects import User
-from kairon.api.processor import AccountProcessor
+from kairon.api.data_objects import User, Integrations
+from kairon.api.processor import AccountProcessor, IntegrationsProcessor
 from kairon.data_processor.data_objects import Configs, Rules, Responses
 from kairon.utils import Utility
 from kairon.exceptions import AppException
@@ -464,13 +464,6 @@ class TestAccountProcessor:
                 ).keys()
             )
 
-    def test_get_integration_user(self):
-        integration_user = AccountProcessor.get_integration_user(
-            bot="support", account=2
-        )
-        assert integration_user["is_integration_user"]
-        assert all(integration_user[key] for key in integration_user.keys())
-
     def test_account_setup_empty_values(self):
         account = {}
         with pytest.raises(AppException):
@@ -625,6 +618,24 @@ class TestAccountProcessor:
             loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
         AccountProcessor.EMAIL_ENABLED = False
 
+    def test_reset_link_with_last_reset(self,monkeypatch):
+        user = User.objects(email="integ2@gmail.com").get()
+        user.last_password_reset_requested = datetime.utcnow()
+        user.save()
+        AccountProcessor.EMAIL_ENABLED = True
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='Last sent reset password link still active'):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+
+    def test_reset_link_with_last_reset_link_expiry(self,monkeypatch):
+        user = User.objects(email="integ2@gmail.com").get()
+        user.last_password_reset_requested = datetime.utcnow() - timedelta(minutes=421)
+        user.save()
+        AccountProcessor.EMAIL_ENABLED = True
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        assert True
+
     def test_overwrite_password_with_invalid_token(self,monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
@@ -697,20 +708,147 @@ class TestAccountProcessor:
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
 
+
+class TestIntegrationsProcessor:
+
+    @pytest.fixture(autouse=True)
+    def init_connection(self):
+        Utility.load_evironment()
+        connect(host=Utility.environment['database']["url"])
+
+    def test_add_integration_token(self):
+        bot = 'test'
+        user = 'test_user'
+        iat = datetime.utcnow().replace(microsecond=0)
+        pytest.iat = iat
+        IntegrationsProcessor.add_integration('token for integration', iat, bot, user)
+        integration = Integrations.objects(name='token for integration').get()
+        assert integration.bot == bot
+        assert integration.user == user
+        assert integration.issued_at == iat
+        assert integration.status == 'active'
+
+    def test_add_integration_token_existing(self):
+        bot = 'test'
+        user = 'test_user'
+        iat = datetime.utcnow()
+        with pytest.raises(AppException):
+            IntegrationsProcessor.add_integration('token for integration', iat, bot, user)
+
+    def test_add_integration_token_limit_exceeded(self, monkeypatch):
+        bot = 'test'
+        user = 'test_user'
+        monkeypatch.setitem(Utility.environment['security'], 'token_limit', 1)
+        iat = datetime.utcnow()
+        with pytest.raises(AppException):
+            IntegrationsProcessor.add_integration('new token for integration', iat, bot, user)
+
+    def test_update_integration_token(self):
+        bot = 'test'
+        user = 'test_user'
+        IntegrationsProcessor.update_integrations('token for integration', 'inactive', bot)
+        integration = Integrations.objects(name='token for integration').get()
+        assert integration.bot == bot
+        assert integration.user == user
+        assert integration.status == 'inactive'
+
+    def test_validate_token_inactive(self):
+        assert not IntegrationsProcessor.is_valid_token('test_user', pytest.iat)
+
+    def test_validate_token_exception(self):
+        with pytest.raises(AppException):
+            IntegrationsProcessor.is_valid_token('test_user', pytest.iat, raise_exception=True)
+
+    def test_update_integration_token_activate_token(self):
+        bot = 'test'
+        user = 'test_user'
+        IntegrationsProcessor.update_integrations('token for integration', 'active', bot)
+        integration = Integrations.objects(name='token for integration').get()
+        assert integration.bot == bot
+        assert integration.user == user
+        assert integration.status == 'active'
+
+    def test_get_integrations(self):
+        bot = 'test'
+        integrations = list(IntegrationsProcessor.get_integrations(bot))
+        assert len(integrations) == 1
+        assert integrations[0]['status'] == 'active'
+
+    def test_validate_token_active(self):
+        assert IntegrationsProcessor.is_valid_token('test_user', pytest.iat)
+
+    def test_validate_token_active_for_bot(self):
+        assert IntegrationsProcessor.is_valid_token('test_user', pytest.iat, bot='test')
+
+    def test_validate_token_active_for_invalid_bot_(self):
+        assert not IntegrationsProcessor.is_valid_token('test_user', pytest.iat, bot='test_1')
+
+    def test_validate_token_active_for_invalid_bot(self):
+        with pytest.raises(AppException):
+            assert IntegrationsProcessor.is_valid_token('test_user', pytest.iat, bot='test_1', raise_exception=True)
+
+    def test_validate_token_user_not_found(self):
+        assert not IntegrationsProcessor.is_valid_token('test_user_1', pytest.iat)
+
+    def test_validate_token_user_not_found_exception(self):
+        with pytest.raises(AppException):
+            IntegrationsProcessor.is_valid_token('test_user_1', pytest.iat, raise_exception=True)
+
+    def test_update_integration_token_invalid_status(self):
+        bot = 'test'
+        with pytest.raises(AppException):
+            IntegrationsProcessor.update_integrations('token for integration', 'delete', bot)
+
+    def test_update_integration_token_delete_token(self):
+        bot = 'test'
+        user = 'test_user'
+        IntegrationsProcessor.update_integrations('token for integration', 'deleted', bot)
+        integration = Integrations.objects(name='token for integration').get()
+        assert integration.bot == bot
+        assert integration.user == user
+        assert integration.status == 'deleted'
+
+    def test_validate_token_deleted(self):
+        assert not IntegrationsProcessor.is_valid_token('test_user', pytest.iat)
+
+    def test_validate_token_deleted_exception(self):
+        with pytest.raises(AppException):
+            IntegrationsProcessor.is_valid_token('test_user', pytest.iat, raise_exception=True)
+
+    def test_update_integration_token_activate_deleted_token(self):
+        bot = 'test'
+        with pytest.raises(AppException):
+            IntegrationsProcessor.update_integrations('token for integration', 'active', bot)
+
+        with pytest.raises(AppException):
+            IntegrationsProcessor.update_integrations('token for integration', 'inactive', bot)
+
+    def test_get_integrations_multiple(self):
+        bot = 'test'
+        user = 'test_user'
+        IntegrationsProcessor.add_integration('token for integration', datetime.utcnow(), bot, user)
+        IntegrationsProcessor.add_integration('new token for integration', datetime.utcnow(), bot, user)
+        integrations = list(IntegrationsProcessor.get_integrations(bot))
+        assert len(integrations) == 2
+        assert integrations[0]['name'] == 'token for integration'
+        assert integrations[0]['status'] == 'active'
+        assert integrations[1]['name'] == 'new token for integration'
+        assert integrations[1]['status'] == 'active'
+
     def test_create_authentication_token_with_expire_time(self, monkeypatch):
-        start_date = datetime.datetime.now()
-        token = Authentication.create_access_token(data={"sub": "test"},token_expire=180)
+        start_date = datetime.now()
+        token, iat = Authentication.create_access_token(data={"sub": "test"},token_expire=180)
         payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
-        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds()/60) == 180
+        assert round((datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds()/60) == 180
         assert payload.get('sub') == 'test'
 
-        start_date = datetime.datetime.now()
-        token = Authentication.create_access_token(data={"sub": "test"})
+        start_date = datetime.now()
+        token, iat = Authentication.create_access_token(data={"sub": "test"})
         payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
-        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 10080
+        assert round((datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 10080
 
         monkeypatch.setattr(Authentication, 'ACCESS_TOKEN_EXPIRE_MINUTES', None)
-        start_date = datetime.datetime.now()
-        token = Authentication.create_access_token(data={"sub": "test"})
+        start_date = datetime.now()
+        token, iat = Authentication.create_access_token(data={"sub": "test"})
         payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
-        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
+        assert round((datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
