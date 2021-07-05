@@ -2686,7 +2686,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties(self):
-        expected = {'nlu_confidence_threshold': 0.6,
+        expected = {'nlu_confidence_threshold': 60,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -2740,7 +2740,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 0.7,
+        expected = {'nlu_confidence_threshold': 70,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -2766,7 +2766,7 @@ class TestMongoProcessor:
         assert ted['epochs'] == 200
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 0.7,
+        expected = {'nlu_confidence_threshold': 70,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 200,
                     'nlu_epochs': 100,
