@@ -438,7 +438,7 @@ class MongoProcessor:
         """
         entitySynonyms = EntitySynonyms.objects(bot=bot, status=status)
         for entitySynonym in entitySynonyms:
-            yield {entitySynonym.synonym: entitySynonym.value}
+            yield {entitySynonym.value: entitySynonym.synonym}
 
     def __prepare_training_synonyms(self, bot: Text):
         synonyms = list(self.fetch_synonyms(bot))

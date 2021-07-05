@@ -4117,7 +4117,7 @@ def test_add_synonyms():
         )
 
     actual = response.json()
-    assert actual['data'] == [{"bot_add": "any"}, {"bot_add": "any1"}]
+    assert actual['data'] == [{"any": "bot_add"}, {"any1": "bot_add"}]
 
 
 def test_add_synonyms_duplicate():
@@ -4161,7 +4161,7 @@ def test_edit_synonyms():
     )
 
     actual = response.json()
-    assert actual['data'] == [{"bot_add": "any4"}]
+    assert actual['data'] == [{"any4": "bot_add"}]
 
 
 def test_edit__empty_synonyms():
