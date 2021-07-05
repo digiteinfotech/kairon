@@ -30,7 +30,7 @@ from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_E
     DEFAULT_NLU_FALLBACK_RULE
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
-                                                Entities,
+                                                Entities, EntitySynonyms,
                                                 Intents,
                                                 Actions,
                                                 Responses,
@@ -2982,6 +2982,49 @@ class TestMongoProcessor:
         assert len(rule_policy) == 3
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_add__and_get_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.add_synonym(
+            {"synonym": "bot", "value": ["exp"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0]['synonym'] == "bot"
+        assert syn[0]['value'] == "exp"
+
+    def test_add_duplicate_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym value already exists"
+
+    def test_add_empty_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym name cannot be an empty string"
+
+    def test_delete_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+
+        processor.delete_synonym(synonym_name='bot', bot=bot, user=user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0].status is False
+
+    def test_delete_inexistent_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.delete_synonym(synonym_name='bo', bot=bot, user=user)
+        assert str(e).__contains__('Synonym does not exist.')
 
 
 # pylint: disable=R0201

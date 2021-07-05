@@ -364,3 +364,26 @@ class ParaphrasesRequest(BaseModel):
         elif len(v) > 5:
             raise ValueError("Max 5 Questions are allowed!")
         return v
+
+
+class SynonymRequest(BaseModel):
+    synonym: str
+    value: List[str]
+
+    @validator("value")
+    def validate_value(cls, v, values, **kwargs):
+        if len(v) <= 0:
+            raise ValueError("Please enter word")
+        for ele in v:
+            if not ele.strip():
+                raise ValueError("Empty String Not Allowed")
+        return v
+
+    @validator("synonym")
+    def validate_synonym(cls, f, values, **kwargs):
+        if not f:
+            raise ValueError("Please enter word")
+        if not f.strip():
+            raise ValueError("Please enter word")
+        return f
+
