@@ -372,18 +372,18 @@ class SynonymRequest(BaseModel):
 
     @validator("value")
     def validate_value(cls, v, values, **kwargs):
+        from kairon.utils import Utility
         if len(v) <= 0:
-            raise ValueError("Please enter word")
+            raise ValueError("value field cannot be empty")
         for ele in v:
-            if not ele.strip():
-                raise ValueError("Empty String Not Allowed")
+            if Utility.check_empty_string(ele):
+                raise ValueError("value cannot be an empty string")
         return v
 
     @validator("synonym")
     def validate_synonym(cls, f, values, **kwargs):
-        if not f:
-            raise ValueError("Please enter word")
-        if not f.strip():
-            raise ValueError("Please enter word")
+        from kairon.utils import Utility
+        if Utility.check_empty_string(f):
+            raise ValueError("synonym cannot be empty")
         return f
 

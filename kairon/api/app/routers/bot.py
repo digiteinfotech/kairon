@@ -805,7 +805,7 @@ async def validate_training_data(
     return {"message": "Event triggered! Check logs."}
 
 
-@router.get("/EntitySynonyms", response_model=Response)
+@router.get("/synonyms", response_model=Response)
 async def get_all_synonyms(
         current_user: User = Depends(auth.get_current_user_and_bot),
 ):
@@ -816,7 +816,7 @@ async def get_all_synonyms(
     return {"data": synonyms}
 
 
-@router.post("/EntitySynonyms", response_model=Response)
+@router.post("/synonyms", response_model=Response)
 async def add_synonyms(
         request_data: SynonymRequest,
         current_user: User = Depends(auth.get_current_user_and_bot)
@@ -827,16 +827,13 @@ async def add_synonyms(
     :param current_user:
     :return: Success message
     """
-    try:
-        synonym_value = request_data.dict()
-        mongo_processor.add_synonym(synonyms_dict=synonym_value, bot=current_user.get_bot(), user=current_user.get_user())
-    except AppException as ae:
-        raise AppException(str(ae))
+
+    mongo_processor.add_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
 
     return {"message": "Synonym and values added successfully!"}
 
 
-@router.put("/EntitySynonyms", response_model=Response)
+@router.put("/synonyms", response_model=Response)
 async def edit_synonyms(
         request_data: SynonymRequest,
         current_user: User = Depends(auth.get_current_user_and_bot)
@@ -847,16 +844,13 @@ async def edit_synonyms(
     :param current_user:
     :return: Success message
     """
-    try:
-        synonym_value = request_data.dict()
-        mongo_processor.edit_synonym(synonyms_dict=synonym_value, bot=current_user.get_bot(), user=current_user.get_user())
-    except AppException as ae:
-        raise AppException(str(ae))
+
+    mongo_processor.edit_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
 
     return {"message": "Synonym modified successfully!"}
 
 
-@router.delete("/EntitySynonyms/{synonym}", response_model=Response)
+@router.delete("/synonyms/{synonym}", response_model=Response)
 async def delete_synonym(
         synonym: str = Path(default=None, description="synonym name", example="bot"),
         current_user: User = Depends(auth.get_current_user_and_bot)

@@ -3009,6 +3009,15 @@ class TestMongoProcessor:
             processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym name cannot be an empty string"
 
+    def test_edit_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.edit_synonym({"synonym": "bot", "value": ["exp7"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[1]['synonym'] == "bot"
+        assert syn[1]['value'] == "exp7"
+
     def test_delete_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
@@ -3026,6 +3035,13 @@ class TestMongoProcessor:
             processor.delete_synonym(synonym_name='bo', bot=bot, user=user)
         assert str(e).__contains__('Synonym does not exist.')
 
+    def test_edit_synonym_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('No such synonym exists')
 
 # pylint: disable=R0201
 class TestAgentProcessor:
