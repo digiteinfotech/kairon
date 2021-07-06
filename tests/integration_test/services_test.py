@@ -655,6 +655,41 @@ def test_get_all_responses():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_add_response_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/utterance",
+        json={"data": "utter_greet"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Utterance exists"
+
+
+def test_add_utterance_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/utterance",
+        json={"data": "utter_test_add_name"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance added"
+
+
+def test_add_utterance_name_empty():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/utterance",
+        json={"data": " "},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_add_response():
     response = client.post(
         f"/api/bot/{pytest.bot}/response/utter_greet",
@@ -665,7 +700,7 @@ def test_add_response():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance added!"
+    assert actual["message"] == "Response added!"
     response = client.get(
         f"/api/bot/{pytest.bot}/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -684,7 +719,7 @@ def test_add_response_upper_case():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance added!"
+    assert actual["message"] == "Response added!"
 
 
 def test_get_response_upper_case():
@@ -2247,7 +2282,7 @@ def test_add_response_different_bot():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance added!"
+    assert actual["message"] == "Response added!"
     response = client.get(
         f"/api/bot/{pytest.bot_2}/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4008,7 +4043,7 @@ def test_set_epoch_and_fallback():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance added!"
+    assert actual["message"] == "Response added!"
 
     response = client.put(f"/api/bot/{pytest.bot}/config/properties",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4205,3 +4240,20 @@ def test_add_synonyms_empty_value_element():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"][0]['msg'] == "value cannot be an empty string"
+
+
+def test_get_training_data_count(monkeypatch):
+
+    def _mock_training_data_count(*args, **kwargs):
+        return {
+            'intents': [{'name': 'greet', 'count': 5}, {'name': 'affirm', 'count': 3}],
+            'utterances': [{'name': 'utter_greet', 'count': 4}, {'name': 'utter_affirm', 'count': 11}]
+        }
+
+    monkeypatch.setattr(MongoProcessor, 'get_training_data_count', _mock_training_data_count)
+    response = client.get(f"/api/bot/{pytest.bot}/data/count",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == _mock_training_data_count()
