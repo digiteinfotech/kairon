@@ -216,7 +216,7 @@ async def add_responses(
     utterance_id = mongo_processor.add_text_response(
         request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user()
     )
-    return {"message": "Utterance added!", "data": {"_id": utterance_id}}
+    return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
 @router.put("/response/{utterance}/{id}", response_model=Response)
@@ -803,3 +803,16 @@ async def validate_training_data(
                               current_user.get_bot(), current_user.get_user(),
                               False, False)
     return {"message": "Event triggered! Check logs."}
+
+
+@router.post("/utterance", response_model=Response)
+async def add_utterance(request: TextData, current_user: User = Depends(auth.get_current_user_and_bot)):
+    mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
+                                       raise_error_if_exists=True)
+    return {'message': 'Utterance added'}
+
+
+@router.get("/data/count", response_model=Response)
+async def validate_training_data(current_user: User = Depends(auth.get_current_user_and_bot)):
+    count = mongo_processor.get_training_data_count(current_user.get_bot())
+    return Response(data=count)

@@ -66,7 +66,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback
+    Feedback, Utterances
 )
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
@@ -308,6 +308,7 @@ class MongoProcessor:
         actions = list(filter(lambda actions: not actions.startswith('utter_') and actions not in domain.form_names, domain.user_actions))
         self.__save_actions(actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
+        self.save_utterances(domain.templates.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
 
@@ -320,7 +321,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document(
-            [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
+            [Intents, Entities, Forms, Actions, Responses, Slots, Utterances], bot=bot, user=user
         )
 
     def load_domain(self, bot: Text) -> Domain:
@@ -780,6 +781,16 @@ class MongoProcessor:
             new_responses = self.__extract_response(responses, bot, user)
             if new_responses:
                 Responses.objects.insert(new_responses)
+
+    def save_utterances(self, utterances, bot: Text, user: Text):
+        if utterances:
+            new_utterances = []
+            existing_utterances = Utterances.objects(bot=bot, status=True).values_list('name')
+            for utterance in utterances:
+                if utterance not in existing_utterances:
+                    new_utterances.append(Utterances(name=utterance, bot=bot, user=user))
+            if new_utterances:
+                Utterances.objects.insert(new_utterances)
 
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
@@ -1607,6 +1618,7 @@ class MongoProcessor:
             )
         )[0]
         value = response.save().to_mongo().to_dict()
+        self.add_utterance_name(name=name.strip().lower(), bot=bot, user=user)
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -2193,6 +2205,7 @@ class MongoProcessor:
                 for response in responses:
                     response.status = False
                     response.save()
+                self.delete_utterance_name(name=utterance_name, bot=bot)
             else:
                 raise AppException("Cannot remove utterance linked to story")
         except DoesNotExist as e:
@@ -2212,6 +2225,8 @@ class MongoProcessor:
             if story and len(responses) <= 1:
                 raise AppException("At least one response is required for utterance linked to story")
             self.remove_document(Responses, utterance_id, bot, user)
+            if len(responses) <= 1:
+                self.delete_utterance_name(name=utterance_name, bot=bot)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -2719,3 +2734,46 @@ class MongoProcessor:
         if action_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
                 self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)
+
+    def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool=False):
+        if Utility.check_empty_string(name):
+            raise AppException('Name cannot be empty')
+        try:
+            Utterances.objects(bot=bot, status=True, name__iexact=name).get()
+            if raise_error_if_exists:
+                raise AppException('Utterance exists')
+        except DoesNotExist as e:
+            logging.exception(e)
+            Utterances(name=name, bot=bot, user=user).save()
+
+    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
+        try:
+            utterance = Utterances.objects(name__iexact=name, bot=bot).get()
+            utterance.status = False
+            utterance.save()
+        except DoesNotExist as e:
+            logging.exception(e)
+            if raise_exc:
+                raise AppException('Utterance not found')
+
+    def get_training_data_count(self, bot: Text):
+        intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
+            [{'$match': {'bot': bot, 'status': True}},
+             {'$lookup': {'from': 'training_examples',
+                          'let': {'bot_id': bot, 'name': '$name'},
+                          'pipeline': [{'$match': {'bot': bot, 'status': True}},
+                                       {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$name']}]}}},
+                                       {'$count': 'count'}], 'as': 'intents_count'}},
+             {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$intents_count.count'}}}]))
+
+        utterances_count = list(Utterances.objects(bot=bot, status=True).aggregate(
+            [{'$match': {'bot': bot, 'status': True}},
+             {'$lookup': {'from': 'responses',
+                          'let': {'bot_id': bot, 'utterance': '$name'},
+                          'pipeline': [{'$match': {'bot': bot, 'status': True}},
+                                       {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
+                                       {'$count': 'count'}], 'as': 'responses_count'}},
+            {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$responses_count.count'}}}]))
+
+        return {'intents': intents_count, 'utterances': utterances_count}
+
