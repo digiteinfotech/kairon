@@ -1107,7 +1107,7 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')*100 if nlu_fallback.get('threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')

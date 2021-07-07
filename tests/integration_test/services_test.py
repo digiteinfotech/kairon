@@ -3990,7 +3990,7 @@ def test_get_editable_config():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'] == {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback', 'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
+    assert actual['data'] == {'nlu_confidence_threshold': 70, 'action_fallback': 'action_default_fallback', 'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
 
 
 def test_set_epoch_and_fallback():
