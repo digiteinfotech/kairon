@@ -3009,6 +3009,14 @@ class TestMongoProcessor:
             processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym name cannot be an empty string"
 
+    def test_edit_synonym_value_list_empty_element_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ['dd', '']}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
+
     def test_edit_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
@@ -3042,6 +3050,38 @@ class TestMongoProcessor:
         with pytest.raises(AppException) as e:
             processor.edit_synonym({"synonym": "bot", "value": ["exp"]}, bot=bot, user=user)
         assert str(e).__contains__('No such synonym exists')
+
+    def test_add_synonym_with_empty_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_add_synonym_with_empty_element_in_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_edit_synonym_error_empty_string(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym name cannot be an empty string')
+
+    def test_edit_synonym_value_empty_list_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "q", "value": []}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
 
 # pylint: disable=R0201
 class TestAgentProcessor:

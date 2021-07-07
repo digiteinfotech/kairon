@@ -4083,7 +4083,7 @@ def test_set_epoch_and_fallback_negative_epochs():
 
 def test_get_synonyms():
     response = client.get(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4096,7 +4096,7 @@ def test_get_synonyms():
 
 def test_add_synonyms():
     response = client.post(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": ["any"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4106,13 +4106,13 @@ def test_add_synonyms():
     assert actual["message"] == "Synonym and values added successfully!"
 
     client.post(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": ["any1"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     response = client.get(
-            f"/api/bot/{pytest.bot}/synonyms",
+            f"/api/bot/{pytest.bot}/entity/synonyms",
             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         )
 
@@ -4122,7 +4122,7 @@ def test_add_synonyms():
 
 def test_add_synonyms_duplicate():
     response = client.post(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": ["any"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4134,7 +4134,7 @@ def test_add_synonyms_duplicate():
 
 def test_add_synonyms_empty():
     response = client.post(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4146,7 +4146,7 @@ def test_add_synonyms_empty():
 
 def test_edit_synonyms():
     response = client.put(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": ["any4"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4156,7 +4156,7 @@ def test_edit_synonyms():
     assert actual["message"] == "Synonym modified successfully!"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -4166,7 +4166,7 @@ def test_edit_synonyms():
 
 def test_edit__empty_synonyms():
     response = client.put(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "", "value": ["any4"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4178,7 +4178,7 @@ def test_edit__empty_synonyms():
 
 def test_delete_synonym():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/synonyms/bot_add",
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4187,9 +4187,21 @@ def test_delete_synonym():
     assert actual["message"] == "Synonym deleted!"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/synonyms",
+        f"/api/bot/{pytest.bot}/entity/synonyms",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
     assert actual['data'] == []
+
+
+def test_add_synonyms_empty_value_element():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        json={"synonym": "bot_add", "value": ['df','']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "value cannot be an empty string"

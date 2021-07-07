@@ -2724,7 +2724,7 @@ class MongoProcessor:
         if Utility.check_empty_string(synonyms_dict.get('synonym')):
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
-            raise AppException("please enter new values")
+            raise AppException("Synonym value cannot be an empty string")
         synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
         value_list = set(item.value for item in synonym)
         push_entity = []
@@ -2746,7 +2746,7 @@ class MongoProcessor:
         if Utility.check_empty_string(synonyms_dict.get('synonym')):
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
-            raise AppException("please enter new values")
+            raise AppException("Synonym value cannot be an empty string")
         synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
         if not synonym:
             raise AppException("No such synonym exists")

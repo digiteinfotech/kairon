@@ -805,7 +805,7 @@ async def validate_training_data(
     return {"message": "Event triggered! Check logs."}
 
 
-@router.get("/synonyms", response_model=Response)
+@router.get("/entity/synonyms", response_model=Response)
 async def get_all_synonyms(
         current_user: User = Depends(auth.get_current_user_and_bot),
 ):
@@ -816,7 +816,7 @@ async def get_all_synonyms(
     return {"data": synonyms}
 
 
-@router.post("/synonyms", response_model=Response)
+@router.post("/entity/synonyms", response_model=Response)
 async def add_synonyms(
         request_data: SynonymRequest,
         current_user: User = Depends(auth.get_current_user_and_bot)
@@ -833,7 +833,7 @@ async def add_synonyms(
     return {"message": "Synonym and values added successfully!"}
 
 
-@router.put("/synonyms", response_model=Response)
+@router.put("/entity/synonyms", response_model=Response)
 async def edit_synonyms(
         request_data: SynonymRequest,
         current_user: User = Depends(auth.get_current_user_and_bot)
@@ -850,7 +850,7 @@ async def edit_synonyms(
     return {"message": "Synonym modified successfully!"}
 
 
-@router.delete("/synonyms/{synonym}", response_model=Response)
+@router.delete("/entity/synonyms/{synonym}", response_model=Response)
 async def delete_synonym(
         synonym: str = Path(default=None, description="synonym name", example="bot"),
         current_user: User = Depends(auth.get_current_user_and_bot)
