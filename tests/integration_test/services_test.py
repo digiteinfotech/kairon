@@ -396,7 +396,7 @@ def test_get_data_importer_logs():
     del actual['data'][2]['start_timestamp']
     del actual['data'][2]['end_timestamp']
     del actual['data'][2]['files_received']
-    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 0, 'data': []},
+    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 13, 'data': []},
                                  'rules': {'count': 1, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 26, 'slots_count': 9,
@@ -405,7 +405,7 @@ def test_get_data_importer_logs():
                                  'is_data_uploaded': True, 'status': 'Success', 'exception': '', 'event_status': 'Completed'}
     assert actual['data'][3]['intents']['count'] == 16
     assert actual['data'][3]['intents']['data']
-    assert actual['data'][3]['utterances']['count'] == 0
+    assert actual['data'][3]['utterances']['count'] == 25
     assert actual['data'][3]['stories']['count'] == 16
     assert actual['data'][3]['stories']['data']
     assert actual['data'][3]['training_examples'] == {'count': 292, 'data': []}

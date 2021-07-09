@@ -1106,3 +1106,20 @@ class Utility:
                 component['name'] = 'TEDPolicy'
                 configs['policies'].append(component)
             component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def is_valid_training_data(summary: dict):
+        if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
+                Utility.environment['model']['data_importer'].get('ignore_utterances'):
+            is_data_valid = all([not summary[key] for key in summary.keys() if 'utterances' != key])
+        else:
+            is_data_valid = all([not summary[key] for key in summary.keys()])
+        return is_data_valid
+
+    @staticmethod
+    def is_force_import_allowed():
+        if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
+                Utility.environment['model']['data_importer'].get('force_import_data'):
+            return Utility.environment['model']['data_importer']['force_import_data']
+        else:
+            return False
