@@ -652,3 +652,79 @@ class TestEvents:
         assert len(list(mongo_processor.fetch_responses(bot))) == 2
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_import_with_utterance_issues(self, monkeypatch):
+        bot = 'test_trigger_data_importer_import_with_utterance_issues'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        shutil.copytree('tests/testing_data/validator/orphan_utterances', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+        monkeypatch.setitem(Utility.environment['model']['data_importer'], 'ignore_utterances', True)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
+        assert len(list(mongo_processor.fetch_responses(bot))) == 8
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_forced_import(self, monkeypatch):
+        bot = 'forced_import'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        shutil.copytree('tests/testing_data/validator/orphan_utterances', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+        monkeypatch.setitem(Utility.environment['model']['data_importer'], 'force_import_data', True)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
+        assert len(list(mongo_processor.fetch_responses(bot))) == 8
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1

@@ -20,7 +20,8 @@ model:
   data_importer:
     limit_per_day: ${IMPORTING_LIMIT_PER_DAY:5}
     event_url: ${IMPORTER_EVENT_URL}
-    agent_url: ${AGENT_URL}
+    ignore_utterances: ${IMPORTER_IGNORES_UTTERANCE_ISSUES:false}
+    force_import_data: ${FORCE_IMPORT_DATA:false}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
