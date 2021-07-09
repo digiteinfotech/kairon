@@ -30,13 +30,14 @@ from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_E
     DEFAULT_NLU_FALLBACK_RULE
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
-                                                Entities,
+                                                Entities, EntitySynonyms,
                                                 Intents,
                                                 Actions,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs
+                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
+                                                Utterances
                                                 )
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -286,6 +287,7 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
+        assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 27
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -341,6 +343,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
+        assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
     async def test_load_from_path_all_scenario_append(self):
@@ -387,6 +390,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
+        assert Utterances.objects(bot='all').count() == 27
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -409,6 +413,7 @@ class TestMongoProcessor:
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
+        assert Utterances.objects(bot="tests").count() == 11
 
     def test_load_stories(self):
         processor = MongoProcessor()
@@ -1342,9 +1347,12 @@ class TestMongoProcessor:
         processor.delete_response(utter_intentA_1_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
+        assert Utterances.objects(name=utterance, bot=bot, status=True).get()
         processor.delete_response(utter_intentA_2_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name=utterance, bot=bot, status=True).get()
 
     def test_delete_response_non_existing(self):
         processor = MongoProcessor()
@@ -1363,7 +1371,10 @@ class TestMongoProcessor:
         bot = "testBot"
         user = "testUser"
         processor.add_response({"text": "demo_response1"}, utterance, bot, user)
+        Utterances.objects(name=utterance, bot=bot, status=True).get()
         processor.delete_utterance(utterance, bot, user)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name=utterance, bot=bot, status=True).get()
 
     def test_delete_utterance_non_existing(self):
         processor = MongoProcessor()
@@ -2982,6 +2993,141 @@ class TestMongoProcessor:
         assert len(rule_policy) == 3
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_add__and_get_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.add_synonym(
+            {"synonym": "bot", "value": ["exp"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0]['synonym'] == "bot"
+        assert syn[0]['value'] == "exp"
+
+    def test_add_duplicate_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym value already exists"
+
+    def test_add_empty_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym name cannot be an empty string"
+
+    def test_edit_synonym_value_list_empty_element_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ['dd', '']}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
+
+    def test_edit_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.edit_synonym({"synonym": "bot", "value": ["exp7"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[1]['synonym'] == "bot"
+        assert syn[1]['value'] == "exp7"
+
+    def test_delete_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+
+        processor.delete_synonym(synonym_name='bot', bot=bot, user=user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0].status is False
+
+    def test_delete_inexistent_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.delete_synonym(synonym_name='bo', bot=bot, user=user)
+        assert str(e).__contains__('Synonym does not exist.')
+
+    def test_edit_synonym_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('No such synonym exists')
+
+    def test_add_synonym_with_empty_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_add_synonym_with_empty_element_in_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_edit_synonym_error_empty_string(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym name cannot be an empty string')
+
+    def test_edit_synonym_value_empty_list_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "q", "value": []}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
+
+    def test_add_utterance(self):
+        processor = MongoProcessor()
+        processor.add_utterance_name('test_add', 'test', 'testUser')
+
+    def test_add_utterance_already_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Utterance exists'):
+            processor.add_utterance_name('test_add', 'test', 'testUser', True)
+
+    def test_add_utterance_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Name cannot be empty'):
+            processor.add_utterance_name(' ', 'test', 'testUser', True)
+
+    def test_utterance_data_object(self):
+        with pytest.raises(ValidationError, match='Utterance Name cannot be empty or blank spaces'):
+            Utterances(name=' ', bot='test', user='user').save()
+
+    def test_add_utterance_already_exists_no_exc(self):
+        processor = MongoProcessor()
+        assert not processor.add_utterance_name('test_add', 'test', 'testUser')
+
+    def test_delete_utterance_name_does_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Utterance not found'):
+            processor.delete_utterance_name('test_add_1', 'test', True)
+
+    def test_delete_utterance_name_does_not_exists_no_exc(self):
+        processor = MongoProcessor()
+        processor.delete_utterance_name('test_add_1', 'test')
+
+    def test_delete_utterance_name(self):
+        processor = MongoProcessor()
+        processor.delete_utterance_name('test_add', 'test')
 
 
 # pylint: disable=R0201

@@ -16,7 +16,7 @@ from kairon.api.models import (
     Endpoint,
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
-    FeedbackRequest,
+    FeedbackRequest, SynonymRequest,
     StoryType, ComponentConfig
 )
 from kairon.data_processor.agent_processor import AgentProcessor
@@ -216,7 +216,7 @@ async def add_responses(
     utterance_id = mongo_processor.add_text_response(
         request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user()
     )
-    return {"message": "Utterance added!", "data": {"_id": utterance_id}}
+    return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
 @router.put("/response/{utterance}/{id}", response_model=Response)
@@ -803,3 +803,77 @@ async def validate_training_data(
                               current_user.get_bot(), current_user.get_user(),
                               False, False)
     return {"message": "Event triggered! Check logs."}
+
+
+@router.get("/entity/synonyms", response_model=Response)
+async def get_all_synonyms(
+        current_user: User = Depends(auth.get_current_user_and_bot),
+):
+    """
+    Fetches the stored synonyms of the bot
+    """
+    synonyms = list(mongo_processor.fetch_synonyms(current_user.get_bot()))
+    return {"data": synonyms}
+
+
+@router.post("/entity/synonyms", response_model=Response)
+async def add_synonyms(
+        request_data: SynonymRequest,
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    adds a new synonym and its values
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    mongo_processor.add_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Synonym and values added successfully!"}
+
+
+@router.put("/entity/synonyms", response_model=Response)
+async def edit_synonyms(
+        request_data: SynonymRequest,
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    edits a synonym and its values
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    mongo_processor.edit_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Synonym modified successfully!"}
+
+
+@router.delete("/entity/synonyms/{synonym}", response_model=Response)
+async def delete_synonym(
+        synonym: str = Path(default=None, description="synonym name", example="bot"),
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    deletes an existing synonym
+    :param synonym:
+    :param current_user:
+    :return: Success message
+    """
+    mongo_processor.delete_synonym(synonym_name=synonym, bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Synonym deleted!"}
+
+
+@router.post("/utterance", response_model=Response)
+async def add_utterance(request: TextData, current_user: User = Depends(auth.get_current_user_and_bot)):
+    mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
+                                       raise_error_if_exists=True)
+    return {'message': 'Utterance added'}
+
+
+@router.get("/data/count", response_model=Response)
+async def get_training_data_count(current_user: User = Depends(auth.get_current_user_and_bot)):
+    count = mongo_processor.get_training_data_count(current_user.get_bot())
+    return Response(data=count)
