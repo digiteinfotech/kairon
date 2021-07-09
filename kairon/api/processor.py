@@ -86,7 +86,7 @@ class AccountProcessor:
         bot_id = bot['_id'].__str__()
         if not is_new_account:
             AccountProcessor.add_bot_for_user(bot_id, user)
-        BotSettings(bot=bot, user=user).save()
+        BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
         config = processor.load_config(bot_id)
         processor.add_or_overwrite_config(config, bot_id, user)
