@@ -490,3 +490,12 @@ class Feedback(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class BotSettings(Document):
+    ignore_utterances = BooleanField(default=False)
+    force_import = BooleanField(default=False)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
