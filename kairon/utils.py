@@ -1106,3 +1106,16 @@ class Utility:
                 component['name'] = 'TEDPolicy'
                 configs['policies'].append(component)
             component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def is_data_import_allowed(summary: dict, bot: Text, user: Text):
+        from kairon.data_processor.processor import MongoProcessor
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        if bot_settings.force_import:
+            return True
+        if bot_settings.ignore_utterances:
+            is_data_valid = all([not summary[key] for key in summary.keys() if 'utterances' != key])
+        else:
+            is_data_valid = all([not summary[key] for key in summary.keys()])
+        return is_data_valid

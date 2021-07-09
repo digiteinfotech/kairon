@@ -240,6 +240,7 @@ class TrainingDataValidator(Validator):
         @return:
         """
         utterance_mismatch_summary = []
+        story_utterance_not_found_in_domain = []
         self.validator.verify_utterances()
 
         utterance_actions = self.validator._gather_utterance_actions()
@@ -264,7 +265,7 @@ class TrainingDataValidator(Validator):
                           f"template defined with its name."
                     if raise_exception:
                         raise AppException(msg)
-                    utterance_mismatch_summary.append(msg)
+                    story_utterance_not_found_in_domain.append(msg)
                 stories_utterances.add(event.action_name)
 
         for utterance in utterance_actions:
@@ -277,6 +278,10 @@ class TrainingDataValidator(Validator):
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []
         self.summary['utterances'] = self.summary['utterances'] + utterance_mismatch_summary
+
+        if not self.summary.get('stories'):
+            self.summary['stories'] = []
+        self.summary['stories'] = self.summary['stories'] + story_utterance_not_found_in_domain
 
     def verify_nlu(self, raise_exception: bool = True):
         """
@@ -339,6 +344,7 @@ class TrainingDataValidator(Validator):
         self.component_count['domain']['forms'] = len(self.domain.form_names)
         self.component_count['domain']['slots'] = len(self.domain.slots)
         self.component_count['domain']['entities'] = len(self.domain.entities)
+        self.component_count['utterances'] = len(self.domain.templates)
         if self.domain.is_empty():
             self.summary['domain'] = ["domain.yml is empty!"]
 

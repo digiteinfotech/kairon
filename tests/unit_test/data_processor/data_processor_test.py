@@ -37,7 +37,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                                Utterances
+                                                Utterances, BotSettings
                                                 )
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -3128,6 +3128,30 @@ class TestMongoProcessor:
     def test_delete_utterance_name(self):
         processor = MongoProcessor()
         processor.delete_utterance_name('test_add', 'test')
+
+    def test_get_bot_settings_not_added(self):
+        processor = MongoProcessor()
+        settings = processor.get_bot_settings('not_created', 'test')
+        assert not settings.ignore_utterances
+        assert not settings.force_import
+        assert settings.status
+        assert settings.timestamp
+        assert settings.user
+        assert settings.bot
+
+    def test_get_bot_settings(self):
+        processor = MongoProcessor()
+        settings = BotSettings(bot='not_created').get()
+        settings.ignore_utterances = True
+        settings.force_import = True
+        settings.save()
+        fresh_settings = processor.get_bot_settings('not_created', 'test')
+        assert fresh_settings.ignore_utterances
+        assert fresh_settings.force_import
+        assert fresh_settings.status
+        assert fresh_settings.timestamp
+        assert fresh_settings.user
+        assert fresh_settings.bot
 
 
 # pylint: disable=R0201
