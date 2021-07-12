@@ -124,7 +124,8 @@ def train_model_for_bot(bot: str):
         config=os.path.join(directory, DEFAULT_CONFIG_PATH),
         training_files=os.path.join(directory, DEFAULT_DATA_PATH),
         output=output,
-        core_additional_arguments={"augmentation_factor": 100}
+        core_additional_arguments={"augmentation_factor": 100},
+        force_training=True
     )
     Utility.delete_directory(directory)
     del processor

@@ -21,7 +21,7 @@ class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    bot: str
+    bot: list
     account: int
     status: bool
     alias_user: str = None
@@ -66,6 +66,7 @@ class StoryEventType(str, Enum):
     form = "form"
     slot = "slot"
 
+
 class RegisterAccount(BaseModel):
     email: str
     first_name: str
@@ -73,7 +74,6 @@ class RegisterAccount(BaseModel):
     password: SecretStr
     confirm_password: SecretStr
     account: str
-    bot: str
 
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
@@ -375,3 +375,26 @@ class SlotRequest(BaseModel):
     max_value: float = None
     min_value: float = None
     influence_conversation: bool = False
+
+
+class SynonymRequest(BaseModel):
+    synonym: str
+    value: List[str]
+
+    @validator("value")
+    def validate_value(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+        if len(v) <= 0:
+            raise ValueError("value field cannot be empty")
+        for ele in v:
+            if Utility.check_empty_string(ele):
+                raise ValueError("value cannot be an empty string")
+        return v
+
+    @validator("synonym")
+    def validate_synonym(cls, f, values, **kwargs):
+        from kairon.utils import Utility
+        if Utility.check_empty_string(f):
+            raise ValueError("synonym cannot be empty")
+        return f
+

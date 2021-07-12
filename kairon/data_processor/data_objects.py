@@ -186,6 +186,18 @@ class Forms(Document):
             raise ValidationError(e)
 
 
+class Utterances(Document):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Utterance Name cannot be empty or blank spaces")
+
+
 class ResponseButton(EmbeddedDocument):
     title = StringField(required=True)
     payload = StringField(required=True)
@@ -478,3 +490,12 @@ class Feedback(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class BotSettings(Document):
+    ignore_utterances = BooleanField(default=False)
+    force_import = BooleanField(default=False)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
