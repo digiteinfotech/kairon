@@ -440,7 +440,7 @@ def test_get_slots():
 
 def test_add_slots():
     response = client.post(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot_add", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -455,7 +455,7 @@ def test_add_slots():
 
 def test_add_slots_duplicate():
     response = client.post(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot_add", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -468,7 +468,7 @@ def test_add_slots_duplicate():
 
 def test_add_empty_slots():
     response = client.post(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -481,7 +481,7 @@ def test_add_empty_slots():
 
 def test_add_invalid_slots_type():
     response = client.post(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot_invalid", "type": "invalid", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -494,7 +494,7 @@ def test_add_invalid_slots_type():
 
 def test_edit_slots():
     response = client.put(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot", "type": "text", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -507,7 +507,7 @@ def test_edit_slots():
 
 def test_edit_empty_slots():
     response = client.put(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -520,13 +520,13 @@ def test_edit_empty_slots():
 
 def test_delete_slots():
     client.post(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     response = client.delete(
-        "/api/bot/slots/bot",
+        f"/api/bot/{pytest.bot}/slots/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -538,7 +538,7 @@ def test_delete_slots():
 
 def test_edit_invalid_slots_type():
     response = client.put(
-        "/api/bot/slots",
+        f"/api/bot/{pytest.bot}/slots",
         json={"name": "bot", "type": "invalid", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
