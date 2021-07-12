@@ -758,7 +758,6 @@ async def get_latest_data_generation_status(
 
 @router.get("/slots", response_model=Response)
 async def get_slots(
-        current_user: User = Depends(auth.get_current_user),
         current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
