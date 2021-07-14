@@ -8,7 +8,7 @@ from typing import Text
 
 router = APIRouter()
 auth = Authentication()
-default_filter = ConversationFilter()
+
 
 @router.get("/users", response_model=Response)
 async def chat_history_users(month: HistoryMonth = 1, current_user: User = Depends(auth.get_current_user_and_bot)):
@@ -72,7 +72,7 @@ async def conversation_time(month: HistoryMonth = 1,current_user: User = Depends
 
 
 @router.get("/metrics/user/engaged", response_model=Response)
-async def count_engaged_users(request: ConversationFilter = default_filter, current_user: User = Depends(auth.get_current_user_and_bot)):
+async def count_engaged_users(request: ConversationFilter = ConversationFilter(), current_user: User = Depends(auth.get_current_user_and_bot)):
 
     """
     Fetches the number of engaged users of the bot
@@ -117,7 +117,7 @@ async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depe
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
-async def engaged_users_trend(request: ConversationFilter = default_filter, current_user: User = Depends(auth.get_current_user_and_bot)):
+async def engaged_users_trend(request: ConversationFilter = ConversationFilter(), current_user: User = Depends(auth.get_current_user_and_bot)):
 
     """
     Fetches the counts of engaged users of the bot for previous months

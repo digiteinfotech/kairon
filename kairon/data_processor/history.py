@@ -8,7 +8,6 @@ from rasa.core.tracker_store import MongoTrackerStore
 from kairon.exceptions import AppException
 from kairon.utils import Utility
 from .processor import MongoProcessor
-from ..importer.validator.file_validator import DEFAULT_ACTIONS
 
 
 class ChatHistory:
@@ -162,14 +161,10 @@ class ChatHistory:
         :param month: default is current month and max is last 6 months
         :return: list of visitor fallback
         """
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        fallback_action = action_fallback.get("core_fallback_action_name")
-        fallback_action = fallback_action if fallback_action else "action_default_fallback"
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+
+        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
-        default_actions = list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+        default_actions = Utility.load_default_actions()
         with client as client:
             db = client.get_database(database)
             conversations = db.get_collection(collection)
@@ -497,12 +492,7 @@ class ChatHistory:
         :return: number of successful conversations
         """
 
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        fallback_action = action_fallback.get("core_fallback_action_name")
-        fallback_action = fallback_action if fallback_action else "action_default_fallback"
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -718,12 +708,7 @@ class ChatHistory:
         :return: dictionary of counts of successful bot conversations for the previous months
         """
 
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        fallback_action = action_fallback.get("core_fallback_action_name")
-        fallback_action = fallback_action if fallback_action else "action_default_fallback"
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -821,12 +806,7 @@ class ChatHistory:
         :return: dictionary of fallback counts for the previous months
         """
 
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        fallback_action = action_fallback.get("core_fallback_action_name")
-        fallback_action = fallback_action if fallback_action else "action_default_fallback"
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -847,11 +827,24 @@ class ChatHistory:
                                              {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                                              {"$project": {"_id": 1, "count": 1}}
                                              ]))
+                action_counts = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events"}},
+                                             {"$match": {"$and": [{"events.event": "action"},
+                                             {"events.name": {"$nin": ['action_listen', 'action_session_start']}}]}},
+                                             {"$match": {"events.timestamp": {
+                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                             {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                                             {"$group": {"_id": "$month", "total_count": {"$sum": 1}}},
+                                             {"$project": {"_id": 1, "total_count": 1}}
+                                             ]))
             except Exception as e:
                 message = str(e)
-            f_count_range = {d['_id']: d['count'] for d in fallback_counts}
+            action_count = {d['_id']: d['total_count'] for d in action_counts}
+            fallback_count = {d['_id']: d['count'] for d in fallback_counts}
+            final_trend = {k: [fallback_count.get(k), action_count.get(k)] for k in list(fallback_count.keys())}
             return (
-                {"fallback_counts": f_count_range},
+                {"fallback_counts": final_trend},
                 message
             )
 
