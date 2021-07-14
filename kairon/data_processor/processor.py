@@ -66,7 +66,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback, Utterances
+    Feedback, Utterances, BotSettings
 )
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
@@ -2839,3 +2839,12 @@ class MongoProcessor:
             {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$responses_count.count'}}}]))
 
         return {'intents': intents_count, 'utterances': utterances_count}
+
+    @staticmethod
+    def get_bot_settings(bot: Text, user: Text):
+        try:
+            settings = BotSettings.objects(bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logging.error(e)
+            settings = BotSettings(bot=bot, user=user).save()
+        return settings

@@ -1106,3 +1106,34 @@ class Utility:
                 component['name'] = 'TEDPolicy'
                 configs['policies'].append(component)
             component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def is_data_import_allowed(summary: dict, bot: Text, user: Text):
+        from kairon.data_processor.processor import MongoProcessor
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        if bot_settings.force_import:
+            return True
+        if bot_settings.ignore_utterances:
+            is_data_valid = all([not summary[key] for key in summary.keys() if 'utterances' != key])
+        else:
+            is_data_valid = all([not summary[key] for key in summary.keys()])
+        return is_data_valid
+
+    @staticmethod
+    def load_fallback_actions(bot: Text):
+        from kairon.data_processor.processor import MongoProcessor
+
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        return fallback_action, nlu_fallback_action
+
+    @staticmethod
+    def load_default_actions():
+        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
+
+        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})

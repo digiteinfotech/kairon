@@ -74,7 +74,7 @@ class DataImporterLogProcessor:
                 start_timestamp=datetime.utcnow(),
             )
         doc.intents = TrainingComponentLog(count=component_count['intents'], data=summary.get('intents'))
-        doc.utterances = TrainingComponentLog(data=summary.get('utterances'))
+        doc.utterances = TrainingComponentLog(count=component_count['utterances'], data=summary.get('utterances'))
         doc.stories = TrainingComponentLog(count=component_count['stories'], data=summary.get('stories'))
         doc.training_examples = TrainingComponentLog(count=component_count['training_examples'], data=summary.get('training_examples'))
         doc.config = TrainingComponentLog(data=summary.get('config'))

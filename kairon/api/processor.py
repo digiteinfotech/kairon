@@ -11,7 +11,7 @@ from validators import email as mail_check
 from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
 from kairon.data_processor.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
     EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
-    TrainingDataGenerator, TrainingExamples
+    TrainingDataGenerator, TrainingExamples, BotSettings
 from kairon.data_processor.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_objects import ValidationLogs
@@ -86,6 +86,7 @@ class AccountProcessor:
         bot_id = bot['_id'].__str__()
         if not is_new_account:
             AccountProcessor.add_bot_for_user(bot_id, user)
+        BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
         config = processor.load_config(bot_id)
         processor.add_or_overwrite_config(config, bot_id, user)
