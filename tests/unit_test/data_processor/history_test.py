@@ -31,7 +31,7 @@ class TestHistory:
             open("tests/testing_data/history/conversations_history.json")
         )
         for event in json_data[0]['events'][15:]:
-            event['timestamp'] = float(datetime.utcnow().strftime("%s"))
+            event['timestamp'] = datetime.utcnow().timestamp()
         return json_data[0], None
 
     def get_tracker_and_domain_data(self, *args, **kwargs):
@@ -302,3 +302,26 @@ class TestHistory:
         retention, message = ChatHistory.user_retention_range("tests")
         assert retention['retention_range'] == {}
         assert message is None
+
+    def test_fallback_range_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            f_count, message = ChatHistory.fallback_count_range("tests")
+            assert not f_count
+            assert message is None
+
+    def test_fallback_range(self, mock_mongo_client):
+        f_count, message = ChatHistory.fallback_count_range("tests")
+        assert f_count["fallback_counts"] == {}
+        assert message is None
+
+    def test_flatten_conversation_error(self, mock_mongo_processor):
+        with pytest.raises(Exception):
+            f_count, message = ChatHistory.flatten_conversations("tests")
+            assert not f_count
+            assert message is None
+
+    def test_flatten_conversation_range(self, mock_mongo_client):
+        f_count, message = ChatHistory.flatten_conversations("tests")
+        assert f_count["conversation_data"] == []
+        assert message is None
+

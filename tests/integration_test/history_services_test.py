@@ -306,3 +306,58 @@ def test_user_retention_range(mock_auth, mock_db_client):
     assert actual["data"]["retention_range"] == {}
     assert actual["message"] is None
     assert actual["success"]
+
+
+def test_engaged_users_with_value(mock_auth, mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/engaged",
+        json={'month': 2, 'engaged_users_threshold': 11},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["engaged_users"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_engaged_user_range_with_value(mock_auth, mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/engaged",
+        json={'month': 2, 'engaged_users_threshold': 11},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]['engaged_user_range'] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_fallback_count_range(mock_auth, mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_counts"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_flat_conversations(mock_auth, mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/flatten",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["conversation_data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
+
