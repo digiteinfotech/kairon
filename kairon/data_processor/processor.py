@@ -17,7 +17,7 @@ from rasa.shared.core.domain import InvalidDomain
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
-from rasa.shared.core.slots import CategoricalSlot, FloatSlot, UnfeaturizedSlot, ListSlot, TextSlot, BooleanSlot, AnySlot
+from rasa.shared.core.slots import CategoricalSlot, FloatSlot
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
