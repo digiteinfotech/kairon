@@ -870,7 +870,12 @@ async def delete_synonym(
 async def add_utterance(request: TextData, current_user: User = Depends(auth.get_current_user_and_bot)):
     mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
                                        raise_error_if_exists=True)
-    return {'message': 'Utterance added'}
+    return {'message': 'Utterance added!'}
+
+
+@router.get("/utterance", response_model=Response)
+async def get_utterance(current_user: User = Depends(auth.get_current_user_and_bot)):
+    return {'data': {"utterances": mongo_processor.get_utterances(current_user.get_bot())}}
 
 
 @router.get("/data/count", response_model=Response)

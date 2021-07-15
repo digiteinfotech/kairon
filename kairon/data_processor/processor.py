@@ -2809,6 +2809,10 @@ class MongoProcessor:
             logging.exception(e)
             Utterances(name=name, bot=bot, user=user).save()
 
+    def get_utterances(self, bot: Text):
+        utterances = list(Utterances.objects(bot=bot, status=True).values_list('name'))
+        return utterances
+    
     def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
         try:
             utterance = Utterances.objects(name__iexact=name, bot=bot).get()

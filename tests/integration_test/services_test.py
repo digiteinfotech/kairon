@@ -676,7 +676,7 @@ def test_add_utterance_name():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance added"
+    assert actual["message"] == "Utterance added!"
 
 
 def test_add_utterance_name_empty():
@@ -689,6 +689,17 @@ def test_add_utterance_name_empty():
     assert not actual["success"]
     assert actual["error_code"] == 422
 
+
+def test_get_utterances():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/utterance",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual['data']['utterances']) == 14
+    assert type(actual['data']['utterances']) == list
 
 def test_add_response():
     response = client.post(
