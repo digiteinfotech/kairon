@@ -2361,7 +2361,6 @@ class MongoProcessor:
         :param raise_exception_if_exists: set True to add new slot, False to update slot
         :return: slot id
         """
-
         slot_choices = [
             FloatSlot.type_name,
             CategoricalSlot.type_name,
@@ -2375,7 +2374,7 @@ class MongoProcessor:
         if Utility.check_empty_string(slot_value.get('name')):
             raise AppException("Slot Name cannot be empty or blank spaces")
 
-        if slot_value.get('type') not in slot_choices:
+        if slot_value.get('type') not in [item for item in models.SlotType]:
             raise AppException("Invalid slot type.")
 
         try:
@@ -2392,7 +2391,7 @@ class MongoProcessor:
         slot.auto_fill = slot_value.get('auto_fill')
 
         if slot_value.get('type') == CategoricalSlot.type_name:
-            slot.values = slot_value.values
+            slot.values = slot_value.get('values')
         elif slot_value.get('type') == FloatSlot.type_name:
             slot.max_value = slot_value.get('max_value')
             slot.min_value = slot_value.get('min_value')

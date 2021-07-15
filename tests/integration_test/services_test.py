@@ -487,7 +487,7 @@ def test_add_invalid_slots_type():
     )
 
     actual = response.json()
-    assert actual["message"] == "Invalid slot type."
+    assert actual["message"][0]['msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
     assert not actual["success"]
     assert actual["error_code"] == 422
 
@@ -544,9 +544,10 @@ def test_edit_invalid_slots_type():
     )
 
     actual = response.json()
+    print(actual["message"])
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Invalid slot type."
+    assert actual["message"][0]['msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
 
 
 def test_get_intents():

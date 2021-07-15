@@ -6,7 +6,14 @@ from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator
-
+from rasa.shared.core.slots import (
+    CategoricalSlot,
+    FloatSlot,
+    UnfeaturizedSlot,
+    ListSlot,
+    TextSlot,
+    BooleanSlot, AnySlot,
+)
 
 class Token(BaseModel):
     access_token: str
@@ -366,10 +373,20 @@ class ParaphrasesRequest(BaseModel):
         return v
 
 
+class SlotType(str, Enum):
+    FLOAT = FloatSlot.type_name,
+    CATEGORICAL = CategoricalSlot.type_name,
+    UNFEATURIZED = UnfeaturizedSlot.type_name,
+    LIST = ListSlot.type_name,
+    TEXT = TextSlot.type_name,
+    BOOLEAN = BooleanSlot.type_name,
+    ANY = AnySlot.type_name
+
+
 class SlotRequest(BaseModel):
     name: str
-    type: str
-    initial_value: Any
+    type: SlotType
+    initial_value: Any = None
     auto_fill: bool = True
     values: List[str] = None
     max_value: float = None
