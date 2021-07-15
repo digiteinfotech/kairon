@@ -2361,15 +2361,6 @@ class MongoProcessor:
         :param raise_exception_if_exists: set True to add new slot, False to update slot
         :return: slot id
         """
-        slot_choices = [
-            FloatSlot.type_name,
-            CategoricalSlot.type_name,
-            UnfeaturizedSlot.type_name,
-            ListSlot.type_name,
-            TextSlot.type_name,
-            BooleanSlot.type_name,
-            AnySlot.type_name
-        ]
 
         if Utility.check_empty_string(slot_value.get('name')):
             raise AppException("Slot Name cannot be empty or blank spaces")
