@@ -842,7 +842,7 @@ class ChatHistory:
                 message = str(e)
             action_count = {d['_id']: d['total_count'] for d in action_counts}
             fallback_count = {d['_id']: d['count'] for d in fallback_counts}
-            final_trend = {k: [fallback_count.get(k), action_count.get(k)] for k in list(fallback_count.keys())}
+            final_trend = {k: 100*(fallback_count.get(k)/action_count.get(k)) for k in list(fallback_count.keys())}
             return (
                 {"fallback_counts": final_trend},
                 message

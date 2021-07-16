@@ -310,8 +310,7 @@ def test_user_retention_range(mock_auth, mock_db_client):
 
 def test_engaged_users_with_value(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged",
-        json={'month': 2, 'engaged_users_threshold': 11},
+        f"/api/history/{pytest.bot}/metrics/user/engaged/?month=5&conversation_step_threshold=11",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -324,8 +323,7 @@ def test_engaged_users_with_value(mock_auth, mock_db_client):
 
 def test_engaged_user_range_with_value(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged",
-        json={'month': 2, 'engaged_users_threshold': 11},
+        f"/api/history/{pytest.bot}/metrics/trend/user/engaged/?month=5&conversation_step_threshold=11",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -351,7 +349,7 @@ def test_fallback_count_range(mock_auth, mock_db_client):
 
 def test_flat_conversations(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/flatten",
+        f"/api/history/{pytest.bot}/conversations",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 

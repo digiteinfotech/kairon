@@ -416,7 +416,3 @@ class SynonymRequest(BaseModel):
         return f
 
 
-class ConversationFilter(BaseModel):
-    month: History_Month_Enum = 1
-    engaged_users_threshold: int = 10
-
