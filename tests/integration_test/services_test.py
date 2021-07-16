@@ -438,6 +438,118 @@ def test_get_slots():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_add_slots():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot_add", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_slots_duplicate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot_add", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot already exists!"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_empty_slots():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Slot Name cannot be empty or blank spaces"
+
+
+def test_add_invalid_slots_type():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot_invalid", "type": "invalid", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"][0]['msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_slots():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot", "type": "text", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Slot updated!"
+
+
+def test_edit_empty_slots():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Slot Name cannot be empty or blank spaces"
+
+
+def test_delete_slots():
+    client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/slots/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot deleted!"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_edit_invalid_slots_type():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "bot", "type": "invalid", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual["message"])
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
+
+
 def test_get_intents():
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
