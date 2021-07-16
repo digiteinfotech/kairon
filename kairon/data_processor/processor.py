@@ -2810,9 +2810,11 @@ class MongoProcessor:
             Utterances(name=name, bot=bot, user=user).save()
 
     def get_utterances(self, bot: Text):
-        utterances = list(Utterances.objects(bot=bot, status=True).values_list('name'))
-        return utterances
-    
+        utterances = Utterances.objects(bot=bot, status=True)
+        for utterance in utterances:
+            utterance_dict = utterance.to_mongo().to_dict()
+            yield {"_id": utterance_dict['_id'].__str__(), 'name': utterance_dict['name']}
+
     def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
         try:
             utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()

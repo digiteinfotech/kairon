@@ -3118,7 +3118,7 @@ class TestMongoProcessor:
 
     def test_get_utterance(self):
         processor = MongoProcessor()
-        actual = processor.get_utterances('test')
+        actual = list(processor.get_utterances('test'))
         assert len(actual) == 26
 
     def test_delete_utterance_name_does_not_exists(self):

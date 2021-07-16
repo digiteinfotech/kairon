@@ -875,7 +875,7 @@ async def add_utterance(request: TextData, current_user: User = Depends(auth.get
 
 @router.get("/utterance", response_model=Response)
 async def get_utterance(current_user: User = Depends(auth.get_current_user_and_bot)):
-    return {'data': {"utterances": mongo_processor.get_utterances(current_user.get_bot())}}
+    return {'data': {"utterances": list(mongo_processor.get_utterances(current_user.get_bot()))}}
 
 
 @router.get("/data/count", response_model=Response)
