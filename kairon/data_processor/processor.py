@@ -2815,7 +2815,7 @@ class MongoProcessor:
     
     def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
         try:
-            utterance = Utterances.objects(name__iexact=name, bot=bot).get()
+            utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()
             utterance.status = False
             utterance.save()
         except DoesNotExist as e:
