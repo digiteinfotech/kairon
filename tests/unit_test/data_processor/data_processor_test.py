@@ -23,7 +23,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api import models
 from kairon.api.auth import Authentication
-from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
+from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, SlotType
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
@@ -46,7 +46,6 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
-
 
 class TestMongoProcessor:
 
@@ -1412,10 +1411,138 @@ class TestMongoProcessor:
         assert slot['initial_value'] == bot
         assert not slot['influence_conversation']
 
+    def test_add_duplicate_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
         with pytest.raises(AppException):
             msg = processor.add_slot(
-                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
-            assert msg == 'Slot exists'
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=True)
+            assert msg == 'Slot already exists!'
+
+    def test_add_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Slot Name cannot be empty or blank spaces'
+
+    def test_add_invalid_slot_type(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "bot", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Invalid slot type.'
+
+    def test_min_max_for_other_slot_types(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        for slot_type in SlotType:
+            if slot_type == SlotType.FLOAT or slot_type == SlotType.CATEGORICAL:
+                continue
+            else:
+                print(slot_type)
+                processor.add_slot({"name": "bot", "type": slot_type, "max_value": 0.5, "min_value": 0.1,
+                                    "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+                assert slot['name'] == 'bot'
+                assert slot['type'] == slot_type
+                assert slot['max_value'] is None
+                assert slot['min_value'] is None
+
+    def test_add_float_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "float", "initial_value": 0.2, "max_value": 0.5, "min_value": 0.1,
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'float'
+        assert slot['initial_value'] == 0.2
+        assert slot['influence_conversation']
+        assert slot['max_value'] == 0.5
+        assert slot['min_value'] == 0.1
+
+    def test_values_for_other_slot_types(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        for slot_type in SlotType:
+
+            if slot_type == SlotType.CATEGORICAL:
+                continue
+            else:
+                processor.add_slot(
+                    {"name": "bot", "type": slot_type, "values": ["red", "blue"],
+                     "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+                assert slot['name'] == 'bot'
+                assert slot['type'] == slot_type
+                assert slot['values'] is None
+                assert slot['influence_conversation']
+
+    def test_add_categorical_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "categorical", "values": ["red", "blue"],
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'categorical'
+        assert slot['values'] == ["red", "blue"]
+        assert slot['influence_conversation']
+
+    def test_add_categorical_slot_without_values(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        with pytest.raises(ValidationError):
+            msg = processor.add_slot({"name": "bot", "type": "categorical",
+                                "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+            assert msg == "CategoricalSlot must have list of categories in values field"
+
+    def test_delete_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        processor.delete_slot(slot_name='bot', bot=bot, user=user)
+
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot.status is False
+
+    def test_delete_inexistent_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='bot_doesnt_exist', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
+
+    def test_delete_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
 
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()

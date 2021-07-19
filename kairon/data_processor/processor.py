@@ -2354,21 +2354,65 @@ class MongoProcessor:
         return actions
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+        """
+        Adds slot if it doesn't exist, updates slot if it exists
+        :param slot_value: slot data dict
+        :param bot: bot id
+        :param user: user id
+        :param raise_exception_if_exists: set True to add new slot, False to update slot
+        :return: slot id
+        """
+
+        if Utility.check_empty_string(slot_value.get('name')):
+            raise AppException("Slot Name cannot be empty or blank spaces")
+
+        if slot_value.get('type') not in [item for item in models.SlotType]:
+            raise AppException("Invalid slot type.")
+
         try:
-            slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            slot = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
             if raise_exception_if_exists:
                 raise AppException("Slot already exists!")
         except DoesNotExist:
             slot = Slots()
-            slot.name = slot_value['name']
+            slot.name = slot_value.get('name')
 
-        slot.initial_value = slot_value.get('initial_value')
         slot.type = slot_value.get('type')
+        slot.initial_value = slot_value.get('initial_value')
         slot.influence_conversation = slot_value.get('influence_conversation')
+        slot.auto_fill = slot_value.get('auto_fill')
+
+        if slot_value.get('type') == CategoricalSlot.type_name:
+            slot.values = slot_value.get('values')
+        elif slot_value.get('type') == FloatSlot.type_name:
+            slot.max_value = slot_value.get('max_value')
+            slot.min_value = slot_value.get('min_value')
+
         slot.user = user
         slot.bot = bot
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
+
+    def delete_slot(
+            self, slot_name: Text, bot: Text, user: Text
+    ):
+        """
+        deletes slots
+        :param slot_name: slot name
+        :param bot: bot id
+        :param user: user id
+        :return: AppException
+        """
+
+        try:
+            slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
+            slot.status = False
+            slot.save()
+        except DoesNotExist as custEx:
+            logging.exception(custEx)
+            raise AppException(
+                "Slot does not exist."
+            )
 
     @staticmethod
     def get_row_count(document: Document, bot: str):

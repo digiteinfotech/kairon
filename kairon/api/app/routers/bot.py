@@ -17,7 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest,
-    StoryType, ComponentConfig
+    StoryType, ComponentConfig, SlotRequest
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS
@@ -32,11 +32,12 @@ from kairon.shared.actions.data_objects import HttpActionLog
 from kairon.utils import Utility
 
 router = APIRouter()
+auth = Authentication()
 mongo_processor = MongoProcessor()
 
 
 @router.get("/intents", response_model=Response)
-async def get_intents(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_intents(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches list of existing intents for particular bot
     """
@@ -44,7 +45,7 @@ async def get_intents(current_user: User = Depends(Authentication.get_current_us
 
 
 @router.get("/intents/all", response_model=Response)
-async def get_intents_with_training_examples(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_intents_with_training_examples(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches list of existing intents and associated training examples for particular bot
     """
@@ -53,7 +54,7 @@ async def get_intents_with_training_examples(current_user: User = Depends(Authen
 
 @router.post("/intents", response_model=Response)
 async def add_intents(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Adds a new intent to the bot
@@ -74,7 +75,7 @@ async def delete_intent(
             default=True,
             description="""if True delete bot data related to this intent otherwise only delete intent""",
         ),
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     deletes an intent including training examples and stories
@@ -88,7 +89,7 @@ async def delete_intent(
 
 @router.post("/intents/predict", response_model=Response)
 async def predict_intent(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches the predicted intent of the entered text form the loaded agent
@@ -102,7 +103,7 @@ async def predict_intent(
 
 @router.post("/intents/search", response_model=Response)
 async def search_training_examples(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Searches existing training examples
@@ -117,7 +118,7 @@ async def search_training_examples(
 
 @router.get("/training_examples/{intent}", response_model=Response)
 async def get_training_examples(
-        intent: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        intent: str, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches all training examples against intent
@@ -133,7 +134,7 @@ async def get_training_examples(
 async def add_training_examples(
         intent: str,
         request_data: ListData,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Adds training example in particular intent
@@ -152,7 +153,7 @@ async def edit_training_examples(
         intent: str,
         id: str,
         request_data: TextData,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Updates existing training example
@@ -165,7 +166,7 @@ async def edit_training_examples(
 
 @router.delete("/training_examples", response_model=Response)
 async def remove_training_examples(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Deletes existing training example
@@ -181,7 +182,7 @@ async def remove_training_examples(
 
 @router.get("/response/all", response_model=Response)
 async def get_all_responses(
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
+        current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches list of all utterances added.
@@ -193,7 +194,7 @@ async def get_all_responses(
 
 @router.get("/response/{utterance}", response_model=Response)
 async def get_responses(
-        utterance: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        utterance: str, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches list of utterances against utterance name
@@ -207,7 +208,7 @@ async def get_responses(
 async def add_responses(
         request_data: TextData,
         utterance: str,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Adds utterance value in particular utterance
@@ -223,7 +224,7 @@ async def edit_responses(
         utterance: str,
         id: str,
         request_data: TextData,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Updates existing utterance value
@@ -244,7 +245,7 @@ async def edit_responses(
 async def remove_responses(
         request_data: TextData,
         delete_utterance: bool = Path(default=False, description="Deletes utterance if True"),
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
+        current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Deletes existing utterance completely along with its examples.
@@ -264,7 +265,7 @@ async def remove_responses(
 
 @router.post("/stories", response_model=Response)
 async def add_story(
-        story: StoryRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        story: StoryRequest, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Adds a story (conversational flow) in the particular bot
@@ -283,7 +284,7 @@ async def add_story(
 
 @router.put("/stories", response_model=Response)
 async def update_story(
-        story: StoryRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        story: StoryRequest, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Updates a story (conversational flow) in the particular bot
@@ -301,7 +302,7 @@ async def update_story(
 
 
 @router.get("/stories", response_model=Response)
-async def get_stories(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_stories(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches existing list of stories (conversation flows)
     """
@@ -311,7 +312,7 @@ async def get_stories(current_user: User = Depends(Authentication.get_current_us
 @router.delete("/stories/{story}/{type}", response_model=Response)
 async def delete_stories(story: str = Path(default=None, description="Story name", example="happy_path"),
                          type: str = StoryType,
-                         current_user: User = Depends(Authentication.get_current_user_and_bot)
+                         current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Updates a story (conversational flow) in the particular bot
@@ -329,7 +330,7 @@ async def delete_stories(story: str = Path(default=None, description="Story name
 
 @router.get("/utterance_from_intent/{intent}", response_model=Response)
 async def get_story_from_intent(
-        intent: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        intent: str, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches the utterance or response that is mapped to a particular intent
@@ -341,38 +342,29 @@ async def get_story_from_intent(
 
 @router.post("/chat", response_model=Response)
 async def chat(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Fetches a bot response for a given text/query.
     It is basically used to test the chat functionality of the agent
     """
-    return await Utility.chat(request_data.data,
-                        bot=current_user.get_bot(),
-                        user=current_user.get_user(),
-                        email=current_user.email)
-
-
-@router.post("/chat/{user}", response_model=Response)
-async def user_chat(
-        request_data: TextData,
-        user: str = Path(default=None, description="user", example="default"),
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
-):
-    """
-    Fetches a bot response for a given text/query.
-    It is basically used to test the chat functionality of the agent
-    """
-    return await Utility.chat(request_data.data,
-                        bot=current_user.get_bot(),
-                        user=user,
-                        email=current_user.email)
+    if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
+        agent_url = Utility.environment['model']['train'].get('agent_url')
+        token = auth.create_access_token(data={"sub": current_user.email})
+        response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'), current_user.get_user(), json={'data': request_data.data})
+    else:
+        model = AgentProcessor.get_agent(current_user.get_bot())
+        response = await model.handle_text(
+            request_data.data, sender_id=current_user.get_user()
+        )
+        response = {"data": {"response": response}}
+    return response
 
 
 @router.post("/train", response_model=Response)
 async def train(
         background_tasks: BackgroundTasks,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Trains the chatbot
@@ -384,7 +376,7 @@ async def train(
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
         background_tasks: BackgroundTasks,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Reloads model with configuration in cache
@@ -395,7 +387,7 @@ async def reload_model(
 
 @router.get("/train/history", response_model=Response)
 async def get_model_training_history(
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Fetches model training history, when and who trained the bot
@@ -405,7 +397,7 @@ async def get_model_training_history(
 
 
 @router.post("/deploy", response_model=Response)
-async def deploy(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def deploy(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Deploys the latest bot model to the particular http endpoint
     """
@@ -416,7 +408,7 @@ async def deploy(current_user: User = Depends(Authentication.get_current_user_an
 
 
 @router.get("/deploy/history", response_model=Response)
-async def deployment_history(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def deployment_history(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches model deployment history, when and who deployed the model
     """
@@ -435,7 +427,7 @@ async def upload_files(
         training_files: List[UploadFile] = File(...),
         import_data: bool = True,
         overwrite: bool = True,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and http_action.yml files.
@@ -452,7 +444,7 @@ async def upload_files(
 async def upload_data_generation_file(
     background_tasks: BackgroundTasks,
     doc: UploadFile = File(...),
-    current_user: User = Depends(Authentication.get_current_user_and_bot)
+    current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Uploads document for training data generation and triggers event for intent creation
@@ -463,7 +455,7 @@ async def upload_data_generation_file(
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
                                                user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
                                                document_path=file_path)
-    token = Authentication.create_access_token(data={"sub": current_user.email})
+    token = auth.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
         Utility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
     )
@@ -473,7 +465,7 @@ async def upload_data_generation_file(
 @router.get("/download/data")
 async def download_data(
         background_tasks: BackgroundTasks,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Downloads training data nlu.md, domain.yml, stories.md, config.yml files
@@ -491,7 +483,7 @@ async def download_data(
 @router.get("/download/model")
 async def download_model(
         background_tasks: BackgroundTasks,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Downloads latest trained model file
@@ -512,7 +504,7 @@ async def download_model(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Depends(Authentication.get_current_user_and_bot),):
+async def get_endpoint(current_user: User = Depends(auth.get_current_user_and_bot),):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -526,7 +518,7 @@ async def get_endpoint(current_user: User = Depends(Authentication.get_current_u
 async def set_endpoint(
         background_tasks: BackgroundTasks,
         endpoint: Endpoint,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Saves or Updates the bot endpoint configuration
@@ -541,7 +533,7 @@ async def set_endpoint(
 
 
 @router.get("/config", response_model=Response)
-async def get_config(current_user: User = Depends(Authentication.get_current_user_and_bot), ):
+async def get_config(current_user: User = Depends(auth.get_current_user_and_bot), ):
     """
     Fetches bot pipeline and polcies configurations
     """
@@ -551,7 +543,7 @@ async def get_config(current_user: User = Depends(Authentication.get_current_use
 
 @router.put("/config", response_model=Response)
 async def set_config(
-        config: RasaConfig, current_user: User = Depends(Authentication.get_current_user_and_bot),
+        config: RasaConfig, current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Saves or Updates the bot pipeline and policies configurations
@@ -563,7 +555,7 @@ async def set_config(
 
 
 @router.put("/config/properties", response_model=Response)
-async def set_epoch_and_fallback_properties(config: ComponentConfig, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def set_epoch_and_fallback_properties(config: ComponentConfig, current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Set properties (epoch and fallback) in the bot pipeline and policies configurations
     """
@@ -572,7 +564,7 @@ async def set_epoch_and_fallback_properties(config: ComponentConfig, current_use
 
 
 @router.get("/config/properties", response_model=Response)
-async def list_epoch_and_fallback_properties(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def list_epoch_and_fallback_properties(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     List properties (epoch and fallback) in the bot pipeline and policies configurations
     """
@@ -581,7 +573,7 @@ async def list_epoch_and_fallback_properties(current_user: User = Depends(Authen
 
 
 @router.get("/templates/use-case", response_model=Response)
-async def get_templates(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_templates(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches use-case templates name
     """
@@ -590,7 +582,7 @@ async def get_templates(current_user: User = Depends(Authentication.get_current_
 
 @router.post("/templates/use-case", response_model=Response)
 async def set_templates(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Applies the use-case template
@@ -602,7 +594,7 @@ async def set_templates(
 
 
 @router.get("/templates/config", response_model=Response)
-async def get_config_template(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_config_template(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Fetches config templates
     """
@@ -611,7 +603,7 @@ async def get_config_template(current_user: User = Depends(Authentication.get_cu
 
 @router.post("/templates/config", response_model=Response)
 async def set_config_template(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextData, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Applies the config template
@@ -623,7 +615,7 @@ async def set_config_template(
 
 
 @router.post("/action/httpaction", response_model=Response)
-async def add_http_action(request_data: HttpActionConfigRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def add_http_action(request_data: HttpActionConfigRequest, current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Stores the http action config and story event
     """
@@ -636,7 +628,7 @@ async def add_http_action(request_data: HttpActionConfigRequest, current_user: U
 
 @router.get("/action/httpaction/{action}", response_model=Response)
 async def get_http_action(action: str = Path(default=None, description="action name", example="http_action"),
-                          current_user: User = Depends(Authentication.get_current_user_and_bot)):
+                          current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Returns configuration set for the HTTP action
     """
@@ -647,7 +639,7 @@ async def get_http_action(action: str = Path(default=None, description="action n
 
 
 @router.get("/action/httpaction", response_model=Response)
-async def list_http_actions(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def list_http_actions(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Returns list of http actions for bot.
     """
@@ -656,7 +648,7 @@ async def list_http_actions(current_user: User = Depends(Authentication.get_curr
 
 
 @router.get("/actions", response_model=Response)
-async def list_actions(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def list_actions(current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Returns list of actions for bot.
     """
@@ -666,7 +658,7 @@ async def list_actions(current_user: User = Depends(Authentication.get_current_u
 
 @router.put("/action/httpaction", response_model=Response)
 async def update_http_action(request_data: HttpActionConfigRequest,
-                             current_user: User = Depends(Authentication.get_current_user_and_bot)):
+                             current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Updates the http action config and related story event
     """
@@ -679,7 +671,7 @@ async def update_http_action(request_data: HttpActionConfigRequest,
 
 @router.delete("/action/httpaction/{action}", response_model=Response)
 async def delete_http_action(action: str = Path(default=None, description="action name", example="http_action"),
-                             current_user: User = Depends(Authentication.get_current_user_and_bot)):
+                             current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Deletes the http action config and story event
     """
@@ -693,7 +685,7 @@ async def delete_http_action(action: str = Path(default=None, description="actio
 
 
 @router.get("/actions/logs", response_model=Response)
-async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, current_user: User = Depends(auth.get_current_user_and_bot)):
     """
     Retrieves action server logs for the bot.
     """
@@ -708,7 +700,7 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, curren
 
 @router.post("/data/bulk", response_model=Response)
 async def add_training_data(
-        request_data: BulkTrainingDataAddRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: BulkTrainingDataAddRequest, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Adds intents, training examples and responses along with story against the responses
@@ -729,7 +721,7 @@ async def add_training_data(
 
 @router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
-        request_data: TrainingDataGeneratorStatusModel, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TrainingDataGeneratorStatusModel, current_user: User = Depends(auth.get_current_user_and_bot)
 ):
     """
     Update training data generator status
@@ -744,7 +736,7 @@ async def update_training_data_generator_status(
 
 @router.get("/data/generation/history", response_model=Response)
 async def get_trainData_history(
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Fetches File Data Generation history, when and who initiated the process
@@ -755,7 +747,7 @@ async def get_trainData_history(
 
 @router.get("/data/generation/latest", response_model=Response)
 async def get_latest_data_generation_status(
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Fetches status for latest data generation request
@@ -765,14 +757,70 @@ async def get_latest_data_generation_status(
 
 
 @router.get("/slots", response_model=Response)
-async def get_latest_data_generation_status(bot: str,
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
+async def get_slots(
+        current_user: User = Depends(auth.get_current_user_and_bot),
 ):
     """
     Fetches status for latest data generation request
     """
     slots = list(mongo_processor.get_existing_slots(current_user.get_bot()))
     return {"data": slots}
+
+
+@router.post("/slots", response_model=Response)
+async def add_slots(
+        request_data: SlotRequest,
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    adds a new slot
+    :param request_data:
+    :param current_user:
+    :return: Success message with slot id
+    """
+    try:
+        slot_value = request_data.dict()
+        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=True)
+    except AppException as ae:
+        raise AppException(str(ae))
+
+    return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
+
+
+@router.delete("/slots/{slot}", response_model=Response)
+async def delete_slots(
+        slot: str = Path(default=None, description="slot name", example="bot"),
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    deletes an existing slot
+    :param slot:
+    :param current_user:
+    :return: Success message
+    """
+    mongo_processor.delete_slot(slot_name=slot, bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Slot deleted!"}
+
+
+@router.put("/slots", response_model=Response)
+async def edit_slots(
+        request_data: SlotRequest,
+        current_user: User = Depends(auth.get_current_user_and_bot)
+):
+    """
+    Updates an existing slot
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+    try:
+        slot_value = request_data.dict()
+        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=False)
+    except Exception as e:
+        raise AppException(e)
+
+    return {"message": "Slot updated!"}
 
 
 @router.post("/feedback", response_model=Response)
