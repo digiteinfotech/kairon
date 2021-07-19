@@ -1149,8 +1149,8 @@ class Utility:
         else:
             from kairon.data_processor.agent_processor import AgentProcessor
             model = AgentProcessor.get_agent(bot)
-            response = await model.handle_text(
+            chat_response = await model.handle_text(
                 data, sender_id=user
             )
-            response = {"data": {"response": response}}
+            response = {"data": {"response": chat_response}}
         return response
