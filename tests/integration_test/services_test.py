@@ -1302,6 +1302,24 @@ def test_chat(monkeypatch):
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_chat_with_user(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/chat/test",
+        json={"data": "Hi"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_chat_fetch_from_cache(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -1310,6 +1328,24 @@ def test_chat_fetch_from_cache(monkeypatch):
     monkeypatch.setitem(Utility.environment['action'], "url", None)
     response = client.post(
         f"/api/bot/{pytest.bot}/chat",
+        json={"data": "Hi"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_chat_user_from_path_params(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/chat/kairon",
         json={"data": "Hi"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )

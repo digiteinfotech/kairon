@@ -6,11 +6,10 @@ from kairon.api.models import Response, User
 from fastapi import Depends
 
 router = APIRouter()
-auth = Authentication()
 
 
 @router.get("/details", response_model=Response)
-async def get_users_details(current_user: User = Depends(auth.get_current_user)):
+async def get_users_details(current_user: User = Depends(Authentication.get_current_user)):
     """
     returns the details of the current logged-in user
     """

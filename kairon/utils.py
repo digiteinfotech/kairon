@@ -46,7 +46,6 @@ from rasa.utils.endpoints import EndpointConfig
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
-
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
@@ -56,6 +55,7 @@ from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
+from urllib.parse import urljoin
 
 
 class Utility:
@@ -1137,3 +1137,20 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    async def chat(data: Text, bot: Text, user: Text, email: Text):
+        if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
+            from kairon.api.auth import Authentication
+            agent_url = Utility.environment['model']['train'].get('agent_url')
+            token = Authentication.create_access_token(data={"sub": email})
+            response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'),
+                                            user, json={'data': data})
+        else:
+            from kairon.data_processor.agent_processor import AgentProcessor
+            model = AgentProcessor.get_agent(bot)
+            response = await model.handle_text(
+                data, sender_id=user
+            )
+            response = {"data": {"response": response}}
+        return response

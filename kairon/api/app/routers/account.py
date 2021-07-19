@@ -6,7 +6,6 @@ from kairon.api.processor import AccountProcessor
 from kairon.utils import Utility
 
 router = APIRouter()
-auth = Authentication()
 
 
 @router.post("/registration", response_model=Response)
@@ -66,7 +65,7 @@ async def send_confirm_link(email: TextData, background_tasks: BackgroundTasks):
 
 
 @router.post("/bot", response_model=Response)
-async def add_bot(request: TextData, current_user: User = Depends(auth.get_current_user)):
+async def add_bot(request: TextData, current_user: User = Depends(Authentication.get_current_user)):
     """
     Add new bot in a account.
     """
@@ -75,7 +74,7 @@ async def add_bot(request: TextData, current_user: User = Depends(auth.get_curre
 
 
 @router.get("/bot", response_model=Response)
-async def list_bots(current_user: User = Depends(auth.get_current_user)):
+async def list_bots(current_user: User = Depends(Authentication.get_current_user)):
     """
     List bots for account.
     """
@@ -84,7 +83,7 @@ async def list_bots(current_user: User = Depends(auth.get_current_user)):
 
 
 @router.put("/bot/{bot}", response_model=Response)
-async def update_bot(bot: str, request: TextData, current_user: User = Depends(auth.get_current_user)):
+async def update_bot(bot: str, request: TextData, current_user: User = Depends(Authentication.get_current_user)):
     """
     Update name of the bot.
     """
@@ -93,7 +92,7 @@ async def update_bot(bot: str, request: TextData, current_user: User = Depends(a
 
 
 @router.delete("/bot/{bot}", response_model=Response)
-async def delete_bot(bot: str, current_user: User = Depends(auth.get_current_user)):
+async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_current_user)):
     """
     Deletes bot.
     """
