@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from typing import Text
 
@@ -38,6 +39,7 @@ class Authentication:
         try:
             payload = decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
             username: str = payload.get("sub")
+            self.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
                 raise credentials_exception
             token_data = TokenData(username=username)
@@ -123,11 +125,25 @@ class Authentication:
         access_token = Authentication.create_access_token(data={"sub": user["email"]})
         return access_token
 
-    def generate_integration_token(self, bot: Text, account: int):
+    def validate_limited_access_token(self, request: Request, access_limit: list):
+        if not access_limit:
+            return
+        requested_endpoint = request.scope['path']
+        matches = any(re.match(allowed_endpoint, requested_endpoint) for allowed_endpoint in access_limit)
+        if not matches:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='Access denied for this endpoint',
+            )
+
+    def generate_integration_token(self, bot: Text, account: int, access_limit: list = None):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
         integration_user = AccountProcessor.get_integration_user(bot, account)
+        data = {"sub": integration_user["email"]}
+        if access_limit:
+            data['access-limit'] = access_limit
         access_token = Authentication.create_access_token(
-            data={"sub": integration_user["email"]}, is_integration=True
+            data=data, is_integration=True
         )
         return access_token

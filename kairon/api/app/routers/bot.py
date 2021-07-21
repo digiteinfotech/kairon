@@ -938,7 +938,7 @@ async def get_training_data_count(current_user: User = Depends(auth.get_current_
 @router.get("/chat/client/config/url", response_model=Response)
 async def get_chat_client_config_url(current_user: User = Depends(auth.get_current_user_and_bot)):
     access_token = auth.create_access_token(
-        data={"sub": current_user.get_bot()}, is_integration=True
+        data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']}, is_integration=True
     )
     url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
     url = urljoin(url, access_token.decode('utf-8'))
@@ -946,11 +946,10 @@ async def get_chat_client_config_url(current_user: User = Depends(auth.get_curre
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config(uid: str):
-    decoded_uid = Utility.decode_and_verify_limited_access_token(uid)
+async def get_client_config_using_uid(uid: str):
+    decoded_uid = Utility.decode_limited_access_token(uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
     config = config.to_mongo().to_dict()
-    [config.pop(key) for key in ['user', 'bot', 'status', 'timestamp']]
     return Response(data=config['config'])
 
 
@@ -958,7 +957,6 @@ async def get_client_config(uid: str):
 async def get_client_config(current_user: User = Depends(auth.get_current_user_and_bot)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot())
     config = config.to_mongo().to_dict()
-    [config.pop(key) for key in ['user', 'bot', 'status', 'timestamp']]
     return Response(data=config['config'])
 
 

@@ -70,7 +70,7 @@ from .data_objects import (
     Feedback, Utterances, BotSettings, ChatClientConfig
 )
 from ..api import models
-from ..api.models import StoryEventType, HttpActionConfigRequest
+from ..api.models import StoryEventType, HttpActionConfigRequest, TemplateType
 from ..importer.processor import DataImporterLogProcessor
 from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
@@ -939,6 +939,7 @@ class MongoProcessor:
                         for end_checkpoint in story_step.end_checkpoints
                     ],
                     events=story_events,
+                    template_type=TemplateType.CUSTOM.value
                 )
                 story.bot = bot
                 story.user = user
@@ -1198,7 +1199,7 @@ class MongoProcessor:
                 {"name": utterance.strip().lower(), "type": "BOT"}]
             try:
                 doc_id = self.add_complex_story(
-                    story= {'name': story_name.lower(), 'steps': events, 'type': 'STORY'},
+                    story={'name': story_name.lower(), 'steps': events, 'type': 'STORY', 'template_type': TemplateType.CUSTOM.value},
                     bot=bot,
                     user=user
                 )
@@ -1771,7 +1772,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="action"))
-                if step['type']  == "ACTION":
+                if step['type'] == "ACTION":
                     self.add_action(step['name'], bot, user, raise_exception=False)
             else:
                 raise AppException("Invalid event type!")
@@ -1781,8 +1782,7 @@ class MongoProcessor:
         """
         save story in mongodb
 
-        :param name: story name
-        :param steps: story steps list
+        :param story: story steps list
         :param bot: bot id
         :param user: user id
         :return: story id
@@ -1803,8 +1803,13 @@ class MongoProcessor:
         data_class = None
         if type == "STORY":
             data_class = Stories
+            template_type = story.get('template_type')
+            if not template_type:
+                template_type = Utility.get_template_type(story)
+            data_object = Stories(template_type=template_type)
         elif type == 'RULE':
             data_class = Rules
+            data_object = Rules()
         else:
             raise AppException("Invalid type")
 
@@ -1812,13 +1817,11 @@ class MongoProcessor:
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="FLow already exists!")
 
-        data_object = data_class(
-            block_name=name.strip().lower(),
-            events=events,
-            bot=bot,
-            user=user,
-            start_checkpoints=[STORY_START],
-        )
+        data_object.block_name = name.strip().lower()
+        data_object.events = events
+        data_object.bot = bot
+        data_object.user = user
+        data_object.start_checkpoints = [STORY_START]
 
         id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
@@ -1916,6 +1919,7 @@ class MongoProcessor:
             final_data["_id"] = item["_id"].__str__()
             if isinstance(value, Stories):
                 final_data['type'] = 'STORY'
+                final_data['template_type'] = item.pop("template_type")
             elif isinstance(value, Rules):
                 final_data['type'] = 'RULE'
             else:
@@ -2895,30 +2899,27 @@ class MongoProcessor:
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         client_config = self.get_chat_client_config(bot)
+        if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
+            client_config.config['headers'].pop('authorization')
         client_config.config = config
         client_config.user = user
         client_config.save()
 
     def get_chat_client_config(self, bot: Text):
+        from kairon.api.auth import Authentication
+        from kairon.api.processor import AccountProcessor
+
+        bot_info = AccountProcessor.get_bot(bot)
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
         except DoesNotExist as e:
             logging.error(e)
-            client_config = self.load_default_client_config(bot)
-        return client_config
-
-    def load_default_client_config(self, bot: Text):
-        from kairon.api.processor import AccountProcessor
-        from kairon.api.auth import Authentication
-
-        config_path = "./template/chat-client/default-config.json"
-        if not os.path.exists(config_path):
-            raise AppException('Config not found')
-        bot_info = AccountProcessor.get_bot(bot)
-        token = Authentication().generate_integration_token(bot, bot_info['account'])
-        config = json.load(open(config_path))
-        client_config = ChatClientConfig(config=config, bot=bot, user=bot_info['user'])
-        client_config.config['headers'] = {}
-        client_config.config['headers']['authorization'] = token.decode("utf-8")
-        client_config.config['headers']['X-USER'] = bot_info['user']
+            config = Utility.load_json_file("./template/chat-client/default-config.json")
+            client_config = ChatClientConfig(config=config, bot=bot, user=bot_info['user'])
+        if not client_config.config.get('headers'):
+            client_config.config['headers'] = {}
+        if not client_config.config['headers'].get('X-USER'):
+            client_config.config['headers']['X-USER'] = bot_info['user']
+        token = Authentication().generate_integration_token(bot, bot_info['account'], access_limit=['/api/bot/.+/chat'])
+        client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
         return client_config
