@@ -905,6 +905,7 @@ def test_remove_utterance_attached_to_story():
         json={
             "name": "test_remove_utterance_attached_to_story",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -1003,6 +1004,7 @@ def test_add_story():
         json={
             "name": "test_path",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "test_greet", "type": "INTENT"},
                 {"name": "utter_test_greet", "type": "BOT"},
@@ -1023,6 +1025,7 @@ def test_add_story_invalid_type():
         json={
             "name": "test_path",
             "type": "TEST",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -1057,6 +1060,7 @@ def test_add_story_lone_intent():
         json={
             "name": "test_add_story_lone_intent",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -1078,6 +1082,7 @@ def test_add_story_consecutive_intents():
         json={
             "name": "test_add_story_consecutive_intents",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "INTENT"},
@@ -1119,6 +1124,7 @@ def test_add_story_utterance_as_first_step():
         json={
             "name": "test_add_story_consecutive_intents",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "BOT"},
                 {"name": "utter_greet", "type": "HTTP_ACTION"},
@@ -1140,6 +1146,7 @@ def test_add_story_missing_event_type():
         json={
             "name": "test_path",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [{"name": "greet"}, {"name": "utter_greet", "type": "BOT"}],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1159,6 +1166,7 @@ def test_add_story_invalid_event_type():
         json={
             "name": "test_path",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -1184,6 +1192,7 @@ def test_update_story():
         json={
             "name": "test_path",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -1204,6 +1213,7 @@ def test_update_story_invalid_event_type():
         json={
             "name": "test_path",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "data"},
                 {"name": "utter_nonsense", "type": "BOT"},
@@ -1229,6 +1239,7 @@ def test_delete_story():
         json={
             "name": "test_path1",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet_delete", "type": "BOT"},
@@ -1272,6 +1283,11 @@ def test_get_stories():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
+    assert actual["data"][0]['template_type'] == 'CUSTOM'
+    assert actual["data"][1]['template_type'] == 'CUSTOM'
+    assert actual["data"][16]['template_type'] == 'Q&A'
+    assert actual["data"][17]['template_type'] == 'Q&A'
+    assert not actual["data"][19].get('template_type')
 
 
 def test_get_utterance_from_intent():
@@ -2409,6 +2425,7 @@ def test_add_story_to_different_bot():
         json={
             "name": "greet user",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
@@ -3222,6 +3239,7 @@ def test_list_actions():
         json={
             "name": "test_path_action",
             "type": "STORY",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "action_greet", "type": "ACTION"},
@@ -3746,6 +3764,7 @@ def test_add_rule_invalid_type():
         json={
             "name": "test_path",
             "type": "TEST",
+            "template_type": "Q&A",
             "steps": [
                 {"name": "greet", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},

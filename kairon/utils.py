@@ -48,7 +48,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
-from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
+from .api.models import HttpActionParametersResponse, HttpActionConfigResponse, StoryStepType
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
     REQUIREMENTS
