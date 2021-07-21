@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -48,7 +49,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
-from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
+from .api.models import HttpActionParametersResponse, HttpActionConfigResponse, StoryStepType
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
     REQUIREMENTS
@@ -1144,7 +1145,7 @@ class Utility:
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
-    def decode_and_verify_limited_access_token(token: Text):
+    def decode_limited_access_token(token: Text):
         try:
             decoded_jwt = decode(
                 token,
@@ -1154,6 +1155,13 @@ class Utility:
             return decoded_jwt
         except Exception:
             raise AppException("Invalid token")
+
+    @staticmethod
+    def load_json_file(path: Text, raise_exc: bool = True):
+        if not os.path.exists(path) and raise_exc:
+            raise AppException('file not found')
+        config = json.load(open(path))
+        return config
 
     @staticmethod
     def get_template_type(story: Dict):
