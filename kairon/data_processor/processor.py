@@ -1,4 +1,5 @@
 import itertools
+import json
 import os
 from collections import ChainMap
 from datetime import datetime
@@ -66,7 +67,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback, Utterances, BotSettings
+    Feedback, Utterances, BotSettings, ChatClientConfig
 )
 from ..api import models
 from ..api.models import StoryEventType, HttpActionConfigRequest
@@ -2894,3 +2895,33 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    def save_chat_client_config(self, config: dict, bot: Text, user: Text):
+        client_config = self.get_chat_client_config(bot)
+        client_config.config = config
+        client_config.user = user
+        client_config.save()
+
+    def get_chat_client_config(self, bot: Text):
+        try:
+            client_config = ChatClientConfig.objects(bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logging.error(e)
+            client_config = self.load_default_client_config(bot)
+        return client_config
+
+    def load_default_client_config(self, bot: Text):
+        from kairon.api.processor import AccountProcessor
+        from kairon.api.auth import Authentication
+
+        config_path = "./template/chat-client/default-config.json"
+        if not os.path.exists(config_path):
+            raise AppException('Config not found')
+        bot_info = AccountProcessor.get_bot(bot)
+        token = Authentication().generate_integration_token(bot, bot_info['account'])
+        config = json.load(open(config_path))
+        client_config = ChatClientConfig(config=config, bot=bot, user=bot_info['user'])
+        client_config.config['headers'] = {}
+        client_config.config['headers']['authorization'] = token.decode("utf-8")
+        client_config.config['headers']['X-USER'] = bot_info['user']
+        return client_config
