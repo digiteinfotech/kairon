@@ -36,7 +36,7 @@ from rasa.core.tracker_store import MongoTrackerStore
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.shared.constants import DEFAULT_MODELS_PATH
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
-from rasa.shared.core.training_data.structures import StoryGraph
+from rasa.shared.core.training_data.structures import StoryGraph, RuleStep
 from rasa.shared.importers.rasa import Domain
 from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data import entities_parser
@@ -48,7 +48,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
-from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
+from .api.models import HttpActionParametersResponse, HttpActionConfigResponse, StoryStepType
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
     REQUIREMENTS

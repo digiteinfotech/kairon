@@ -32,6 +32,8 @@ from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.core.domain import _validate_slot_mappings
 
+from ..api.models import TemplateType
+
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -343,6 +345,7 @@ class Stories(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.block_name):
