@@ -1137,3 +1137,24 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    def decode_and_verify_limited_access_token(token: Text):
+        try:
+            decoded_jwt = decode(
+                token,
+                Utility.environment['security']["secret_key"],
+                algorithm=Utility.environment['security']["algorithm"],
+            )
+            return decoded_jwt
+        except Exception:
+            raise AppException("Invalid token")
+
+    @staticmethod
+    def get_template_type(story: Dict):
+        steps = story['steps']
+        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            template_type = 'Q&A'
+        else:
+            template_type = 'CUSTOM'
+        return template_type

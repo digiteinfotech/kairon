@@ -4369,3 +4369,116 @@ def test_get_training_data_count(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == _mock_training_data_count()
+
+
+def test_get_client_config():
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_get_client_config_url():
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config/url",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    pytest.url = actual["data"]
+
+
+def test_get_client_config_using_invalid_uid():
+    response = client.get(f'/api/bot/{pytest.bot}/chat/client/config/ecmkfnufjsufysfbksjnfaksn')
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+
+
+def test_get_client_config_using_uid():
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_save_client_config():
+    config_path = "./template/chat-client/default-config.json"
+    config = json.load(open(config_path))
+    config['headers'] = {}
+    config['headers']['Authorixzation'] = 'Bearer exuhnklsmgodlkmgmgvkjbfsskugrue'
+    config['headers']['X-USER'] = 'kairon-user'
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': config},
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+
+def test_get_client_config_refresh():
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['headers']['Authorixzation'] == 'Bearer exuhnklsmgodlkmgmgvkjbfsskugrue'
+    assert actual["data"]['headers']['X-USER'] == 'kairon-user'
+
+
+def test_add_story_with_no_type():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_add_story_with_no_type",
+            "type": "STORY",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow added successfully"
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_path",
+            "type": "STORY",
+            "steps": [
+                {"name": "test_greet", "type": "INTENT"},
+                {"name": "utter_test_greet", "type": "ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_get_stories_another_bot():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    print(actual["data"])
+    assert actual["data"][0]['template_type'] == 'CUSTOM'
+    assert actual["data"][1]['template_type'] == 'CUSTOM'
+    assert actual["data"][8]['template_type'] == 'Q&A'
+    assert actual["data"][8]['name'] == 'test_add_story_with_no_type'
+    assert actual["data"][9]['template_type'] == 'CUSTOM'
+    assert actual["data"][9]['name'] == 'test_path'

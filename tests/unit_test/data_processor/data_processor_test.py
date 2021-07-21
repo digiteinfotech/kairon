@@ -1,5 +1,6 @@
 import asyncio
 import glob
+import json
 import os
 import shutil
 import tempfile
@@ -24,6 +25,7 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api import models
 from kairon.api.auth import Authentication
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, SlotType
+from kairon.api.processor import AccountProcessor
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
@@ -37,7 +39,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                                Utterances, BotSettings
+                                                Utterances, BotSettings, ChatClientConfig
                                                 )
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -3279,6 +3281,61 @@ class TestMongoProcessor:
         assert fresh_settings.timestamp
         assert fresh_settings.user
         assert fresh_settings.bot
+
+    def test_save_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.user == 'testUser'
+        assert saved_config.timestamp
+        assert saved_config.status
+
+    def test_save_chat_client_config(self):
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.status
+
+    def test_get_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        expected_config = json.load(open(config_path))
+        actual_config = processor.get_chat_client_config('test_bot')
+        assert actual_config.config['headers']['authorization']
+        assert actual_config.config['headers']['X-USER']
+        del actual_config.config['headers']
+        assert expected_config == actual_config.config
+
+    def test_get_chat_client_config(self):
+        processor = MongoProcessor()
+        actual_config = processor.get_chat_client_config('test')
+        assert actual_config.config['headers']['authorization'] == 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
+
+    def test_get_chat_client_config_default_not_found(self, monkeypatch):
+        def _mock_exception(*args, **kwargs):
+            raise AppException('Config not found')
+        monkeypatch.setattr(os.path, 'exists', _mock_exception)
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Config not found'):
+            processor.get_chat_client_config('test_bot')
 
 
 # pylint: disable=R0201

@@ -420,3 +420,6 @@ class ConversationFilter(BaseModel):
     month: History_Month_Enum = 1
     engaged_users_threshold: int = 10
 
+
+class DictData(BaseModel):
+    data: dict
