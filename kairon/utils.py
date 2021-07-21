@@ -1137,3 +1137,19 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    def download_csv(conversation: Dict, message):
+        import pandas as pd
+
+        if not conversation.get("conversation_data"):
+            if not message:
+                raise AppException("No data available!")
+            else:
+                raise AppException(message)
+        else:
+            df = pd.json_normalize(conversation.get("conversation_data"))
+            temp_path = tempfile.mkdtemp()
+            file_path = os.path.join(temp_path, "conversation_history.csv")
+            df.to_csv(file_path, index=False)
+            return file_path, temp_path

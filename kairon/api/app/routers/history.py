@@ -1,11 +1,12 @@
-from fastapi import APIRouter
-
+import os
+from fastapi import APIRouter, BackgroundTasks
+from fastapi.responses import FileResponse
 from kairon.api.auth import Authentication
 from kairon.data_processor.history import ChatHistory
 from kairon.api.models import Response, User, HistoryMonth
 from fastapi import Depends, Query
 from typing import Text
-
+from kairon.utils import Utility
 router = APIRouter()
 auth = Authentication()
 
@@ -184,3 +185,24 @@ async def flat_conversations(month: int = Query(default=1, ge=1, le=6), current_
         current_user.get_bot(), month
     )
     return {"data": flat_data, "message": message}
+
+
+@router.get("/conversations/download")
+async def download_conversations(
+        background_tasks: BackgroundTasks,
+        month: int = Query(default=1, ge=1, le=6),
+        current_user: User = Depends(auth.get_current_user_and_bot),
+):
+    """
+    Downloads conversation history of the bot, for the specified months
+    """
+    conversation_data, message = ChatHistory.flatten_conversations(current_user.get_bot(), month)
+    file, temp_path = Utility.download_csv(conversation_data, message)
+    response = FileResponse(
+        file, filename=os.path.basename(file), background=background_tasks
+    )
+    response.headers[
+        "Content-Disposition"
+    ] = "attachment; filename=" + os.path.basename(file)
+    background_tasks.add_task(Utility.delete_directory, temp_path)
+    return response
