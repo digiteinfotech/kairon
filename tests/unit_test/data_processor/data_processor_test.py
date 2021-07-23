@@ -29,7 +29,7 @@ from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_E
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE
 from kairon.data_processor.data_objects import (TrainingExamples,
-                                                Slots,
+                                                Slots, RegexFeatures,
                                                 Entities, EntitySynonyms,
                                                 Intents,
                                                 Actions,
@@ -46,6 +46,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
+
 
 class TestMongoProcessor:
 
@@ -3279,6 +3280,70 @@ class TestMongoProcessor:
         assert fresh_settings.timestamp
         assert fresh_settings.user
         assert fresh_settings.bot
+
+    def test_add__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        processor.add_regex(
+            {"name": "bot", "pattern": "exp"}, bot, user)
+        reg = RegexFeatures.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert reg['name'] == "bot"
+        assert reg['pattern'] == "exp"
+
+    def test_add__duplicate_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "bot", "pattern": "f"}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name already exists!")
+
+    def test_add__empty_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "", "pattern": "f"}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name and pattern cannot be empty or blank spaces")
+
+    def test_edit__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        processor.edit_regex(
+            {"name": "bot", "pattern": "exp1"}, bot)
+        reg = RegexFeatures.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert reg['name'] == "bot"
+        assert reg['pattern'] == "exp1"
+
+    def test_edit__unavailable_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        with pytest.raises(AppException) as e:
+            processor.edit_regex({"name": "bot1", "pattern": "f"}, bot=bot)
+        assert str(e).__contains__("Regex name does not exist!")
+
+    def test_edit__empty_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        with pytest.raises(AppException) as e:
+            processor.edit_regex({"name": "bot", "pattern": ""}, bot=bot)
+        assert str(e).__contains__("Regex name and pattern cannot be empty or blank spaces")
+
+    def test_delete__unavailable_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        with pytest.raises(AppException) as e:
+            processor.delete_regex("f", bot=bot)
+        assert str(e).__contains__("Regex name does not exist.")
+
+    def test_delete__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        processor.delete_regex("bot", bot)
+        with pytest.raises(DoesNotExist):
+            RegexFeatures.objects(name__iexact='bot', bot=bot, status=True).get()
 
 
 # pylint: disable=R0201

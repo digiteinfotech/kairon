@@ -2891,3 +2891,45 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    def add_regex(self, regex_dict: Dict, bot, user):
+        if Utility.check_empty_string(regex_dict.get('name')) or Utility.check_empty_string(regex_dict.get('pattern')):
+            raise AppException("Regex name and pattern cannot be empty or blank spaces")
+        try:
+            RegexFeatures.objects(name__iexact=regex_dict.get('name'), bot=bot, status=True).get()
+            raise AppException("Regex name already exists!")
+        except DoesNotExist:
+            regex = RegexFeatures()
+            regex.name = regex_dict.get('name')
+            regex.pattern = regex_dict.get('pattern')
+            regex.bot = bot
+            regex.user = user
+            regex_id = regex.save().to_mongo().to_dict()['_id'].__str__()
+            return regex_id
+
+    def edit_regex(self, regex_dict: Dict, bot):
+        if Utility.check_empty_string(regex_dict.get('name')) or Utility.check_empty_string(regex_dict.get('pattern')):
+            raise AppException("Regex name and pattern cannot be empty or blank spaces")
+        try:
+            regex = RegexFeatures.objects(name__iexact=regex_dict.get('name'), bot=bot, status=True).get()
+            regex.pattern = regex_dict.get("pattern")
+            regex.save()
+        except DoesNotExist:
+            raise AppException("Regex name does not exist!")
+
+    def delete_regex(
+            self, regex_name: Text, bot: Text
+    ):
+        """
+        deletes regex pattern
+        :param regex_name: regex name
+        :param bot: bot id
+        :return: AppException
+        """
+
+        try:
+            regex = RegexFeatures.objects(name__iexact=regex_name, bot=bot, status=True).get()
+            regex.status = False
+            regex.save()
+        except DoesNotExist:
+            raise AppException("Regex name does not exist.")

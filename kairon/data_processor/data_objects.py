@@ -139,7 +139,7 @@ class RegexFeatures(Document):
         else:
             try:
                 re.compile(self.pattern)
-            except AppException as e:
+            except Exception:
                 raise AppException("invalid regular expression " + self.pattern)
 
 
