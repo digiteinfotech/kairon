@@ -3345,6 +3345,14 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             RegexFeatures.objects(name__iexact='bot', bot=bot, status=True).get()
 
+    def test_add__invalid_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
+        assert str(e).__contains__("invalid regular expression")
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
