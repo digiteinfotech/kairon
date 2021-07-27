@@ -438,3 +438,25 @@ class RegexRequest(BaseModel):
         except Exception:
             raise AppException("invalid regular expression")
         return f
+
+
+class LookupTablesRequest(BaseModel):
+    name: str
+    value: List[str]
+
+    @validator("name")
+    def validate_name(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+        if Utility.check_empty_string(v):
+            raise ValueError("name cannot be empty or a blank space")
+        return v
+
+    @validator("value")
+    def validate_value(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+        if len(v) <= 0:
+            raise ValueError("value field cannot be empty")
+        for ele in v:
+            if Utility.check_empty_string(ele):
+                raise ValueError("lookup value cannot be empty or a blank space")
+        return v

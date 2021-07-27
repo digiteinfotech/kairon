@@ -2933,3 +2933,65 @@ class MongoProcessor:
             regex.save()
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
+
+    def add_lookup(self, lookup_dict: Dict, bot, user):
+        if Utility.check_empty_string(lookup_dict.get('name')):
+            raise AppException("Lookup table name cannot be an empty string")
+        if not lookup_dict.get('value'):
+            raise AppException("Lookup Table value cannot be an empty string")
+        lookup = list(LookupTables.objects(name__iexact=lookup_dict['name'], bot=bot, status=True))
+        value_list = set(item.value for item in lookup)
+        push_lookup = []
+        for val in lookup_dict.get('value'):
+            if val in value_list:
+                raise AppException("Lookup table value already exists")
+            if not val.strip():
+                raise AppException("Lookup table value cannot be an empty string")
+            lookup_table = LookupTables()
+            lookup_table.name = lookup_dict['name']
+            lookup_table.value = val
+            lookup_table.user = user
+            lookup_table.bot = bot
+            push_lookup.append(lookup_table)
+        LookupTables.objects.insert(push_lookup)
+
+    def edit_lookup(self, lookup_dict: Dict, bot, user):
+        if Utility.check_empty_string(lookup_dict.get('name')):
+            raise AppException("Lookup Table name cannot be an empty string")
+        if not lookup_dict.get('value'):
+            raise AppException("Lookup table value cannot be an empty string")
+        lookup = list(LookupTables.objects(name__iexact=lookup_dict['name'], bot=bot, status=True))
+        if not lookup:
+            raise AppException("No such lookup table exists")
+        push_lookup = []
+        for val in lookup_dict.get('value'):
+            if not val.strip():
+                raise AppException("Lookup Table value cannot be an empty string")
+            lookup_table = LookupTables()
+            lookup_table.name = lookup_dict['name']
+            lookup_table.value = val
+            lookup_table.user = user
+            lookup_table.bot = bot
+            push_lookup.append(lookup_table)
+        LookupTables.objects.insert(push_lookup)
+        for table in lookup:
+            table.status = False
+            table.save()
+
+    def delete_lookup(
+            self, lookup_name: Text, bot: Text
+    ):
+        """
+        deletes a lookup table
+        :param lookup_name: lookup table name
+        :param bot: bot id
+        :return: AppException
+        """
+
+        lookup = list(LookupTables.objects(name__iexact=lookup_name, bot=bot, status=True))
+        if not lookup:
+            raise AppException("Lookup Table does not exist.")
+        for table in lookup:
+            table.status = False
+            table.save()
+
