@@ -15,14 +15,9 @@ from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 
+from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES
 from kairon.utils import Utility
 from kairon.exceptions import AppException
-
-DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback'}
-
-DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'action_default_fallback',
-                   'action_deactivate_loop', 'action_revert_fallback_events', 'action_default_ask_affirmation',
-                   'action_default_ask_rephrase', 'action_two_stage_fallback', 'action_back', '...'}
 
 
 class TrainingDataValidator(Validator):
@@ -244,6 +239,8 @@ class TrainingDataValidator(Validator):
         self.validator.verify_utterances()
 
         utterance_actions = self.validator._gather_utterance_actions()
+        fallback_action = Utility.parse_fallback_action(self.config)
+        system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES)
         stories_utterances = set()
 
         for story in self.story_graph.story_steps:
@@ -258,7 +255,7 @@ class TrainingDataValidator(Validator):
                     # we already processed this one before, we only want to warn once
                     continue
 
-                if event.action_name not in utterance_actions and event.action_name not in DEFAULT_ACTIONS:
+                if event.action_name not in utterance_actions and event.action_name not in system_triggered_actions:
                     msg = f"The action '{event.action_name}' is used in the stories, " \
                           f"but is not a valid utterance action. Please make sure " \
                           f"the action is listed in your domain and there is a " \
@@ -269,7 +266,7 @@ class TrainingDataValidator(Validator):
                 stories_utterances.add(event.action_name)
 
         for utterance in utterance_actions:
-            if utterance not in stories_utterances and utterance not in DEFAULT_ACTIONS:
+            if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
                 msg = f"The utterance '{utterance}' is not used in any story."
                 if raise_exception:
                     raise AppException(msg)

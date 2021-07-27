@@ -469,7 +469,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -517,7 +517,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -565,7 +565,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -612,7 +612,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -649,7 +649,7 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
