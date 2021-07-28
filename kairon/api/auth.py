@@ -136,11 +136,14 @@ class Authentication:
                 detail='Access denied for this endpoint',
             )
 
-    def generate_integration_token(self, bot: Text, account: int, access_limit: list = None):
+    def generate_integration_token(self, bot: Text, account: int, expiry: int = 0, access_limit: list = None):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
         integration_user = AccountProcessor.get_integration_user(bot, account)
         data = {"sub": integration_user["email"]}
+        if expiry > 0:
+            expire = datetime.utcnow() + timedelta(minutes=expiry)
+            data.update({"exp": expire})
         if access_limit:
             data['access-limit'] = access_limit
         access_token = Authentication.create_access_token(

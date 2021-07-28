@@ -2923,6 +2923,7 @@ class MongoProcessor:
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = bot_info['user']
-        token = Authentication().generate_integration_token(bot, bot_info['account'], access_limit=['/api/bot/.+/chat'])
+        token = Authentication().generate_integration_token(bot, bot_info['account'], expiry=1440,
+                                                            access_limit=['/api/bot/.+/chat'])
         client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
         return client_config
