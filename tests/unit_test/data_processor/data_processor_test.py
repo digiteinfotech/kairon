@@ -1391,6 +1391,16 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.delete_utterance(utterance, bot, user)
 
+    def test_delete_utterance_name_having_no_responses(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_utterance_name_having_no_responses"
+        bot = "testBot"
+        user = "testUser"
+        processor.add_utterance_name(utterance, bot, user)
+        processor.delete_utterance(utterance, bot, user)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name__iexact=utterance, bot=bot, status=True).get()
+
     def test_add_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'

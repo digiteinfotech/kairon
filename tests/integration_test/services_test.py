@@ -396,11 +396,11 @@ def test_get_data_importer_logs():
     del actual['data'][2]['start_timestamp']
     del actual['data'][2]['end_timestamp']
     del actual['data'][2]['files_received']
-    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 13, 'data': []},
+    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'rules': {'count': 1, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
-                                 'domain': {'intents_count': 19, 'actions_count': 26, 'slots_count': 9,
-                                            'utterances_count': 13, 'forms_count': 2, 'entities_count': 8, 'data': []},
+                                 'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 9,
+                                            'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
                                  'config': {'count': 0, 'data': []}, 'http_actions': {'count': 5, 'data': []},
                                  'is_data_uploaded': True, 'status': 'Success', 'exception': '', 'event_status': 'Completed'}
     assert actual['data'][3]['intents']['count'] == 16
@@ -758,7 +758,7 @@ def test_get_all_responses():
     )
     actual = response.json()
     print(actual["data"])
-    assert len(actual["data"]) == 13
+    assert len(actual["data"]) == 14
     assert actual["data"][0]['name']
     assert actual["data"][0]['texts'][0]['text']
     assert not actual["data"][0]['customs']
