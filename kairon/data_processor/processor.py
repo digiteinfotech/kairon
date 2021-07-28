@@ -2199,6 +2199,9 @@ class MongoProcessor:
         try:
             responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, user=user, status=True))
             if not responses:
+                if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
+                    self.delete_utterance_name(name=utterance_name, bot=bot)
+                    return
                 raise DoesNotExist("Utterance does not exists")
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
             if not story:

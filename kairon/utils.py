@@ -1126,11 +1126,16 @@ class Utility:
 
         mongo_processor = MongoProcessor()
         config = mongo_processor.load_config(bot)
+        fallback_action = Utility.parse_fallback_action(config)
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        return fallback_action, nlu_fallback_action
+
+    @staticmethod
+    def parse_fallback_action(config: Dict):
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         fallback_action = action_fallback.get("core_fallback_action_name")
         fallback_action = fallback_action if fallback_action else "action_default_fallback"
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
-        return fallback_action, nlu_fallback_action
+        return fallback_action
 
     @staticmethod
     def load_default_actions():

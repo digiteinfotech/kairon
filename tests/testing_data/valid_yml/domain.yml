@@ -218,6 +218,8 @@ responses:
   - text: Hey! How are you?
   utter_please_rephrase:
     - text: Sorry, I did not get you!
+  utter_default:
+    - text: Can you rephrase!
 actions:
 - utter_greet
 - utter_goodbye
