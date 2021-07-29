@@ -21,7 +21,7 @@ async def chat_history_users(month: HistoryMonth = 1, current_user: User = Depen
 
 @router.get("/users/{sender}", response_model=Response)
 async def chat_history(
-    sender: Text, month: HistoryMonth = 1,current_user: User = Depends(Authentication.get_current_user_and_bot)
+    sender: Text, month: HistoryMonth = 1, current_user: User = Depends(Authentication.get_current_user_and_bot)
 ):
     """
     Fetches the list of conversation with the agent by particular user

@@ -810,7 +810,7 @@ def test_get_utterances():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual['data']['utterances']) == 14
+    assert len(actual['data']['utterances']) == 15
     assert type(actual['data']['utterances']) == list
 
 def test_add_response():

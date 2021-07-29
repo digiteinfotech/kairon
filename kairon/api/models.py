@@ -14,6 +14,8 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
+from ..shared.models import StoryStepType, StoryType, TemplateType, StoryEventType, ParameterChoice, History_Month_Enum
+
 
 class Token(BaseModel):
     access_token: str
@@ -67,11 +69,7 @@ class ListData(BaseModel):
     data: List[str]
 
 
-class StoryEventType(str, Enum):
-    user = "user"
-    action = "action"
-    form = "form"
-    slot = "slot"
+
 
 
 class RegisterAccount(BaseModel):
@@ -179,23 +177,11 @@ class Password(BaseModel):
         return v
 
 
-class History_Month_Enum(int, Enum):
-    One = 1
-    Two = 2
-    Three = 3
-    Four = 4
-    Five = 5
-    Six = 6
+
 
 
 class HistoryMonth(BaseModel):
     month: History_Month_Enum
-
-
-class ParameterChoice(str, Enum):
-    value = "value"
-    slot = "slot"
-    sender_id = "sender_id"
 
 
 class HttpActionParameters(BaseModel):
@@ -285,23 +271,6 @@ class TrainingDataGeneratorStatusModel(BaseModel):
     status: EVENT_STATUS
     response: List[TrainingData] = None
     exception: str = None
-
-
-class StoryStepType(str, Enum):
-    intent = "INTENT"
-    bot = "BOT"
-    http_action = "HTTP_ACTION"
-    action = "ACTION"
-
-
-class StoryType(str, Enum):
-    story = "STORY"
-    rule = "RULE"
-
-
-class TemplateType(str, Enum):
-    QNA = "Q&A"
-    CUSTOM = "CUSTOM"
 
 
 class StoryStepRequest(BaseModel):
