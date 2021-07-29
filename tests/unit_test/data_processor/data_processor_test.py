@@ -1,5 +1,6 @@
 import asyncio
 import glob
+import json
 import os
 import shutil
 import tempfile
@@ -24,6 +25,7 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api import models
 from kairon.api.auth import Authentication
 from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, SlotType
+from kairon.api.processor import AccountProcessor
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
@@ -37,7 +39,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                                Utterances, BotSettings
+                                                Utterances, BotSettings, ChatClientConfig
                                                 )
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -1130,7 +1132,7 @@ class TestMongoProcessor:
         assert stories[0]['steps'][0]['type'] == 'INTENT'
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
-
+        assert stories[0]['template_type'] == 'CUSTOM'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -3290,6 +3292,74 @@ class TestMongoProcessor:
         assert fresh_settings.user
         assert fresh_settings.bot
 
+    def test_save_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.user == 'testUser'
+        assert saved_config.timestamp
+        assert saved_config.status
+
+    def test_save_chat_client_config(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.status
+
+    def test_get_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        expected_config = json.load(open(config_path))
+        actual_config = processor.get_chat_client_config('test_bot')
+        assert actual_config.config['headers']['authorization']
+        assert actual_config.config['headers']['X-USER']
+        del actual_config.config['headers']
+        assert expected_config == actual_config.config
+
+    def test_get_chat_client_config(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        actual_config = processor.get_chat_client_config('test')
+        assert actual_config.config['headers']['authorization']
+        assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
+
+    def test_get_chat_client_config_default_not_found(self, monkeypatch):
+        def _mock_exception(*args, **kwargs):
+            raise AppException('Config not found')
+
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(os.path, 'exists', _mock_exception)
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Config not found'):
+            processor.get_chat_client_config('test_bot')
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
@@ -3856,7 +3926,7 @@ class TestModelProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "test_without_http", "testUser")
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
@@ -3873,7 +3943,7 @@ class TestModelProcessor:
             {"name": "action_check", "type": "ACTION"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "test_with_action", "testUser")
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
@@ -3890,7 +3960,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
@@ -3908,7 +3978,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_duplicate_case_insensitive_complex_story(self):
@@ -3922,7 +3992,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "Story with action", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "Story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_none_complex_story_name(self):
@@ -3934,7 +4004,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': None, 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': None, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_empty_complex_story_name(self):
@@ -3946,7 +4016,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': "", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_blank_complex_story_name(self):
@@ -3958,13 +4028,13 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': " ", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': " ", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_empty_complex_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY'}
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_duplicate_complex_story_using_events(self):
@@ -3978,7 +4048,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_complex_story_with_invalid_event(self):
@@ -3990,7 +4060,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4000,7 +4070,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4012,7 +4082,7 @@ class TestModelProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4026,7 +4096,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.update_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
@@ -4042,7 +4112,7 @@ class TestModelProcessor:
                 {"name": "utter_greet", "type": "BOT"},
                 {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
             ]
-            story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             with pytest.raises(AppException, match="FLow already exists!"):
                 processor.update_complex_story(story_dict, "tests", "testUser")
 
@@ -4058,7 +4128,7 @@ class TestModelProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.update_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
@@ -4074,7 +4144,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_complex_story_with_invalid_event(self):
@@ -4086,7 +4156,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -4096,7 +4166,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -4108,7 +4178,7 @@ class TestModelProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -4121,7 +4191,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': None, 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': None, 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_name(self):
@@ -4133,7 +4203,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': "", 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': "", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_blank_complex_story_name(self):
@@ -4145,13 +4215,13 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': " ", 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': " ", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY'}
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_list_actions(self):
@@ -4180,7 +4250,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
-        story_dict = {"name": "story2", 'steps': steps, 'type': 'STORY'}
+        story_dict = {"name": "story2", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "tests", "testUser")
         processor.delete_complex_story("STory2", "STORY", "tests", "testUser")
 
@@ -4420,7 +4490,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
-        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
         assert len(story.events) == 3
@@ -4435,7 +4505,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
 
@@ -4447,7 +4517,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST', 'template_type': 'CUSTOM'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_duplicate_case_insensitive_rule(self):
@@ -4458,7 +4528,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_none_rule(self):
@@ -4468,7 +4538,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': None, 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': None, 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_empty_rule(self):
@@ -4478,7 +4548,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_blank_rule_name(self):
@@ -4488,13 +4558,13 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': " ", 'steps': steps, 'type': 'rule'}
+            rule_dict = {'name': " ", 'steps': steps, 'type': 'rule', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_empty_rule_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE'}
+            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_rule_with_multiple_intents(self):
@@ -4507,7 +4577,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4520,7 +4590,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4530,7 +4600,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4542,7 +4612,7 @@ class TestTrainingDataProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -4554,7 +4624,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_nonsense", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
-        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[1].name == "utter_nonsense"
@@ -4567,7 +4637,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[3].name == "utter_greet"
@@ -4580,7 +4650,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rule_name(self):
@@ -4590,7 +4660,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': None, 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': None, 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_fetch_stories_with_rules(self):
@@ -4606,7 +4676,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_blank_rule_name(self):
@@ -4616,13 +4686,13 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': " ", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': " ", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_empty_rule_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE'}
+            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rule_invalid_type(self):
@@ -4633,7 +4703,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_non_existing_rule(self):
@@ -4650,7 +4720,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(ValidationError, match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
-            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rules_with_invalid_type(self):
@@ -4662,7 +4732,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException, match="Invalid event type!"):
-            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_empty_rule(self):

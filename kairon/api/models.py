@@ -299,6 +299,11 @@ class StoryType(str, Enum):
     rule = "RULE"
 
 
+class TemplateType(str, Enum):
+    QNA = "Q&A"
+    CUSTOM = "CUSTOM"
+
+
 class StoryStepRequest(BaseModel):
     name: str
     type: StoryStepType
@@ -308,6 +313,7 @@ class StoryRequest(BaseModel):
     name: str
     type: StoryType
     steps: List[StoryStepRequest]
+    template_type: TemplateType = None
 
     class Config:
         use_enum_values = True
@@ -420,3 +426,6 @@ class ConversationFilter(BaseModel):
     month: History_Month_Enum = 1
     engaged_users_threshold: int = 10
 
+
+class DictData(BaseModel):
+    data: dict

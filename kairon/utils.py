@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -48,7 +49,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.data_processor.cache import InMemoryAgentCache
-from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
+from .api.models import HttpActionParametersResponse, HttpActionConfigResponse, StoryStepType
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
     REQUIREMENTS
@@ -1142,3 +1143,31 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    def decode_limited_access_token(token: Text):
+        try:
+            decoded_jwt = decode(
+                token,
+                Utility.environment['security']["secret_key"],
+                algorithm=Utility.environment['security']["algorithm"],
+            )
+            return decoded_jwt
+        except Exception:
+            raise AppException("Invalid token")
+
+    @staticmethod
+    def load_json_file(path: Text, raise_exc: bool = True):
+        if not os.path.exists(path) and raise_exc:
+            raise AppException('file not found')
+        config = json.load(open(path))
+        return config
+
+    @staticmethod
+    def get_template_type(story: Dict):
+        steps = story['steps']
+        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            template_type = 'Q&A'
+        else:
+            template_type = 'CUSTOM'
+        return template_type
