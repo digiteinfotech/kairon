@@ -20,9 +20,8 @@ class Authentication:
     ALGORITHM = Utility.environment['security']["algorithm"]
     ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
 
-    @staticmethod
     async def get_current_user(
-        request: Request, token: str = Depends(Utility.oauth2_scheme)
+        self, request: Request, token: str = Depends(Utility.oauth2_scheme)
     ):
         """
         validates jwt token
@@ -37,7 +36,7 @@ class Authentication:
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            payload = decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+            payload = decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
             username: str = payload.get("sub")
             if username is None:
                 raise credentials_exception
@@ -60,9 +59,8 @@ class Authentication:
             user_model.alias_user = alias_user
         return user_model
 
-    @staticmethod
-    async def get_current_user_and_bot(request: Request, token: str = Depends(Utility.oauth2_scheme)):
-        user = await Authentication.get_current_user(request, token)
+    async def get_current_user_and_bot(self, request: Request, token: str = Depends(Utility.oauth2_scheme)):
+        user = await self.get_current_user(request, token)
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):
             raise HTTPException(
@@ -99,8 +97,7 @@ class Authentication:
         encoded_jwt = encode(to_encode, Authentication.SECRET_KEY, algorithm=Authentication.ALGORITHM)
         return encoded_jwt
 
-    @staticmethod
-    def __authenticate_user(username: str, password: str):
+    def __authenticate_user(self, username: str, password: str):
         user = AccountProcessor.get_user_details(username)
         if not user:
             return False
@@ -108,8 +105,7 @@ class Authentication:
             return False
         return user
 
-    @staticmethod
-    def authenticate(username: Text, password: Text):
+    def authenticate(self, username: Text, password: Text):
         """
         authenticate user and generate jwt token
 
@@ -117,7 +113,7 @@ class Authentication:
         :param password: login password
         :return: jwt token
         """
-        user = Authentication.__authenticate_user(username, password)
+        user = self.__authenticate_user(username, password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -127,12 +123,29 @@ class Authentication:
         access_token = Authentication.create_access_token(data={"sub": user["email"]})
         return access_token
 
+    def validate_limited_access_token(self, request: Request, access_limit: list):
+        if not access_limit:
+            return
+        requested_endpoint = request.scope['path']
+        matches = any(re.match(allowed_endpoint, requested_endpoint) for allowed_endpoint in access_limit)
+        if not matches:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='Access denied for this endpoint',
+            )
+
     @staticmethod
     def generate_integration_token(bot: Text, account: int):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
         integration_user = AccountProcessor.get_integration_user(bot, account)
+        data = {"sub": integration_user["email"]}
+        if expiry > 0:
+            expire = datetime.utcnow() + timedelta(minutes=expiry)
+            data.update({"exp": expire})
+        if access_limit:
+            data['access-limit'] = access_limit
         access_token = Authentication.create_access_token(
-            data={"sub": integration_user["email"]}, is_integration=True
+            data=data, is_integration=True
         )
         return access_token

@@ -2,6 +2,9 @@ database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
+app:
+  server_url: ${APP_SERVER_URL:"http://localhost:8000"}
+
 security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
   algorithm: "HS256"

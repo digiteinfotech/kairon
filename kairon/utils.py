@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -46,6 +47,7 @@ from rasa.utils.endpoints import EndpointConfig
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
+
 from kairon.data_processor.cache import InMemoryAgentCache
 from .api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
@@ -55,7 +57,6 @@ from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
-from urllib.parse import urljoin
 
 
 class Utility:
@@ -1159,3 +1160,32 @@ class Utility:
             )
             response = {"data": {"response": chat_response}}
         return response
+
+
+    @staticmethod
+    def decode_limited_access_token(token: Text):
+        try:
+            decoded_jwt = decode(
+                token,
+                Utility.environment['security']["secret_key"],
+                algorithm=Utility.environment['security']["algorithm"],
+            )
+            return decoded_jwt
+        except Exception:
+            raise AppException("Invalid token")
+
+    @staticmethod
+    def load_json_file(path: Text, raise_exc: bool = True):
+        if not os.path.exists(path) and raise_exc:
+            raise AppException('file not found')
+        config = json.load(open(path))
+        return config
+
+    @staticmethod
+    def get_template_type(story: Dict):
+        steps = story['steps']
+        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            template_type = 'Q&A'
+        else:
+            template_type = 'CUSTOM'
+        return template_type
