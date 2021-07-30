@@ -2784,62 +2784,68 @@ class MongoProcessor:
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
             raise AppException("Synonym value cannot be an empty string")
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        value_list = set(item.value for item in synonym)
-        push_entity = []
-        for val in synonyms_dict.get('value'):
-            if val in value_list:
-                raise AppException("Synonym value already exists")
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
-            entity_synonym = EntitySynonyms()
-            entity_synonym.synonym = synonyms_dict['synonym']
-            entity_synonym.value = val
-            entity_synonym.user = user
-            entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-
-    def edit_synonym(self, synonyms_dict: Dict, bot, user):
-        if Utility.check_empty_string(synonyms_dict.get('synonym')):
-            raise AppException("Synonym name cannot be an empty string")
-        if not synonyms_dict.get('value'):
+        empty_element = any([Utility.check_empty_string(elem) for elem in synonyms_dict.get('value')])
+        if empty_element:
             raise AppException("Synonym value cannot be an empty string")
         synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        if not synonym:
-            raise AppException("No such synonym exists")
-        push_entity = []
+        value_list = set(item.value for item in synonym)
+        check = any(item in value_list for item in synonyms_dict.get('value'))
+        if check:
+            raise AppException("Synonym value already exists")
         for val in synonyms_dict.get('value'):
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
             entity_synonym = EntitySynonyms()
             entity_synonym.synonym = synonyms_dict['synonym']
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+            entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
 
-    def delete_synonym(
-            self, synonym_name: Text, bot: Text, user: Text
+    def edit_synonym(
+            self, id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
-        deletes synonym
-        :param synonym_name: synonym name
+        update the synonym value
+
+        :param id: value id against which the synonym is updated
+        :param value: synonym value
+        :param name: synonym name
         :param bot: bot id
         :param user: user id
-        :return: AppException
+        :return: None
+        :raises: AppException
         """
+        synonym = list(EntitySynonyms.objects(synonym__iexact=name, bot=bot, status=True))
+        value_list = set(item.value for item in synonym)
+        if value in value_list:
+            raise AppException("Synonym value already exists")
+        try:
+            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=id)
+            val.value = value
+            val.user = user
+            val.timestamp = datetime.utcnow()
+            val.save()
+        except DoesNotExist:
+            raise AppException("Synonym value does not exist!")
 
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, status=True))
-        if not synonym:
-            raise AppException("Synonym does not exist.")
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+    def delete_synonym(self, synonym_name: str, bot: str, user: str):
+        if not (synonym_name and synonym_name.strip()):
+            raise AppException("Synonym cannot be empty or spaces")
+        values = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, user=user, status=True))
+        if not values:
+            raise AppException("Synonym does not exist")
+        for value in values:
+            value.status = False
+            value.timestamp = datetime.utcnow()
+            value.save()
+
+    def delete_synonym_value(self, synonym_id: str, bot: str, user: str):
+        if not (synonym_id and synonym_id.strip()):
+            raise AppException("Synonym Id cannot be empty or spaces")
+        try:
+            EntitySynonyms.objects(bot=bot, status=True).get(id=synonym_id)
+            self.remove_document(EntitySynonyms, synonym_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)
 
     def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool=False):
         if Utility.check_empty_string(name):
@@ -2907,22 +2913,25 @@ class MongoProcessor:
             regex_id = regex.save().to_mongo().to_dict()['_id'].__str__()
             return regex_id
 
-    def edit_regex(self, regex_dict: Dict, bot):
+    def edit_regex(self, regex_dict: Dict, bot, user):
         if Utility.check_empty_string(regex_dict.get('name')) or Utility.check_empty_string(regex_dict.get('pattern')):
             raise AppException("Regex name and pattern cannot be empty or blank spaces")
         try:
             regex = RegexFeatures.objects(name__iexact=regex_dict.get('name'), bot=bot, status=True).get()
             regex.pattern = regex_dict.get("pattern")
+            regex.user = user
+            regex.timestamp = datetime.utcnow()
             regex.save()
         except DoesNotExist:
             raise AppException("Regex name does not exist!")
 
     def delete_regex(
-            self, regex_name: Text, bot: Text
+            self, regex_name: Text, bot: Text, user: Text
     ):
         """
         deletes regex pattern
         :param regex_name: regex name
+        :param user: user id
         :param bot: bot id
         :return: AppException
         """
@@ -2930,6 +2939,8 @@ class MongoProcessor:
         try:
             regex = RegexFeatures.objects(name__iexact=regex_name, bot=bot, status=True).get()
             regex.status = False
+            regex.user = user
+            regex.timestamp = datetime.utcnow()
             regex.save()
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
@@ -2939,59 +2950,93 @@ class MongoProcessor:
             raise AppException("Lookup table name cannot be an empty string")
         if not lookup_dict.get('value'):
             raise AppException("Lookup Table value cannot be an empty string")
-        lookup = list(LookupTables.objects(name__iexact=lookup_dict['name'], bot=bot, status=True))
-        value_list = set(item.value for item in lookup)
-        push_lookup = []
-        for val in lookup_dict.get('value'):
-            if val in value_list:
-                raise AppException("Lookup table value already exists")
-            if not val.strip():
-                raise AppException("Lookup table value cannot be an empty string")
-            lookup_table = LookupTables()
-            lookup_table.name = lookup_dict['name']
-            lookup_table.value = val
-            lookup_table.user = user
-            lookup_table.bot = bot
-            push_lookup.append(lookup_table)
-        LookupTables.objects.insert(push_lookup)
-
-    def edit_lookup(self, lookup_dict: Dict, bot, user):
-        if Utility.check_empty_string(lookup_dict.get('name')):
-            raise AppException("Lookup Table name cannot be an empty string")
-        if not lookup_dict.get('value'):
+        empty_element = any([Utility.check_empty_string(elem) for elem in lookup_dict.get('value')])
+        if empty_element:
             raise AppException("Lookup table value cannot be an empty string")
         lookup = list(LookupTables.objects(name__iexact=lookup_dict['name'], bot=bot, status=True))
-        if not lookup:
-            raise AppException("No such lookup table exists")
-        push_lookup = []
+        value_list = set(item.value for item in lookup)
+        check = any(item in value_list for item in lookup_dict.get('value'))
+        if check:
+            raise AppException("Lookup table value already exists")
         for val in lookup_dict.get('value'):
-            if not val.strip():
-                raise AppException("Lookup Table value cannot be an empty string")
             lookup_table = LookupTables()
             lookup_table.name = lookup_dict['name']
             lookup_table.value = val
             lookup_table.user = user
             lookup_table.bot = bot
-            push_lookup.append(lookup_table)
-        LookupTables.objects.insert(push_lookup)
-        for table in lookup:
-            table.status = False
-            table.save()
+            lookup_table.save().to_mongo().to_dict()['_id'].__str__()
 
-    def delete_lookup(
-            self, lookup_name: Text, bot: Text
+    def get_synonym_values(self, name: Text, bot: Text):
+        """
+        fetch all the synonym values
+
+        :param name: synonym name
+        :param bot: bot id
+        :return: yields the values
+        """
+        values = EntitySynonyms.objects(bot=bot, status=True, synonym__iexact=name).order_by(
+            "-timestamp"
+        )
+        for value in values:
+            yield {"_id": value.id.__str__(), "value": value.value}
+
+    def get_lookup_values(self, name: Text, bot: Text):
+        """
+        fetch all the lookup table values
+
+        :param name: table name
+        :param bot: bot id
+        :return: yields the values
+        """
+        values = LookupTables.objects(bot=bot, status=True, name__iexact=name).order_by(
+            "-timestamp"
+        )
+        for value in values:
+            yield {"_id": value.id.__str__(), "value": value.value}
+
+    def edit_lookup(
+            self, id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
-        deletes a lookup table
-        :param lookup_name: lookup table name
+        update the lookup table value
+
+        :param id: value id against which the lookup table is updated
+        :param value: table value
+        :param name: lookup table name
         :param bot: bot id
-        :return: AppException
+        :param user: user id
+        :return: None
+        :raises: AppException
         """
+        lookup = list(LookupTables.objects(name__iexact=name, bot=bot, status=True))
+        value_list = set(item.value for item in lookup)
+        if value in value_list:
+            raise AppException("Lookup table value already exists")
+        try:
+            val = LookupTables.objects(bot=bot, name__iexact=name).get(id=id)
+            val.value = value
+            val.user = user
+            val.timestamp = datetime.utcnow()
+            val.save()
+        except DoesNotExist:
+            raise AppException("Lookup table value does not exist!")
 
-        lookup = list(LookupTables.objects(name__iexact=lookup_name, bot=bot, status=True))
-        if not lookup:
-            raise AppException("Lookup Table does not exist.")
-        for table in lookup:
-            table.status = False
-            table.save()
+    def delete_lookup(self, lookup_name: str, bot: str, user: str):
+        if not (lookup_name and lookup_name.strip()):
+            raise AppException("Lookup table name cannot be empty or spaces")
+        values = list(LookupTables.objects(name__iexact=lookup_name, bot=bot, user=user, status=True))
+        if not values:
+            raise AppException("Lookup table does not exist")
+        for value in values:
+            value.status = False
+            value.timestamp = datetime.utcnow()
+            value.save()
 
+    def delete_lookup_value(self, lookup_id: str, bot: str, user: str):
+        if not (lookup_id and lookup_id.strip()):
+            raise AppException("Lookup Id cannot be empty or spaces")
+        try:
+            LookupTables.objects(bot=bot, status=True).get(id=lookup_id)
+            self.remove_document(LookupTables, lookup_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)

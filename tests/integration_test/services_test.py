@@ -4267,6 +4267,16 @@ def test_add_synonyms():
     assert actual['data'] == [{"any": "bot_add"}, {"any1": "bot_add"}]
 
 
+def test_get_specific_synonym_values():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
 def test_add_synonyms_duplicate():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
@@ -4279,7 +4289,7 @@ def test_add_synonyms_duplicate():
     assert actual["message"] == "Synonym value already exists"
 
 
-def test_add_synonyms_empty():
+def test_add_synonyms_value_empty():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": []},
@@ -4291,30 +4301,10 @@ def test_add_synonyms_empty():
     assert actual["message"][0]['msg'] == "value field cannot be empty"
 
 
-def test_edit_synonyms():
-    response = client.put(
+def test_add_synonyms_empty():
+    response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any4"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym modified successfully!"
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['data'] == [{"any4": "bot_add"}]
-
-
-def test_edit__empty_synonyms():
-    response = client.put(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "", "value": ["any4"]},
+        json={"synonym": "", "value": ["h"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4323,15 +4313,70 @@ def test_edit__empty_synonyms():
     assert actual["message"][0]['msg'] == "synonym cannot be empty"
 
 
-def test_delete_synonym():
-    response = client.delete(
+def test_edit_synonyms():
+    response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.put(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add/{actual['data'][0]['_id']}",
+        json={"data": "any4"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym deleted!"
+    assert actual["message"] == "Synonym updated!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+    value_list = [list(actual['data'][0].keys())[0], list(actual['data'][1].keys())[0]]
+    assert "any4" in value_list
+
+
+def test_delete_synonym_one_value():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/False",
+        json={"data": actual['data'][0]['_id']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 1
+
+
+def test_delete_synonym():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/True",
+        json={"data": "bot_add"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
 
     response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms",
@@ -4521,6 +4566,15 @@ def test_add_lookup_tables():
                               {'name': 'number', 'elements': ['one', 'two']}]
 
 
+def test_get_lookup_table_values():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
 def test_add_lookup_duplicate():
     response = client.post(
         f"/api/bot/{pytest.bot}/lookup/tables",
@@ -4546,30 +4600,27 @@ def test_add_lookup_empty():
 
 
 def test_edit_lookup():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
     response = client.put(
-        f"/api/bot/{pytest.bot}/lookup/tables",
-        json={"name": "country", "value": ["india", 'japan']},
+        f"/api/bot/{pytest.bot}/lookup/tables/country/{actual['data'][0]['_id']}",
+        json={"data": "japan"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Lookup Table values modified successfully!"
+    assert actual["message"] == "Lookup table updated!"
 
-    response = client.get(
+
+def test_add_lookup_empty_name():
+    response = client.post(
         f"/api/bot/{pytest.bot}/lookup/tables",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['data'] == [{'name': 'country', 'elements': ['india', 'japan']},
-                              {'name': 'number', 'elements': ['one', 'two']}]
-
-
-def test_edit__empty_lookup():
-    response = client.put(
-        f"/api/bot/{pytest.bot}/lookup/tables",
-        json={"name": "", "value": ["aust"]},
+        json={"name": "", "value": ["h"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4578,15 +4629,22 @@ def test_edit__empty_lookup():
     assert actual["message"][0]['msg'] == "name cannot be empty or a blank space"
 
 
-def test_delete_lookup():
-    response = client.delete(
+def test_delete_lookup_one_value():
+    response = client.get(
         f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/lookup/tables/False",
+        json={"data": actual['data'][0]['_id']},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Lookup table deleted!"
+    assert actual["message"] == "Lookup Table removed!"
 
     response = client.get(
         f"/api/bot/{pytest.bot}/lookup/tables",
@@ -4594,7 +4652,27 @@ def test_delete_lookup():
     )
 
     actual = response.json()
-    assert actual['data'] == [{'name': 'number', 'elements': ['one', 'two']}]
+    assert len(actual['data']) == 2
+
+
+def test_delete_lookup():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/lookup/tables/True",
+        json={"data": "country"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup Table removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 1
 
 
 def test_add_lookup_empty_value_element():
