@@ -1191,3 +1191,19 @@ class Utility:
         else:
             template_type = 'CUSTOM'
         return template_type
+
+    @staticmethod
+    def download_csv(conversation: Dict, message):
+        import pandas as pd
+
+        if not conversation.get("conversation_data"):
+            if not message:
+                raise AppException("No data available!")
+            else:
+                raise AppException(message)
+        else:
+            df = pd.json_normalize(conversation.get("conversation_data"))
+            temp_path = tempfile.mkdtemp()
+            file_path = os.path.join(temp_path, "conversation_history.csv")
+            df.to_csv(file_path, index=False)
+            return file_path, temp_path
