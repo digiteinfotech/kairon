@@ -2810,7 +2810,7 @@ class MongoProcessor:
             entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
 
     def edit_synonym(
-            self, id: Text, value: Text, name: Text, bot: Text, user: Text
+            self, synonym_id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
         update the synonym value
@@ -2827,7 +2827,7 @@ class MongoProcessor:
         if value in value_list:
             raise AppException("Synonym value already exists")
         try:
-            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=id)
+            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=synonym_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
