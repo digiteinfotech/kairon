@@ -17,7 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS
@@ -1079,3 +1079,87 @@ async def delete_regex(
     mongo_processor.delete_regex(regex_name=name, bot=current_user.get_bot(), user=current_user.get_user())
 
     return {"message": "Regex pattern deleted!"}
+
+
+@router.get("/lookup/tables", response_model=Response)
+async def get_all_lookup_tables(
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Fetches the stored lookup tables of the bot
+    """
+    lookup = list(mongo_processor.fetch_lookup_tables(bot=current_user.get_bot()))
+    return {"data": lookup}
+
+
+@router.get("/lookup/tables/{name}", response_model=Response)
+async def get_lookup_values(
+        name: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Fetches list of values against lookup table name
+    """
+    return {
+        "data": list(mongo_processor.get_lookup_values(name, current_user.get_bot()))
+    }
+
+
+@router.post("/lookup/tables", response_model=Response)
+async def add_lookup(
+        request_data: LookupTablesRequest,
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    adds a new lookup table and its values
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    mongo_processor.add_lookup(lookup_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Lookup table and values added successfully!"}
+
+
+@router.put("/lookup/tables/{name}/{id}", response_model=Response)
+async def edit_lookup(
+        name: str,
+        id: str,
+        request_data: TextData,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Updates existing lookup table value
+    """
+    mongo_processor.edit_lookup(
+        id,
+        request_data.data,
+        name,
+        current_user.get_bot(),
+        current_user.get_user(),
+    )
+    return {
+        "message": "Lookup table updated!"
+    }
+
+
+@router.delete("/lookup/tables/{delete_table}", response_model=Response)
+async def delete_lookup_value(
+        request_data: TextData,
+        delete_table: bool = Path(default=False, description="Deletes lookup table if True"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Deletes existing lookup table completely along with its examples.
+    """
+    if delete_table:
+        mongo_processor.delete_lookup(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    else:
+        mongo_processor.delete_lookup_value(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    return {
+        "message": "Lookup Table removed!"
+    }
