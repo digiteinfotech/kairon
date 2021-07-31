@@ -4733,3 +4733,164 @@ def test_delete_regex():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_get_lookup_tables():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 0
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_add_lookup_tables():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "country", "value": ["india", "australia"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup table and values added successfully!"
+
+    client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "number", "value": ["one", "two"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.get(
+            f"/api/bot/{pytest.bot}/lookup/tables",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+    actual = response.json()
+    assert actual['data'] == [{'name': 'country', 'elements': ['india', 'australia']},
+                              {'name': 'number', 'elements': ['one', 'two']}]
+
+
+def test_get_lookup_table_values():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
+def test_add_lookup_duplicate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "country", "value": ["india"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Lookup table value already exists"
+
+
+def test_add_lookup_empty():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "country", "value": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "value field cannot be empty"
+
+
+def test_edit_lookup():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.put(
+        f"/api/bot/{pytest.bot}/lookup/tables/country/{actual['data'][0]['_id']}",
+        json={"data": "japan"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup table updated!"
+
+
+def test_add_lookup_empty_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "", "value": ["h"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "name cannot be empty or a blank space"
+
+
+def test_delete_lookup_one_value():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables/country",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/lookup/tables/False",
+        json={"data": actual['data'][0]['_id']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup Table removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
+def test_delete_lookup():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/lookup/tables/True",
+        json={"data": "country"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup Table removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 1
+
+
+def test_add_lookup_empty_value_element():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "country", "value": ['df', '']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "lookup value cannot be empty or a blank space"

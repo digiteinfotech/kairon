@@ -3000,3 +3000,83 @@ class MongoProcessor:
             regex.save()
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
+
+    def add_lookup(self, lookup_dict: Dict, bot, user):
+        if Utility.check_empty_string(lookup_dict.get('name')):
+            raise AppException("Lookup table name cannot be an empty string")
+        if not lookup_dict.get('value'):
+            raise AppException("Lookup Table value cannot be an empty string")
+        empty_element = any([Utility.check_empty_string(elem) for elem in lookup_dict.get('value')])
+        if empty_element:
+            raise AppException("Lookup table value cannot be an empty string")
+        lookup = list(LookupTables.objects(name__iexact=lookup_dict['name'], bot=bot, status=True))
+        value_list = set(item.value for item in lookup)
+        check = any(item in value_list for item in lookup_dict.get('value'))
+        if check:
+            raise AppException("Lookup table value already exists")
+        for val in lookup_dict.get('value'):
+            lookup_table = LookupTables()
+            lookup_table.name = lookup_dict['name']
+            lookup_table.value = val
+            lookup_table.user = user
+            lookup_table.bot = bot
+            lookup_table.save().to_mongo().to_dict()['_id'].__str__()
+
+    def get_lookup_values(self, name: Text, bot: Text):
+        """
+        fetch all the lookup table values
+        :param name: table name
+        :param bot: bot id
+        :return: yields the values
+        """
+        values = LookupTables.objects(bot=bot, status=True, name__iexact=name).order_by(
+            "-timestamp"
+        )
+        for value in values:
+            yield {"_id": value.id.__str__(), "value": value.value}
+
+    def edit_lookup(
+            self, lookup_id: Text, value: Text, name: Text, bot: Text, user: Text
+    ):
+        """
+        update the lookup table value
+        :param id: value id against which the lookup table is updated
+        :param value: table value
+        :param name: lookup table name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: AppException
+        """
+        lookup = list(LookupTables.objects(name__iexact=name, bot=bot, status=True))
+        value_list = set(item.value for item in lookup)
+        if value in value_list:
+            raise AppException("Lookup table value already exists")
+        try:
+            val = LookupTables.objects(bot=bot, name__iexact=name).get(id=lookup_id)
+            val.value = value
+            val.user = user
+            val.timestamp = datetime.utcnow()
+            val.save()
+        except DoesNotExist:
+            raise AppException("Lookup table value does not exist!")
+
+    def delete_lookup(self, lookup_name: str, bot: str, user: str):
+        if not (lookup_name and lookup_name.strip()):
+            raise AppException("Lookup table name cannot be empty or spaces")
+        values = list(LookupTables.objects(name__iexact=lookup_name, bot=bot, user=user, status=True))
+        if not values:
+            raise AppException("Lookup table does not exist")
+        for value in values:
+            value.status = False
+            value.timestamp = datetime.utcnow()
+            value.save()
+
+    def delete_lookup_value(self, lookup_id: str, bot: str, user: str):
+        if not (lookup_id and lookup_id.strip()):
+            raise AppException("Lookup Id cannot be empty or spaces")
+        try:
+            LookupTables.objects(bot=bot, status=True).get(id=lookup_id)
+            self.remove_document(LookupTables, lookup_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)
