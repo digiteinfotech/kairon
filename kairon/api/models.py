@@ -398,3 +398,27 @@ class ConversationFilter(BaseModel):
 
 class DictData(BaseModel):
     data: dict
+
+
+class RegexRequest(BaseModel):
+    name: str
+    pattern: str
+
+    @validator("name")
+    def validate_name(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+        if Utility.check_empty_string(v):
+            raise ValueError("Regex name cannot be empty or a blank space")
+        return v
+
+    @validator("pattern")
+    def validate_pattern(cls, f, values, **kwargs):
+        from kairon.utils import Utility
+        import re
+        if Utility.check_empty_string(f):
+            raise ValueError("Regex pattern cannot be empty or a blank space")
+        try:
+            re.compile(f)
+        except Exception:
+            raise AppException("invalid regular expression")
+        return f

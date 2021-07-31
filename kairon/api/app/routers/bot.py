@@ -16,7 +16,7 @@ from kairon.api.models import (
     Endpoint,
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
-    FeedbackRequest, SynonymRequest,
+    FeedbackRequest, SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData
 )
 from kairon.data_processor.agent_processor import AgentProcessor
@@ -978,3 +978,64 @@ async def get_client_config(current_user: User = Depends(Authentication.get_curr
 async def set_client_config(request: DictData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     mongo_processor.save_chat_client_config(request.data, current_user.get_bot(), current_user.get_user())
     return {"message": "Config saved"}
+
+
+@router.get("/regex", response_model=Response)
+async def get_all_regex_patterns(
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Fetches the stored regex patterns of the bot
+    """
+    regex = list(mongo_processor.fetch_regex_features(bot=current_user.get_bot()))
+    return {"data": regex}
+
+
+@router.post("/regex", response_model=Response)
+async def add_regex(
+        request_data: RegexRequest,
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    adds a new regex and its pattern
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    regex_id = mongo_processor.add_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern added successfully!", "data": {"_id": regex_id}}
+
+
+@router.put("/regex", response_model=Response)
+async def edit_regex(
+        request_data: RegexRequest,
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    edits a regex pattern
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    mongo_processor.edit_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern modified successfully!"}
+
+
+@router.delete("/regex/{name}", response_model=Response)
+async def delete_regex(
+        name: str = Path(default=None, description="regex name", example="bot"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    deletes an existing regex pattern
+    :param name: regex pattern name
+    :param current_user:
+    :return: Success message
+    """
+    mongo_processor.delete_regex(regex_name=name, bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern deleted!"}
