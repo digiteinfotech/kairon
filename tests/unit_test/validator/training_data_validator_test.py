@@ -90,10 +90,10 @@ class TestTrainingDataValidator:
 
         validator.validate_training_data(False)
         assert validator.summary['intents']
-        assert validator.summary['utterances']
-        assert not validator.summary.get('stories')
+        assert not validator.summary['utterances']
+        assert validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
-        assert validator.summary['domain'] == 'domain.yml is empty!'
+        assert validator.summary['domain'] == ['domain.yml is empty!']
         assert not validator.summary.get('config')
 
     @pytest.mark.asyncio
@@ -193,9 +193,9 @@ class TestTrainingDataValidator:
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         assert not validator.summary.get('intents')
-        assert validator.summary['utterances'][
+        assert validator.summary['stories'][
                    0] == 'The action \'utter_goodbye\' is used in the stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name.'
-        assert not validator.summary.get('stories')
+        assert not validator.summary.get('utterances')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
         assert not validator.summary.get('config')

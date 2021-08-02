@@ -12,6 +12,7 @@ from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
 from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
+from kairon.data_processor.data_objects import Configs, BotSettings
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.data_processor.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -64,13 +65,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -94,13 +95,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert logs[0].get('exception') == 'Some training files are absent!'
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -124,13 +125,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 3
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert logs[0].get('exception').__contains__('Failed to read config.yml')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -154,13 +155,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 4
-        assert logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -184,13 +185,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 5
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -203,9 +204,9 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_append(self, monkeypatch):
@@ -223,13 +224,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 6
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -244,9 +245,9 @@ class TestEvents:
         assert 'affirm' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 4
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
@@ -264,13 +265,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 7
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -283,9 +284,9 @@ class TestEvents:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 2
+        assert len(list(processor.fetch_responses(bot))) == 4
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 3
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_event(self, monkeypatch):
@@ -310,13 +311,13 @@ class TestEvents:
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -348,13 +349,13 @@ class TestEvents:
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -385,13 +386,13 @@ class TestEvents:
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -410,13 +411,13 @@ class TestEvents:
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert logs[0].get('exception') == 'Failed to trigger the event.'
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -436,7 +437,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -449,13 +453,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -465,7 +469,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -481,7 +485,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -494,13 +501,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -510,7 +517,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -526,7 +533,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -539,13 +549,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -555,7 +565,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -570,7 +580,10 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
-        mongo_processor.add_or_overwrite_config(config, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
         mongo_processor.save_http_action(http_actions, bot, user)
 
@@ -583,13 +596,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -599,7 +612,7 @@ class TestEvents:
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
@@ -619,13 +632,13 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
-        assert not logs[0].get('intents')
-        assert not logs[0].get('stories')
-        assert not logs[0].get('utterances')
-        assert not logs[0].get('http_actions')
-        assert not logs[0].get('training_examples')
-        assert not logs[0].get('domain')
-        assert not logs[0].get('config')
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
@@ -636,6 +649,120 @@ class TestEvents:
         mongo_processor = MongoProcessor()
         assert len(mongo_processor.fetch_stories(bot)) == 2
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 7
-        assert len(list(mongo_processor.fetch_responses(bot))) == 2
+        assert len(list(mongo_processor.fetch_responses(bot))) == 3
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_import_with_utterance_issues(self, monkeypatch):
+        bot = 'test_trigger_data_importer_import_with_utterance_issues'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        shutil.copytree('tests/testing_data/validator/orphan_utterances', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+        BotSettings(ignore_utterances=True, bot=bot, user=user).save()
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
+        assert len(list(mongo_processor.fetch_responses(bot))) == 8
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_import_with_intent_issues(self, monkeypatch):
+        bot = 'test_trigger_data_importer_import_with_intent_issues'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        shutil.copytree('tests/testing_data/validator/intent_name_mismatch', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+        BotSettings(ignore_utterances=True, bot=bot, user=user).save()
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 0
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 0
+        assert len(list(mongo_processor.fetch_responses(bot))) == 0
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 0
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_forced_import(self, monkeypatch):
+        bot = 'forced_import'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        shutil.copytree('tests/testing_data/validator/orphan_utterances', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+        BotSettings(force_import=True, bot=bot, user=user).save()
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
+        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('utterances').get('data')
+        assert not logs[0].get('http_actions').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        mongo_processor = MongoProcessor()
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
+        assert len(list(mongo_processor.fetch_responses(bot))) == 8
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1

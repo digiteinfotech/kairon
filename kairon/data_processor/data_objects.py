@@ -32,6 +32,8 @@ from kairon.exceptions import AppException
 from kairon.utils import Utility
 from rasa.shared.core.domain import _validate_slot_mappings
 
+from ..api.models import TemplateType
+
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -186,6 +188,18 @@ class Forms(Document):
             raise ValidationError(e)
 
 
+class Utterances(Document):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Utterance Name cannot be empty or blank spaces")
+
+
 class ResponseButton(EmbeddedDocument):
     title = StringField(required=True)
     payload = StringField(required=True)
@@ -279,8 +293,8 @@ class Slots(Document):
     value_reset_delay = LongField()
     auto_fill = BooleanField(default=True)
     values = ListField(StringField(), default=None)
-    max_value = LongField()
-    min_value = LongField()
+    max_value = FloatField()
+    min_value = FloatField()
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -331,6 +345,7 @@ class Stories(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.block_name):
@@ -357,6 +372,7 @@ class Rules(Document):
         elif not self.events:
             raise ValidationError("events cannot be empty")
         Utility.validate_flow_events(self.events, "RULE", self.block_name)
+
 
 class Configs(Document):
     language = StringField(required=True, default="en")
@@ -477,3 +493,20 @@ class Feedback(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class BotSettings(Document):
+    ignore_utterances = BooleanField(default=False)
+    force_import = BooleanField(default=False)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+
+class ChatClientConfig(Document):
+    config = DictField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)

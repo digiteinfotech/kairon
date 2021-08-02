@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -56,6 +57,8 @@ from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
 from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
+from urllib.parse import urljoin
+from .shared.models import StoryStepType
 
 
 class Utility:
@@ -1083,3 +1086,108 @@ class Utility:
             key_and_val = {'name': key, 'value': env_var[key]}
             event_request.append(key_and_val)
         return event_request
+
+    @staticmethod
+    def add_or_update_epoch(configs: dict, epochs_to_set: dict):
+        if epochs_to_set.get("nlu_epochs"):
+            component = next((comp for comp in configs['pipeline'] if comp["name"] == 'DIETClassifier'), {})
+            if not component:
+                component['name'] = 'DIETClassifier'
+                configs['pipeline'].append(component)
+            component['epochs'] = epochs_to_set.get("nlu_epochs")
+
+        if epochs_to_set.get("response_epochs"):
+            component = next((comp for comp in configs['pipeline'] if comp["name"] == 'ResponseSelector'), {})
+            if not component:
+                component['name'] = 'ResponseSelector'
+                configs['pipeline'].append(component)
+            component['epochs'] = epochs_to_set.get("response_epochs")
+
+        if epochs_to_set.get("ted_epochs"):
+            component = next((comp for comp in configs['policies'] if comp["name"] == 'TEDPolicy'), {})
+            if not component:
+                component['name'] = 'TEDPolicy'
+                configs['policies'].append(component)
+            component['epochs'] = epochs_to_set.get("ted_epochs")
+
+    @staticmethod
+    def is_data_import_allowed(summary: dict, bot: Text, user: Text):
+        from kairon.data_processor.processor import MongoProcessor
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        if bot_settings.force_import:
+            return True
+        if bot_settings.ignore_utterances:
+            is_data_valid = all([not summary[key] for key in summary.keys() if 'utterances' != key])
+        else:
+            is_data_valid = all([not summary[key] for key in summary.keys()])
+        return is_data_valid
+
+    @staticmethod
+    def load_fallback_actions(bot: Text):
+        from kairon.data_processor.processor import MongoProcessor
+
+        mongo_processor = MongoProcessor()
+        config = mongo_processor.load_config(bot)
+        fallback_action = Utility.parse_fallback_action(config)
+        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
+        return fallback_action, nlu_fallback_action
+
+    @staticmethod
+    def parse_fallback_action(config: Dict):
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        fallback_action = action_fallback.get("core_fallback_action_name")
+        fallback_action = fallback_action if fallback_action else "action_default_fallback"
+        return fallback_action
+
+    @staticmethod
+    def load_default_actions():
+        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
+
+        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    async def chat(data: Text, bot: Text, user: Text, email: Text):
+        if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
+            from kairon.api.auth import Authentication
+            agent_url = Utility.environment['model']['train'].get('agent_url')
+            token = Authentication.create_access_token(data={"sub": email})
+            response = Utility.http_request('post', urljoin(agent_url, "/api/bot/chat"), token.decode('utf8'),
+                                            user, json={'data': data})
+        else:
+            from kairon.data_processor.agent_processor import AgentProcessor
+            model = AgentProcessor.get_agent(bot)
+            chat_response = await model.handle_text(
+                data, sender_id=user
+            )
+            response = {"data": {"response": chat_response}}
+        return response
+
+
+    @staticmethod
+    def decode_limited_access_token(token: Text):
+        try:
+            decoded_jwt = decode(
+                token,
+                Utility.environment['security']["secret_key"],
+                algorithm=Utility.environment['security']["algorithm"],
+            )
+            return decoded_jwt
+        except Exception:
+            raise AppException("Invalid token")
+
+    @staticmethod
+    def load_json_file(path: Text, raise_exc: bool = True):
+        if not os.path.exists(path) and raise_exc:
+            raise AppException('file not found')
+        config = json.load(open(path))
+        return config
+
+    @staticmethod
+    def get_template_type(story: Dict):
+        steps = story['steps']
+        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            template_type = 'Q&A'
+        else:
+            template_type = 'CUSTOM'
+        return template_type

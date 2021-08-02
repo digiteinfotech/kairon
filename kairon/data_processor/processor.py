@@ -1,4 +1,5 @@
 import itertools
+import json
 import os
 from collections import ChainMap
 from datetime import datetime
@@ -41,7 +42,8 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT,
+    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE
 )
 from .data_objects import (
     Responses,
@@ -65,10 +67,10 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback
+    Feedback, Utterances, BotSettings, ChatClientConfig
 )
 from ..api import models
-from ..api.models import StoryEventType, HttpActionConfigRequest
+from ..api.models import StoryEventType, HttpActionConfigRequest, TemplateType
 from ..importer.processor import DataImporterLogProcessor
 from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
@@ -191,10 +193,10 @@ class MongoProcessor:
             self.save_stories(story_graph.story_steps, bot, user)
         if 'nlu' in what:
             self.save_nlu(nlu, bot, user)
-        if 'config' in what:
-            self.add_or_overwrite_config(config, bot, user)
         if 'rules' in what:
             self.save_rules(story_graph.story_steps, bot, user)
+        if 'config' in what:
+            self.add_or_overwrite_config(config, bot, user)
         if 'http_actions' in what:
             self.save_http_action(http_actions, bot, user)
 
@@ -226,7 +228,7 @@ class MongoProcessor:
             for file in files
         ]
 
-    def delete_bot_data(self, bot: Text, user: Text, what = REQUIREMENTS.copy()):
+    def delete_bot_data(self, bot: Text, user: Text, what=REQUIREMENTS.copy()):
         """
         deletes bot data
 
@@ -307,6 +309,7 @@ class MongoProcessor:
         actions = list(filter(lambda actions: not actions.startswith('utter_'), domain.user_actions))
         self.__save_actions(actions, bot, user)
         self.__save_responses(domain.templates, bot, user)
+        self.save_utterances(domain.templates.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
 
@@ -319,7 +322,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document(
-            [Intents, Entities, Forms, Actions, Responses, Slots], bot=bot, user=user
+            [Intents, Entities, Forms, Actions, Responses, Slots, Utterances], bot=bot, user=user
         )
 
     def load_domain(self, bot: Text) -> Domain:
@@ -780,6 +783,16 @@ class MongoProcessor:
             if new_responses:
                 Responses.objects.insert(new_responses)
 
+    def save_utterances(self, utterances, bot: Text, user: Text):
+        if utterances:
+            new_utterances = []
+            existing_utterances = Utterances.objects(bot=bot, status=True).values_list('name')
+            for utterance in utterances:
+                if utterance not in existing_utterances:
+                    new_utterances.append(Utterances(name=utterance, bot=bot, user=user))
+            if new_utterances:
+                Utterances.objects.insert(new_utterances)
+
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
             yield text
@@ -927,6 +940,7 @@ class MongoProcessor:
                         for end_checkpoint in story_step.end_checkpoints
                     ],
                     events=story_events,
+                    template_type=TemplateType.CUSTOM.value
                 )
                 story.bot = bot
                 story.user = user
@@ -1041,8 +1055,77 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-
+        self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
+
+    def save_component_properties(self, configs: dict, bot: Text, user: Text):
+        """
+        Set properties (epoch and fallback) in the bot pipeline and policies configurations
+
+        :param configs: nlu fallback threshold, action fallback threshold and fallback action, epochs for policies.
+        :param bot: bot id
+        :param user: user id
+        :return: config unique id
+        """
+        nlu_confidence_threshold = configs.get("nlu_confidence_threshold")
+        action_fallback = configs.get("action_fallback")
+        nlu_epochs = configs.get("nlu_epochs")
+        response_epochs = configs.get("response_epochs")
+        ted_epochs = configs.get("ted_epochs")
+
+        if not nlu_epochs and not response_epochs and not ted_epochs and not nlu_confidence_threshold and not action_fallback:
+            raise AppException("At least one field is required")
+
+        present_config = self.load_config(bot)
+        if nlu_confidence_threshold:
+            nlu_confidence_threshold = nlu_confidence_threshold/100
+            fallback_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+            if fallback_classifier_idx:
+                del present_config['pipeline'][fallback_classifier_idx]
+            diet_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
+            fallback = {'name': 'FallbackClassifier', 'threshold': nlu_confidence_threshold}
+            present_config['pipeline'].insert(diet_classifier_idx + 1, fallback)
+            rule_policy = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            if not rule_policy:
+                rule_policy['name'] = 'RulePolicy'
+                present_config['policies'].append(rule_policy)
+
+        if action_fallback:
+            if action_fallback == 'action_default_fallback':
+                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                                    name__iexact='utter_default')
+                if not utterance_exists:
+                    raise AppException("Utterance utter_default not defined")
+            else:
+                utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                                    name__iexact=action_fallback)
+                if not (utterance_exists or
+                        Utility.is_exist(Actions, raise_error=False, bot=bot, status=True, name__iexact=action_fallback)):
+                    raise AppException(f"Action fallback {action_fallback} does not exists")
+            fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            if not fallback:
+                fallback['name'] = 'RulePolicy'
+                present_config['policies'].append(fallback)
+            fallback['core_fallback_action_name'] = action_fallback
+            fallback['core_fallback_threshold'] = 0.3
+
+        Utility.add_or_update_epoch(present_config, configs)
+        self.save_config(present_config, bot, user)
+
+    def list_epoch_and_fallback_config(self, bot: Text):
+        config = self.load_config(bot)
+        selected_config = {}
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')*100 if nlu_fallback.get('threshold') else None
+        selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
+        selected_config['ted_epochs'] = ted_policy.get('epochs')
+        selected_config['nlu_epochs'] = diet_classifier.get('epochs')
+        selected_config['response_epochs'] = response_selector.get('epochs')
+        return selected_config
 
     def delete_config(self, bot: Text, user: Text):
         """
@@ -1117,7 +1200,7 @@ class MongoProcessor:
                 {"name": utterance.strip().lower(), "type": "BOT"}]
             try:
                 doc_id = self.add_complex_story(
-                    story= {'name': story_name.lower(), 'steps': events, 'type': 'STORY'},
+                    story={'name': story_name.lower(), 'steps': events, 'type': 'STORY', 'template_type': TemplateType.CUSTOM.value},
                     bot=bot,
                     user=user
                 )
@@ -1538,6 +1621,7 @@ class MongoProcessor:
             )
         )[0]
         value = response.save().to_mongo().to_dict()
+        self.add_utterance_name(name=name.strip().lower(), bot=bot, user=user)
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -1689,7 +1773,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="action"))
-                if step['type']  == "ACTION":
+                if step['type'] == "ACTION":
                     self.add_action(step['name'], bot, user, raise_exception=False)
             else:
                 raise AppException("Invalid event type!")
@@ -1699,8 +1783,7 @@ class MongoProcessor:
         """
         save story in mongodb
 
-        :param name: story name
-        :param steps: story steps list
+        :param story: story steps list
         :param bot: bot id
         :param user: user id
         :return: story id
@@ -1721,8 +1804,13 @@ class MongoProcessor:
         data_class = None
         if type == "STORY":
             data_class = Stories
+            template_type = story.get('template_type')
+            if not template_type:
+                template_type = Utility.get_template_type(story)
+            data_object = Stories(template_type=template_type)
         elif type == 'RULE':
             data_class = Rules
+            data_object = Rules()
         else:
             raise AppException("Invalid type")
 
@@ -1730,13 +1818,11 @@ class MongoProcessor:
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="FLow already exists!")
 
-        data_object = data_class(
-            block_name=name.strip().lower(),
-            events=events,
-            bot=bot,
-            user=user,
-            start_checkpoints=[STORY_START],
-        )
+        data_object.block_name = name.strip().lower()
+        data_object.events = events
+        data_object.bot = bot
+        data_object.user = user
+        data_object.start_checkpoints = [STORY_START]
 
         id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
@@ -1834,6 +1920,7 @@ class MongoProcessor:
             final_data["_id"] = item["_id"].__str__()
             if isinstance(value, Stories):
                 final_data['type'] = 'STORY'
+                final_data['template_type'] = item.pop("template_type")
             elif isinstance(value, Rules):
                 final_data['type'] = 'RULE'
             else:
@@ -2118,12 +2205,16 @@ class MongoProcessor:
         try:
             responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, user=user, status=True))
             if not responses:
+                if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
+                    self.delete_utterance_name(name=utterance_name, bot=bot)
+                    return
                 raise DoesNotExist("Utterance does not exists")
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
             if not story:
                 for response in responses:
                     response.status = False
                     response.save()
+                self.delete_utterance_name(name=utterance_name, bot=bot)
             else:
                 raise AppException("Cannot remove utterance linked to story")
         except DoesNotExist as e:
@@ -2143,6 +2234,8 @@ class MongoProcessor:
             if story and len(responses) <= 1:
                 raise AppException("At least one response is required for utterance linked to story")
             self.remove_document(Responses, utterance_id, bot, user)
+            if len(responses) <= 1:
+                self.delete_utterance_name(name=utterance_name, bot=bot)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -2269,21 +2362,65 @@ class MongoProcessor:
         return actions
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+        """
+        Adds slot if it doesn't exist, updates slot if it exists
+        :param slot_value: slot data dict
+        :param bot: bot id
+        :param user: user id
+        :param raise_exception_if_exists: set True to add new slot, False to update slot
+        :return: slot id
+        """
+
+        if Utility.check_empty_string(slot_value.get('name')):
+            raise AppException("Slot Name cannot be empty or blank spaces")
+
+        if slot_value.get('type') not in [item for item in models.SlotType]:
+            raise AppException("Invalid slot type.")
+
         try:
-            slot = Slots.objects(name__iexact=slot_value['name'], bot=bot, status=True).get()
+            slot = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
             if raise_exception_if_exists:
                 raise AppException("Slot already exists!")
         except DoesNotExist:
             slot = Slots()
-            slot.name = slot_value['name']
+            slot.name = slot_value.get('name')
 
-        slot.initial_value = slot_value.get('initial_value')
         slot.type = slot_value.get('type')
+        slot.initial_value = slot_value.get('initial_value')
         slot.influence_conversation = slot_value.get('influence_conversation')
+        slot.auto_fill = slot_value.get('auto_fill')
+
+        if slot_value.get('type') == CategoricalSlot.type_name:
+            slot.values = slot_value.get('values')
+        elif slot_value.get('type') == FloatSlot.type_name:
+            slot.max_value = slot_value.get('max_value')
+            slot.min_value = slot_value.get('min_value')
+
         slot.user = user
         slot.bot = bot
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
         return slot_id
+
+    def delete_slot(
+            self, slot_name: Text, bot: Text, user: Text
+    ):
+        """
+        deletes slots
+        :param slot_name: slot name
+        :param bot: bot id
+        :param user: user id
+        :return: AppException
+        """
+
+        try:
+            slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
+            slot.status = False
+            slot.save()
+        except DoesNotExist as custEx:
+            logging.exception(custEx)
+            raise AppException(
+                "Slot does not exist."
+            )
 
     @staticmethod
     def get_row_count(document: Document, bot: str):
@@ -2491,15 +2628,15 @@ class MongoProcessor:
                                                                                                            user,
                                                                                                            training_files,
                                                                                                            overwrite)
-        if is_event_data:
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
-        else:
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, files_received=list(files_received))
+        if not is_event_data:
             status = 'Failure'
-            if not non_event_validation_summary.get('http_actions') and not non_event_validation_summary.get('config'):
+            summary = non_event_validation_summary['summary']
+            component_count = non_event_validation_summary['component_count']
+            if not summary.get('http_actions') and not summary.get('config'):
                 status = 'Success'
-            DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=True, status=status,
-                                             event_status=EVENT_STATUS.COMPLETED.value,
-                                             summary=non_event_validation_summary, files_received=list(files_received))
+            DataImporterLogProcessor.update_summary(bot, user, component_count, summary, status=status,
+                                                    event_status=EVENT_STATUS.COMPLETED.value)
 
         return is_event_data
 
@@ -2530,6 +2667,7 @@ class MongoProcessor:
         http_actions = None
         config = None
         error_summary = {}
+        component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'http_action.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
         if os.path.exists(actions_path):
@@ -2545,14 +2683,15 @@ class MongoProcessor:
             files_to_save = set()
             if http_actions:
                 files_to_save.add('http_actions')
+                component_count['http_actions'] = len(http_actions.get('http_actions'))
             if config:
                 files_to_save.add('config')
             self.save_training_data(bot, user, http_actions=http_actions, config=config,
                                     overwrite=overwrite, what=files_to_save)
-        return error_summary
+        return {'summary': error_summary, 'component_count': component_count}
 
     def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
-                                             which: set = REQUIREMENTS):
+                                             which: set = REQUIREMENTS.copy()):
         """
         Writes training data into files and makes them available for validation.
         @param bot: bot id.
@@ -2595,3 +2734,203 @@ class MongoProcessor:
             rules_path = os.path.join(data_path, "rules.yml")
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+        idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
+        if idx:
+            del config_obj["policies"][idx]
+        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
+        if not rule_policy:
+            rule_policy['name'] = 'RulePolicy'
+            config_obj["policies"].append(rule_policy)
+        if not rule_policy.get('core_fallback_action_name'):
+            rule_policy['core_fallback_action_name'] = 'action_default_fallback'
+        if not rule_policy.get('core_fallback_threshold'):
+            rule_policy['core_fallback_threshold'] = 0.3
+            self.add_default_fallback_data(bot, user, False, True)
+
+        property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+        if not property_idx:
+            property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
+            fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
+            config_obj['pipeline'].insert(property_idx + 1, fallback)
+            self.add_default_fallback_data(bot, user, True, False)
+
+    @staticmethod
+    def fetch_nlu_fallback_action(bot: Text):
+        action = None
+        event = StoryEvents(name='nlu_fallback', type="user")
+        try:
+            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
+            for event in rule.events:
+                if 'action' == event.type:
+                    action = event.name
+                    break
+        except DoesNotExist as e:
+            logging.error(e)
+        return action
+
+    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
+        if nlu_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
+                self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
+            steps = [
+                {"name": "nlu_fallback", "type": "INTENT"},
+                {"name": "utter_please_rephrase", "type": "BOT"}
+            ]
+            rule = {'name': DEFAULT_NLU_FALLBACK_RULE, 'steps': steps, 'type': 'RULE'}
+            try:
+                self.add_complex_story(rule, bot, user)
+            except AppException as e:
+                logging.error(str(e))
+
+        if action_fallback:
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
+                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)
+
+    def add_synonym(self, synonyms_dict: Dict, bot, user):
+        if Utility.check_empty_string(synonyms_dict.get('synonym')):
+            raise AppException("Synonym name cannot be an empty string")
+        if not synonyms_dict.get('value'):
+            raise AppException("Synonym value cannot be an empty string")
+        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
+        value_list = set(item.value for item in synonym)
+        push_entity = []
+        for val in synonyms_dict.get('value'):
+            if val in value_list:
+                raise AppException("Synonym value already exists")
+            if not val.strip():
+                raise AppException("Synonym value cannot be an empty string")
+            entity_synonym = EntitySynonyms()
+            entity_synonym.synonym = synonyms_dict['synonym']
+            entity_synonym.value = val
+            entity_synonym.user = user
+            entity_synonym.bot = bot
+            push_entity.append(entity_synonym)
+        EntitySynonyms.objects.insert(push_entity)
+
+    def edit_synonym(self, synonyms_dict: Dict, bot, user):
+        if Utility.check_empty_string(synonyms_dict.get('synonym')):
+            raise AppException("Synonym name cannot be an empty string")
+        if not synonyms_dict.get('value'):
+            raise AppException("Synonym value cannot be an empty string")
+        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
+        if not synonym:
+            raise AppException("No such synonym exists")
+        push_entity = []
+        for val in synonyms_dict.get('value'):
+            if not val.strip():
+                raise AppException("Synonym value cannot be an empty string")
+            entity_synonym = EntitySynonyms()
+            entity_synonym.synonym = synonyms_dict['synonym']
+            entity_synonym.value = val
+            entity_synonym.user = user
+            entity_synonym.bot = bot
+            push_entity.append(entity_synonym)
+        EntitySynonyms.objects.insert(push_entity)
+        for syn in synonym:
+            syn.status = False
+            syn.save()
+
+    def delete_synonym(
+            self, synonym_name: Text, bot: Text, user: Text
+    ):
+        """
+        deletes synonym
+        :param synonym_name: synonym name
+        :param bot: bot id
+        :param user: user id
+        :return: AppException
+        """
+
+        synonym = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, status=True))
+        if not synonym:
+            raise AppException("Synonym does not exist.")
+        for syn in synonym:
+            syn.status = False
+            syn.save()
+
+    def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool=False):
+        if Utility.check_empty_string(name):
+            raise AppException('Name cannot be empty')
+        try:
+            Utterances.objects(bot=bot, status=True, name__iexact=name).get()
+            if raise_error_if_exists:
+                raise AppException('Utterance exists')
+        except DoesNotExist as e:
+            logging.exception(e)
+            Utterances(name=name, bot=bot, user=user).save()
+
+    def get_utterances(self, bot: Text):
+        utterances = Utterances.objects(bot=bot, status=True)
+        for utterance in utterances:
+            utterance_dict = utterance.to_mongo().to_dict()
+            yield {"_id": utterance_dict['_id'].__str__(), 'name': utterance_dict['name']}
+
+    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
+        try:
+            utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()
+            utterance.status = False
+            utterance.save()
+        except DoesNotExist as e:
+            logging.exception(e)
+            if raise_exc:
+                raise AppException('Utterance not found')
+
+    def get_training_data_count(self, bot: Text):
+        intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
+            [{'$match': {'bot': bot, 'status': True}},
+             {'$lookup': {'from': 'training_examples',
+                          'let': {'bot_id': bot, 'name': '$name'},
+                          'pipeline': [{'$match': {'bot': bot, 'status': True}},
+                                       {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$name']}]}}},
+                                       {'$count': 'count'}], 'as': 'intents_count'}},
+             {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$intents_count.count'}}}]))
+
+        utterances_count = list(Utterances.objects(bot=bot, status=True).aggregate(
+            [{'$match': {'bot': bot, 'status': True}},
+             {'$lookup': {'from': 'responses',
+                          'let': {'bot_id': bot, 'utterance': '$name'},
+                          'pipeline': [{'$match': {'bot': bot, 'status': True}},
+                                       {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
+                                       {'$count': 'count'}], 'as': 'responses_count'}},
+            {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$responses_count.count'}}}]))
+
+        return {'intents': intents_count, 'utterances': utterances_count}
+
+    @staticmethod
+    def get_bot_settings(bot: Text, user: Text):
+        try:
+            settings = BotSettings.objects(bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logging.error(e)
+            settings = BotSettings(bot=bot, user=user).save()
+        return settings
+
+    def save_chat_client_config(self, config: dict, bot: Text, user: Text):
+        client_config = self.get_chat_client_config(bot)
+        if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
+            client_config.config['headers'].pop('authorization')
+        client_config.config = config
+        client_config.user = user
+        client_config.save()
+
+    def get_chat_client_config(self, bot: Text):
+        from kairon.api.auth import Authentication
+        from kairon.api.processor import AccountProcessor
+
+        bot_info = AccountProcessor.get_bot(bot)
+        try:
+            client_config = ChatClientConfig.objects(bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logging.error(e)
+            config = Utility.load_json_file("./template/chat-client/default-config.json")
+            client_config = ChatClientConfig(config=config, bot=bot, user=bot_info['user'])
+        if not client_config.config.get('headers'):
+            client_config.config['headers'] = {}
+        if not client_config.config['headers'].get('X-USER'):
+            client_config.config['headers']['X-USER'] = bot_info['user']
+        token = Authentication().generate_integration_token(bot, bot_info['account'], expiry=1440,
+                                                            access_limit=['/api/bot/.+/chat'])
+        client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
+        return client_config

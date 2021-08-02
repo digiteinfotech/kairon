@@ -1,15 +1,22 @@
-from loguru import logger as logging
+from datetime import datetime
 from typing import Dict, Text
+
+from loguru import logger as logging
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
-from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
-from kairon.data_processor.processor import MongoProcessor
-from kairon.utils import Utility
-from kairon.exceptions import AppException
 from validators import ValidationFailure
 from validators import email as mail_check
-from datetime import datetime
+
+from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.data_processor.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
+    EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
+    TrainingDataGenerator, TrainingExamples, BotSettings
+from kairon.data_processor.processor import MongoProcessor
+from kairon.exceptions import AppException
+from kairon.importer.data_objects import ValidationLogs
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
+from kairon.utils import Utility
 
 Utility.load_email_configuration()
 
@@ -52,17 +59,21 @@ class AccountProcessor:
             raise DoesNotExist("Account does not exists")
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str):
+    def add_bot(name: str, account: int, user: str, is_new_account: bool = False):
         """
         add a bot to account
 
         :param name: bot name
         :param account: account id
         :param user: user id
+        :param is_new_account: True if it is a new account
         :return: bot id
         """
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
+
+        if Utility.check_empty_string(user):
+            raise AppException("user cannot be empty or blank spaces")
 
         Utility.is_exist(
             Bot,
@@ -71,7 +82,61 @@ class AccountProcessor:
             account=account,
             status=True,
         )
-        return Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
+        bot = Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
+        bot_id = bot['_id'].__str__()
+        if not is_new_account:
+            AccountProcessor.add_bot_for_user(bot_id, user)
+        BotSettings(bot=bot_id, user=user).save()
+        processor = MongoProcessor()
+        config = processor.load_config(bot_id)
+        processor.add_or_overwrite_config(config, bot_id, user)
+        processor.add_default_fallback_data(bot_id, user, True, True)
+        return bot
+
+    @staticmethod
+    def list_bots(account_id: int):
+        for bot in Bot.objects(account=account_id, status=True):
+            bot = bot.to_mongo().to_dict()
+            bot.pop('account')
+            bot.pop('user')
+            bot.pop('timestamp')
+            bot.pop('status')
+            bot['_id'] = bot['_id'].__str__()
+            yield bot
+
+    @staticmethod
+    def update_bot(name: Text, bot: Text):
+        if Utility.check_empty_string(name):
+            raise AppException('Name cannot be empty')
+        try:
+            bot_info = Bot.objects(id=bot, status=True).get()
+            bot_info.name = name
+            bot_info.save()
+        except DoesNotExist:
+            raise AppException('Bot not found')
+
+    @staticmethod
+    def delete_bot(bot: Text, user: Text):
+        try:
+            bot_info = Bot.objects(id=bot, status=True).get()
+            bot_info.status = False
+            bot_info.save()
+            Utility.hard_delete_document([Actions, Configs, Endpoints, Entities, EntitySynonyms, Forms,
+                                          HttpActionConfig, HttpActionLog, Intents, LookupTables, ModelDeployment,
+                                          ModelTraining, RegexFeatures, Responses, Rules, SessionConfigs, Slots,
+                                          Stories, TrainingDataGenerator, TrainingExamples, ValidationLogs], bot,
+                                         user=user)
+        except DoesNotExist:
+            raise AppException('Bot not found')
+
+    @staticmethod
+    def add_bot_for_user(bot: Text, email: Text):
+        try:
+            user = User.objects().get(email=email, status=True)
+            user.bot.append(bot)
+            user.save()
+        except DoesNotExist:
+            raise AppException('User not found')
 
     @staticmethod
     def get_bot(id: str):
@@ -135,7 +200,7 @@ class AccountProcessor:
                 first_name=first_name.strip(),
                 last_name=last_name.strip(),
                 account=account,
-                bot=bot.strip(),
+                bot=[bot.strip()],
                 user=user.strip(),
                 is_integration_user=is_integration_user,
                 role=role.strip(),
@@ -161,7 +226,7 @@ class AccountProcessor:
     @staticmethod
     def get_user_details(email: str):
         """
-        fetches complete user details, checks for wether it is inactive
+        fetches complete user details, checks for whether it is inactive
 
         :param email: login id
         :return: dict
@@ -171,10 +236,7 @@ class AccountProcessor:
             AccountProcessor.check_email_confirmation(user["email"])
         if not user["status"]:
             raise ValidationError("Inactive User please contact admin!")
-        bot = AccountProcessor.get_bot(user["bot"])
         account = AccountProcessor.get_account(user["account"])
-        if not bot["status"]:
-            raise ValidationError("Inactive Bot Please contact system admin!")
         if not account["status"]:
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
@@ -188,9 +250,10 @@ class AccountProcessor:
         :return: dict
         """
         user = AccountProcessor.get_user(email)
-        bot = AccountProcessor.get_bot(user["bot"])
+        user["bot_name"] = []
+        for bot in user["bot"]:
+            user["bot_name"].append({bot: AccountProcessor.get_bot(bot)['name']})
         account = AccountProcessor.get_account(user["account"])
-        user["bot_name"] = bot["name"]
         user["account_name"] = account["name"]
         user["_id"] = user["_id"].__str__()
         return user
@@ -235,15 +298,12 @@ class AccountProcessor:
         """
         account = None
         bot = None
-        user_details = None
         body = None
         subject = None
         mail_to = None
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
-            bot = AccountProcessor.add_bot(
-                account_setup.get("bot"), account["_id"], user
-            )
+            bot = AccountProcessor.add_bot('Hi-Hello', account["_id"], user, True)
             user_details = AccountProcessor.add_user(
                 email=account_setup.get("email"),
                 first_name=account_setup.get("first_name"),

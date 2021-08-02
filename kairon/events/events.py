@@ -45,13 +45,14 @@ class EventsTrigger:
                 data_importer = DataImporter(path, bot, user, files_received, save_data, overwrite)
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.VALIDATING.value)
 
-                summary = await data_importer.validate()
-                is_data_valid = all([not summary[key] for key in summary.keys()])
-                validation_status = 'Success' if is_data_valid else 'Failure'
-                DataImporterLogProcessor.add_log(bot, user, summary,
-                                                 status=validation_status,
-                                                 event_status=EVENT_STATUS.SAVE.value)
-                if is_data_valid:
+                summary, component_count = await data_importer.validate()
+                initiate_import = Utility.is_data_import_allowed(summary, bot, user)
+                status = 'Success' if initiate_import else 'Failure'
+                DataImporterLogProcessor.update_summary(bot, user, component_count, summary,
+                                                        status=status,
+                                                        event_status=EVENT_STATUS.SAVE.value)
+
+                if initiate_import:
                     data_importer.import_data()
                 DataImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.COMPLETED.value)
         except exceptions.ConnectionError as e:

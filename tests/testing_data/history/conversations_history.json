@@ -208,7 +208,7 @@
             "event" : "action", 
             "timestamp" : 1582714997.5523076, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
@@ -235,7 +235,7 @@
             "event" : "action", 
             "timestamp" : 1582714997.5763245, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
@@ -423,7 +423,7 @@
             "event" : "action", 
             "timestamp" : 1582715035.0805962, 
             "name" : "action_default_fallback", 
-            "policy" : "policy_3_FallbackPolicy", 
+            "policy" : "policy_2_RulePolicy",
             "confidence" : 1.0
         }, 
         {
@@ -543,6 +543,98 @@
             "timestamp" : 1582715117.4761014, 
             "name" : "action_listen", 
             "policy" : "policy_1_KerasPolicy", 
+            "confidence" : 0.9999673366546631
+        },
+        {
+            "event" : "user",
+            "timestamp" : 1582715117.4420745,
+            "text" : "I am new here. Please help!",
+            "parse_data" : {
+                "intent" : {
+                    "name" : "greeting",
+                    "confidence" : 0.4226725101470947
+                },
+                "entities" : [
+
+                ],
+                "intent_ranking" : [
+                    {
+                        "name" : "greeting",
+                        "confidence" : 0.4226725101470947
+                    },
+                    {
+                        "name" : "scrumtool",
+                        "confidence" : 0.011206472292542458
+                    },
+                    {
+                        "name" : "pricing",
+                        "confidence" : 0.011174755170941353
+                    },
+                    {
+                        "name" : "sEnt_updates",
+                        "confidence" : 0.007838386110961437
+                    },
+                    {
+                        "name" : "products",
+                        "confidence" : 0.00459981570020318
+                    },
+                    {
+                        "name" : "selfhosted",
+                        "confidence" : 0.0039045687299221754
+                    },
+                    {
+                        "name" : "trial",
+                        "confidence" : 0.0038383817300200462
+                    },
+                    {
+                        "name" : "how_are_you",
+                        "confidence" : 0.003739400766789913
+                    },
+                    {
+                        "name" : "need_advice",
+                        "confidence" : 0.0026965367142111063
+                    },
+                    {
+                        "name" : "resources",
+                        "confidence" : 0.0025860052555799484
+                    }
+                ],
+                "text" : "I am new here. Please help!"
+            },
+            "input_channel" : "rest",
+            "message_id" : "d352092054994457bb8ab02beaa37fec",
+            "metadata" : {
+
+            }
+        },
+        {
+            "event" : "action",
+            "timestamp" : 1582715117.4600854,
+            "name" : "utter_please_rephrase",
+            "policy" : "policy_2_RulePolicy",
+            "confidence" : 0.9967999458312988
+        },
+        {
+            "event" : "bot",
+            "timestamp" : 1582715117.4600854,
+            "text" : "Sorry, I didnt get that. Please rephrase!",
+            "data" : {
+                "elements" : null,
+                "quick_replies" : null,
+                "buttons" : null,
+                "attachment" : null,
+                "image" : null,
+                "custom" : null
+            },
+            "metadata" : {
+
+            }
+        },
+        {
+            "event" : "action",
+            "timestamp" : 1582715117.4761014,
+            "name" : "action_listen",
+            "policy" : "policy_1_KerasPolicy",
             "confidence" : 0.9999673366546631
         }
     ], 

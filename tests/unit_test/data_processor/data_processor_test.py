@@ -1,5 +1,6 @@
 import asyncio
 import glob
+import json
 import os
 import shutil
 import tempfile
@@ -7,9 +8,9 @@ from datetime import datetime
 from io import BytesIO
 from typing import List
 
-import elasticmock
 import pytest
 import responses
+from elasticmock import elasticmock
 from fastapi import UploadFile
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
@@ -19,32 +20,34 @@ from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
 from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.utils.io import read_config_file
 
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.api import models
-from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest
+from kairon.api.auth import Authentication
+from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, SlotType
+from kairon.api.processor import AccountProcessor
+from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
-    ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS
+    ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
+    DEFAULT_NLU_FALLBACK_RULE
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
-                                                Entities,
+                                                Entities, EntitySynonyms,
                                                 Intents,
                                                 Actions,
                                                 Responses,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback
+                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
+                                                Utterances, BotSettings, ChatClientConfig
                                                 )
-from kairon.data_processor.processor import MongoProcessor
-from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.model_processor import ModelProcessor
+from kairon.data_processor.processor import MongoProcessor
 from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.utils import Utility
-from kairon.api.auth import Authentication
-from elasticmock import elasticmock
-
 
 class TestMongoProcessor:
 
@@ -104,6 +107,128 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_add_or_overwrite_config_no_existing_config(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
+        assert rule_policy['core_fallback_threshold'] == 0.75
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_config(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        idx = next((idx for idx, comp in enumerate(config["policies"]) if comp['name'] == 'RulePolicy'), {})
+        del config['policies'][idx]
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_config_user_fallback(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        comp = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        comp['epoch'] = 200
+        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp['core_fallback_action_name'] = 'action_error'
+        comp['core_fallback_threshold'] = 0.5
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        assert diet_classifier['epoch'] == 200
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_error'
+        assert rule_policy['core_fallback_threshold'] == 0.5
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_config_no_action_and_threshold(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        del comp['core_fallback_action_name']
+        del comp['core_fallback_threshold']
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_config_with_fallback_classifier(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        config["pipeline"].append({'name': 'FallbackClassifier', 'threshold': 0.7})
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        assert diet_classifier['epochs'] == 5
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
+        assert rule_policy['core_fallback_threshold'] == 0.75
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_config_with_fallback_policy(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
+        config['policies'].append({'name': 'FallbackPolicy', 'nlu_threshold': 0.75, 'core_threshold': 0.3})
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'fr'
+        assert len(config['pipeline']) == 9
+        assert len(config['policies']) == 3
+        diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
+        assert diet_classifier['epochs'] == 5
+        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
+        assert rule_policy['core_fallback_threshold'] == 0.75
+        assert not next((comp for comp in config["policies"] if comp['name'] == 'FallbackPolicy'), None)
+        assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
+        assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
     @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
@@ -141,14 +266,14 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
         assert domain.forms['ticket_file_form'] == {'file': [{'type': 'from_entity', 'entity': 'file'}]}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 45
         assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
@@ -159,10 +284,11 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
+        assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 27
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -202,13 +328,13 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {}
         assert isinstance(domain.forms, dict)
         print(domain.user_actions)
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 40
         assert processor.list_actions('all').__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
@@ -218,6 +344,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
+        assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
     async def test_load_from_path_all_scenario_append(self):
@@ -250,11 +377,11 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
         assert processor.list_actions('all').__len__() == 13
         assert not Utility.check_empty_string(
@@ -264,6 +391,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
+        assert Utterances.objects(bot='all').count() == 27
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -281,11 +409,12 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 1
         assert domain.slots[0].name == 'bot'
         assert domain.slots[0].value == 'tests'
-        assert domain.templates.keys().__len__() == 9
+        assert domain.templates.keys().__len__() == 11
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 9
+        assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
+        assert Utterances.objects(bot="tests").count() == 11
 
     def test_load_stories(self):
         processor = MongoProcessor()
@@ -996,14 +1125,14 @@ class TestMongoProcessor:
     def test_get_stories(self):
         processor = MongoProcessor()
         stories = list(processor.get_stories("tests"))
-        assert stories.__len__() == 7
+        assert stories.__len__() == 8
         assert stories[0]['name'] == 'happy path'
         assert stories[0]['type'] == 'STORY'
         assert stories[0]['steps'][0]['name'] == 'greet'
         assert stories[0]['steps'][0]['type'] == 'INTENT'
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
-
+        assert stories[0]['template_type'] == 'CUSTOM'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -1219,9 +1348,12 @@ class TestMongoProcessor:
         processor.delete_response(utter_intentA_1_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
+        assert Utterances.objects(name=utterance, bot=bot, status=True).get()
         processor.delete_response(utter_intentA_2_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name=utterance, bot=bot, status=True).get()
 
     def test_delete_response_non_existing(self):
         processor = MongoProcessor()
@@ -1240,7 +1372,10 @@ class TestMongoProcessor:
         bot = "testBot"
         user = "testUser"
         processor.add_response({"text": "demo_response1"}, utterance, bot, user)
+        Utterances.objects(name=utterance, bot=bot, status=True).get()
         processor.delete_utterance(utterance, bot, user)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name=utterance, bot=bot, status=True).get()
 
     def test_delete_utterance_non_existing(self):
         processor = MongoProcessor()
@@ -1257,6 +1392,16 @@ class TestMongoProcessor:
         user = "testUser"
         with pytest.raises(AppException):
             processor.delete_utterance(utterance, bot, user)
+
+    def test_delete_utterance_name_having_no_responses(self):
+        processor = MongoProcessor()
+        utterance = "test_delete_utterance_name_having_no_responses"
+        bot = "testBot"
+        user = "testUser"
+        processor.add_utterance_name(utterance, bot, user)
+        processor.delete_utterance(utterance, bot, user)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name__iexact=utterance, bot=bot, status=True).get()
 
     def test_add_slot(self):
         processor = MongoProcessor()
@@ -1278,10 +1423,138 @@ class TestMongoProcessor:
         assert slot['initial_value'] == bot
         assert not slot['influence_conversation']
 
+    def test_add_duplicate_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
         with pytest.raises(AppException):
             msg = processor.add_slot(
-                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user)
-            assert msg == 'Slot exists'
+                {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=True)
+            assert msg == 'Slot already exists!'
+
+    def test_add_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Slot Name cannot be empty or blank spaces'
+
+    def test_add_invalid_slot_type(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException):
+            msg = processor.add_slot(
+                {"name": "bot", "type": "invalid", "initial_value": bot, "influence_conversation": False}, bot, user,
+                raise_exception_if_exists=False)
+            assert msg == 'Invalid slot type.'
+
+    def test_min_max_for_other_slot_types(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        for slot_type in SlotType:
+            if slot_type == SlotType.FLOAT or slot_type == SlotType.CATEGORICAL:
+                continue
+            else:
+                print(slot_type)
+                processor.add_slot({"name": "bot", "type": slot_type, "max_value": 0.5, "min_value": 0.1,
+                                    "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+                assert slot['name'] == 'bot'
+                assert slot['type'] == slot_type
+                assert slot['max_value'] is None
+                assert slot['min_value'] is None
+
+    def test_add_float_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "float", "initial_value": 0.2, "max_value": 0.5, "min_value": 0.1,
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'float'
+        assert slot['initial_value'] == 0.2
+        assert slot['influence_conversation']
+        assert slot['max_value'] == 0.5
+        assert slot['min_value'] == 0.1
+
+    def test_values_for_other_slot_types(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        for slot_type in SlotType:
+
+            if slot_type == SlotType.CATEGORICAL:
+                continue
+            else:
+                processor.add_slot(
+                    {"name": "bot", "type": slot_type, "values": ["red", "blue"],
+                     "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+                assert slot['name'] == 'bot'
+                assert slot['type'] == slot_type
+                assert slot['values'] is None
+                assert slot['influence_conversation']
+
+    def test_add_categorical_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        processor.add_slot({"name": "bot", "type": "categorical", "values": ["red", "blue"],
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'categorical'
+        assert slot['values'] == ["red", "blue"]
+        assert slot['influence_conversation']
+
+    def test_add_categorical_slot_without_values(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        with pytest.raises(ValidationError):
+            msg = processor.add_slot({"name": "bot", "type": "categorical",
+                                "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+            assert msg == "CategoricalSlot must have list of categories in values field"
+
+    def test_delete_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        processor.delete_slot(slot_name='bot', bot=bot, user=user)
+
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot.status is False
+
+    def test_delete_inexistent_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='bot_doesnt_exist', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
+
+    def test_delete_empty_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name='', bot=bot, user=user)
+        assert str(e).__contains__('Slot does not exist.')
 
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()
@@ -1439,7 +1712,7 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
 
@@ -1460,11 +1733,11 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
                                           status=True))) == 2
-        assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_http_action(self):
@@ -1483,7 +1756,7 @@ class TestMongoProcessor:
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
                                           status=True))) == 2
@@ -1732,10 +2005,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1745,7 +2018,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
@@ -1782,10 +2055,10 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1795,7 +2068,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert not rules
+        assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = mongo_processor.load_http_action(bot)
         assert not actions
 
@@ -1838,10 +2111,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
-        assert domain.templates.keys().__len__() == 25
+        assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1851,7 +2124,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
@@ -1895,10 +2168,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1908,7 +2181,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
@@ -1947,10 +2220,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -1960,7 +2233,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
@@ -2006,10 +2279,10 @@ class TestMongoProcessor:
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2019,7 +2292,7 @@ class TestMongoProcessor:
         assert domain.slots[0].type_name == "any"
         assert domain.slots[1].type_name == "unfeaturized"
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
@@ -2066,13 +2339,13 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
         assert domain.intent_properties.__len__() == 30
-        assert domain.templates.keys().__len__() == 27
+        assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 48
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         rules = mongo_processor.fetch_rule_block_names(bot)
-        assert len(rules) == 3
+        assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert not actions
@@ -2502,9 +2775,595 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
-        assert non_event_validation_summary['http_actions'][0] == 'Required http action fields not found'
+        assert non_event_validation_summary['summary']['http_actions'] == ['Required http action fields not found']
         assert files_received == {'http_actions', 'config'}
         assert not is_event_data
+
+    def test_save_component_properties_all(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400,
+                  "nlu_confidence_threshold": 60,
+                  "action_fallback": "action_default_fallback"}
+        Responses(name='utter_default', bot='test_all', user='test',
+                  text=ResponseText(text='Sorry I didnt get that. Can you rephrase?')).save()
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_all', 'test')
+        config = processor.load_config('test_all')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 200
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 300
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert action_fallback['name'] == 'TEDPolicy'
+        assert action_fallback['epochs'] == 400
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.6
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 200},
+                {"name": "FallbackClassifier",
+                 "threshold": 0.6},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 300}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 400},
+                {"name": "RulePolicy",
+                 'core_fallback_threshold': 0.3,
+                 'core_fallback_action_name': 'action_default_fallback'}]
+        }
+        assert config == expected
+
+    def test_get_config_properties(self):
+        expected = {'nlu_confidence_threshold': 60,
+                    'action_fallback': 'action_default_fallback',
+                    'ted_epochs': 400,
+                    'nlu_epochs': 200,
+                    'response_epochs': 300}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_all')
+        assert config == expected
+
+    def test_save_component_properties_epoch_only(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_epoch_only', 'test')
+        config = processor.load_config('test_epoch_only')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 200
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 300
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 400
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 200},
+                {'name': 'FallbackClassifier',
+                 'threshold': 0.7},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 300}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 400},
+                {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
+                 'core_fallback_threshold': 0.3 }]
+        }
+        assert config == expected
+
+    def test_get_config_properties_epoch_only(self):
+        expected = {'nlu_confidence_threshold': 70,
+                    'action_fallback': 'action_default_fallback',
+                    'ted_epochs': 400,
+                    'nlu_epochs': 200,
+                    'response_epochs': 300}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_epoch_only')
+        assert config == expected
+
+    def test_save_component_properties_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties({}, 'test_properties_empty', 'test')
+        assert str(e).__contains__('At least one field is required')
+        config = processor.load_config('test_properties_empty')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 100
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 100
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 200
+
+    def test_get_config_properties_fallback_not_set(self):
+        expected = {'nlu_confidence_threshold': 70,
+                    'action_fallback': 'action_default_fallback',
+                    'ted_epochs': 200,
+                    'nlu_epochs': 100,
+                    'response_epochs': 100}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
+        assert config == expected
+
+    def test_save_component_properties_component_not_exists(self):
+        configs = Configs._from_son(
+            read_config_file("./template/config/default.yml")
+        ).to_mongo().to_dict()
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
+        del configs['policies'][1]
+        processor = MongoProcessor()
+        processor.save_config(configs, 'test_component_not_exists', 'test')
+
+        config = {"nlu_epochs": 100,
+                  "response_epochs": 200,
+                  "ted_epochs": 300}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_component_not_exists', 'test')
+        config = processor.load_config('test_component_not_exists')
+        diet = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert diet['name'] == 'DIETClassifier'
+        assert diet['epochs'] == 100
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 200
+        ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert ted['name'] == 'TEDPolicy'
+        assert ted['epochs'] == 300
+
+    def test_save_component_fallback_not_configured(self):
+        Actions(name='action_say_bye', bot='test_fallback_not_configured', user='test').save()
+        configs = Configs._from_son(
+            read_config_file("./template/config/default.yml")
+        ).to_mongo().to_dict()
+        del configs['pipeline'][6]
+        del configs['policies'][2]
+        processor = MongoProcessor()
+        processor.save_config(configs, 'test_fallback_not_configured', 'test')
+
+        config = {'nlu_confidence_threshold': 80,
+                  'action_fallback': 'action_say_bye'}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
+        config = processor.load_config('test_fallback_not_configured')
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 100},
+                {"name": "FallbackClassifier",
+                 "threshold": 0.8},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 100}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 200},
+                {"name": "RulePolicy", 'core_fallback_action_name': 'action_say_bye',
+                 'core_fallback_threshold': 0.3}]
+        }
+        assert config == expected
+
+    def test_save_component_properties_nlu_fallback_only(self):
+        nlu_fallback = {"nlu_confidence_threshold": 60}
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
+        config = processor.load_config('test_nlu_fallback_only')
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.6
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 100},
+                {"name": "FallbackClassifier",
+                 "threshold": 0.6},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 100}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 200},
+                {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
+                 'core_fallback_threshold': 0.3}]
+        }
+        assert config == expected
+
+    def test_save_component_properties_all_nlu_fallback_update_threshold(self):
+        nlu_fallback = {"nlu_confidence_threshold": 70}
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
+        config = processor.load_config('test_nlu_fallback_only')
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.7
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+
+    def test_save_component_properties_action_fallback_only(self):
+        nlu_fallback = {'action_fallback': 'action_say_bye'}
+        Actions(name='action_say_bye', bot='test_action_fallback_only', user='test').save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+        expected = {
+            "language": "en",
+            "pipeline": [
+                {"name": "WhitespaceTokenizer"},
+                {"name": "RegexFeaturizer"},
+                {"name": "LexicalSyntacticFeaturizer"},
+                {"name": "CountVectorsFeaturizer"},
+                {"name": "CountVectorsFeaturizer",
+                 "analyzer": "char_wb",
+                 "min_ngram": 1,
+                 "max_ngram": 4},
+                {"name": "DIETClassifier",
+                 "epochs": 100},
+                {'name': 'FallbackClassifier', 'threshold': 0.7},
+                {"name": "EntitySynonymMapper"},
+                {"name": "ResponseSelector",
+                 "epochs": 100}
+            ],
+            "policies": [
+                {"name": "MemoizationPolicy"},
+                {"name": "TEDPolicy",
+                 "epochs": 200},
+                {"core_fallback_action_name": "action_say_bye",
+                 "core_fallback_threshold": 0.3,
+                 "name": "RulePolicy"}]
+        }
+        assert config == expected
+
+    def test_save_component_properties_all_action_fallback_update(self):
+        nlu_fallback = {'action_fallback': 'action_say_bye_bye'}
+        Actions(name='action_say_bye_bye', bot='test_action_fallback_only', user='test').save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_action_not_exists(self):
+        nlu_fallback = {'action_fallback': 'action_say_hello'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        assert str(e).__contains__("Action fallback action_say_hello does not exists")
+        config = processor.load_config('test_action_fallback_only')
+        assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_utter_default_not_set(self):
+        nlu_fallback = {'action_fallback': 'action_default_fallback'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        assert str(e).__contains__("Utterance utter_default not defined")
+        config = processor.load_config('test_action_fallback_only')
+        assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_save_component_properties_all_action_fallback_utter_default_set(self):
+        nlu_fallback = {'action_fallback': 'action_default_fallback'}
+        Responses(name='utter_default', bot='test_action_fallback_only', user='test',
+                  text={'text': 'Sorry I didnt get that. Can you rephrase?'}).save()
+        processor = MongoProcessor()
+        processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
+        config = processor.load_config('test_action_fallback_only')
+        assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.3
+
+    def test_add__and_get_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.add_synonym(
+            {"synonym": "bot", "value": ["exp"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0]['synonym'] == "bot"
+        assert syn[0]['value'] == "exp"
+
+    def test_add_duplicate_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym value already exists"
+
+    def test_add_empty_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym name cannot be an empty string"
+
+    def test_edit_synonym_value_list_empty_element_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ['dd', '']}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
+
+    def test_edit_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.edit_synonym({"synonym": "bot", "value": ["exp7"]}, bot, user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[1]['synonym'] == "bot"
+        assert syn[1]['value'] == "exp7"
+
+    def test_delete_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+
+        processor.delete_synonym(synonym_name='bot', bot=bot, user=user)
+        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
+        assert syn[0].status is False
+
+    def test_delete_inexistent_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.delete_synonym(synonym_name='bo', bot=bot, user=user)
+        assert str(e).__contains__('Synonym does not exist.')
+
+    def test_edit_synonym_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "bot", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('No such synonym exists')
+
+    def test_add_synonym_with_empty_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_add_synonym_with_empty_element_in_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty string"
+
+    def test_edit_synonym_error_empty_string(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "", "value": ["exp"]}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym name cannot be an empty string')
+
+    def test_edit_synonym_value_empty_list_error(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_synonym({"synonym": "q", "value": []}, bot=bot, user=user)
+        assert str(e).__contains__('Synonym value cannot be an empty string')
+
+    def test_add_utterance(self):
+        processor = MongoProcessor()
+        processor.add_utterance_name('test_add', 'test', 'testUser')
+
+    def test_add_utterance_already_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Utterance exists'):
+            processor.add_utterance_name('test_add', 'test', 'testUser', True)
+
+    def test_add_utterance_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Name cannot be empty'):
+            processor.add_utterance_name(' ', 'test', 'testUser', True)
+
+    def test_utterance_data_object(self):
+        with pytest.raises(ValidationError, match='Utterance Name cannot be empty or blank spaces'):
+            Utterances(name=' ', bot='test', user='user').save()
+
+    def test_add_utterance_already_exists_no_exc(self):
+        processor = MongoProcessor()
+        assert not processor.add_utterance_name('test_add', 'test', 'testUser')
+
+    def test_get_utterance(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_utterances('test'))
+        assert len(actual) == 26
+
+    def test_delete_utterance_name_does_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Utterance not found'):
+            processor.delete_utterance_name('test_add_1', 'test', True)
+
+    def test_delete_utterance_name_does_not_exists_no_exc(self):
+        processor = MongoProcessor()
+        processor.delete_utterance_name('test_add_1', 'test')
+
+    def test_delete_utterance_name(self):
+        processor = MongoProcessor()
+        processor.delete_utterance_name('test_add', 'test')
+
+    def test_get_bot_settings_not_added(self):
+        processor = MongoProcessor()
+        settings = processor.get_bot_settings('not_created', 'test')
+        assert not settings.ignore_utterances
+        assert not settings.force_import
+        assert settings.status
+        assert settings.timestamp
+        assert settings.user
+        assert settings.bot
+
+    def test_get_bot_settings(self):
+        processor = MongoProcessor()
+        settings = BotSettings.objects(bot='not_created').get()
+        settings.ignore_utterances = True
+        settings.force_import = True
+        settings.save()
+        fresh_settings = processor.get_bot_settings('not_created', 'test')
+        assert fresh_settings.ignore_utterances
+        assert fresh_settings.force_import
+        assert fresh_settings.status
+        assert fresh_settings.timestamp
+        assert fresh_settings.user
+        assert fresh_settings.bot
+
+    def test_save_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.user == 'testUser'
+        assert saved_config.timestamp
+        assert saved_config.status
+
+    def test_save_chat_client_config(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.status
+
+    def test_get_chat_client_config_not_exists(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        expected_config = json.load(open(config_path))
+        actual_config = processor.get_chat_client_config('test_bot')
+        assert actual_config.config['headers']['authorization']
+        assert actual_config.config['headers']['X-USER']
+        del actual_config.config['headers']
+        assert expected_config == actual_config.config
+
+    def test_get_chat_client_config(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        actual_config = processor.get_chat_client_config('test')
+        assert actual_config.config['headers']['authorization']
+        assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
+
+    def test_get_chat_client_config_default_not_found(self, monkeypatch):
+        def _mock_exception(*args, **kwargs):
+            raise AppException('Config not found')
+
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(os.path, 'exists', _mock_exception)
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Config not found'):
+            processor.get_chat_client_config('test_bot')
 
 
 # pylint: disable=R0201
@@ -3072,7 +3931,7 @@ class TestModelProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "test_without_http", "testUser")
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
@@ -3089,7 +3948,7 @@ class TestModelProcessor:
             {"name": "action_check", "type": "ACTION"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "test_with_action", "testUser")
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
@@ -3106,7 +3965,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
@@ -3124,7 +3983,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_duplicate_case_insensitive_complex_story(self):
@@ -3138,7 +3997,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "Story with action", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "Story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_none_complex_story_name(self):
@@ -3150,7 +4009,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': None, 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': None, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_empty_complex_story_name(self):
@@ -3162,7 +4021,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': "", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_blank_complex_story_name(self):
@@ -3174,13 +4033,13 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': " ", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': " ", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_empty_complex_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY'}
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_duplicate_complex_story_using_events(self):
@@ -3194,7 +4053,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_complex_story_with_invalid_event(self):
@@ -3206,7 +4065,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3216,7 +4075,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3228,7 +4087,7 @@ class TestModelProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3242,7 +4101,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.update_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
@@ -3258,7 +4117,7 @@ class TestModelProcessor:
                 {"name": "utter_greet", "type": "BOT"},
                 {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
             ]
-            story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             with pytest.raises(AppException, match="FLow already exists!"):
                 processor.update_complex_story(story_dict, "tests", "testUser")
 
@@ -3274,7 +4133,7 @@ class TestModelProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY'}
+        story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.update_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
@@ -3290,7 +4149,7 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY'}
+            story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_complex_story_with_invalid_event(self):
@@ -3302,7 +4161,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -3312,7 +4171,7 @@ class TestModelProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -3324,7 +4183,7 @@ class TestModelProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY'}
+        rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
@@ -3337,7 +4196,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': None, 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': None, 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_name(self):
@@ -3349,7 +4208,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': "", 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': "", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_blank_complex_story_name(self):
@@ -3361,13 +4220,13 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException):
-            story_dict = {'name': " ", 'steps': events, 'type': 'STORY'}
+            story_dict = {'name': " ", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY'}
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(story_dict, "tests", "testUser")
 
     def test_list_actions(self):
@@ -3396,7 +4255,7 @@ class TestModelProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
-        story_dict = {"name": "story2", 'steps': steps, 'type': 'STORY'}
+        story_dict = {"name": "story2", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, "tests", "testUser")
         processor.delete_complex_story("STory2", "STORY", "tests", "testUser")
 
@@ -3636,7 +4495,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
-        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
         assert len(story.events) == 3
@@ -3651,7 +4510,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
 
@@ -3663,7 +4522,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST', 'template_type': 'CUSTOM'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_duplicate_case_insensitive_rule(self):
@@ -3674,7 +4533,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_none_rule(self):
@@ -3684,7 +4543,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': None, 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': None, 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_empty_rule(self):
@@ -3694,7 +4553,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_blank_rule_name(self):
@@ -3704,13 +4563,13 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': " ", 'steps': steps, 'type': 'rule'}
+            rule_dict = {'name': " ", 'steps': steps, 'type': 'rule', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_empty_rule_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE'}
+            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_rule_with_multiple_intents(self):
@@ -3723,7 +4582,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3736,7 +4595,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="First event should be an user"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3746,7 +4605,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "mood_great", "type": "INTENT"},
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3758,7 +4617,7 @@ class TestTrainingDataProcessor:
             {"name": "mood_sad", "type": "INTENT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
-        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
@@ -3770,7 +4629,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_nonsense", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
-        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[1].name == "utter_nonsense"
@@ -3783,7 +4642,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
             {"name": "utter_greet", "type": "BOT"},
         ]
-        rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE'}
+        rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[3].name == "utter_greet"
@@ -3796,7 +4655,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(Exception):
-            rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE'}
+            rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rule_name(self):
@@ -3806,14 +4665,14 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': None, 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': None, 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_fetch_stories_with_rules(self):
         processor = MongoProcessor()
         data = list(processor.get_stories("tests"))
         assert all( item['type'] in ['STORY', 'RULE'] for item in data)
-        assert len(data) == 8
+        assert len(data) == 9
 
     def test_update_empty_rule_name(self):
         processor = MongoProcessor()
@@ -3822,7 +4681,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_blank_rule_name(self):
@@ -3832,13 +4691,13 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': " ", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': " ", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_empty_rule_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
-            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE'}
+            rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rule_invalid_type(self):
@@ -3849,7 +4708,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         with pytest.raises(AppException):
-            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST'}
+            rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_non_existing_rule(self):
@@ -3866,7 +4725,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(ValidationError, match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
-            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_update_rules_with_invalid_type(self):
@@ -3878,7 +4737,7 @@ class TestTrainingDataProcessor:
             {"name": "utter_greet", "type": "BOT"}
         ]
         with pytest.raises(AppException, match="Invalid event type!"):
-            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE'}
+            rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 
     def test_delete_empty_rule(self):

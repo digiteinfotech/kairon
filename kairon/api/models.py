@@ -6,6 +6,15 @@ from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator
+from rasa.shared.core.slots import (
+    CategoricalSlot,
+    FloatSlot,
+    UnfeaturizedSlot,
+    ListSlot,
+    TextSlot,
+    BooleanSlot, AnySlot,
+)
+from ..shared.models import StoryStepType, StoryType, TemplateType, StoryEventType, ParameterChoice, History_Month_Enum
 
 
 class Token(BaseModel):
@@ -21,7 +30,7 @@ class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    bot: str
+    bot: list
     account: int
     status: bool
     alias_user: str = None
@@ -60,11 +69,8 @@ class ListData(BaseModel):
     data: List[str]
 
 
-class StoryEventType(str, Enum):
-    user = "user"
-    action = "action"
-    form = "form"
-    slot = "slot"
+
+
 
 class RegisterAccount(BaseModel):
     email: str
@@ -73,7 +79,6 @@ class RegisterAccount(BaseModel):
     password: SecretStr
     confirm_password: SecretStr
     account: str
-    bot: str
 
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
@@ -127,6 +132,26 @@ class RasaConfig(BaseModel):
     policies: List[Dict]
 
 
+class ComponentConfig(BaseModel):
+    nlu_epochs: int = None
+    response_epochs: int = None
+    ted_epochs: int = None
+    nlu_confidence_threshold: int = None
+    action_fallback: str = None
+
+    @validator('nlu_epochs', 'response_epochs', 'ted_epochs')
+    def validate_epochs(cls, v):
+        if v is not None and v < 1:
+            raise ValueError("Choose a positive number as epochs")
+        return v
+
+    @validator("nlu_confidence_threshold")
+    def validate_confidence_threshold(cls, v):
+        if v and (v > 90 or v < 30):
+            raise ValueError("Please choose a threshold between 30 and 90")
+        return v
+
+
 class Password(BaseModel):
     data: str
     password: SecretStr
@@ -152,23 +177,11 @@ class Password(BaseModel):
         return v
 
 
-class History_Month_Enum(int, Enum):
-    One = 1
-    Two = 2
-    Three = 3
-    Four = 4
-    Five = 5
-    Six = 6
+
 
 
 class HistoryMonth(BaseModel):
     month: History_Month_Enum
-
-
-class ParameterChoice(str, Enum):
-    value = "value"
-    slot = "slot"
-    sender_id = "sender_id"
 
 
 class HttpActionParameters(BaseModel):
@@ -260,18 +273,6 @@ class TrainingDataGeneratorStatusModel(BaseModel):
     exception: str = None
 
 
-class StoryStepType(str, Enum):
-    intent = "INTENT"
-    bot = "BOT"
-    http_action = "HTTP_ACTION"
-    action = "ACTION"
-
-
-class StoryType(str, Enum):
-    story = "STORY"
-    rule = "RULE"
-
-
 class StoryStepRequest(BaseModel):
     name: str
     type: StoryStepType
@@ -281,6 +282,7 @@ class StoryRequest(BaseModel):
     name: str
     type: StoryType
     steps: List[StoryStepRequest]
+    template_type: TemplateType = None
 
     class Config:
         use_enum_values = True
@@ -344,3 +346,55 @@ class ParaphrasesRequest(BaseModel):
         elif len(v) > 5:
             raise ValueError("Max 5 Questions are allowed!")
         return v
+
+
+class SlotType(str, Enum):
+    FLOAT = FloatSlot.type_name,
+    CATEGORICAL = CategoricalSlot.type_name,
+    UNFEATURIZED = UnfeaturizedSlot.type_name,
+    LIST = ListSlot.type_name,
+    TEXT = TextSlot.type_name,
+    BOOLEAN = BooleanSlot.type_name,
+    ANY = AnySlot.type_name
+
+
+class SlotRequest(BaseModel):
+    name: str
+    type: SlotType
+    initial_value: Any = None
+    auto_fill: bool = True
+    values: List[str] = None
+    max_value: float = None
+    min_value: float = None
+    influence_conversation: bool = False
+
+
+class SynonymRequest(BaseModel):
+    synonym: str
+    value: List[str]
+
+    @validator("value")
+    def validate_value(cls, v, values, **kwargs):
+        from kairon.utils import Utility
+        if len(v) <= 0:
+            raise ValueError("value field cannot be empty")
+        for ele in v:
+            if Utility.check_empty_string(ele):
+                raise ValueError("value cannot be an empty string")
+        return v
+
+    @validator("synonym")
+    def validate_synonym(cls, f, values, **kwargs):
+        from kairon.utils import Utility
+        if Utility.check_empty_string(f):
+            raise ValueError("synonym cannot be empty")
+        return f
+
+
+class ConversationFilter(BaseModel):
+    month: History_Month_Enum = 1
+    engaged_users_threshold: int = 10
+
+
+class DictData(BaseModel):
+    data: dict

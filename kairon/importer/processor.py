@@ -4,9 +4,9 @@ from loguru import logger
 from mongoengine import Q, DoesNotExist
 
 from kairon.data_processor.constant import EVENT_STATUS
-from .data_objects import ValidationLogs
-from kairon.utils import Utility
 from kairon.exceptions import AppException
+from kairon.utils import Utility
+from .data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
 
 class DataImporterLogProcessor:
@@ -15,14 +15,14 @@ class DataImporterLogProcessor:
     """
 
     @staticmethod
-    def add_log(bot: str, user: str, summary: dict = None, is_data_uploaded: bool = True, files_received: list = None,
+    def add_log(bot: str, user: str, is_data_uploaded: bool = True, files_received: list = None,
                 exception: str = None, status: str = None, event_status: str = EVENT_STATUS.INITIATED.value):
         """
         Adds/updated log for data importer event.
         @param bot: bot id.
         @param user: kairon username.
+        @component_count: count of training data components.
         @param files_received: files received for upload.
-        @param summary: validation summary (errors in intents, stories, training examples, responses).
         @param is_data_uploaded: Was the data uploaded or was the event triggered on existing kairon data.
         @param exception: Exception occurred during event.
         @param status: Validation success or failure.
@@ -33,9 +33,7 @@ class DataImporterLogProcessor:
             doc = ValidationLogs.objects(bot=bot, user=user).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
-        except DoesNotExist as e:
-            logger.error(str(e))
-            logger.info("Adding new log.")
+        except DoesNotExist:
             doc = ValidationLogs(
                 is_data_uploaded=is_data_uploaded,
                 files_received=files_received,
@@ -43,17 +41,55 @@ class DataImporterLogProcessor:
                 user=user,
                 start_timestamp=datetime.utcnow(),
             )
-        if summary:
-            doc.intents = summary.get('intents')
-            doc.utterances = summary.get('utterances')
-            doc.stories = summary.get('stories')
-            doc.training_examples = summary.get('training_examples')
-            doc.domain = summary.get('domain')
-            doc.config = summary.get('config')
-            doc.http_actions = summary.get('http_actions')
         doc.event_status = event_status
         if exception:
             doc.exception = exception
+        if status:
+            doc.status = status
+        if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
+            doc.end_timestamp = datetime.utcnow()
+        doc.save()
+
+    @staticmethod
+    def update_summary(bot: str, user: str, component_count: dict, summary: dict, status: str = None,
+                       event_status: str = EVENT_STATUS.COMPLETED.value):
+        """
+        Adds/updated log for data importer event.
+        @param bot: bot id.
+        @param user: kairon username.
+        @param component_count: count of training data components.
+        @param summary: validation summary (errors in intents, stories, training examples, responses).
+        @param status: Validation success or failure.
+        @param event_status: Event success or failed due to any error during validation or import.
+        @return:
+        """
+        try:
+            doc = ValidationLogs.objects(bot=bot, user=user).filter(
+                Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
+                Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
+        except DoesNotExist:
+            doc = ValidationLogs(
+                bot=bot,
+                user=user,
+                start_timestamp=datetime.utcnow(),
+            )
+        doc.intents = TrainingComponentLog(count=component_count['intents'], data=summary.get('intents'))
+        doc.utterances = TrainingComponentLog(count=component_count['utterances'], data=summary.get('utterances'))
+        doc.stories = TrainingComponentLog(count=component_count['stories'], data=summary.get('stories'))
+        doc.training_examples = TrainingComponentLog(count=component_count['training_examples'], data=summary.get('training_examples'))
+        doc.config = TrainingComponentLog(data=summary.get('config'))
+        doc.rules = TrainingComponentLog(count=component_count['rules'], data=summary.get('rules'))
+        doc.http_actions = TrainingComponentLog(count=component_count['http_actions'], data=summary.get('http_actions'))
+        doc.domain = DomainLog(
+            intents_count=component_count['domain'].get('intents'),
+            actions_count=component_count['domain'].get('actions'),
+            slots_count=component_count['domain'].get('slots'),
+            utterances_count=component_count['domain'].get('utterances'),
+            forms_count=component_count['domain'].get('forms'),
+            entities_count=component_count['domain'].get('entities'),
+            data=summary.get('domain'))
+
+        doc.event_status = event_status
         if status:
             doc.status = status
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:

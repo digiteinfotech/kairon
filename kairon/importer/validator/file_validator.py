@@ -6,6 +6,7 @@ from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.generator import TrainingDataGenerator
+from rasa.shared.core.training_data.structures import StoryStep, RuleStep
 from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.constants import UTTER_PREFIX
 from rasa.validator import Validator
@@ -14,14 +15,9 @@ from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 
+from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES
 from kairon.utils import Utility
 from kairon.exceptions import AppException
-
-DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback'}
-
-DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'action_default_fallback',
-                   'action_deactivate_loop', 'action_revert_fallback_events', 'action_default_ask_affirmation',
-                   'action_default_ask_rephrase', 'action_two_stage_fallback', 'action_back', '...'}
 
 
 class TrainingDataValidator(Validator):
@@ -36,6 +32,7 @@ class TrainingDataValidator(Validator):
         super().__init__(validator.domain, validator.intents, validator.story_graph)
         self.validator = validator
         self.summary = {}
+        self.component_count = {}
 
     @classmethod
     async def from_importer(cls, importer: TrainingDataImporter):
@@ -87,6 +84,7 @@ class TrainingDataValidator(Validator):
         """
         duplicate_training_example = []
         duplication_hash = defaultdict(set)
+        self.component_count['training_examples'] = len(self.intents.intent_examples)
         for example in self.intents.intent_examples:
             text = example.get(constants.TEXT)
             duplication_hash[text].add(example.get("intent"))
@@ -110,6 +108,14 @@ class TrainingDataValidator(Validator):
         @param max_history:
         @return:
         """
+        self.component_count['stories'] = 0
+        self.component_count['rules'] = 0
+        for steps in self.story_graph.story_steps:
+            if isinstance(steps, RuleStep):
+                self.component_count['rules'] += 1
+            elif isinstance(steps, StoryStep):
+                self.component_count['stories'] += 1
+
         trackers = TrainingDataGenerator(
             self.story_graph,
             domain=self.domain,
@@ -137,6 +143,7 @@ class TrainingDataValidator(Validator):
         """
         intents_mismatch_summary = []
         nlu_data_intents = {e.data["intent"] for e in self.intents.intent_examples}
+        self.component_count['intents'] = len(nlu_data_intents)
 
         for intent in self.domain.intents:
             if intent not in nlu_data_intents and intent not in DEFAULT_INTENTS:
@@ -199,6 +206,7 @@ class TrainingDataValidator(Validator):
         utterance_mismatch_summary = []
         actions = self.domain.action_names
         utterance_templates = set(self.domain.templates)
+        self.component_count['utterances'] = len(self.domain.templates)
 
         for utterance in utterance_templates:
             if utterance not in actions:
@@ -227,9 +235,12 @@ class TrainingDataValidator(Validator):
         @return:
         """
         utterance_mismatch_summary = []
+        story_utterance_not_found_in_domain = []
         self.validator.verify_utterances()
 
         utterance_actions = self.validator._gather_utterance_actions()
+        fallback_action = Utility.parse_fallback_action(self.config)
+        system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES)
         stories_utterances = set()
 
         for story in self.story_graph.story_steps:
@@ -244,18 +255,18 @@ class TrainingDataValidator(Validator):
                     # we already processed this one before, we only want to warn once
                     continue
 
-                if event.action_name not in utterance_actions and event.action_name not in DEFAULT_ACTIONS:
+                if event.action_name not in utterance_actions and event.action_name not in system_triggered_actions:
                     msg = f"The action '{event.action_name}' is used in the stories, " \
                           f"but is not a valid utterance action. Please make sure " \
                           f"the action is listed in your domain and there is a " \
                           f"template defined with its name."
                     if raise_exception:
                         raise AppException(msg)
-                    utterance_mismatch_summary.append(msg)
+                    story_utterance_not_found_in_domain.append(msg)
                 stories_utterances.add(event.action_name)
 
         for utterance in utterance_actions:
-            if utterance not in stories_utterances and utterance not in DEFAULT_ACTIONS:
+            if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
                 msg = f"The utterance '{utterance}' is not used in any story."
                 if raise_exception:
                     raise AppException(msg)
@@ -264,6 +275,10 @@ class TrainingDataValidator(Validator):
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []
         self.summary['utterances'] = self.summary['utterances'] + utterance_mismatch_summary
+
+        if not self.summary.get('stories'):
+            self.summary['stories'] = []
+        self.summary['stories'] = self.summary['stories'] + story_utterance_not_found_in_domain
 
     def verify_nlu(self, raise_exception: bool = True):
         """
@@ -319,8 +334,16 @@ class TrainingDataValidator(Validator):
         Checks whether domain is empty or not.
         @return:
         """
+        self.component_count['domain'] = {}
+        self.component_count['domain']['intents'] = len(self.domain.intents)
+        self.component_count['domain']['utterances'] = len(self.domain.templates)
+        self.component_count['domain']['actions'] = len(self.domain.user_actions)
+        self.component_count['domain']['forms'] = len(self.domain.form_names)
+        self.component_count['domain']['slots'] = len(self.domain.slots)
+        self.component_count['domain']['entities'] = len(self.domain.entities)
+        self.component_count['utterances'] = len(self.domain.templates)
         if self.domain.is_empty():
-            self.summary['domain'] = "domain.yml is empty!"
+            self.summary['domain'] = ["domain.yml is empty!"]
 
     @staticmethod
     def validate_http_actions(http_actions: Dict):
@@ -369,6 +392,8 @@ class TrainingDataValidator(Validator):
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
+        self.component_count['http_actions'] = len(self.http_actions.get('http_actions')) \
+            if self.http_actions and self.http_actions.get('http_actions') else 0
         errors = TrainingDataValidator.validate_http_actions(self.http_actions)
         self.summary['http_actions'] = errors
         if errors and raise_exception:

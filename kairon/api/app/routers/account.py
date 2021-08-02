@@ -1,12 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi import BackgroundTasks
 from kairon.api.auth import Authentication
-from kairon.api.models import Response, RegisterAccount, TextData, Password
+from kairon.api.models import Response, RegisterAccount, TextData, Password, User
 from kairon.api.processor import AccountProcessor
 from kairon.utils import Utility
 
 router = APIRouter()
-auth = Authentication()
 
 
 @router.post("/registration", response_model=Response)
@@ -63,3 +62,39 @@ async def send_confirm_link(email: TextData, background_tasks: BackgroundTasks):
     mail, subject, body = await AccountProcessor.send_confirmation_link(email)
     background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
     return {"message": "Success! Confirmation link sent"}
+
+
+@router.post("/bot", response_model=Response)
+async def add_bot(request: TextData, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Add new bot in a account.
+    """
+    AccountProcessor.add_bot(request.data, current_user.account, current_user.get_user())
+    return {'message': 'Bot created'}
+
+
+@router.get("/bot", response_model=Response)
+async def list_bots(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    List bots for account.
+    """
+    bots = list(AccountProcessor.list_bots(current_user.account))
+    return Response(data=bots)
+
+
+@router.put("/bot/{bot}", response_model=Response)
+async def update_bot(bot: str, request: TextData, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Update name of the bot.
+    """
+    AccountProcessor.update_bot(request.data, bot)
+    return {'message': 'Bot name updated'}
+
+
+@router.delete("/bot/{bot}", response_model=Response)
+async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Deletes bot.
+    """
+    AccountProcessor.delete_bot(bot, current_user.get_user())
+    return {'message': 'Bot removed'}

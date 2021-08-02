@@ -4,7 +4,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
+from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
@@ -23,13 +23,13 @@ class TestDataImporterLogProcessor:
         user = 'test'
         DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False)
         log = ValidationLogs.objects(bot=bot).get().to_mongo().to_dict()
-        assert not log.get('intents')
-        assert not log.get('stories')
-        assert not log.get('utterances')
-        assert not log.get('http_actions')
-        assert not log.get('training_examples')
-        assert not log.get('domain')
-        assert not log.get('config')
+        assert not log.get('intents').get('data')
+        assert not log.get('stories').get('data')
+        assert not log.get('utterances').get('data')
+        assert not log.get('http_actions').get('data')
+        assert not log.get('training_examples').get('data')
+        assert not log.get('domain').get('data')
+        assert not log.get('config').get('data')
         assert not log.get('exception')
         assert not log['is_data_uploaded']
         assert log['start_timestamp']
@@ -45,13 +45,13 @@ class TestDataImporterLogProcessor:
                                          status='Failure',
                                          event_status=EVENT_STATUS.FAIL.value)
         log = ValidationLogs.objects(bot=bot).get().to_mongo().to_dict()
-        assert not log.get('intents')
-        assert not log.get('stories')
-        assert not log.get('utterances')
-        assert not log.get('http_actions')
-        assert not log.get('training_examples')
-        assert not log.get('domain')
-        assert not log.get('config')
+        assert not log.get('intents').get('data')
+        assert not log.get('stories').get('data')
+        assert not log.get('utterances').get('data')
+        assert not log.get('http_actions').get('data')
+        assert not log.get('training_examples').get('data')
+        assert not log.get('domain').get('data')
+        assert not log.get('config').get('data')
         assert not log.get('files_received')
         assert log.get('exception') == 'Validation failed'
         assert not log['is_data_uploaded']
@@ -74,13 +74,13 @@ class TestDataImporterLogProcessor:
                                          status='Success',
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log = list(DataImporterLogProcessor.get_logs(bot))
-        assert not log[0].get('intents')
-        assert not log[0].get('stories')
-        assert not log[0].get('utterances')
-        assert not log[0].get('http_actions')
-        assert not log[0].get('training_examples')
-        assert not log[0].get('domain')
-        assert not log[0].get('config')
+        assert not log[0].get('intents').get('data')
+        assert not log[0].get('stories').get('data')
+        assert not log[0].get('utterances').get('data')
+        assert not log[0].get('http_actions').get('data')
+        assert not log[0].get('training_examples').get('data')
+        assert not log[0].get('domain').get('data')
+        assert not log[0].get('config').get('data')
         assert not log[0].get('exception')
         assert not log[0]['is_data_uploaded']
         assert log[0]['start_timestamp']
@@ -113,6 +113,67 @@ class TestDataImporterLogProcessor:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 3
 
+    def test_update_log(self):
+        bot = 'test'
+        user = 'test'
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False)
+        log = next(DataImporterLogProcessor.get_logs(bot))
+        assert not log.get('intents').get('data')
+        assert not log.get('stories').get('data')
+        assert not log.get('utterances').get('data')
+        assert not log.get('http_actions').get('data')
+        assert not log.get('training_examples').get('data')
+        assert not log.get('domain').get('data')
+        assert not log.get('config').get('data')
+        assert not log.get('exception')
+        assert not log['is_data_uploaded']
+        assert log['start_timestamp']
+        assert not log.get('end_timestamp')
+        assert not log.get('validation_status')
+        assert log['event_status'] == EVENT_STATUS.INITIATED.value
+        count = COMPONENT_COUNT.copy()
+        count['http_action'] = 6
+        count['domain']['intents'] = 12
+        summary = {'intents': ['Intent not added to domain'], 'config': ['Invalid component']}
+        DataImporterLogProcessor.update_summary(bot, user, count, summary, 'Failed', 'Completed')
+        log = next(DataImporterLogProcessor.get_logs(bot))
+        assert log.get('intents').get('data') == ['Intent not added to domain']
+        assert not log.get('stories').get('data')
+        assert not log.get('utterances').get('data')
+        assert not log.get('http_actions').get('data')
+        assert not log.get('training_examples').get('data')
+        assert not log.get('domain').get('data')
+        assert log.get('config').get('data') == ['Invalid component']
+        assert not log.get('exception')
+        assert not log['is_data_uploaded']
+        assert log['start_timestamp']
+        assert log.get('end_timestamp')
+        assert log.get('status') == 'Failed'
+        assert log['event_status'] == EVENT_STATUS.COMPLETED.value
+
+    def test_update_log_create_new(self):
+        bot = 'test'
+        user = 'test'
+        count = COMPONENT_COUNT.copy()
+        count['http_action'] = 6
+        count['domain']['intents'] = 12
+        summary = {'intents': ['Intent not added to domain'], 'config': ['Invalid component']}
+        DataImporterLogProcessor.update_summary(bot, user, count, summary)
+        log = next(DataImporterLogProcessor.get_logs(bot))
+        assert log.get('intents').get('data') == ['Intent not added to domain']
+        assert not log.get('stories').get('data')
+        assert not log.get('utterances').get('data')
+        assert not log.get('http_actions').get('data')
+        assert not log.get('training_examples').get('data')
+        assert not log.get('domain').get('data')
+        assert log.get('config').get('data') == ['Invalid component']
+        assert not log.get('exception')
+        assert not log['is_data_uploaded']
+        assert log['start_timestamp']
+        assert log.get('end_timestamp')
+        assert not log.get('validation_status')
+        assert log['event_status'] == EVENT_STATUS.COMPLETED.value
+
     def test_is_limit_exceeded(self, monkeypatch):
         monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 3)
         bot = 'test'
@@ -125,6 +186,6 @@ class TestDataImporterLogProcessor:
             assert DataImporterLogProcessor.is_limit_exceeded(bot)
 
     def test_is_limit_exceeded_false(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 4)
+        monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 6)
         bot = 'test'
         assert not DataImporterLogProcessor.is_limit_exceeded(bot)
