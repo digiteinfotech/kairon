@@ -2775,6 +2775,7 @@ class MongoProcessor:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
                 self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
             steps = [
+                {"name": "...", "type": "BOT"},
                 {"name": "nlu_fallback", "type": "INTENT"},
                 {"name": "utter_please_rephrase", "type": "BOT"}
             ]

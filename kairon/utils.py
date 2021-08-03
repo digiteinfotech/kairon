@@ -1027,8 +1027,13 @@ class Utility:
     @staticmethod
     def validate_flow_events(events, type, name):
         Utility.validate_document_list(events)
-        if events[0].type != "user":
+        if type == "STORY" and events[0].type != "user":
             raise ValidationError("First event should be an user")
+
+        if type == "RULE":
+            if events[0].type != "user":
+                if not (events[0].type == "action" and events[0].name == "..."):
+                    raise ValidationError('First event should be an user or conversation_start action')
 
         if events[len(events) - 1].type == "user":
             raise ValidationError("user event should be followed by action")
