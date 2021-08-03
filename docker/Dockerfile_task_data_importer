@@ -17,6 +17,7 @@ RUN python3 -m pip install passlib[bcrypt]
 RUN python3 -m pip install password-strength
 
 RUN mkdir ssl
+RUN mkdir training_data
 RUN chmod 777 -R /tmp
 
 COPY kairon ${IMPORTER_HOME}/kairon
