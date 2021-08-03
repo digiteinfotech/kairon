@@ -361,3 +361,47 @@ def test_flat_conversations(mock_auth, mock_db_client):
     assert actual["message"] is None
     assert actual["success"]
 
+
+def mock_flatten_api_with_data(*args, **kwargs):
+    return {"conversation_data": [{"test_key": "test_value"}]}, None
+
+
+def mock_flatten_api_with_no_data(*args, **kwargs):
+    return {"conversation_data": []}, None
+
+
+def mock_flatten_api_with_error(*args, **kwargs):
+    return {"conversation_data": []}, "error_message"
+
+
+def test_download_conversation_with_data(mock_auth, monkeypatch):
+    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_data)
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert "test_value" in str(response.content)
+
+
+def test_download_conversation_with_no_data(mock_auth, monkeypatch):
+    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_no_data)
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "No data available!"
+    assert not actual["success"]
+
+
+def test_download_conversation_with_error(mock_auth, monkeypatch):
+    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_error)
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "error_message"
+    assert not actual["success"]
