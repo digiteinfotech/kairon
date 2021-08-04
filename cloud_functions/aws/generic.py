@@ -15,6 +15,8 @@ def lambda_handler(event, context):
     container_name = os.getenv('CONTAINER_NAME')
     ecs = client('ecs', region_name=region_name)
     body = json.loads(event['body'])
+    if type(body) == dict:
+        env_data = [{'name': key, 'value': body[key]} for key in body.keys()]
     try:
         task_response = ecs.run_task(
             capacityProviderStrategy=[
@@ -39,7 +41,7 @@ def lambda_handler(event, context):
                 'containerOverrides': [
                     {
                         "name": container_name,
-                        'environment': body
+                        'environment': env_data
                     },
                 ]
             },
