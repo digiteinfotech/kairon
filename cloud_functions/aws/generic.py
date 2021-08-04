@@ -17,6 +17,8 @@ def lambda_handler(event, context):
     body = json.loads(event['body'])
     if type(body) == dict:
         env_data = [{'name': key, 'value': body[key]} for key in body.keys()]
+    else:
+        env_data = body
     try:
         task_response = ecs.run_task(
             capacityProviderStrategy=[
