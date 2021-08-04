@@ -30,6 +30,7 @@ RUN python3 -m pip install numpy==1.19.5
 RUN python3 -m pip install elastic-apm
 RUN mkdir ssl
 RUN mkdir data_generator
+RUN mkdir training_data
 RUN chmod 777 -R /tmp
 
 COPY kairon ${RASA_NLU_HOME}/kairon
