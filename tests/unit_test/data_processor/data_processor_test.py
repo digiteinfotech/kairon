@@ -471,7 +471,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert results[0]["text"] == "Hi, How are you?"
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
 
     def test_add_same_training_example(self):
         processor = MongoProcessor()
@@ -616,7 +616,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert results[0]["text"] == "Log a [critical issue](priority)"
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
         intents = processor.get_intents("tests")
         assert any("get_priority" == intent["name"] for intent in intents)
         entities = processor.get_entities("tests")
@@ -646,7 +646,7 @@ class TestMongoProcessor:
         assert (
                 results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
         )
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="ticketID")
@@ -691,7 +691,7 @@ class TestMongoProcessor:
                                                      intent="get_priority",
                                                      bot="tests", user="testUser", is_integration=False))
         assert actual[0]['message'] == "Training Example already exists!"
-        assert actual[1]['message'] == "Training Example added successfully!"
+        assert actual[1]['message'] == "Training Example added"
 
     def test_add_entity(self):
         processor = MongoProcessor()
@@ -3554,6 +3554,29 @@ class TestModelProcessor:
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
         actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
         assert len(actual) == 0
+
+    def test_move_training_example(self):
+        processor = MongoProcessor()
+        list(processor.add_training_example(["moving to another location", "i will stay"], "test_move_training_example",
+                                       "tests", "testUser", is_integration=False))
+        list(processor.add_training_example(["moving to another intent [move_to_location](move_to_location)", "i will be here"], "move_training_example",
+                                       "tests", "testUser", is_integration=False))
+        list(processor.add_training_example(["this is forever"], "move_to_location",
+                                       "tests", "testUser", is_integration=False))
+        examples_to_move = ["moving to another location", "moving to another place", "moving to another intent [move_to_location](move_to_location)", "this is new", "", " "]
+        result = list(processor.add_or_move_training_example(examples_to_move, 'move_to_location', "tests", "testUser"))
+        actual = list(processor.get_training_examples('move_to_location', "tests"))
+        assert len(actual) == 5
+        actual = list(processor.get_training_examples('test_move_training_example', "tests"))
+        assert len(actual) == 1
+        actual = list(processor.get_training_examples('move_training_example', "tests"))
+        assert len(actual) == 1
+
+    def test_move_training_example_intent_not_exists(self):
+        processor = MongoProcessor()
+        examples_to_move = ["moving to another location", "moving to another place", "", " "]
+        with pytest.raises(AppException, match='Intent does not exists'):
+            list(processor.add_or_move_training_example(examples_to_move, 'non_existent', "tests", "testUser"))
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()
