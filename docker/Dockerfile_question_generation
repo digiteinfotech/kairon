@@ -7,10 +7,10 @@ ENV RASA_NLU_DOCKER="YES" \
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install nltk
-RUN python3 -m pip install transformers==4.0.0
+RUN python3 -m pip install transformers==3.0.0
 RUN python3 -m pip install sentencepiece
 RUN python3 -m pip install loguru
-RUN python3 -m pip install nlp
+RUN python3 -m pip install nlp==0.2.0
 RUN python3 -m pip install torch
 RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN python3 -m nltk.downloader punkt
