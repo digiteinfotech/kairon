@@ -1,4 +1,4 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7 AS base
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7-2021-06-09
 SHELL ["/bin/bash", "-c"]
 
 ENV RASA_NLU_DOCKER="YES" \
