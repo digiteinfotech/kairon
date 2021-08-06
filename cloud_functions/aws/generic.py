@@ -16,7 +16,7 @@ def lambda_handler(event, context):
     ecs = client('ecs', region_name=region_name)
     body = json.loads(event['body'])
     if type(body) == dict:
-        env_data = [{'name': key, 'value': body[key]} for key in body.keys()]
+        env_data = [body]
     else:
         env_data = body
     try:

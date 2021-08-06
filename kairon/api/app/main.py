@@ -5,6 +5,7 @@ from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
@@ -41,6 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["content-disposition"],
 )
+app.add_middleware(GZipMiddleware)
 apm_client = Utility.initiate_apm_client()
 if apm_client:
     app.add_middleware(ElasticAPM, client=apm_client)
