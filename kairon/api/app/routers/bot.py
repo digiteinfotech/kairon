@@ -881,6 +881,18 @@ async def get_all_synonyms(
     return {"data": synonyms}
 
 
+@router.get("/entity/synonyms/{name}", response_model=Response)
+async def get_synonym_values(
+        name: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Fetches list of values against synonym name
+    """
+    return {
+        "data": list(mongo_processor.get_synonym_values(name, current_user.get_bot()))
+    }
+
+
 @router.post("/entity/synonyms", response_model=Response)
 async def add_synonyms(
         request_data: SynonymRequest,
@@ -898,37 +910,48 @@ async def add_synonyms(
     return {"message": "Synonym and values added successfully!"}
 
 
-@router.put("/entity/synonyms", response_model=Response)
-async def edit_synonyms(
-        request_data: SynonymRequest,
+@router.put("/entity/synonyms/{name}/{id}", response_model=Response)
+async def edit_synonym(
+        name: str,
+        id: str,
+        request_data: TextData,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Updates existing synonym value
+    """
+    mongo_processor.edit_synonym(
+        id,
+        request_data.data,
+        name,
+        current_user.get_bot(),
+        current_user.get_user(),
+    )
+    return {
+        "message": "Synonym updated!"
+    }
+
+
+@router.delete("/entity/synonyms/{delete_synonym}", response_model=Response)
+async def delete_synonym_value(
+        request_data: TextData,
+        delete_synonym: bool = Path(default=False, description="Deletes synonym if True"),
         current_user: User = Depends(Authentication.get_current_user_and_bot)
 ):
     """
-    edits a synonym and its values
-    :param request_data:
-    :param current_user:
-    :return: Success message
+    Deletes existing synonym completely along with its examples.
     """
-
-    mongo_processor.edit_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
-
-    return {"message": "Synonym modified successfully!"}
-
-
-@router.delete("/entity/synonyms/{synonym}", response_model=Response)
-async def delete_synonym(
-        synonym: str = Path(default=None, description="synonym name", example="bot"),
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
-):
-    """
-    deletes an existing synonym
-    :param synonym:
-    :param current_user:
-    :return: Success message
-    """
-    mongo_processor.delete_synonym(synonym_name=synonym, bot=current_user.get_bot(), user=current_user.get_user())
-
-    return {"message": "Synonym deleted!"}
+    if delete_synonym:
+        mongo_processor.delete_synonym(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    else:
+        mongo_processor.delete_synonym_value(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    return {
+        "message": "Synonym removed!"
+    }
 
 
 @router.post("/utterance", response_model=Response)

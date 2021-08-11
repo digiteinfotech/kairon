@@ -2793,62 +2793,80 @@ class MongoProcessor:
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
             raise AppException("Synonym value cannot be an empty string")
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        value_list = set(item.value for item in synonym)
-        push_entity = []
-        for val in synonyms_dict.get('value'):
-            if val in value_list:
-                raise AppException("Synonym value already exists")
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
-            entity_synonym = EntitySynonyms()
-            entity_synonym.synonym = synonyms_dict['synonym']
-            entity_synonym.value = val
-            entity_synonym.user = user
-            entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-
-    def edit_synonym(self, synonyms_dict: Dict, bot, user):
-        if Utility.check_empty_string(synonyms_dict.get('synonym')):
-            raise AppException("Synonym name cannot be an empty string")
-        if not synonyms_dict.get('value'):
+        empty_element = any([Utility.check_empty_string(elem) for elem in synonyms_dict.get('value')])
+        if empty_element:
             raise AppException("Synonym value cannot be an empty string")
         synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        if not synonym:
-            raise AppException("No such synonym exists")
-        push_entity = []
+        value_list = set(item.value for item in synonym)
+        check = any(item in value_list for item in synonyms_dict.get('value'))
+        if check:
+            raise AppException("Synonym value already exists")
         for val in synonyms_dict.get('value'):
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
             entity_synonym = EntitySynonyms()
             entity_synonym.synonym = synonyms_dict['synonym']
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+            entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
 
-    def delete_synonym(
-            self, synonym_name: Text, bot: Text, user: Text
+    def edit_synonym(
+            self, synonym_id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
-        deletes synonym
-        :param synonym_name: synonym name
+        update the synonym value
+        :param id: value id against which the synonym is updated
+        :param value: synonym value
+        :param name: synonym name
         :param bot: bot id
         :param user: user id
-        :return: AppException
+        :return: None
+        :raises: AppException
         """
+        synonym = list(EntitySynonyms.objects(synonym__iexact=name, bot=bot, status=True))
+        value_list = set(item.value for item in synonym)
+        if value in value_list:
+            raise AppException("Synonym value already exists")
+        try:
+            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=synonym_id)
+            val.value = value
+            val.user = user
+            val.timestamp = datetime.utcnow()
+            val.save()
+        except DoesNotExist:
+            raise AppException("Synonym value does not exist!")
 
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, status=True))
-        if not synonym:
-            raise AppException("Synonym does not exist.")
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+    def delete_synonym(self, synonym_name: str, bot: str, user: str):
+        if not (synonym_name and synonym_name.strip()):
+            raise AppException("Synonym cannot be empty or spaces")
+        values = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, user=user, status=True))
+        if not values:
+            raise AppException("Synonym does not exist")
+        for value in values:
+            value.status = False
+            value.timestamp = datetime.utcnow()
+            value.save()
+
+    def delete_synonym_value(self, synonym_id: str, bot: str, user: str):
+        if not (synonym_id and synonym_id.strip()):
+            raise AppException("Synonym Id cannot be empty or spaces")
+        try:
+            EntitySynonyms.objects(bot=bot, status=True).get(id=synonym_id)
+            self.remove_document(EntitySynonyms, synonym_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)
+
+    def get_synonym_values(self, name: Text, bot: Text):
+        """
+        fetch all the synonym values
+        :param name: synonym name
+        :param bot: bot id
+        :return: yields the values
+        """
+        values = EntitySynonyms.objects(bot=bot, status=True, synonym__iexact=name).order_by(
+            "-timestamp"
+        )
+        for value in values:
+            yield {"_id": value.id.__str__(), "value": value.value}
 
     def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool=False):
         if Utility.check_empty_string(name):

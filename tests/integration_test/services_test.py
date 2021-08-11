@@ -4315,6 +4315,16 @@ def test_add_synonyms():
     assert actual['data'] == [{"any": "bot_add"}, {"any1": "bot_add"}]
 
 
+def test_get_specific_synonym_values():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
 def test_add_synonyms_duplicate():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
@@ -4327,7 +4337,7 @@ def test_add_synonyms_duplicate():
     assert actual["message"] == "Synonym value already exists"
 
 
-def test_add_synonyms_empty():
+def test_add_synonyms_value_empty():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": []},
@@ -4339,30 +4349,10 @@ def test_add_synonyms_empty():
     assert actual["message"][0]['msg'] == "value field cannot be empty"
 
 
-def test_edit_synonyms():
-    response = client.put(
+def test_add_synonyms_empty():
+    response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any4"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym modified successfully!"
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['data'] == [{"any4": "bot_add"}]
-
-
-def test_edit__empty_synonyms():
-    response = client.put(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "", "value": ["any4"]},
+        json={"synonym": "", "value": ["h"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4371,15 +4361,70 @@ def test_edit__empty_synonyms():
     assert actual["message"][0]['msg'] == "synonym cannot be empty"
 
 
-def test_delete_synonym():
-    response = client.delete(
+def test_edit_synonyms():
+    response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.put(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add/{actual['data'][0]['_id']}",
+        json={"data": "any4"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym deleted!"
+    assert actual["message"] == "Synonym updated!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+    value_list = [list(actual['data'][0].keys())[0], list(actual['data'][1].keys())[0]]
+    assert "any4" in value_list
+
+
+def test_delete_synonym_one_value():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/False",
+        json={"data": actual['data'][0]['_id']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 1
+
+
+def test_delete_synonym():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/True",
+        json={"data": "bot_add"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
 
     response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms",
