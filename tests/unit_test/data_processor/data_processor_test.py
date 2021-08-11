@@ -2925,6 +2925,25 @@ class TestMongoProcessor:
         config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
         assert config == expected
 
+    def test_list_epochs_for_components_not_present(self):
+        configs = Configs._from_son(
+            read_config_file("./template/config/default.yml")
+        ).to_mongo().to_dict()
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
+        del configs['policies'][1]
+        processor = MongoProcessor()
+        processor.save_config(configs, 'test_list_component_not_exists', 'test')
+
+        expected = {"nlu_confidence_threshold": 70,
+                    "action_fallback": 'action_default_fallback',
+                    "ted_epochs": None,
+                    "nlu_epochs": None,
+                    "response_epochs": None}
+        processor = MongoProcessor()
+        actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
+        assert actual == expected
+
     def test_save_component_properties_component_not_exists(self):
         configs = Configs._from_son(
             read_config_file("./template/config/default.yml")
