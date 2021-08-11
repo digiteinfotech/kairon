@@ -4684,7 +4684,7 @@ class TestTrainingDataProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        with pytest.raises(ValidationError, match="First event should be an user"):
+        with pytest.raises(ValidationError, match="First event should be an user or conversation_start action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
         steps = [
@@ -4708,7 +4708,6 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
-
 
     def test_update_rule(self):
         processor = MongoProcessor()
