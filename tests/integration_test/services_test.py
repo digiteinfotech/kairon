@@ -4623,3 +4623,113 @@ def test_get_stories_another_bot():
     assert actual["data"][8]['name'] == 'test_add_story_with_no_type'
     assert actual["data"][9]['template_type'] == 'CUSTOM'
     assert actual["data"][9]['name'] == 'test_path'
+
+
+def test_add_regex_invalid():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "bot_add", "pattern": "[0-9]++"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'invalid regular expression'
+
+
+def test_add_regex_empty_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "", "pattern": "q"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == 'Regex name cannot be empty or a blank space'
+
+
+def test_add_regex_empty_pattern():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": ""},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == 'Regex pattern cannot be empty or a blank space'
+
+
+def test_add_regex_():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": "bb"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Regex pattern added successfully!"
+
+
+def test_get_regex():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 1
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+    assert "b" in actual['data'][0].values()
+    assert "bb" in actual['data'][0].values()
+
+
+def test_edit_regex():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": "bbb"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Regex pattern modified successfully!'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 1
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+    assert "b" in actual['data'][0].values()
+    assert "bbb" in actual['data'][0].values()
+
+
+def test_delete_regex():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/regex/b",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Regex pattern deleted!'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 0
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
