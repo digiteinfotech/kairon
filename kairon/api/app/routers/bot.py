@@ -147,6 +147,23 @@ async def add_training_examples(
     return {"data": results}
 
 
+@router.post("/training_examples/move/{intent}", response_model=Response)
+async def move_training_examples(
+        intent: str,
+        request_data: ListData,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Moves training example to particular intent
+    """
+    results = list(
+        mongo_processor.add_or_move_training_example(
+            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
+        )
+    )
+    return {"data": results}
+
+
 @router.put("/training_examples/{intent}/{id}", response_model=Response)
 async def edit_training_examples(
         intent: str,

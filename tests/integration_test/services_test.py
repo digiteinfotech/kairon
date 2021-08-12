@@ -4733,3 +4733,63 @@ def test_delete_regex():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_add_and_move_training_examples_to_different_intent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/greet",
+        json={"data": ["hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["data"])
+    assert len(actual["data"]) == 7
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        json={"data": "test_add_and_move"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/move/test_add_and_move",
+        json={"data": ["this will be moved", "this is a new [example](example)", " ", "", "hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/test_add_and_move",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 3
+
+
+def test_add_and_move_training_examples_to_different_intent_not_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/move/greeting",
+        json={"data": ["this will be moved", "this is a new [example](example)", " ", "", "hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Intent does not exists'

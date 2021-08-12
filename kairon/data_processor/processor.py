@@ -1,5 +1,4 @@
 import itertools
-import json
 import os
 from collections import ChainMap
 from datetime import datetime
@@ -1306,10 +1305,7 @@ class MongoProcessor:
                     }
                 else:
                     if entities:
-                        ext_entity = [ent["entity"] for ent in entities]
-                        self.__save_domain_entities(ext_entity, bot=bot, user=user)
-                        self.__add_slots_from_entities(ext_entity, bot, user)
-                        new_entities = list(self.__extract_entities(entities))
+                        new_entities = self.save_entities_and_add_slots(entities, bot, user)
                     else:
                         new_entities = None
 
@@ -1325,10 +1321,65 @@ class MongoProcessor:
                     yield {
                         "text": example,
                         "_id": saved["_id"].__str__(),
-                        "message": "Training Example added successfully!",
+                        "message": "Training Example added",
                     }
             except Exception as e:
                 yield {"text": example, "_id": None, "message": str(e)}
+
+    def add_or_move_training_example(
+            self, examples: List[Text], intent: Text, bot: Text, user: Text
+    ):
+        """
+        Moves list of training examples to existing intent.
+        If training examples does not exists, then it is added to the specified intent.
+
+        :param examples: list of training example
+        :param intent: intent name
+        :param bot: bot id
+        :param user: user id
+        :return: list training examples id
+        """
+        if not Utility.is_exist(
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+        ):
+            raise AppException('Intent does not exists')
+
+        for example in examples:
+            if Utility.check_empty_string(example):
+                yield {"text": example, "_id": None, "message": "Training Example cannot be empty or blank spaces"}
+                continue
+
+            text, entities = Utility.extract_text_and_entities(example.strip())
+            try:
+                training_example = TrainingExamples.objects(text__iexact=text, bot=bot, status=True).get()
+                training_example.intent = intent.strip().lower()
+                message = "Training Example moved"
+            except DoesNotExist:
+                if entities:
+                    new_entities = self.save_entities_and_add_slots(entities, bot, user)
+                else:
+                    new_entities = None
+                training_example = TrainingExamples(
+                    intent=intent.strip().lower(),
+                    text=text,
+                    entities=new_entities,
+                    bot=bot,
+                    user=user
+                )
+                message = "Training Example added"
+            saved = training_example.save().to_mongo().to_dict()
+            yield {
+                "text": example,
+                "_id": saved["_id"].__str__(),
+                "message": message
+            }
+
+    def save_entities_and_add_slots(self, entities, bot: Text, user: Text):
+        ext_entity = [ent["entity"] for ent in entities]
+        self.__save_domain_entities(ext_entity, bot=bot, user=user)
+        self.__add_slots_from_entities(ext_entity, bot, user)
+        new_entities = list(self.__extract_entities(entities))
+        return new_entities
 
     def edit_training_example(
             self, id: Text, example: Text, intent: Text, bot: Text, user: Text
