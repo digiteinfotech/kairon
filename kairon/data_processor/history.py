@@ -895,7 +895,7 @@ class ChatHistory:
                          {"$project": {"user_input": 1, "intent": 1, "confidence": 1,
                             "action": "$action_bot_array.name", "message_id": 1, "timestamp": 1,
                             "bot_response": "$action_bot_array.text"}}
-                         ]))
+                         ], allowDiskUse=True))
             except Exception as e:
                 message = str(e)
 
