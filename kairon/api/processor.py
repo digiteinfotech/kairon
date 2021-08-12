@@ -97,9 +97,6 @@ class AccountProcessor:
     def list_bots(account_id: int):
         for bot in Bot.objects(account=account_id, status=True):
             bot = bot.to_mongo().to_dict()
-            bot.pop('account')
-            bot.pop('user')
-            bot.pop('timestamp')
             bot.pop('status')
             bot['_id'] = bot['_id'].__str__()
             yield bot
@@ -126,6 +123,7 @@ class AccountProcessor:
                                           ModelTraining, RegexFeatures, Responses, Rules, SessionConfigs, Slots,
                                           Stories, TrainingDataGenerator, TrainingExamples, ValidationLogs], bot,
                                          user=user)
+            AccountProcessor.delete_bot_for_all_users(bot_info.account, bot)
         except DoesNotExist:
             raise AppException('Bot not found')
 
@@ -137,6 +135,14 @@ class AccountProcessor:
             user.save()
         except DoesNotExist:
             raise AppException('User not found')
+
+    @staticmethod
+    def delete_bot_for_all_users(account: int, bot: Text):
+        User.objects(
+            account=account,
+            bot=bot,
+            status=True
+        ).update(pull__bot=bot)
 
     @staticmethod
     def get_bot(id: str):
