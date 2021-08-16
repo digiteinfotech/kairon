@@ -39,7 +39,7 @@ from kairon.data_processor.data_objects import (TrainingExamples,
                                                 ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                                 TrainingDataGenerator, TrainingDataGeneratorResponse,
                                                 TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                                Utterances, BotSettings, ChatClientConfig
+                                                Utterances, BotSettings, ChatClientConfig, LookupTables
                                                 )
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -3471,6 +3471,118 @@ class TestMongoProcessor:
         with pytest.raises(AppException) as e:
             processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
         assert str(e).__contains__("invalid regular expression")
+
+    def test_add__and_get_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        processor.add_lookup(
+            {"name": "number", "value": ["one"]}, bot, user)
+        table = list(LookupTables.objects(name__iexact='number', bot=bot, user=user))
+        assert table[0]['name'] == "number"
+        assert table[0]['value'] == "one"
+
+    def test_get_specific_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        response = list(processor.get_lookup_values("number", bot))
+        assert response[0]["value"] == "one"
+
+    def test_add_duplicate_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
+        assert str(exp.value) == "Lookup table value already exists"
+
+    def test_edit_specific_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        response = list(processor.get_lookup_values("number", bot))
+        processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+        response = list(processor.get_lookup_values("number", bot))
+        assert response[0]["value"] == "two"
+
+    def test_edit_lookup_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        response = list(processor.get_lookup_values("number", bot))
+        with pytest.raises(AppException):
+            processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+
+    def test_edit_lookup_unavailable(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        response = list(processor.get_lookup_values("number", bot))
+        with pytest.raises(AppException):
+            processor.edit_lookup(response[0]["_id"], "exp3", "bottt", bot, user)
+
+    def test_add_delete_lookup_value(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
+        response = list(processor.get_lookup_values("number", bot))
+        assert len(response) == 2
+        processor.delete_lookup_value(response[0]["_id"], bot, user)
+        response = list(processor.get_lookup_values("number", bot))
+        assert len(response) == 1
+
+    def test_delete_lookup_value_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_lookup_value(" ", "df", "ff")
+
+    def test_delete_non_existent_lookup(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "ff")
+
+    def test_delete_lookup_name(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        processor.delete_lookup("number", bot, user)
+        response = list(processor.get_lookup_values("number", bot))
+        assert len(response) == 0
+
+    def test_delete_lookup_name_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_lookup(" ", "df", "ff")
+
+    def test_delete_non_existent_lookup_name(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_lookup("0123456789ab0123456789ab", "df", "ff")
+
+    def test_add_empty_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_lookup({"name": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Lookup table name cannot be an empty string"
+
+    def test_add_lookup_with_empty_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_lookup({"name": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Lookup Table value cannot be an empty string"
+
+    def test_add_lookup_with_empty_element_in_value_list(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup'
+        user = 'test_user'
+        with pytest.raises(AppException) as exp:
+            processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Lookup table value cannot be an empty string"
 
 
 # pylint: disable=R0201

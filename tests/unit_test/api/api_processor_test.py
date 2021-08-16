@@ -4,7 +4,7 @@ import os
 
 import jwt
 from mongoengine import connect
-from mongoengine.errors import ValidationError
+from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
 from pydantic import SecretStr
 
@@ -121,7 +121,7 @@ class TestAccountProcessor:
             first_name="Fahad Ali",
             last_name="Shaikh",
             password="Welcome@1",
-            account=1,
+            account=pytest.account,
             bot=pytest.bot,
             user="testAdmin",
         )
@@ -169,7 +169,17 @@ class TestAccountProcessor:
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
         pytest.deleted_bot = bot[1]['_id']
-        AccountProcessor.delete_bot(bot[1]['_id'], 'testAdmin')
+        AccountProcessor.add_bot_for_user(pytest.deleted_bot, "fshaikh@digite.com")
+        print(bot)
+        print(pytest.account)
+        for user in User.objects(account=pytest.account, status=True):
+            print(user.to_mongo().to_dict())
+        AccountProcessor.delete_bot(pytest.deleted_bot, 'testAdmin')
+        with pytest.raises(DoesNotExist):
+            Bot.objects(id=pytest.deleted_bot, status=True).get()
+        user = User.objects(account=pytest.account, status=True).get()
+        assert len(user.bot) == 1
+        assert pytest.deleted_bot not in user.bot
 
     def test_delete_bot_not_exists(self):
         with pytest.raises(AppException):
