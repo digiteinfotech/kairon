@@ -4315,6 +4315,16 @@ def test_add_synonyms():
     assert actual['data'] == [{"any": "bot_add"}, {"any1": "bot_add"}]
 
 
+def test_get_specific_synonym_values():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+
+
 def test_add_synonyms_duplicate():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
@@ -4327,7 +4337,7 @@ def test_add_synonyms_duplicate():
     assert actual["message"] == "Synonym value already exists"
 
 
-def test_add_synonyms_empty():
+def test_add_synonyms_value_empty():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
         json={"synonym": "bot_add", "value": []},
@@ -4339,30 +4349,10 @@ def test_add_synonyms_empty():
     assert actual["message"][0]['msg'] == "value field cannot be empty"
 
 
-def test_edit_synonyms():
-    response = client.put(
+def test_add_synonyms_empty():
+    response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any4"]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym modified successfully!"
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['data'] == [{"any4": "bot_add"}]
-
-
-def test_edit__empty_synonyms():
-    response = client.put(
-        f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "", "value": ["any4"]},
+        json={"synonym": "", "value": ["h"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4371,15 +4361,70 @@ def test_edit__empty_synonyms():
     assert actual["message"][0]['msg'] == "synonym cannot be empty"
 
 
-def test_delete_synonym():
-    response = client.delete(
+def test_edit_synonyms():
+    response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.put(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add/{actual['data'][0]['_id']}",
+        json={"data": "any4"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Synonym deleted!"
+    assert actual["message"] == "Synonym updated!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 2
+    value_list = [list(actual['data'][0].keys())[0], list(actual['data'][1].keys())[0]]
+    assert "any4" in value_list
+
+
+def test_delete_synonym_one_value():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms/bot_add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/False",
+        json={"data": actual['data'][0]['_id']},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert len(actual['data']) == 1
+
+
+def test_delete_synonym():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/entity/synonyms/True",
+        json={"data": "bot_add"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym removed!"
 
     response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonyms",
@@ -4578,3 +4623,173 @@ def test_get_stories_another_bot():
     assert actual["data"][8]['name'] == 'test_add_story_with_no_type'
     assert actual["data"][9]['template_type'] == 'CUSTOM'
     assert actual["data"][9]['name'] == 'test_path'
+
+
+def test_add_regex_invalid():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "bot_add", "pattern": "[0-9]++"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'invalid regular expression'
+
+
+def test_add_regex_empty_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "", "pattern": "q"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == 'Regex name cannot be empty or a blank space'
+
+
+def test_add_regex_empty_pattern():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": ""},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == 'Regex pattern cannot be empty or a blank space'
+
+
+def test_add_regex_():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": "bb"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Regex pattern added successfully!"
+
+
+def test_get_regex():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 1
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+    assert "b" in actual['data'][0].values()
+    assert "bb" in actual['data'][0].values()
+
+
+def test_edit_regex():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "b", "pattern": "bbb"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Regex pattern modified successfully!'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 1
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+    assert "b" in actual['data'][0].values()
+    assert "bbb" in actual['data'][0].values()
+
+
+def test_delete_regex():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/regex/b",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Regex pattern deleted!'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"]) == 0
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_add_and_move_training_examples_to_different_intent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/greet",
+        json={"data": ["hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["data"])
+    assert len(actual["data"]) == 7
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        json={"data": "test_add_and_move"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/move/test_add_and_move",
+        json={"data": ["this will be moved", "this is a new [example](example)", " ", "", "hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/test_add_and_move",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 3
+
+
+def test_add_and_move_training_examples_to_different_intent_not_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/move/greeting",
+        json={"data": ["this will be moved", "this is a new [example](example)", " ", "", "hey, there [bot](bot)!!"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Intent does not exists'

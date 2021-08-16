@@ -1,5 +1,4 @@
 import itertools
-import json
 import os
 from collections import ChainMap
 from datetime import datetime
@@ -1116,10 +1115,10 @@ class MongoProcessor:
         config = self.load_config(bot)
         selected_config = {}
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
-        diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
-        response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), {})
+        ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
+        diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
+        response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
         selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')*100 if nlu_fallback.get('threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
         selected_config['ted_epochs'] = ted_policy.get('epochs')
@@ -1306,10 +1305,7 @@ class MongoProcessor:
                     }
                 else:
                     if entities:
-                        ext_entity = [ent["entity"] for ent in entities]
-                        self.__save_domain_entities(ext_entity, bot=bot, user=user)
-                        self.__add_slots_from_entities(ext_entity, bot, user)
-                        new_entities = list(self.__extract_entities(entities))
+                        new_entities = self.save_entities_and_add_slots(entities, bot, user)
                     else:
                         new_entities = None
 
@@ -1325,10 +1321,65 @@ class MongoProcessor:
                     yield {
                         "text": example,
                         "_id": saved["_id"].__str__(),
-                        "message": "Training Example added successfully!",
+                        "message": "Training Example added",
                     }
             except Exception as e:
                 yield {"text": example, "_id": None, "message": str(e)}
+
+    def add_or_move_training_example(
+            self, examples: List[Text], intent: Text, bot: Text, user: Text
+    ):
+        """
+        Moves list of training examples to existing intent.
+        If training examples does not exists, then it is added to the specified intent.
+
+        :param examples: list of training example
+        :param intent: intent name
+        :param bot: bot id
+        :param user: user id
+        :return: list training examples id
+        """
+        if not Utility.is_exist(
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+        ):
+            raise AppException('Intent does not exists')
+
+        for example in examples:
+            if Utility.check_empty_string(example):
+                yield {"text": example, "_id": None, "message": "Training Example cannot be empty or blank spaces"}
+                continue
+
+            text, entities = Utility.extract_text_and_entities(example.strip())
+            try:
+                training_example = TrainingExamples.objects(text__iexact=text, bot=bot, status=True).get()
+                training_example.intent = intent.strip().lower()
+                message = "Training Example moved"
+            except DoesNotExist:
+                if entities:
+                    new_entities = self.save_entities_and_add_slots(entities, bot, user)
+                else:
+                    new_entities = None
+                training_example = TrainingExamples(
+                    intent=intent.strip().lower(),
+                    text=text,
+                    entities=new_entities,
+                    bot=bot,
+                    user=user
+                )
+                message = "Training Example added"
+            saved = training_example.save().to_mongo().to_dict()
+            yield {
+                "text": example,
+                "_id": saved["_id"].__str__(),
+                "message": message
+            }
+
+    def save_entities_and_add_slots(self, entities, bot: Text, user: Text):
+        ext_entity = [ent["entity"] for ent in entities]
+        self.__save_domain_entities(ext_entity, bot=bot, user=user)
+        self.__add_slots_from_entities(ext_entity, bot, user)
+        new_entities = list(self.__extract_entities(entities))
+        return new_entities
 
     def edit_training_example(
             self, id: Text, example: Text, intent: Text, bot: Text, user: Text
@@ -2775,6 +2826,7 @@ class MongoProcessor:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
                 self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
             steps = [
+                {"name": "...", "type": "BOT"},
                 {"name": "nlu_fallback", "type": "INTENT"},
                 {"name": "utter_please_rephrase", "type": "BOT"}
             ]
@@ -2793,62 +2845,80 @@ class MongoProcessor:
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
             raise AppException("Synonym value cannot be an empty string")
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        value_list = set(item.value for item in synonym)
-        push_entity = []
-        for val in synonyms_dict.get('value'):
-            if val in value_list:
-                raise AppException("Synonym value already exists")
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
-            entity_synonym = EntitySynonyms()
-            entity_synonym.synonym = synonyms_dict['synonym']
-            entity_synonym.value = val
-            entity_synonym.user = user
-            entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-
-    def edit_synonym(self, synonyms_dict: Dict, bot, user):
-        if Utility.check_empty_string(synonyms_dict.get('synonym')):
-            raise AppException("Synonym name cannot be an empty string")
-        if not synonyms_dict.get('value'):
+        empty_element = any([Utility.check_empty_string(elem) for elem in synonyms_dict.get('value')])
+        if empty_element:
             raise AppException("Synonym value cannot be an empty string")
         synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
-        if not synonym:
-            raise AppException("No such synonym exists")
-        push_entity = []
+        value_list = set(item.value for item in synonym)
+        check = any(item in value_list for item in synonyms_dict.get('value'))
+        if check:
+            raise AppException("Synonym value already exists")
         for val in synonyms_dict.get('value'):
-            if not val.strip():
-                raise AppException("Synonym value cannot be an empty string")
             entity_synonym = EntitySynonyms()
             entity_synonym.synonym = synonyms_dict['synonym']
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
-            push_entity.append(entity_synonym)
-        EntitySynonyms.objects.insert(push_entity)
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+            entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
 
-    def delete_synonym(
-            self, synonym_name: Text, bot: Text, user: Text
+    def edit_synonym(
+            self, synonym_id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
-        deletes synonym
-        :param synonym_name: synonym name
+        update the synonym value
+        :param id: value id against which the synonym is updated
+        :param value: synonym value
+        :param name: synonym name
         :param bot: bot id
         :param user: user id
-        :return: AppException
+        :return: None
+        :raises: AppException
         """
+        synonym = list(EntitySynonyms.objects(synonym__iexact=name, bot=bot, status=True))
+        value_list = set(item.value for item in synonym)
+        if value in value_list:
+            raise AppException("Synonym value already exists")
+        try:
+            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=synonym_id)
+            val.value = value
+            val.user = user
+            val.timestamp = datetime.utcnow()
+            val.save()
+        except DoesNotExist:
+            raise AppException("Synonym value does not exist!")
 
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, status=True))
-        if not synonym:
-            raise AppException("Synonym does not exist.")
-        for syn in synonym:
-            syn.status = False
-            syn.save()
+    def delete_synonym(self, synonym_name: str, bot: str, user: str):
+        if not (synonym_name and synonym_name.strip()):
+            raise AppException("Synonym cannot be empty or spaces")
+        values = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, user=user, status=True))
+        if not values:
+            raise AppException("Synonym does not exist")
+        for value in values:
+            value.status = False
+            value.timestamp = datetime.utcnow()
+            value.save()
+
+    def delete_synonym_value(self, synonym_id: str, bot: str, user: str):
+        if not (synonym_id and synonym_id.strip()):
+            raise AppException("Synonym Id cannot be empty or spaces")
+        try:
+            EntitySynonyms.objects(bot=bot, status=True).get(id=synonym_id)
+            self.remove_document(EntitySynonyms, synonym_id, bot, user)
+        except DoesNotExist as e:
+            raise AppException(e)
+
+    def get_synonym_values(self, name: Text, bot: Text):
+        """
+        fetch all the synonym values
+        :param name: synonym name
+        :param bot: bot id
+        :return: yields the values
+        """
+        values = EntitySynonyms.objects(bot=bot, status=True, synonym__iexact=name).order_by(
+            "-timestamp"
+        )
+        for value in values:
+            yield {"_id": value.id.__str__(), "value": value.value}
 
     def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool=False):
         if Utility.check_empty_string(name):
@@ -2934,3 +3004,50 @@ class MongoProcessor:
                                                             access_limit=['/api/bot/.+/chat'])
         client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
         return client_config
+
+    def add_regex(self, regex_dict: Dict, bot, user):
+        if Utility.check_empty_string(regex_dict.get('name')) or Utility.check_empty_string(regex_dict.get('pattern')):
+            raise AppException("Regex name and pattern cannot be empty or blank spaces")
+        try:
+            RegexFeatures.objects(name__iexact=regex_dict.get('name'), bot=bot, status=True).get()
+            raise AppException("Regex name already exists!")
+        except DoesNotExist:
+            regex = RegexFeatures()
+            regex.name = regex_dict.get('name')
+            regex.pattern = regex_dict.get('pattern')
+            regex.bot = bot
+            regex.user = user
+            regex_id = regex.save().to_mongo().to_dict()['_id'].__str__()
+            return regex_id
+
+    def edit_regex(self, regex_dict: Dict, bot, user):
+        if Utility.check_empty_string(regex_dict.get('name')) or Utility.check_empty_string(regex_dict.get('pattern')):
+            raise AppException("Regex name and pattern cannot be empty or blank spaces")
+        try:
+            regex = RegexFeatures.objects(name__iexact=regex_dict.get('name'), bot=bot, status=True).get()
+            regex.pattern = regex_dict.get("pattern")
+            regex.user = user
+            regex.timestamp = datetime.utcnow()
+            regex.save()
+        except DoesNotExist:
+            raise AppException("Regex name does not exist!")
+
+    def delete_regex(
+            self, regex_name: Text, bot: Text, user: Text
+    ):
+        """
+        deletes regex pattern
+        :param regex_name: regex name
+        :param user: user id
+        :param bot: bot id
+        :return: AppException
+        """
+
+        try:
+            regex = RegexFeatures.objects(name__iexact=regex_name, bot=bot, status=True).get()
+            regex.status = False
+            regex.user = user
+            regex.timestamp = datetime.utcnow()
+            regex.save()
+        except DoesNotExist:
+            raise AppException("Regex name does not exist.")

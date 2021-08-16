@@ -32,7 +32,7 @@ from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_E
     DEFAULT_NLU_FALLBACK_RULE
 from kairon.data_processor.data_objects import (TrainingExamples,
                                                 Slots,
-                                                Entities, EntitySynonyms,
+                                                Entities, EntitySynonyms, RegexFeatures,
                                                 Intents,
                                                 Actions,
                                                 Responses,
@@ -471,7 +471,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert results[0]["text"] == "Hi, How are you?"
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
 
     def test_add_same_training_example(self):
         processor = MongoProcessor()
@@ -616,7 +616,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert results[0]["text"] == "Log a [critical issue](priority)"
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
         intents = processor.get_intents("tests")
         assert any("get_priority" == intent["name"] for intent in intents)
         entities = processor.get_entities("tests")
@@ -646,7 +646,7 @@ class TestMongoProcessor:
         assert (
                 results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
         )
-        assert results[0]["message"] == "Training Example added successfully!"
+        assert results[0]["message"] == "Training Example added"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="ticketID")
@@ -691,7 +691,7 @@ class TestMongoProcessor:
                                                      intent="get_priority",
                                                      bot="tests", user="testUser", is_integration=False))
         assert actual[0]['message'] == "Training Example already exists!"
-        assert actual[1]['message'] == "Training Example added successfully!"
+        assert actual[1]['message'] == "Training Example added"
 
     def test_add_entity(self):
         processor = MongoProcessor()
@@ -2925,6 +2925,25 @@ class TestMongoProcessor:
         config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
         assert config == expected
 
+    def test_list_epochs_for_components_not_present(self):
+        configs = Configs._from_son(
+            read_config_file("./template/config/default.yml")
+        ).to_mongo().to_dict()
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
+        del configs['policies'][1]
+        processor = MongoProcessor()
+        processor.save_config(configs, 'test_list_component_not_exists', 'test')
+
+        expected = {"nlu_confidence_threshold": 70,
+                    "action_fallback": 'action_default_fallback',
+                    "ted_epochs": None,
+                    "nlu_epochs": None,
+                    "response_epochs": None}
+        processor = MongoProcessor()
+        actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
+        assert actual == expected
+
     def test_save_component_properties_component_not_exists(self):
         configs = Configs._from_son(
             read_config_file("./template/config/default.yml")
@@ -3143,6 +3162,12 @@ class TestMongoProcessor:
         assert syn[0]['synonym'] == "bot"
         assert syn[0]['value'] == "exp"
 
+    def test_get_specific_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        response = list(processor.get_synonym_values("bot", bot))
+        assert response[0]["value"] == "exp"
+
     def test_add_duplicate_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
@@ -3151,6 +3176,70 @@ class TestMongoProcessor:
             processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym value already exists"
 
+    def test_edit_specific_synonym(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        response = list(processor.get_synonym_values("bot", bot))
+        processor.edit_synonym(response[0]["_id"], "exp2", "bot", bot, user)
+        response = list(processor.get_synonym_values("bot", bot))
+        assert response[0]["value"] == "exp2"
+
+    def test_edit_synonym_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        response = list(processor.get_synonym_values("bot", bot))
+        with pytest.raises(AppException):
+            processor.edit_synonym(response[0]["_id"], "exp2", "bot", bot, user)
+
+    def test_edit_synonym_unavailable(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        response = list(processor.get_synonym_values("bot", bot))
+        with pytest.raises(AppException):
+            processor.edit_synonym(response[0]["_id"], "exp3", "bottt", bot, user)
+
+    def test_add_delete_synonym_value(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        response = list(processor.get_synonym_values("bot", bot))
+        assert len(response) == 2
+        processor.delete_synonym_value(response[0]["_id"], bot, user)
+        response = list(processor.get_synonym_values("bot", bot))
+        assert len(response) == 1
+
+    def test_delete_synonym_value_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_synonym_value(" ", "df", "ff")
+
+    def test_delete_non_existent_synonym(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_synonym_value("0123456789ab0123456789ab", "df", "ff")
+
+    def test_delete_synonym_name(self):
+        processor = MongoProcessor()
+        bot = 'test_add_synonym'
+        user = 'test_user'
+        processor.delete_synonym("bot", bot, user)
+        response = list(processor.get_synonym_values("bot", bot))
+        assert len(response) == 0
+
+    def test_delete_synonym_name_empty(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_synonym(" ", "df", "ff")
+
+    def test_delete_non_existent_synonym_name(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.delete_synonym("0123456789ab0123456789ab", "df", "ff")
+
     def test_add_empty_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
@@ -3158,48 +3247,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException) as exp:
             processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym name cannot be an empty string"
-
-    def test_edit_synonym_value_list_empty_element_error(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        with pytest.raises(AppException) as e:
-            processor.edit_synonym({"synonym": "bot", "value": ['dd', '']}, bot=bot, user=user)
-        assert str(e).__contains__('Synonym value cannot be an empty string')
-
-    def test_edit_synonym(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        processor.edit_synonym({"synonym": "bot", "value": ["exp7"]}, bot, user)
-        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
-        assert syn[1]['synonym'] == "bot"
-        assert syn[1]['value'] == "exp7"
-
-    def test_delete_synonym(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-
-        processor.delete_synonym(synonym_name='bot', bot=bot, user=user)
-        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
-        assert syn[0].status is False
-
-    def test_delete_inexistent_synonym(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        with pytest.raises(AppException) as e:
-            processor.delete_synonym(synonym_name='bo', bot=bot, user=user)
-        assert str(e).__contains__('Synonym does not exist.')
-
-    def test_edit_synonym_error(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        with pytest.raises(AppException) as e:
-            processor.edit_synonym({"synonym": "bot", "value": ["exp"]}, bot=bot, user=user)
-        assert str(e).__contains__('No such synonym exists')
 
     def test_add_synonym_with_empty_value_list(self):
         processor = MongoProcessor()
@@ -3216,22 +3263,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException) as exp:
             processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Synonym value cannot be an empty string"
-
-    def test_edit_synonym_error_empty_string(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        with pytest.raises(AppException) as e:
-            processor.edit_synonym({"synonym": "", "value": ["exp"]}, bot=bot, user=user)
-        assert str(e).__contains__('Synonym name cannot be an empty string')
-
-    def test_edit_synonym_value_empty_list_error(self):
-        processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        with pytest.raises(AppException) as e:
-            processor.edit_synonym({"synonym": "q", "value": []}, bot=bot, user=user)
-        assert str(e).__contains__('Synonym value cannot be an empty string')
 
     def test_add_utterance(self):
         processor = MongoProcessor()
@@ -3364,6 +3395,82 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Config not found'):
             processor.get_chat_client_config('test_bot')
+
+    def test_add__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        processor.add_regex(
+            {"name": "bot", "pattern": "exp"}, bot, user)
+        reg = RegexFeatures.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert reg['name'] == "bot"
+        assert reg['pattern'] == "exp"
+
+    def test_add__duplicate_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "bot", "pattern": "f"}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name already exists!")
+
+    def test_add__empty_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "", "pattern": "f"}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name and pattern cannot be empty or blank spaces")
+
+    def test_edit__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        processor.edit_regex(
+            {"name": "bot", "pattern": "exp1"}, bot, user)
+        reg = RegexFeatures.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert reg['name'] == "bot"
+        assert reg['pattern'] == "exp1"
+
+    def test_edit__unavailable_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_regex({"name": "bot1", "pattern": "f"}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name does not exist!")
+
+    def test_edit__empty_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.edit_regex({"name": "bot", "pattern": ""}, bot=bot, user=user)
+        assert str(e).__contains__("Regex name and pattern cannot be empty or blank spaces")
+
+    def test_delete__unavailable_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.delete_regex("f", bot=bot, user=user)
+        assert str(e).__contains__("Regex name does not exist.")
+
+    def test_delete__and_get_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        processor.delete_regex("bot", bot, user)
+        with pytest.raises(DoesNotExist):
+            RegexFeatures.objects(name__iexact='bot', bot=bot, status=True).get()
+
+    def test_add__invalid_regex(self):
+        processor = MongoProcessor()
+        bot = 'test_add_regex'
+        user = 'test_user'
+        with pytest.raises(AppException) as e:
+            processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
+        assert str(e).__contains__("invalid regular expression")
 
 
 # pylint: disable=R0201
@@ -3554,6 +3661,29 @@ class TestModelProcessor:
         assert not any(intent['name'] == 'TestingDelGreeting' for intent in actual)
         actual = list(processor.get_training_examples('TestingDelGreeting', "tests"))
         assert len(actual) == 0
+
+    def test_move_training_example(self):
+        processor = MongoProcessor()
+        list(processor.add_training_example(["moving to another location", "i will stay"], "test_move_training_example",
+                                       "tests", "testUser", is_integration=False))
+        list(processor.add_training_example(["moving to another intent [move_to_location](move_to_location)", "i will be here"], "move_training_example",
+                                       "tests", "testUser", is_integration=False))
+        list(processor.add_training_example(["this is forever"], "move_to_location",
+                                       "tests", "testUser", is_integration=False))
+        examples_to_move = ["moving to another location", "moving to another place", "moving to another intent [move_to_location](move_to_location)", "this is new", "", " "]
+        result = list(processor.add_or_move_training_example(examples_to_move, 'move_to_location', "tests", "testUser"))
+        actual = list(processor.get_training_examples('move_to_location', "tests"))
+        assert len(actual) == 5
+        actual = list(processor.get_training_examples('test_move_training_example', "tests"))
+        assert len(actual) == 1
+        actual = list(processor.get_training_examples('move_training_example', "tests"))
+        assert len(actual) == 1
+
+    def test_move_training_example_intent_not_exists(self):
+        processor = MongoProcessor()
+        examples_to_move = ["moving to another location", "moving to another place", "", " "]
+        with pytest.raises(AppException, match='Intent does not exists'):
+            list(processor.add_or_move_training_example(examples_to_move, 'non_existent', "tests", "testUser"))
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()
@@ -4596,7 +4726,7 @@ class TestTrainingDataProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        with pytest.raises(ValidationError, match="First event should be an user"):
+        with pytest.raises(ValidationError, match="First event should be an user or conversation_start action"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
         steps = [
@@ -4620,7 +4750,6 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
-
 
     def test_update_rule(self):
         processor = MongoProcessor()

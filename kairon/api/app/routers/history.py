@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import FileResponse
 from kairon.api.auth import Authentication
 from kairon.data_processor.history import ChatHistory
-from kairon.api.models import Response, User, HistoryMonth, ConversationFilter
+from kairon.api.models import Response, User, HistoryMonth
 from fastapi import Depends, Query
 from typing import Text
 from kairon.utils import Utility
@@ -72,13 +72,14 @@ async def conversation_time(month: HistoryMonth = 1,current_user: User = Depends
 
 
 @router.get("/metrics/user/engaged", response_model=Response)
-async def count_engaged_users(request: ConversationFilter = ConversationFilter(), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def count_engaged_users(month: int = 1, conversation_step_threshold: int = 10,
+                              current_user: User = Depends(Authentication.get_current_user_and_bot)):
 
     """
     Fetches the number of engaged users of the bot
     """
     engaged_user_count, message = ChatHistory.engaged_users(
-        current_user.get_bot(), request.month, request.engaged_users_threshold
+        current_user.get_bot(), month, conversation_step_threshold
     )
     return {"data": engaged_user_count, "message": message}
 
@@ -117,19 +118,21 @@ async def calculate_retention(month: HistoryMonth = 1, current_user: User = Depe
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
-async def engaged_users_trend(request: ConversationFilter = ConversationFilter(), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def engaged_users_trend(month: int = Query(default=6, ge=2, le=6),
+                              conversation_step_threshold: int = 10,
+                              current_user: User = Depends(Authentication.get_current_user_and_bot)):
 
     """
     Fetches the counts of engaged users of the bot for previous months
     """
     range_value, message = ChatHistory.engaged_users_range(
-        current_user.get_bot(), request.month, request.engaged_users_threshold
+        current_user.get_bot(), month, conversation_step_threshold
     )
     return {"data": range_value, "message": message}
 
 
 @router.get("/metrics/trend/user/new", response_model=Response)
-async def new_users_trend(month: HistoryMonth = 6, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def new_users_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of new users of the bot for previous months
     """
@@ -140,7 +143,7 @@ async def new_users_trend(month: HistoryMonth = 6, current_user: User = Depends(
 
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
-async def complete_conversation_trend(month: HistoryMonth = 6, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def complete_conversation_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
@@ -151,7 +154,7 @@ async def complete_conversation_trend(month: HistoryMonth = 6, current_user: Use
 
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
-async def retention_trend(month: HistoryMonth = 6, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def retention_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of user retention percentages of the bot for previous months
     """
@@ -162,7 +165,7 @@ async def retention_trend(month: HistoryMonth = 6, current_user: User = Depends(
 
 
 @router.get("/metrics/trend/user/fallback", response_model=Response)
-async def fallback_trend(month: HistoryMonth = 6, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def fallback_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the fallback count of the bot for previous months
     """
@@ -172,8 +175,8 @@ async def fallback_trend(month: HistoryMonth = 6, current_user: User = Depends(A
     return {"data": range_value, "message": message}
 
 
-@router.get("/metrics/conversation/flatten", response_model=Response)
-async def flat_conversations(month: int = 3, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+@router.get("/conversations", response_model=Response)
+async def flat_conversations(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the flattened conversation data of the bot for previous months
     """

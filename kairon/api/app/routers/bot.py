@@ -16,7 +16,7 @@ from kairon.api.models import (
     Endpoint,
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
-    FeedbackRequest, SynonymRequest,
+    FeedbackRequest, SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData
 )
 from kairon.data_processor.agent_processor import AgentProcessor
@@ -142,6 +142,23 @@ async def add_training_examples(
         mongo_processor.add_training_example(
             request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user(),
             current_user.get_integration_status()
+        )
+    )
+    return {"data": results}
+
+
+@router.post("/training_examples/move/{intent}", response_model=Response)
+async def move_training_examples(
+        intent: str,
+        request_data: ListData,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Moves training example to particular intent
+    """
+    results = list(
+        mongo_processor.add_or_move_training_example(
+            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
         )
     )
     return {"data": results}
@@ -881,6 +898,18 @@ async def get_all_synonyms(
     return {"data": synonyms}
 
 
+@router.get("/entity/synonyms/{name}", response_model=Response)
+async def get_synonym_values(
+        name: str, current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Fetches list of values against synonym name
+    """
+    return {
+        "data": list(mongo_processor.get_synonym_values(name, current_user.get_bot()))
+    }
+
+
 @router.post("/entity/synonyms", response_model=Response)
 async def add_synonyms(
         request_data: SynonymRequest,
@@ -898,37 +927,48 @@ async def add_synonyms(
     return {"message": "Synonym and values added successfully!"}
 
 
-@router.put("/entity/synonyms", response_model=Response)
-async def edit_synonyms(
-        request_data: SynonymRequest,
+@router.put("/entity/synonyms/{name}/{id}", response_model=Response)
+async def edit_synonym(
+        name: str,
+        id: str,
+        request_data: TextData,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Updates existing synonym value
+    """
+    mongo_processor.edit_synonym(
+        id,
+        request_data.data,
+        name,
+        current_user.get_bot(),
+        current_user.get_user(),
+    )
+    return {
+        "message": "Synonym updated!"
+    }
+
+
+@router.delete("/entity/synonyms/{delete_synonym}", response_model=Response)
+async def delete_synonym_value(
+        request_data: TextData,
+        delete_synonym: bool = Path(default=False, description="Deletes synonym if True"),
         current_user: User = Depends(Authentication.get_current_user_and_bot)
 ):
     """
-    edits a synonym and its values
-    :param request_data:
-    :param current_user:
-    :return: Success message
+    Deletes existing synonym completely along with its examples.
     """
-
-    mongo_processor.edit_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
-
-    return {"message": "Synonym modified successfully!"}
-
-
-@router.delete("/entity/synonyms/{synonym}", response_model=Response)
-async def delete_synonym(
-        synonym: str = Path(default=None, description="synonym name", example="bot"),
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
-):
-    """
-    deletes an existing synonym
-    :param synonym:
-    :param current_user:
-    :return: Success message
-    """
-    mongo_processor.delete_synonym(synonym_name=synonym, bot=current_user.get_bot(), user=current_user.get_user())
-
-    return {"message": "Synonym deleted!"}
+    if delete_synonym:
+        mongo_processor.delete_synonym(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    else:
+        mongo_processor.delete_synonym_value(
+            request_data.data, current_user.get_bot(), current_user.get_user()
+        )
+    return {
+        "message": "Synonym removed!"
+    }
 
 
 @router.post("/utterance", response_model=Response)
@@ -978,3 +1018,64 @@ async def get_client_config(current_user: User = Depends(Authentication.get_curr
 async def set_client_config(request: DictData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     mongo_processor.save_chat_client_config(request.data, current_user.get_bot(), current_user.get_user())
     return {"message": "Config saved"}
+
+
+@router.get("/regex", response_model=Response)
+async def get_all_regex_patterns(
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Fetches the stored regex patterns of the bot
+    """
+    regex = list(mongo_processor.fetch_regex_features(bot=current_user.get_bot()))
+    return {"data": regex}
+
+
+@router.post("/regex", response_model=Response)
+async def add_regex(
+        request_data: RegexRequest,
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    adds a new regex and its pattern
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    regex_id = mongo_processor.add_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern added successfully!", "data": {"_id": regex_id}}
+
+
+@router.put("/regex", response_model=Response)
+async def edit_regex(
+        request_data: RegexRequest,
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    edits a regex pattern
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+
+    mongo_processor.edit_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern modified successfully!"}
+
+
+@router.delete("/regex/{name}", response_model=Response)
+async def delete_regex(
+        name: str = Path(default=None, description="regex name", example="bot"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    deletes an existing regex pattern
+    :param name: regex pattern name
+    :param current_user:
+    :return: Success message
+    """
+    mongo_processor.delete_regex(regex_name=name, bot=current_user.get_bot(), user=current_user.get_user())
+
+    return {"message": "Regex pattern deleted!"}
