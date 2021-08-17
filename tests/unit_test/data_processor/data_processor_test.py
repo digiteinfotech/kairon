@@ -1240,11 +1240,12 @@ class TestMongoProcessor:
     @responses.activate
     def test_start_training_done_reload_event(self, monkeypatch):
         token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
+        bot: "tests"
         responses.add(
             responses.GET,
-            "http://localhost/api/bot/model/reload",
+            f"http://localhost/api/bot/{bot}/model/reload",
             json={"message": "Reloading Model!"},
-            match=[responses.json_params_matcher({"bot": "tests", "user": "testUser", "token": token})],
+            match=[responses.json_params_matcher({"bot": bot, "user": "testUser", "token": token})],
             status=200
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
