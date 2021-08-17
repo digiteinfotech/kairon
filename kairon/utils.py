@@ -932,7 +932,10 @@ class Utility:
         headers = {'content-type': 'application/json', 'X-USER': user}
         if token:
             headers['Authorization'] = 'Bearer ' + token
-        response = requests.request(method, url, headers=headers, json=json)
+        if method.lower() == 'get':
+            response = requests.request(method, url, headers=headers, params=json)
+        else:
+            response = requests.request(method, url, headers=headers, json=json)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
 
@@ -944,18 +947,6 @@ class Utility:
             return EndpointConfig(url=Utility.environment['action'].get('url'))
         else:
             return None
-
-    @staticmethod
-    async def upload_document(doc):
-        if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
-            raise AppException("Invalid File Format")
-        folder_path = 'data_generator'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        destination = os.path.join(folder_path, doc.filename)
-        with Path(destination).open("wb") as buffer:
-            shutil.copyfileobj(doc.file, buffer)
-        return destination
 
     @staticmethod
     def get_interpreter(model_path):
@@ -971,6 +962,18 @@ class Utility:
             logger.debug(f"Could not load interpreter from '{model_path}'.")
             _interpreter = None
         return _interpreter
+
+    @staticmethod
+    async def upload_document(doc):
+        if not (doc.filename.lower().endswith('.pdf') or doc.filename.lower().endswith('.docx')):
+            raise AppException("Invalid File Format")
+        folder_path = 'data_generator'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        destination = os.path.join(folder_path, doc.filename)
+        with Path(destination).open("wb") as buffer:
+            shutil.copyfileobj(doc.file, buffer)
+        return destination
 
     @staticmethod
     def move_old_models(path, model):
