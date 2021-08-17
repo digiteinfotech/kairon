@@ -94,6 +94,12 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
 
 
+class ENDPOINT_TYPE(str, Enum):
+    BOT_ENDPOINT = "bot_endpoint"
+    ACTION_ENDPOINT = "action_endpoint"
+    HISTORY_ENDPOINT = "history_endpoint"
+
+
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
 ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.md', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
