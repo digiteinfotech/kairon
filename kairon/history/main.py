@@ -1,7 +1,6 @@
 import logging
 from time import time
 
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +8,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
-from mongoengine import connect, disconnect
 from mongoengine.errors import (
     DoesNotExist,
     ValidationError,
@@ -25,10 +23,9 @@ from secure import SecureHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.models import Response
-from kairon.api.processor import AccountProcessor
 from kairon.exceptions import AppException
-from kairon.api.app.routers import auth, bot, augment, user, account, history
-from kairon.utils import Utility
+from kairon.history.router import metrics, conversations, trends
+from kairon.history.utils import HistoryUtils
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()
@@ -43,14 +40,11 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
 
 
 @app.middleware("http")
 async def add_secure_headers(request: Request, call_next):
-    """add security headers"""
+    """Add security headers."""
     response = await call_next(request)
     secure_headers.starlette(response)
     return response
@@ -58,7 +52,7 @@ async def add_secure_headers(request: Request, call_next):
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """logging request calls"""
+    """Logging request calls."""
     authorization: str = request.headers.get("Authorization")
     _, param = get_authorization_scheme_param(authorization)
     start_time = time()
@@ -76,23 +70,14 @@ async def log_requests(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    from kairon.utils import Utility
-
-    connect(host=Utility.environment['database']["url"], authentication_source="admin")
-    await AccountProcessor.default_account_setup()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
-    disconnect()
+    """MongoDB is connected on the bot trainer startup."""
+    HistoryUtils.load_evironment()
 
 
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     """ This function logs the Starlette HTTP error detected and returns the
-        appropriate message and details of the error """
+        appropriate message and details of the error"""
     logger.debug(exc)
 
     return JSONResponse(
@@ -103,7 +88,7 @@ async def startlette_exception_handler(request, exc):
 
 
 @app.exception_handler(AssertionError)
-async def http_exception_handler(request, exc):
+async def assertion_error_handler(request, exc):
     """ This function logs the Assertion error detected and returns the
         appropriate message and details of the error """
     logger.debug(exc)
@@ -239,9 +224,6 @@ def index():
     return {"message": "hello"}
 
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(account.router, prefix="/api/account", tags=["Account"])
-app.include_router(user.router, prefix="/api/user", tags=["User"])
-app.include_router(bot.router, prefix="/api/bot/{bot}", tags=["Bot"])
-app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
-app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
+app.include_router(metrics.router, prefix="/api/history/{bot}/metrics", tags=["Metrics"])
+app.include_router(conversations.router, prefix="/api/history/{bot}/conversations", tags=["Conversations"])
+app.include_router(trends.router, prefix="/api/history/{bot}/trends", tags=["Trends"])
