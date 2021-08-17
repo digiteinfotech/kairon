@@ -150,7 +150,7 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
     """
     exception = None
     model_file = None
-    training_status = None
+    training_status = None    apm_client = None
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
         Utility.train_model_event(bot, user, token)
     else:
@@ -169,6 +169,7 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
                 if reload:
                     AgentProcessor.reload(bot)
         except Exception as e:
+            print(e)
             logging.exception(e)
             training_status = MODEL_TRAINING_STATUS.FAIL.value
             exception = str(e)
