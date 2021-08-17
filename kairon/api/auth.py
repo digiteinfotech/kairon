@@ -2,8 +2,10 @@ import re
 from datetime import datetime, timedelta
 from typing import Text
 
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status, Request, Security
+from fastapi.security import APIKeyHeader
 from jwt import PyJWTError, decode, encode
+from starlette.status import HTTP_403_FORBIDDEN, HTTP_401_UNAUTHORIZED
 
 from kairon.utils import Utility
 from .models import User, TokenData
@@ -20,6 +22,10 @@ class Authentication:
     SECRET_KEY = Utility.environment['security']["secret_key"]
     ALGORITHM = Utility.environment['security']["algorithm"]
     ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
+
+    EXTERNAL_SERVICE_ACCESS_KEY = Utility.environment['external_service']['api_access_key']
+    EXTERNAL_SERVICE_SECRET_KEY = Utility.environment['external_service']['api_secret_key']
+    api_key_header = APIKeyHeader(name=EXTERNAL_SERVICE_ACCESS_KEY, auto_error=False)
 
     @staticmethod
     async def get_current_user(
@@ -83,6 +89,24 @@ class Authentication:
                 detail="Inactive Bot Please contact system admin!",
             )
         user.bot = bot_id
+        return user
+
+    @staticmethod
+    async def authenticate_api_key(api_key_header: str = Security(api_key_header)):
+        if api_key_header != Authentication.EXTERNAL_SERVICE_SECRET_KEY:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN, detail="Could not validate credentials"
+            )
+
+    @staticmethod
+    async def authenticate_user(request: Request, api_key_header: str = Security(api_key_header)):
+        if Utility.environment['external_service']['is_deployed_with_kairon']:
+            token = await Utility.oauth2_scheme.__call__(request)
+            user = await Authentication.get_current_user_and_bot(request, token)
+        else:
+            await Authentication.authenticate_api_key(api_key_header)
+            user = User(email='', first_name='', last_name='', account=-1, status=True,
+                        is_integration_user=False, bot=[request.path_params.get('bot')])
         return user
 
     @staticmethod

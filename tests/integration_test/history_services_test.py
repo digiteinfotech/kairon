@@ -5,12 +5,13 @@ from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
 
-from kairon.api.app.main import app
 from kairon.api.processor import AccountProcessor
-from kairon.data_processor.history import ChatHistory
 from kairon.data_processor.processor import MongoProcessor
+from kairon.history.main import app
+from kairon.history.processor import ChatHistory
 from kairon.utils import Utility
 from mongomock import MongoClient
+
 client = TestClient(app)
 
 
@@ -25,6 +26,7 @@ def pytest_configure():
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
+    Utility.environment['external_service']['is_deployed_with_kairon'] = True
     connect(host=Utility.environment['database']["url"])
 
 
@@ -65,23 +67,25 @@ def endpoint_details(*args, **kwargs):
 def mock_mongo_processor(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_details)
 
+
 @pytest.fixture
 def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
         return MongoClient(), "conversation", "conversations", None
+
     monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
 
 
 def history_users(*args, **kwargs):
     return [
-        "5b029887-bed2-4bbb-aa25-bd12fda26244",
-        "b868d6ee-f98f-4c1b-b284-ce034aaad01f",
-        "b868d6ee-f98f-4c1b-b284-ce034aaad61f",
-        "b868d6ee-f98f-4c1b-b284-ce4534aaad61f",
-        "49931985-2b51-4db3-89d5-a50767e6d98e",
-        "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
-        "2fed7769-b647-4088-8ed9-a4f4f3653f25",
-    ], None
+               "5b029887-bed2-4bbb-aa25-bd12fda26244",
+               "b868d6ee-f98f-4c1b-b284-ce034aaad01f",
+               "b868d6ee-f98f-4c1b-b284-ce034aaad61f",
+               "b868d6ee-f98f-4c1b-b284-ce4534aaad61f",
+               "49931985-2b51-4db3-89d5-a50767e6d98e",
+               "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
+               "2fed7769-b647-4088-8ed9-a4f4f3653f25",
+           ], None
 
 
 def user_history(*args, **kwargs):
@@ -100,12 +104,13 @@ def history_conversations(*args, **kwargs):
 @pytest.fixture
 def mock_chat_history(monkeypatch):
     monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
-    monkeypatch.setattr(ChatHistory, "get_conversations", history_conversations)
     monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
 
 
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
-    response = client.post(
+    from kairon.api.app.main import app
+    login_client = TestClient(app)
+    response = login_client.post(
         "/api/auth/login",
         data={"username": "integration@demo", "password": "welcome@1"},
     )
@@ -114,7 +119,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     pytest.token_type = token_response["data"]["token_type"]
 
     response = client.get(
-        f"/api/history/{pytest.bot}/users",
+        f"/api/history/conversations/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -127,7 +132,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 
 def test_chat_history_users(mock_auth, mock_chat_history):
     response = client.get(
-        f"/api/history/{pytest.bot}/users",
+        f"/api/history/conversations/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -140,7 +145,7 @@ def test_chat_history_users(mock_auth, mock_chat_history):
 
 def test_chat_history(mock_auth, mock_chat_history):
     response = client.get(
-        f"/api/history/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd",
+        f"/api/history/conversations/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -153,7 +158,7 @@ def test_chat_history(mock_auth, mock_chat_history):
 
 def test_visitor_hit_fallback(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/fallback",
+        f"/api/history/metrics/{pytest.bot}/fallback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -167,7 +172,7 @@ def test_visitor_hit_fallback(mock_auth, mock_db_client):
 
 def test_conversation_steps(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/steps",
+        f"/api/history/metrics/{pytest.bot}/conversation/steps",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -180,7 +185,7 @@ def test_conversation_steps(mock_auth, mock_db_client):
 
 def test_conversation_time(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/time",
+        f"/api/history/metrics/{pytest.bot}/conversation/time",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -193,7 +198,7 @@ def test_conversation_time(mock_auth, mock_db_client):
 
 def test_user_with_metrics(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users",
+        f"/api/history/metrics/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -206,7 +211,7 @@ def test_user_with_metrics(mock_auth, mock_db_client):
 
 def test_engaged_users(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged",
+        f"/api/history/metrics/{pytest.bot}/user/engaged",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -219,7 +224,7 @@ def test_engaged_users(mock_auth, mock_db_client):
 
 def test_new_users(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/new",
+        f"/api/history/metrics/{pytest.bot}/user/new",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -232,7 +237,7 @@ def test_new_users(mock_auth, mock_db_client):
 
 def test_successful_conversation(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/success",
+        f"/api/history/metrics/{pytest.bot}/conversation/success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -245,7 +250,7 @@ def test_successful_conversation(mock_auth, mock_db_client):
 
 def test_user_retention(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/retention",
+        f"/api/history/metrics/{pytest.bot}/user/retention",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -258,7 +263,7 @@ def test_user_retention(mock_auth, mock_db_client):
 
 def test_engaged_user_range(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged",
+        f"/api/history/trends/{pytest.bot}/users/engaged",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -271,7 +276,7 @@ def test_engaged_user_range(mock_auth, mock_db_client):
 
 def test_new_user_range(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/new",
+        f"/api/history/trends/{pytest.bot}/users/new",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -284,7 +289,7 @@ def test_new_user_range(mock_auth, mock_db_client):
 
 def test_successful_conversation_range(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/conversation/success",
+        f"/api/history/trends/{pytest.bot}/conversations/success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -297,7 +302,7 @@ def test_successful_conversation_range(mock_auth, mock_db_client):
 
 def test_user_retention_range(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/retention",
+        f"/api/history/trends/{pytest.bot}/users/retention",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -310,7 +315,7 @@ def test_user_retention_range(mock_auth, mock_db_client):
 
 def test_engaged_users_with_value(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged/?month=5&conversation_step_threshold=11",
+        f"/api/history/metrics/{pytest.bot}/user/engaged?month=5&conversation_step_threshold=11",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -323,7 +328,7 @@ def test_engaged_users_with_value(mock_auth, mock_db_client):
 
 def test_engaged_user_range_with_value(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged/?month=5&conversation_step_threshold=11",
+        f"/api/history/trends/{pytest.bot}/users/engaged/?month=5&conversation_step_threshold=11",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -336,7 +341,7 @@ def test_engaged_user_range_with_value(mock_auth, mock_db_client):
 
 def test_fallback_count_range(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/fallback",
+        f"/api/history/trends/{pytest.bot}/fallback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -349,7 +354,7 @@ def test_fallback_count_range(mock_auth, mock_db_client):
 
 def test_flat_conversations(mock_auth, mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations",
+        f"/api/history/conversations/{pytest.bot}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -375,7 +380,7 @@ def mock_flatten_api_with_error(*args, **kwargs):
 def test_download_conversation_with_data(mock_auth, monkeypatch):
     monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_data)
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations/download",
+        f"/api/history/conversations/{pytest.bot}/download",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert "test_value" in str(response.content)
@@ -384,7 +389,7 @@ def test_download_conversation_with_data(mock_auth, monkeypatch):
 def test_download_conversation_with_no_data(mock_auth, monkeypatch):
     monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_no_data)
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations/download",
+        f"/api/history/conversations/{pytest.bot}/download",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -396,10 +401,80 @@ def test_download_conversation_with_no_data(mock_auth, monkeypatch):
 def test_download_conversation_with_error(mock_auth, monkeypatch):
     monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_error)
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations/download",
+        f"/api/history/conversations/{pytest.bot}/download",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == "error_message"
+    assert not actual["success"]
+
+
+def test_chat_history_users_with_api_key(mock_auth, mock_chat_history):
+    Utility.environment['external_service']['is_deployed_with_kairon'] = False
+    response = client.get(
+        f"/api/history/conversations/{pytest.bot}/users",
+        headers={Utility.environment['external_service']['api_access_key']: Utility.environment['external_service'][
+            'api_secret_key']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["users"]) == 7
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_chat_history_with_api_key(mock_auth, mock_chat_history):
+    Utility.environment['external_service']['is_deployed_with_kairon'] = False
+    response = client.get(
+        f"/api/history/conversations/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd",
+        headers={Utility.environment['external_service']['api_access_key']: Utility.environment['external_service'][
+            'api_secret_key']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 12
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_chat_history_no_key(mock_auth, mock_chat_history):
+    Utility.environment['external_service']['is_deployed_with_kairon'] = False
+    response = client.get(
+        f"/api/history/conversations/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd"
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 403
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
+
+
+def test_chat_history_users_invalid_auth(mock_auth, mock_chat_history):
+    Utility.environment['external_service']['is_deployed_with_kairon'] = False
+    response = client.get(
+        f"/api/history/conversations/{pytest.bot}/users",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 403
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
+
+
+def test_chat_history_users_invalid_bot(mock_auth, mock_chat_history):
+    response = client.get(
+        f"/api/history/conversations/11111111111111111/users",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == 'Access denied for bot'
     assert not actual["success"]
