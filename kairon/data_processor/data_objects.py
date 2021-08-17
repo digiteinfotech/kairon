@@ -384,27 +384,18 @@ class Configs(Document):
     status = BooleanField(default=True)
 
 
-class EndPointTracker(EmbeddedDocument):
-    type = StringField(required=True, default="mongo")
+class EndPointHistory(EmbeddedDocument):
     url = StringField(required=True)
-    db = StringField(required=True)
-    username = StringField()
-    password = StringField()
-    auth_source = StringField()
+    access_key = StringField(required=True)
+    secret_key = StringField(required=True)
 
     def validate(self, clean=True):
         if (
-                Utility.check_empty_string(self.type)
-                or Utility.check_empty_string(self.url)
-                or Utility.check_empty_string(self.db)
+                Utility.check_empty_string(self.url)
+                or Utility.check_empty_string(self.access_key)
+                or Utility.check_empty_string(self.secret_key)
         ):
-            raise ValidationError("Type, Url and DB cannot be blank or empty spaces")
-        else:
-            if self.type == "mongo":
-                try:
-                    parse_uri(self.url)
-                except InvalidURI:
-                    raise AppException("Invalid tracker url!")
+            raise ValidationError("url, access_key, secret_key cannot be blank or empty spaces")
 
 
 class EndPointAction(EmbeddedDocument):
@@ -428,7 +419,7 @@ class EndPointBot(EmbeddedDocument):
 class Endpoints(Document):
     bot_endpoint = EmbeddedDocumentField(EndPointBot)
     action_endpoint = EmbeddedDocumentField(EndPointAction)
-    tracker_endpoint = EmbeddedDocumentField(EndPointTracker)
+    history_endpoint = EmbeddedDocumentField(EndPointHistory)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -437,8 +428,8 @@ class Endpoints(Document):
         if self.bot_endpoint:
             self.bot_endpoint.validate()
 
-        if self.tracker_endpoint:
-            self.tracker_endpoint.validate()
+        if self.history_endpoint:
+            self.history_endpoint.validate()
 
         if self.action_endpoint:
             self.action_endpoint.validate()

@@ -1027,68 +1027,41 @@ class TestMongoProcessor:
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("tracker") is None
 
-    def test_add_endpoints_add_tracker_endpoint_missing_db(self):
-        processor = MongoProcessor()
-        config = {"tracker_endpoint": {"url": "mongodb://localhost:27017"}}
-        with pytest.raises(ValidationError):
-            processor.add_endpoints(config, bot="tests3", user="testUser")
-            endpoint = processor.get_endpoints("tests3")
-            assert endpoint.get("bot_endpoint") is None
-            assert endpoint.get("action_endpoint") is None
-            assert endpoint.get("tracker_endpoint") is None
-
-    def test_add_endpoints_add_tracker_endpoint_invalid_url(self):
-        processor = MongoProcessor()
-        config = {
-            "tracker_endpoint": {
-                "url": "mongo://localhost:27017",
-                "db": "conversations",
-            }
-        }
-        with pytest.raises(AppException):
-            processor.add_endpoints(config, bot="tests3", user="testUser")
-            endpoint = processor.get_endpoints("tests3")
-            assert endpoint.get("bot_endpoint") is None
-            assert endpoint.get("action_endpoint") is None
-            assert endpoint.get("tracker") is None
-
     def test_add_endpoints_add_tracker_endpoint(self):
         processor = MongoProcessor()
         config = {
-            "tracker_endpoint": {
-                "url": "mongodb://localhost:27017/",
-                "db": "conversations",
+            "history_endpoint": {
+                "url": "http://localhost:27017/",
+                "access_key": "conversations",
+                "secret_key": "conversations"
             }
         }
         processor.add_endpoints(config, bot="tests3", user="testUser")
         endpoint = processor.get_endpoints("tests3")
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27017/"
+        assert endpoint.get("history_endpoint").get("access_key") == "conversations"
+        assert endpoint.get("history_endpoint").get("secret_key") == "conversations"
 
     def test_update_endpoints(self):
         processor = MongoProcessor()
         config = {
             "action_endpoint": {"url": "http://localhost:8000/"},
             "bot_endpoint": {"url": "http://localhost:5000/"},
-            "tracker_endpoint": {
-                "url": "mongodb://localhost:27017/",
-                "db": "conversations",
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "access_key": "kairon-history-user",
+                "secret_key": "kairon-history-server-secret"
             },
         }
         processor.add_endpoints(config, bot="tests", user="testUser")
         endpoint = processor.get_endpoints("tests")
         assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("access_key") == "kairon-history-user"
+        assert endpoint.get("history_endpoint").get("secret_key") == "kairon-history-server-secret"
 
     def test_update_endpoints_any(self):
         processor = MongoProcessor()
@@ -1100,11 +1073,9 @@ class TestMongoProcessor:
         endpoint = processor.get_endpoints("tests")
         assert endpoint.get("bot_endpoint").get("url") == "http://127.0.0.1:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://127.0.0.1:8000/"
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("access_key") == "kairon-history-user"
+        assert endpoint.get("history_endpoint").get("secret_key") == "kairon-history-server-secret"
 
     def test_download_data_files(self):
         processor = MongoProcessor()

@@ -32,6 +32,7 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer-dev:latest .
+    -  docker build -f ./docker/Dockerfile_history_server -t kairon-history-server-dev:latest .
 
 build-release:
   tags:
@@ -47,3 +48,4 @@ build-release:
     -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .
     -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen:latest .
     -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer:latest .
+    -  docker build -f ./docker/Dockerfile_history_server -t kairon-history-server:latest .

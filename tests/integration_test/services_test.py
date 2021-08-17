@@ -2020,7 +2020,7 @@ def test_save_endpoint(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"bot_endpoint": {"url": "http://localhost:5005/"},
               "action_endpoint": {"url": "http://localhost:5000/"},
-              "tracker_endpoint": {"url": "mongodb://localhost:27017", "db": "rasa"}}
+              "history_endpoint": {"url": "mongodb://localhost:27017", "access_key": "rasa", "secret_key": 'hbkjzbfua'}}
     )
 
     actual = response.json()
@@ -2036,7 +2036,7 @@ def test_save_endpoint(monkeypatch):
     actual = response.json()
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
-    assert actual['data']['endpoint'].get('tracker_endpoint')
+    assert actual['data']['endpoint'].get('history_endpoint')
 
 
 def test_get_templates():

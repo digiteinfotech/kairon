@@ -1212,3 +1212,15 @@ class Utility:
             file_path = os.path.join(temp_path, "conversation_history.csv")
             df.to_csv(file_path, index=False)
             return file_path, temp_path
+
+
+class Messages:
+
+    def __init__(self, initial_message: str = None):
+        self.message = initial_message
+
+    def append_message(self, message: str):
+        if not self.message:
+            self.message = message
+        else:
+            self.message += f"\n {message}"

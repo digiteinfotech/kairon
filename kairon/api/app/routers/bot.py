@@ -558,6 +558,15 @@ async def set_endpoint(
     return {"message": "Endpoint saved successfully!"}
 
 
+@router.get("/endpoint/history", response_model=Response)
+async def get_history_server_endpoint(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    :return: history server endpoint for current bot
+    """
+    endpoint = mongo_processor.get_history_server_endpoint(current_user.get_bot())
+    return {"data": endpoint}
+
+
 @router.get("/config", response_model=Response)
 async def get_config(current_user: User = Depends(Authentication.get_current_user_and_bot), ):
     """

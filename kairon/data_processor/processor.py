@@ -61,7 +61,7 @@ from .data_objects import (
     Entity,
     EndPointBot,
     EndPointAction,
-    EndPointTracker,
+    EndPointHistory,
     Slots,
     StoryEvents,
     ModelDeployment,
@@ -2106,14 +2106,29 @@ class MongoProcessor:
                 **endpoint_config.get("action_endpoint")
             )
 
-        if endpoint_config.get("tracker_endpoint"):
-            endpoint.tracker_endpoint = EndPointTracker(
-                **endpoint_config.get("tracker_endpoint")
+        if endpoint_config.get("history_endpoint"):
+            endpoint.history_endpoint = EndPointHistory(
+                **endpoint_config.get("history_endpoint")
             )
 
         endpoint.bot = bot
         endpoint.user = user
         return endpoint.save().to_mongo().to_dict()["_id"].__str__()
+
+    def get_history_server_endpoint(self, bot):
+        endpoint_config = None
+        try:
+            endpoint_config = self.get_endpoints(bot)
+        except AppException as e:
+            pass
+        if not endpoint_config or not endpoint_config.get("history_endpoint"):
+            if Utility.environment['history_server'].get('url'):
+                history_endpoint = {'url': Utility.environment['history_server']['url']}
+            else:
+                raise AppException('No history server endpoint configured')
+        else:
+            history_endpoint = endpoint_config.get("history_endpoint")
+        return history_endpoint
 
     def get_endpoints(self, bot: Text, raise_exception=True):
         """

@@ -41,3 +41,14 @@ elasticsearch:
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
   secret_token: ${APM_SECRET_TOKEN}
+
+external_services:
+  history_server:
+    api_access_key: ${API_ACCESS_KEY:"3&~aOs`u64kybkcV9K*6#VpIb"}
+    api_secret_key: ${API_SECRET_KEY:"Vtn+n[o,RUu{ImA[/<m1tiH7$k~!CBTvZrGt}<oa*c7-2aZE>dg_Y.bXZr!j*#="}
+
+history_server:
+  is_deployed_with_kairon: ${IS_DEPLOYED_WITH_KAIRON:false}
+  tracker_url: ${TRACKER_URL:"mongodb://localhost:27017/conversations"}
+  tracker_db: ${TRACKER_DB:"rasa"}
+  tracker_collection: ${TRACKER_COLLECTION:"conversations"}

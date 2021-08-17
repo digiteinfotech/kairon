@@ -1,6 +1,7 @@
 import logging
 from time import time
 
+import uvicorn
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -25,9 +26,8 @@ from secure import SecureHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.models import Response
-from kairon.api.processor import AccountProcessor
 from kairon.exceptions import AppException
-from kairon.api.app.routers import auth, bot, augment, user, account
+from kairon.history.router import metrics, conversations, trends
 from kairon.utils import Utility
 
 logging.basicConfig(level="DEBUG")
@@ -79,14 +79,15 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     from kairon.utils import Utility
 
-    connect(host=Utility.environment['database']["url"])
-    await AccountProcessor.default_account_setup()
+    if Utility.environment['history_server']['is_deployed_with_kairon']:
+        connect(host=Utility.environment['database']["url"])
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """ MongoDB is disconnected when bot trainer is shut down """
-    disconnect()
+    if Utility.environment['history_server']['is_deployed_with_kairon']:
+        disconnect()
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -239,8 +240,10 @@ def index():
     return {"message": "hello"}
 
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(account.router, prefix="/api/account", tags=["Account"])
-app.include_router(user.router, prefix="/api/user", tags=["User"])
-app.include_router(bot.router, prefix="/api/bot/{bot}", tags=["Bot"])
-app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
+app.include_router(metrics.router, prefix="/api/history/metrics/{bot}", tags=["Metrics"])
+app.include_router(conversations.router, prefix="/api/history/conversations/{bot}", tags=["Conversations"])
+app.include_router(trends.router, prefix="/api/history/trends/{bot}", tags=["Trends"])
+
+
+if __name__ == '__main__':
+    uvicorn.run(app)

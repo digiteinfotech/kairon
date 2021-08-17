@@ -14,7 +14,7 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
-from ..shared.models import StoryStepType, StoryType, TemplateType, StoryEventType, ParameterChoice, History_Month_Enum
+from ..shared.models import StoryStepType, StoryType, TemplateType, StoryEventType, ParameterChoice
 
 
 class Token(BaseModel):
@@ -69,9 +69,6 @@ class ListData(BaseModel):
     data: List[str]
 
 
-
-
-
 class RegisterAccount(BaseModel):
     email: str
     first_name: str
@@ -111,19 +108,16 @@ class EndPointAction(BaseModel):
     url: str
 
 
-class EndPointTracker(BaseModel):
-    type: str = "mongo"
+class EndPointHistory(BaseModel):
     url: str
-    db: str
-    username: str = None
-    password: str = None
-    auth_source: str = None
+    access_key: str
+    secret_key: str
 
 
 class Endpoint(BaseModel):
     bot_endpoint: EndPointBot = None
     action_endpoint: EndPointAction = None
-    tracker_endpoint: EndPointTracker = None
+    history_endpoint: EndPointHistory = None
 
 
 class RasaConfig(BaseModel):
@@ -175,13 +169,6 @@ class Password(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
-
-
-
-
-
-class HistoryMonth(BaseModel):
-    month: History_Month_Enum
 
 
 class HttpActionParameters(BaseModel):
