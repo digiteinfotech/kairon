@@ -12,16 +12,20 @@ from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
+from urllib.parse import urljoin
 
 import requests
 import yaml
+from cryptography.fernet import Fernet
 from elasticapm.contrib.starlette import make_apm_client
 from fastapi import File
+from fastapi.background import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from jwt import encode, decode
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
 from mongoengine.errors import ValidationError
+from mongoengine.queryset.visitor import QCombination
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
@@ -55,9 +59,6 @@ from .data_processor.constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMAT
     REQUIREMENTS
 from .exceptions import AppException
 from .shared.actions.data_objects import HttpActionConfig
-from fastapi.background import BackgroundTasks
-from mongoengine.queryset.visitor import QCombination
-from urllib.parse import urljoin
 from .shared.models import StoryStepType
 from urllib.parse import unquote_plus
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
@@ -912,17 +913,28 @@ class Utility:
             raise AppException("Invalid token")
 
     @staticmethod
+    def encrypt_message(msg: Text):
+        key = Utility.environment['security']["fernet_key"]
+        fernet = Fernet(key.encode('utf-8'))
+        encoded_msg = msg.encode('utf-8')
+        encrypted_msg = fernet.encrypt(encoded_msg)
+        return encrypted_msg.decode('utf-8')
+
+    @staticmethod
+    def decrypt_message(msg: Text):
+        key = Utility.environment['security']["fernet_key"]
+        fernet = Fernet(key.encode('utf-8'))
+        encoded_msg = msg.encode('utf-8')
+        decrypted_msg = fernet.decrypt(encoded_msg)
+        return decrypted_msg.decode('utf-8')
+
+    @staticmethod
     def get_local_db():
         db_url = Utility.environment['database']["url"]
         db_name = Utility.environment['database']["test_db"]
         config = Utility.extract_db_config(db_url)
         config['db'] = db_name
         return config
-
-    @staticmethod
-    def get_timestamp_previous_month(month: int):
-        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
-        return start_time.timestamp()
 
     @staticmethod
     def build_http_response_object(http_action_config: HttpActionConfig, user: str, bot: str):
@@ -1203,12 +1215,6 @@ class Utility:
         return fallback_action
 
     @staticmethod
-    def load_default_actions():
-        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
-
-        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
-
-    @staticmethod
     async def chat(data: Text, bot: Text, user: Text, email: Text):
         if Utility.environment.get('model') and Utility.environment['model']['train'].get('agent_url'):
             from kairon.api.auth import Authentication
@@ -1224,7 +1230,6 @@ class Utility:
             )
             response = {"data": {"response": chat_response}}
         return response
-
 
     @staticmethod
     def decode_limited_access_token(token: Text):
@@ -1282,3 +1287,24 @@ class Utility:
         if "authmechanism" in options:
             config["authentication_mechanism"] = options["authmechanism"]
         return config
+
+    @staticmethod
+    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET',
+                                       return_json: bool = True):
+        from kairon.data_processor.processor import MongoProcessor
+
+        headers = {}
+        mongo_processor = MongoProcessor()
+        history_server = mongo_processor.get_history_server_endpoint(bot)
+        if not Utility.check_empty_string(history_server.get('token')):
+            headers = {'Authorization': history_server['token']}
+        url = urljoin(history_server['url'], endpoint)
+        try:
+            response = requests.request(request_method, url, headers=headers, json=request_body)
+            if return_json:
+                return response.json()
+            else:
+                return response
+        except requests.exceptions.ConnectionError as e:
+            logger.error(str(e))
+            raise AppException(f'Unable to connect to history server: {str(e)}')
