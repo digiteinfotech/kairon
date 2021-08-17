@@ -150,7 +150,8 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
     """
     exception = None
     model_file = None
-    training_status = None    apm_client = None
+    training_status = None
+    apm_client = None
     if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
         Utility.train_model_event(bot, user, token)
     else:
