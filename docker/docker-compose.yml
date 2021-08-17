@@ -92,6 +92,20 @@ services:
     networks:
       - chatbotnetwork
 
+  kairon-history-server:
+    image: digite/kairon-history-server:latest
+    container_name: kairon-history-server
+    hostname: kairon-history-server
+    ports:
+      - 8083:8083
+    environment:
+      TRACKER_TYPE: 'bot'
+      TRACKER_URL: "mongodb://mongo:27017/kairon"
+      TRACKER_DB: "rasa"
+      TRACKER_COLLECTION: "conversations"
+    networks:
+      - chatbotnetwork
+
 
 networks:
   chatbotnetwork:
