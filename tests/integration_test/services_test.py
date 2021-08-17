@@ -16,7 +16,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
 from kairon.api.auth import Authentication
-from kairon.api.models import StoryEventType, User
+from kairon.api.models import User
 from kairon.api.processor import AccountProcessor
 from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.data_processor.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
@@ -26,6 +26,7 @@ from kairon.data_processor.training_data_generation_processor import TrainingDat
 from kairon.exceptions import AppException
 from kairon.importer.data_objects import ValidationLogs
 from kairon.shared.actions.data_objects import HttpActionLog
+from kairon.shared.models import StoryEventType
 from kairon.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1995,17 +1996,98 @@ def test_save_endpoint_error():
     assert not actual['success']
 
 
-def test_save_empty_endpoint():
+def test_save_history_endpoint():
     response = client.put(
         f"/api/bot/{pytest.bot}/endpoint",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={}
+        json={"history_endpoint": {
+            "url": "http://localhost:27019/",
+            "access_key": "kairon-history-user",
+            "secret_key": "kairon-history-server-secret"
+        }}
     )
 
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 0
     assert actual['message'] == 'Endpoint saved successfully!'
+    assert actual['success']
+
+
+def test_save_empty_history_endpoint():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"history_endpoint": {
+            "url": "http://localhost:27019/",
+            "access_key": " ",
+            "secret_key": "kairon-history-server-secret"
+        }}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == 'url, access_key, secret_key cannot be blank or empty spaces'
+    assert not actual['success']
+
+
+def test_get_history_endpoint():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data']['endpoint']['history_endpoint']['url'] == "http://localhost:27019/"
+    assert actual['data']['endpoint']['history_endpoint']['access_key'] == "kairon-history-user"
+    assert actual['data']['endpoint']['history_endpoint']['secret_key'] == "kairon-history-server-secret"
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_get_history_server_endpoint():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/endpoint/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data']['url'] == "http://localhost:27019/"
+    assert actual['data']['access_key'] == "kairon-history-user"
+    assert actual['data']['secret_key'] == "kairon-history-server-secret"
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_delete_endpoint():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/endpoint/history_endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == 'Endpoint removed'
+    assert actual['success']
+
+
+def test_get_kairon_history_server_endpoint():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/endpoint/history",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['data']['url'] == "http://localhost:8083/"
+    assert not actual['data'].get('access_key')
+    assert not actual['data'].get('secret_key')
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
     assert actual['success']
 
 
@@ -2020,7 +2102,7 @@ def test_save_endpoint(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"bot_endpoint": {"url": "http://localhost:5005/"},
               "action_endpoint": {"url": "http://localhost:5000/"},
-              "tracker_endpoint": {"url": "mongodb://localhost:27017", "db": "rasa"}}
+              "history_endpoint": {"url": "mongodb://localhost:27017", "access_key": "rasa", "secret_key": 'hbkjzbfua'}}
     )
 
     actual = response.json()
@@ -2036,7 +2118,7 @@ def test_save_endpoint(monkeypatch):
     actual = response.json()
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
-    assert actual['data']['endpoint'].get('tracker_endpoint')
+    assert actual['data']['endpoint'].get('history_endpoint')
 
 
 def test_get_templates():

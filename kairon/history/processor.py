@@ -3,43 +3,28 @@ from typing import Text
 
 from loguru import logger
 from pymongo import MongoClient
-from rasa.core.tracker_store import MongoTrackerStore
 
 from kairon.exceptions import AppException
 from kairon.utils import Utility
-from .processor import MongoProcessor
 
 
 class ChatHistory:
     """Class contains logic for fetching history data and metrics from mongo tracker"""
 
-    mongo_processor = MongoProcessor()
-
     @staticmethod
-    def get_tracker_and_domain(bot: Text):
-        """
-        loads domain data and mongo tracker
-
-        :param bot: bot id
-        :return: tuple domain, tracker
-        """
-        domain = ChatHistory.mongo_processor.load_domain(bot)
-        message = None
-        try:
-            endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
-            tracker = MongoTrackerStore(
-                domain=domain,
-                host=endpoint["tracker_endpoint"]["url"],
-                db=endpoint["tracker_endpoint"]["db"],
-                username=endpoint["tracker_endpoint"].get("username"),
-                password=endpoint["tracker_endpoint"].get("password"),
-            )
-        except Exception as e:
-            logger.info(e)
-            message = "Loading test conversation! " + str(e)
-            tracker = Utility.get_local_mongo_store(bot, domain)
-
-        return domain, tracker, message
+    def get_mongo_connection(bot: Text = None):
+        if Utility.environment["external_service"]["is_deployed_with_kairon"]:
+            url = Utility.environment["database"]["url"]
+            db_name = Utility.environment["database"]['test_db']
+            collection = bot
+        else:
+            url = Utility.environment["history_server"]["tracker_url"]
+            db_name = Utility.environment["history_server"]['tracker_db']
+            collection = Utility.environment["history_server"]['tracker_collection']
+        _, _, mongo_url = Utility.extract_user_password(url)
+        message = f"Loading host:{mongo_url}, db:{db_name}, collection:{collection}"
+        client = MongoClient(host=url)
+        return client, db_name, collection, message
 
     @staticmethod
     def fetch_chat_history(bot: Text, sender, month: int = 1):
@@ -55,7 +40,7 @@ class ChatHistory:
         events, message = ChatHistory.fetch_user_history(
             bot, sender, month=month
         )
-        return list(ChatHistory.__prepare_data(bot, events)), message
+        return list(ChatHistory.__prepare_data(events)), message
 
     @staticmethod
     def fetch_chat_users(bot: Text, month: int = 1):
@@ -72,7 +57,8 @@ class ChatHistory:
             conversations = db.get_collection(collection)
             users = []
             try:
-                values = conversations.find({"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}, {"_id": 0, "sender_id": 1})
+                values = conversations.find({"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}},
+                                            {"_id": 0, "sender_id": 1})
                 users = [
                     sender["sender_id"]
                     for sender in values
@@ -82,11 +68,8 @@ class ChatHistory:
             return users, message
 
     @staticmethod
-    def __prepare_data(bot: Text, events):
+    def __prepare_data(events):
         bot_action = None
-        training_examples, ids = ChatHistory.mongo_processor.get_all_training_examples(
-            bot
-        )
         if events:
             event_list = ["user", "bot"]
             for i in range(events.__len__()):
@@ -100,10 +83,6 @@ class ChatHistory:
 
                     if event.get("text"):
                         result["text"] = event.get("text")
-                        text_data = str(event.get("text")).lower()
-                        result["is_exists"] = text_data in training_examples
-                        if result["is_exists"]:
-                            result["_id"] = ids[training_examples.index(text_data)]
 
                     if event["event"] == "user":
                         parse_data = event["parse_data"]
@@ -153,16 +132,19 @@ class ChatHistory:
                 raise AppException(e)
 
     @staticmethod
-    def visitor_hit_fallback(bot: Text, month: int = 1):
+    def visitor_hit_fallback(bot: Text,
+                             month: int = 1,
+                             fallback_action: str = 'action_default_fallback',
+                             nlu_fallback_action: str = None):
         """
         Counts the number of times, the agent was unable to provide a response to users
 
         :param bot: bot id
         :param month: default is current month and max is last 6 months
+        :param fallback_action: fallback action configured for bot
+        :param nlu_fallback_action: nlu fallback configured for bot
         :return: list of visitor fallback
         """
-
-        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         default_actions = Utility.load_default_actions()
         with client as client:
@@ -171,17 +153,21 @@ class ChatHistory:
             values = []
             try:
                 values = list(conversations.aggregate([{"$unwind": "$events"},
-                                                      {"$match": {"events.event": "action",
-                                                                  "events.name": {"$nin": default_actions},
-                                                                  "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                                                      {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
-                                                                  "events": {"$push": "$events"}}},
-                                                      {"$unwind": "$events"},
-                                                      {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
-                                                      {"$group": {"_id": None, "total_count": {"$first": "$total_count"},
-                                                                  "fallback_count": {"$sum": 1}}},
-                                                      {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}
-                                                      ], allowDiskUse=True))
+                                                       {"$match": {"events.event": "action",
+                                                                   "events.name": {"$nin": default_actions},
+                                                                   "events.timestamp": {
+                                                                       "$gte": Utility.get_timestamp_previous_month(
+                                                                           month)}}},
+                                                       {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
+                                                                   "events": {"$push": "$events"}}},
+                                                       {"$unwind": "$events"},
+                                                       {"$match": {'$or': [{"events.name": fallback_action},
+                                                                           {"events.name": nlu_fallback_action}]}},
+                                                       {"$group": {"_id": None,
+                                                                   "total_count": {"$first": "$total_count"},
+                                                                   "fallback_count": {"$sum": 1}}},
+                                                       {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}
+                                                       ], allowDiskUse=True))
             except Exception as e:
                 message = str(e)
             if not values:
@@ -288,22 +274,6 @@ class ChatHistory:
         return values, message
 
     @staticmethod
-    def get_conversations(bot: Text):
-        """
-        fetches all the conversations between agent and users
-
-        :param bot: bot id
-        :return: list of conversations, message
-        """
-        _, tracker, message = ChatHistory.get_tracker_and_domain(bot)
-        conversations = []
-        try:
-            conversations = list(tracker.conversations.find())
-        except Exception as e:
-            raise AppException(e)
-        return (conversations, message)
-
-    @staticmethod
     def user_with_metrics(bot, month=1):
         """
         fetches user with the steps and time in conversation
@@ -363,25 +333,6 @@ class ChatHistory:
             except Exception as e:
                 logger.info(e)
             return users, message
-
-    @staticmethod
-    def get_mongo_connection(bot: Text):
-        message = None
-        try:
-            endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
-            client = MongoClient(host=endpoint["tracker_endpoint"]["url"],
-                                 username=endpoint["tracker_endpoint"].get("username"),
-                                 password=endpoint["tracker_endpoint"].get("password"))
-            db_name = endpoint["tracker_endpoint"]['db']
-            collection = "conversations"
-        except Exception as e:
-            message = "Loading test conversation! " + str(e)
-            username, password, url, db_name = Utility.get_local_db()
-            client = MongoClient(host=url,
-                                 username=username,
-                                 password=password)
-            collection = bot
-        return client, db_name, collection, message
 
     @staticmethod
     def engaged_users(bot: Text, month: int = 1, conversation_limit: int = 10):
@@ -483,16 +434,19 @@ class ChatHistory:
             )
 
     @staticmethod
-    def successful_conversations(bot: Text, month: int = 1):
+    def successful_conversations(bot: Text,
+                                 month: int = 1,
+                                 fallback_action: str = 'action_default_fallback',
+                                 nlu_fallback_action: str = 'nlu_fallback'):
         """
         Counts the number of successful conversations of the bot
 
         :param bot: bot id
         :param month: default is current month and max is last 6 months
+        :param fallback_action: fallback action configured for bot
+        :param nlu_fallback_action: nlu fallback configured for bot
         :return: number of successful conversations
         """
-
-        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
@@ -697,14 +651,18 @@ class ChatHistory:
                 message
             )
 
-
     @staticmethod
-    def successful_conversation_range(bot: Text, month: int = 6):
+    def successful_conversation_range(bot: Text,
+                                      month: int = 6,
+                                      fallback_action: str = 'action_default_fallback',
+                                      nlu_fallback_action: str = 'nlu_fallback'):
         """
         Computes the trend for successful conversation count
 
         :param bot: bot id
         :param month: default is 6 months
+        :param fallback_action: fallback action configured for bot
+        :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of counts of successful bot conversations for the previous months
         """
 
@@ -746,7 +704,6 @@ class ChatHistory:
                 message
             )
 
-
     @staticmethod
     def user_retention_range(bot: Text, month: int = 6):
         """
@@ -774,39 +731,41 @@ class ChatHistory:
 
                 repeating_users = list(
                     conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                                          {"$match": {
-                                              "events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
-                                          {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
-                                                      "latest_event_time": {"$first": "$latest_event_time"}}},
-                                          {"$match": {"count": {"$gte": 2}}},
-                                          {"$match": {"latest_event_time": {
-                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
-                                          {"$addFields": {"month": {
-                                              "$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
-                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
-                                          {"$project": {"_id": 1, "count": 1}}
-                                          ]))
+                                             {"$match": {
+                                                 "events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
+                                             {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
+                                                         "latest_event_time": {"$first": "$latest_event_time"}}},
+                                             {"$match": {"count": {"$gte": 2}}},
+                                             {"$match": {"latest_event_time": {
+                                                 "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                             {"$addFields": {"month": {
+                                                 "$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
+                                             {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                             {"$project": {"_id": 1, "count": 1}}
+                                             ]))
             except Exception as e:
                 message = str(e)
             total_users = {d['_id']: d['count'] for d in total}
             repeat_users = {d['_id']: d['count'] for d in repeating_users}
-            retention = {k: 100*(repeat_users[k]/total_users[k]) for k in repeat_users.keys()}
+            retention = {k: 100 * (repeat_users[k] / total_users[k]) for k in repeat_users.keys()}
             return (
                 {"retention_range": retention},
                 message
             )
 
-
     @staticmethod
-    def fallback_count_range(bot: Text, month: int = 6):
+    def fallback_count_range(bot: Text,
+                             month: int = 6,
+                             fallback_action: str = 'action_default_fallback',
+                             nlu_fallback_action: str = 'nlu_fallback'):
         """
         Computes the trend for fallback counts
         :param bot: bot id
         :param month: default is 6 months
+        :param fallback_action: fallback action configured for bot
+        :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of fallback counts for the previous months
         """
-
-        fallback_action, nlu_fallback_action = Utility.load_fallback_actions(bot)
         client, database, collection, message = ChatHistory.get_mongo_connection(bot)
         with client as client:
             db = client.get_database(database)
