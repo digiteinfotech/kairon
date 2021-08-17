@@ -20,7 +20,7 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest
 )
 from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS, ENDPOINT_TYPE
 from kairon.data_processor.data_objects import TrainingExamples
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -556,6 +556,22 @@ async def set_endpoint(
     if endpoint.action_endpoint:
         background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
     return {"message": "Endpoint saved successfully!"}
+
+
+@router.delete("/endpoint/{endpoint_type}", response_model=Response)
+async def delete_endpoint(
+        endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
+                                                                      "history_endpoint", example="bot_endpoint"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Deletes the bot endpoint configuration
+    """
+    mongo_processor.delete_endpoint(
+        current_user.get_bot(), endpoint_type
+    )
+
+    return {"message": "Endpoint removed"}
 
 
 @router.get("/config", response_model=Response)
