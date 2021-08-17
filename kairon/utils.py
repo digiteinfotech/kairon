@@ -14,6 +14,8 @@ from smtplib import SMTP
 from typing import Text, List, Dict
 
 import requests
+from cryptography.fernet import Fernet
+from requests import exceptions
 import yaml
 from elasticapm.contrib.starlette import make_apm_client
 from fastapi import File
@@ -862,6 +864,22 @@ class Utility:
             raise AppException("Invalid token")
 
     @staticmethod
+    def encrypt_message(msg: Text):
+        key = Utility.environment['security']["fernet_key"]
+        fernet = Fernet(key.encode('utf-8'))
+        encoded_msg = msg.encode('utf-8')
+        encrypted_msg = fernet.encrypt(encoded_msg)
+        return encrypted_msg.decode('utf-8')
+
+    @staticmethod
+    def decrypt_message(msg: Text):
+        key = Utility.environment['security']["fernet_key"]
+        fernet = Fernet(key.encode('utf-8'))
+        encoded_msg = msg.encode('utf-8')
+        decrypted_msg = fernet.decrypt(encoded_msg)
+        return decrypted_msg.decode('utf-8')
+
+    @staticmethod
     def get_local_db():
         db_url = Utility.environment['database']["url"]
         db_name = Utility.environment['database']["test_db"]
@@ -1174,7 +1192,6 @@ class Utility:
             response = {"data": {"response": chat_response}}
         return response
 
-
     @staticmethod
     def decode_limited_access_token(token: Text):
         try:
@@ -1218,3 +1235,23 @@ class Utility:
             file_path = os.path.join(temp_path, "conversation_history.csv")
             df.to_csv(file_path, index=False)
             return file_path, temp_path
+
+    @staticmethod
+    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET', return_json: bool = True):
+        from kairon.data_processor.processor import MongoProcessor
+
+        headers = {}
+        mongo_processor = MongoProcessor()
+        history_server = mongo_processor.get_history_server_endpoint(bot)
+        if not Utility.check_empty_string(history_server.get('token')):
+            headers = {'Authorization': history_server['token']}
+        url = urljoin(history_server['url'], endpoint)
+        try:
+            response = requests.request(request_method, url, headers=headers, json=request_body)
+            if return_json:
+                return response.json()
+            else:
+                return response
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            raise AppException(f'Unable to connect to history server: {str(e)}')

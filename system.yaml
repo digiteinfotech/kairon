@@ -9,6 +9,7 @@ security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
   algorithm: "HS256"
   token_expire: ${TOKEN_EXPIRE:10080}
+  fernet_key: ${FERNET_KEY:"gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="}
 
 augmentation:
   paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrases"}
@@ -39,3 +40,7 @@ elasticsearch:
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
   secret_token: ${APM_SECRET_TOKEN}
+
+history_server:
+  url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
+  token: ${KAIRON_HISTORY_SERVER_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}

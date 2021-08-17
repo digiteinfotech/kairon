@@ -42,7 +42,7 @@ from .constant import (
     ENTITY,
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT,
-    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE
+    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE
 )
 from .data_objects import (
     Responses,
@@ -61,7 +61,7 @@ from .data_objects import (
     Entity,
     EndPointBot,
     EndPointAction,
-    EndPointTracker,
+    EndPointHistory,
     Slots,
     StoryEvents,
     ModelDeployment,
@@ -69,11 +69,12 @@ from .data_objects import (
     Feedback, Utterances, BotSettings, ChatClientConfig
 )
 from ..api import models
-from ..api.models import StoryEventType, HttpActionConfigRequest, TemplateType
+from ..api.models import HttpActionConfigRequest, TemplateType
 from ..importer.processor import DataImporterLogProcessor
 from ..importer.validator.file_validator import TrainingDataValidator
 from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
 from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+from ..shared.models import StoryEventType
 
 
 class MongoProcessor:
@@ -2104,22 +2105,42 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration already exists!")
             endpoint = Endpoints()
 
-        if endpoint_config.get("bot_endpoint"):
-            endpoint.bot_endpoint = EndPointBot(**endpoint_config.get("bot_endpoint"))
+        if endpoint_config.get(ENDPOINT_TYPE.BOT_ENDPOINT.value):
+            endpoint.bot_endpoint = EndPointBot(**endpoint_config.get(ENDPOINT_TYPE.BOT_ENDPOINT.value))
 
-        if endpoint_config.get("action_endpoint"):
+        if endpoint_config.get(ENDPOINT_TYPE.ACTION_ENDPOINT.value):
             endpoint.action_endpoint = EndPointAction(
-                **endpoint_config.get("action_endpoint")
+                **endpoint_config.get(ENDPOINT_TYPE.ACTION_ENDPOINT.value)
             )
 
-        if endpoint_config.get("tracker_endpoint"):
-            endpoint.tracker_endpoint = EndPointTracker(
-                **endpoint_config.get("tracker_endpoint")
+        if endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value):
+            token = endpoint_config[ENDPOINT_TYPE.HISTORY_ENDPOINT.value].get('token')
+            if not Utility.check_empty_string(token):
+                encrypted_token = Utility.encrypt_message(token)
+                endpoint_config[ENDPOINT_TYPE.HISTORY_ENDPOINT.value]['token'] = encrypted_token
+            endpoint.history_endpoint = EndPointHistory(
+                **endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
             )
 
         endpoint.bot = bot
         endpoint.user = user
         return endpoint.save().to_mongo().to_dict()["_id"].__str__()
+
+    def get_history_server_endpoint(self, bot):
+        endpoint_config = None
+        try:
+            endpoint_config = self.get_endpoints(bot)
+        except AppException:
+            pass
+        if endpoint_config and endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value):
+            history_endpoint = endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
+            history_endpoint['type'] = 'user'
+        elif Utility.environment['history_server'].get('url'):
+            history_endpoint = {'url': Utility.environment['history_server']['url'],
+                                'token': Utility.environment['history_server'].get('token'), 'type': 'kairon'}
+        else:
+            raise AppException('No history server endpoint configured')
+        return history_endpoint
 
     def get_endpoints(self, bot: Text, raise_exception=True):
         """
@@ -2135,6 +2156,13 @@ class MongoProcessor:
             endpoint.pop("user")
             endpoint.pop("timestamp")
             endpoint["_id"] = endpoint["_id"].__str__()
+
+            if endpoint.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value):
+                token = endpoint[ENDPOINT_TYPE.HISTORY_ENDPOINT.value].get('token')
+                if not Utility.check_empty_string(token):
+                    decrypted_token = Utility.decrypt_message(token)
+                    endpoint[ENDPOINT_TYPE.HISTORY_ENDPOINT.value]['token'] = decrypted_token
+
             return endpoint
         except DoesNotExist as e:
             logging.exception(e)
@@ -2142,6 +2170,27 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
                 return {}
+
+    def delete_endpoint(self, bot: Text, endpoint_type: ENDPOINT_TYPE):
+        """
+        delete endpoint configuration
+
+        :param bot: bot id
+        :param endpoint_type: Type of endpoint
+        :return:
+        """
+        if not endpoint_type:
+            raise AppException('endpoint_type is required for deletion')
+        try:
+            current_endpoint_config = Endpoints.objects().get(bot=bot)
+            if current_endpoint_config.__getitem__(endpoint_type):
+                current_endpoint_config.__setitem__(endpoint_type, None)
+                current_endpoint_config.save()
+            else:
+                raise AppException("Endpoint not configured")
+        except DoesNotExist as e:
+            logging.exception(e)
+            raise AppException("No Endpoint configured")
 
     def add_model_deployment_history(
             self, bot: Text, user: Text, model: Text, url: Text, status: Text
