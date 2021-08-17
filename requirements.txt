@@ -38,3 +38,4 @@ rasa_sdk==2.1.2
 elastic-apm
 ElasticMock
 rsa>=4.7 # not directly required, pinned by Snyk to avoid a vulnerability
+cryptography

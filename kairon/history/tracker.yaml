@@ -1,0 +1,8 @@
+authentication:
+  token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
+
+tracker:
+  type: ${TRACKER_TYPE:"bot"}
+  url: ${TRACKER_URL:"mongodb://localhost:27017"}
+  db: ${TRACKER_DB:"rasa"}
+  collection: ${TRACKER_COLLECTION:"conversations"}
