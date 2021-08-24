@@ -174,7 +174,7 @@ class TestHistory:
         rule = {'name': 'fallback_rule', 'steps': steps, 'type': 'RULE'}
         MongoProcessor().add_complex_story(rule, "5b029887-bed2-4bbb-aa25-bd12fda26244", 'test')
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("5b029887-bed2-4bbb-aa25-bd12fda26244")
-        assert hit_fall_back["fallback_count"] == 2
+        assert hit_fall_back["fallback_count"] == 1
         assert hit_fall_back["total_count"] == 4
         assert message is None
 

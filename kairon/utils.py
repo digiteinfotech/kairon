@@ -1034,8 +1034,11 @@ class Utility:
             raise ValidationError("First event should be an user")
 
         if type == "RULE":
-            if events[0].type != "user":
-                if not (events[0].type == "action" and events[0].name == "..."):
+            if events[0].name == "..." and events[0].type == "action":
+                if events[1].type != "user":
+                    raise ValidationError('First event should be an user or conversation_start action')
+            else:
+                if events[0].type != "user":
                     raise ValidationError('First event should be an user or conversation_start action')
 
         if events[len(events) - 1].type == "user":

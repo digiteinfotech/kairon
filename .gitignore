@@ -16,3 +16,4 @@ coverage_html
 
 # Logs
 *.log
+/models/

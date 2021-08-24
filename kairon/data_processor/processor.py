@@ -1807,7 +1807,7 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def __complex_story_prepare_steps(self, steps: List[Dict], bot, user):
+    def __complex_story_prepare_steps(self, steps: List[Dict], type, bot, user):
         """
         convert kairon story events to rasa story events
         :param steps: list of story steps
@@ -1815,6 +1815,11 @@ class MongoProcessor:
         """
 
         events = []
+        if steps and type == "RULE":
+            if steps[0]['name'] != "..." and steps[0]['type'] != "action":
+                events.append(StoryEvents(
+                    name="...",
+                    type="action"))
         for step in steps:
             if step['type'] == "INTENT":
                 events.append(StoryEvents(
@@ -1850,7 +1855,7 @@ class MongoProcessor:
         if not steps:
             raise AppException("steps are required")
 
-        events = self.__complex_story_prepare_steps(steps, bot, user)
+        events = self.__complex_story_prepare_steps(steps, type, bot, user)
 
         data_class = None
         if type == "STORY":
@@ -1916,7 +1921,7 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("FLow does not exists")
 
-        events = self.__complex_story_prepare_steps(steps, bot, user)
+        events = self.__complex_story_prepare_steps(steps, type, bot, user)
         data_object['events'] = events
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
@@ -1979,7 +1984,8 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-
+                if isinstance(value, Rules) and event['name'] == "..." and event['type'] == "action":
+                    continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
                     step['type'] = 'INTENT'

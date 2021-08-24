@@ -4733,7 +4733,7 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
-        assert len(story.events) == 3
+        assert len(story.events) == 4
         actions = processor.list_actions("tests")
         assert actions == []
 
@@ -4866,7 +4866,7 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
-        assert rule.events[1].name == "utter_nonsense"
+        assert rule.events[2].name == "utter_nonsense"
 
     def test_case_insensitive_update_rule(self):
         processor = MongoProcessor()
@@ -4879,7 +4879,7 @@ class TestTrainingDataProcessor:
         rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
-        assert rule.events[3].name == "utter_greet"
+        assert rule.events[4].name == "utter_greet"
 
     def test_update_non_existing_rule(self):
         processor = MongoProcessor()
