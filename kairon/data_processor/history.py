@@ -371,7 +371,8 @@ class ChatHistory:
             endpoint = ChatHistory.mongo_processor.get_endpoints(bot)
             client = MongoClient(host=endpoint["tracker_endpoint"]["url"],
                                  username=endpoint["tracker_endpoint"].get("username"),
-                                 password=endpoint["tracker_endpoint"].get("password"))
+                                 password=endpoint["tracker_endpoint"].get("password"),
+                                 authSource= endpoint["tracker_endpoint"].get("auth_source"))
             db_name = endpoint["tracker_endpoint"]['db']
             collection = "conversations"
         except Exception as e:

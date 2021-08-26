@@ -78,8 +78,11 @@ async def log_requests(request: Request, call_next):
 async def startup():
     """ MongoDB is connected on the bot trainer startup """
     from kairon.utils import Utility
-
-    connect(host=Utility.environment['database']["url"], authentication_source="admin")
+    username, password, url = Utility.extract_user_password(Utility.environment['database']["url"])
+    connect(host=url,
+            username=username,
+            password=password,
+            authentication_source=Utility.environment['database']['auth_source'])
     await AccountProcessor.default_account_setup()
 
 

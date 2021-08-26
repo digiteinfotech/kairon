@@ -1,5 +1,6 @@
 database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
+  auth_source: ${DATABASE_AUTH_SOURCE:"admin"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
