@@ -8,8 +8,8 @@ WORKDIR ${IMPORTER_HOME}
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install pyyaml
-RUN python3 -m pip install mongoengine==0.20.0
 RUN python3 -m pip install rasa[full]==2.1.2
+RUN python3 -m pip install mongoengine==0.23.1
 RUN python3 -m pip install validators
 RUN python3 -m pip install loguru
 RUN python3 -m pip install smart-config==0.1.3
