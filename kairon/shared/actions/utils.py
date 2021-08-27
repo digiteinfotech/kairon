@@ -174,6 +174,8 @@ class ActionUtility:
             userinfo, _, hosts = host_part.rpartition("@")
             user, passwd = parse_userinfo(userinfo)
             hosts = scheme + hosts
+        else:
+            hosts = scheme + host_part
         settings = {
             "username": user,
             "password": passwd,

@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://admin:admin@192.168.100.109:27017/test?authSource=admin"}
+  url: ${DATABASE_URL:"mongodb://localhost/test"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
