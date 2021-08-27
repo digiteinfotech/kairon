@@ -20,6 +20,7 @@ RUN python3 -m pip install transformers==4.0.0
 RUN python3 -m pip install protobuf
 RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN python3 -m pip install elastic-apm
+RUN python3 -m pip install pymongo==3.12.0
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp
