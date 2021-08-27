@@ -6,7 +6,7 @@ import json
 import responses
 from mock import patch
 import os
-import pytest
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 

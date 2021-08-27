@@ -38,7 +38,7 @@ token_type = None
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_evironment()
-    connect(host=Utility.environment['database']["url"])
+    connect(**Utility.mongoengine_connection())
 
 
 def pytest_configure():

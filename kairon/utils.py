@@ -59,6 +59,9 @@ from fastapi.background import BackgroundTasks
 from mongoengine.queryset.visitor import QCombination
 from urllib.parse import urljoin
 from .shared.models import StoryStepType
+from urllib.parse import unquote_plus
+from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from pymongo.common import _CaseInsensitiveDictionary
 
 
 class Utility:
@@ -610,13 +613,24 @@ class Utility:
                 fetched_documents.delete()
 
     @staticmethod
-    def extract_user_password(uri: str):
+    def extract_db_config(uri: str):
         """
         extract username, password and host with port from mongo uri
 
         :param uri: mongo uri
         :return: username, password, scheme, hosts
         """
+        user = None
+        passwd = None
+        dbase = None
+        collection = None
+        options = _CaseInsensitiveDictionary()
+        hosts = None
+        is_mock = False
+        if uri.startswith("mongomock://"):
+            uri = uri.replace("mongomock://", "mongodb://", 1)
+            is_mock = True
+
         if uri.startswith(SCHEME):
             scheme_free = uri[SCHEME_LEN:]
             scheme = uri[:SCHEME_LEN]
@@ -632,13 +646,48 @@ class Utility:
         if not scheme_free:
             raise InvalidURI("Must provide at least one hostname or IP.")
 
-        host_part, _, _ = scheme_free.partition("/")
+        host_part, _, path_part = scheme_free.partition("/")
+        if not host_part:
+            host_part = path_part
+            path_part = ""
+
+        if not path_part and '?' in host_part:
+            raise InvalidURI("A '/' is required between "
+                             "the host list and any options.")
+
+        if path_part:
+            dbase, _, opts = path_part.partition('?')
+            if dbase:
+                dbase = unquote_plus(dbase)
+                if '.' in dbase:
+                    dbase, collection = dbase.split('.', 1)
+                if _BAD_DB_CHARS.search(dbase):
+                    raise InvalidURI('Bad database name "%s"' % dbase)
+            else:
+                dbase = None
+
+            if opts:
+                options.update(split_options(opts, True, False, True))
+
         if "@" in host_part:
             userinfo, _, hosts = host_part.rpartition("@")
             user, passwd = parse_userinfo(userinfo)
-            return user, passwd, scheme + hosts
+            hosts = scheme + hosts
         else:
-            return None, None, scheme + host_part
+            hosts = scheme + host_part
+
+        settings = {
+            "username": user,
+            "password": passwd,
+            "host": hosts,
+            "db": dbase,
+            "options": options,
+            "collection": collection
+        }
+
+        if is_mock:
+            settings['is_mock'] = is_mock
+        return settings
 
     @staticmethod
     def get_local_mongo_store(bot: Text, domain: Domain):
@@ -865,8 +914,9 @@ class Utility:
     def get_local_db():
         db_url = Utility.environment['database']["url"]
         db_name = Utility.environment['database']["test_db"]
-        username, password, url = Utility.extract_user_password(db_url)
-        return username, password, url, db_name
+        config = Utility.extract_db_config(db_url)
+        config['db'] = db_name
+        return config
 
     @staticmethod
     def get_timestamp_previous_month(month: int):
@@ -1218,3 +1268,16 @@ class Utility:
             file_path = os.path.join(temp_path, "conversation_history.csv")
             df.to_csv(file_path, index=False)
             return file_path, temp_path
+
+    @staticmethod
+    def mongoengine_connection():
+        config = Utility.extract_db_config(Utility.environment['database']["url"])
+        options = config.pop("options")
+        config.pop("collection")
+        if "replicaset" in options:
+            config["replicaSet"] = options["replicaset"]
+        if "authsource" in options:
+            config["authentication_source"] = options["authsource"]
+        if "authmechanism" in options:
+            config["authentication_mechanism"] = options["authmechanism"]
+        return config

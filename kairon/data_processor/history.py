@@ -377,10 +377,9 @@ class ChatHistory:
             collection = "conversations"
         except Exception as e:
             message = "Loading test conversation! " + str(e)
-            username, password, url, db_name = Utility.get_local_db()
-            client = MongoClient(host=url,
-                                 username=username,
-                                 password=password)
+            config = Utility.get_local_db()
+            client = MongoClient(**config)
+            db_name = config['db']
             collection = bot
         return client, db_name, collection, message
 

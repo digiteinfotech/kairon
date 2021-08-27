@@ -17,7 +17,7 @@ class TestTrainingCli:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=train))

@@ -56,7 +56,7 @@ class TestMongoProcessor:
         os.environ["system_file"] = "./tests/testing_d" \
                                     "ata/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
 
     @pytest.fixture()
     def get_training_data(self):
@@ -3604,7 +3604,7 @@ class TestModelProcessor:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment['database']["url"])
+        connect(**Utility.mongoengine_connection())
 
     @pytest.fixture
     def test_set_training_status_inprogress(self):
@@ -4564,7 +4564,7 @@ class TestTrainingDataProcessor:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
 
     def test_set_status_new_status(self):
         TrainingDataGenerationProcessor.set_status(

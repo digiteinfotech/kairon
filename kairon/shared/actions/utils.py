@@ -13,7 +13,18 @@ from smart_config import ConfigLoader
 from .data_objects import HttpActionConfig, HttpActionRequestBody
 from .exception import HttpActionFailure
 from .models import ParameterType
-from urllib.parse import urlencode, quote_plus
+from urllib.parse import urlencode, quote_plus, unquote_plus
+from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from pymongo.common import _CaseInsensitiveDictionary
+from pymongo.errors import InvalidURI
+from pymongo.uri_parser import (
+    SRV_SCHEME_LEN,
+    SCHEME,
+    SCHEME_LEN,
+    SRV_SCHEME,
+    parse_userinfo,
+)
+
 
 class ActionUtility:
 
@@ -104,6 +115,92 @@ class ActionUtility:
         return bool(not value.strip())
 
     @staticmethod
+    def extract_db_config(uri: str):
+        """
+        extract username, password and host with port from mongo uri
+
+        :param uri: mongo uri
+        :return: username, password, scheme, hosts
+        """
+        user = None
+        passwd = None
+        dbase = None
+        collection = None
+        options = _CaseInsensitiveDictionary()
+        hosts = None
+        is_mock = False
+        if uri.startswith("mongomock://"):
+            uri = uri.replace("mongomock://", "mongodb://", 1)
+            is_mock = True
+        if uri.startswith(SCHEME):
+            scheme_free = uri[SCHEME_LEN:]
+            scheme = uri[:SCHEME_LEN]
+        elif uri.startswith(SRV_SCHEME):
+            scheme_free = uri[SRV_SCHEME_LEN:]
+            scheme = uri[:SRV_SCHEME_LEN]
+        else:
+            raise InvalidURI(
+                "Invalid URI scheme: URI must "
+                "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME)
+            )
+
+        if not scheme_free:
+            raise InvalidURI("Must provide at least one hostname or IP.")
+
+        host_part, _, path_part = scheme_free.partition("/")
+        if not host_part:
+            host_part = path_part
+            path_part = ""
+
+        if not path_part and '?' in host_part:
+            raise InvalidURI("A '/' is required between "
+                             "the host list and any options.")
+
+        if path_part:
+            dbase, _, opts = path_part.partition('?')
+            if dbase:
+                dbase = unquote_plus(dbase)
+                if '.' in dbase:
+                    dbase, collection = dbase.split('.', 1)
+                if _BAD_DB_CHARS.search(dbase):
+                    raise InvalidURI('Bad database name "%s"' % dbase)
+            else:
+                dbase = None
+
+            if opts:
+                options.update(split_options(opts, True, False, True))
+
+        if "@" in host_part:
+            userinfo, _, hosts = host_part.rpartition("@")
+            user, passwd = parse_userinfo(userinfo)
+            hosts = scheme + hosts
+        settings = {
+            "username": user,
+            "password": passwd,
+            "host": hosts,
+            "db": dbase,
+            "options": options,
+            "collection": collection
+        }
+
+        if is_mock:
+            settings['is_mock'] = is_mock
+        return settings
+
+    @staticmethod
+    def mongoengine_connection(environment=None):
+        config = ActionUtility.extract_db_config(environment['database']["url"])
+        options = config.pop("options")
+        config.pop("collection")
+        if "replicaset" in options:
+            config["replicaSet"] = options["replicaset"]
+        if "authsource" in options:
+            config["authentication_source"] = options["authsource"]
+        if "authmechanism" in options:
+            config["authentication_mechanism"] = options["authmechanism"]
+        return config
+
+    @staticmethod
     def connect_db():
         """
         Creates connection to database.
@@ -111,7 +208,8 @@ class ActionUtility:
         """
         system_yml_parent_dir = str(Path(os.path.realpath(__file__)).parent)
         environment = ConfigLoader(os.getenv("system_file", system_yml_parent_dir + "/system.yaml")).get_config()
-        connect(host=environment['database']["url"])
+        config: dict = ActionUtility.mongoengine_connection(environment)
+        connect(**config)
 
     @staticmethod
     def get_http_action_config(bot: str, action_name: str):

@@ -27,7 +27,7 @@ class TestAccountProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         Utility.load_evironment()
-        connect(host=Utility.environment['database']["url"])
+        connect(**Utility.mongoengine_connection())
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")

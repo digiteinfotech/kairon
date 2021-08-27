@@ -23,7 +23,7 @@ class TestDataImporter:
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
         tmp_dir = tempfile.mkdtemp()
         pytest.tmp_dir = tmp_dir
         yield None

@@ -38,5 +38,5 @@ def cli():
     parser = create_argument_parser()
     arguments = parser.parse_args()
     Utility.load_evironment()
-    connect(host=Utility.environment["database"]['url'])
+    connect(**Utility.mongoengine_connection())
     arguments.func(arguments)

@@ -16,7 +16,7 @@ class TestDataImporterLogProcessor:
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
     
     def test_add_log(self):
         bot = 'test'

@@ -17,7 +17,7 @@ class TestUtility:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_evironment()
-        connect(host=Utility.environment["database"]['url'])
+        connect(**Utility.mongoengine_connection())
         pytest.bot = 'test'
         yield None
         shutil.rmtree(os.path.join('training_data', pytest.bot))
@@ -441,3 +441,21 @@ class TestUtility:
         with pytest.raises(AppException) as e:
             Utility.download_csv({"conversation_data": []}, "error_message")
         assert str(e).__contains__("error_message")
+
+
+    def test_extract_db_config_without_login(self):
+        config = Utility.extract_db_config("mongodb://localhost/test")
+        assert config['db'] == "test"
+        assert config['username'] is None
+        assert config['password'] is None
+        assert config['host'] == "mongodb://localhost"
+        assert len(config["options"]) == 0
+
+    def test_extract_db_config_with_login(self):
+        config = Utility.extract_db_config("mongodb://admin:admin@localhost/test?authSource=admin")
+        assert config['db'] == "test"
+        assert config['username'] == "admin"
+        assert config['password'] == "admin"
+        assert config['host'] == "mongodb://localhost"
+        assert "authSource" in config['options']
+

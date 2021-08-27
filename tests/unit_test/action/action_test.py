@@ -28,7 +28,7 @@ class TestActions:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
 
-        connect(host=db_url)
+        connect(**Utility.mongoengine_connection())
 
     @pytest.fixture
     def mock_get_http_action_exception(self, monkeypatch):
