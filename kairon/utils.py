@@ -698,14 +698,15 @@ class Utility:
         :param domain: domain data
         :return: mongo tracker
         """
-        username, password, url, db_name = Utility.get_local_db()
+        config = Utility.get_local_db()
         return MongoTrackerStore(
             domain=domain,
-            host=url,
-            db=db_name,
+            host=config['host'],
+            db=config['db'],
             collection=bot,
-            username=username,
-            password=password,
+            username=config['username'],
+            password=config['password'],
+            auth_source=config['options']['authSource']
         )
 
     @staticmethod
