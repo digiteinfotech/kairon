@@ -706,7 +706,7 @@ class Utility:
             collection=bot,
             username=config['username'],
             password=config['password'],
-            auth_source=config['options']['authSource']
+            auth_source=config['options'].get("authSource")
         )
 
     @staticmethod
