@@ -704,8 +704,8 @@ class Utility:
             host=config['host'],
             db=config['db'],
             collection=bot,
-            username=config['username'],
-            password=config['password'],
+            username=config.get("username"),
+            password=config.get("password"),
             auth_source=config['options'].get("authSource")
         )
 
