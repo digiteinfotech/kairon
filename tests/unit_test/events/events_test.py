@@ -91,7 +91,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"domain", "http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, False, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
@@ -121,7 +121,7 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"domain", "http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 3
@@ -133,6 +133,32 @@ class TestEvents:
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
         assert logs[0].get('exception').__contains__('Failed to read config.yml')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+
+    @pytest.mark.asyncio
+    async def test_trigger_data_importer_validate_invalid_domain(self, monkeypatch):
+        bot = 'test_events'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        nlu_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()), 'data')
+        shutil.copytree('tests/testing_data/validator/invalid_domain', test_data_path)
+        shutil.copytree('tests/testing_data/validator/valid/data', nlu_path)
+        shutil.copy2('tests/testing_data/validator/valid/config.yml', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"rules", "http_actions"})
+        await EventsTrigger.trigger_data_importer(bot, user, True, False)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert logs[0].get('exception') == ('Failed to load domain.yml. Error: \'Duplicate entities in domain. These '
+                                            'entities occur more than once in the domain: \'location\'.\'')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
@@ -154,7 +180,7 @@ class TestEvents:
         DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
-        assert len(logs) == 4
+        assert len(logs) == 5
         assert logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
@@ -184,7 +210,7 @@ class TestEvents:
         DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
-        assert len(logs) == 5
+        assert len(logs) == 6
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
@@ -223,7 +249,7 @@ class TestEvents:
         DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions", "rules"})
         await EventsTrigger.trigger_data_importer(bot, user, True, False)
         logs = list(DataImporterLogProcessor.get_logs(bot))
-        assert len(logs) == 6
+        assert len(logs) == 7
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
@@ -264,7 +290,7 @@ class TestEvents:
         DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
-        assert len(logs) == 7
+        assert len(logs) == 8
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')

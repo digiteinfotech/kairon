@@ -35,6 +35,7 @@ class DataImporter:
         data_path = os.path.join(self.path, DEFAULT_DATA_PATH)
         config_path = os.path.join(self.path, DEFAULT_CONFIG_PATH)
         domain_path = os.path.join(self.path, DEFAULT_DOMAIN_PATH)
+        TrainingDataValidator.validate_domain(domain_path)
         self.validator = await TrainingDataValidator.from_training_files(data_path, domain_path,
                                                                          config_path, self.path)
         self.validator.validate_training_data(False)

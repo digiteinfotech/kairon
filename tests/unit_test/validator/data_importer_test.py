@@ -44,6 +44,14 @@ class TestDataImporter:
         assert not summary.get('exception')
 
     @pytest.mark.asyncio
+    async def test_validate_invalid_domain(self):
+        path = 'tests/testing_data/validator/invalid_domain'
+        importer = DataImporter(path, 'test_data_import', 'test', REQUIREMENTS.copy(), False, False)
+        with pytest.raises(AppException, match='Failed to load domain.yml. Error: \'Duplicate entities in domain. '
+                                               'These entities occur more than once in the domain: \'location\'.\''):
+            await importer.validate()
+
+    @pytest.mark.asyncio
     async def test_validate_all_including_http_actions(self):
         path = 'tests/testing_data/validator/valid'
         http_actions = 'tests/testing_data/error/http_action.yml'

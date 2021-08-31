@@ -1,9 +1,10 @@
 import os
 from collections import defaultdict
-from typing import Optional, Dict
+from typing import Optional, Dict, Text
 
 from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
+from rasa.shared.core.domain import Domain
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.generator import TrainingDataGenerator
 from rasa.shared.core.training_data.structures import StoryStep, RuleStep
@@ -385,6 +386,14 @@ class TrainingDataValidator(Validator):
             else:
                 data_error.append("Required http action fields not found")
         return data_error
+
+    @staticmethod
+    def validate_domain(domain_path: Text):
+        try:
+            domain = Domain.load(domain_path)
+            domain.check_missing_templates()
+        except Exception as e:
+            raise AppException(f"Failed to load domain.yml. Error: '{e}'")
 
     def validate_custom_actions(self, raise_exception: bool = True):
         """
