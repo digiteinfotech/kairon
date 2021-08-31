@@ -40,6 +40,7 @@ COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
 
+ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80
 
-CMD ["uvicorn", "kairon.api.app.main:app","--host","0.0.0.0","--port","80"]
+CMD ["/start.sh"]

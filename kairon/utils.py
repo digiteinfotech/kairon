@@ -706,7 +706,7 @@ class Utility:
             collection=bot,
             username=config.get("username"),
             password=config.get("password"),
-            auth_source= config['options'].get("authSource") if config['options'].get("authSource") else "admin"
+            auth_source=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
         )
 
     @staticmethod
