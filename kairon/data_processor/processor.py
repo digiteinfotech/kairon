@@ -3204,7 +3204,7 @@ class MongoProcessor:
             form['_id'] = form['_id'].__str__()
             slot_mapping = []
             for slot in form['mapping'].keys():
-                utterance = Responses.objects(name=f'utter_ask_{name}_{slot}').get()
+                utterance = Responses.objects(name=f'utter_ask_{name}_{slot}', bot=bot, status=True).get()
                 slot_mapping.append({'slot': slot, 'mapping': form['mapping'][slot],
                                      'utterance': {'_id': str(utterance.id), 'text': utterance.text.text}})
             form['slot_mapping'] = slot_mapping
