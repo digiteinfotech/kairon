@@ -190,6 +190,7 @@ class Forms(Document):
 
 class Utterances(Document):
     name = StringField(required=True)
+    form_attached = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
