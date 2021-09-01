@@ -443,7 +443,7 @@ class SlotMapping(BaseModel):
 
 
 class FormPath(BaseModel):
-    utterance: str
+    responses: List[str]
     slot: str
     mapping: List[SlotMapping]
 

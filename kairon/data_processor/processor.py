@@ -3205,12 +3205,9 @@ class MongoProcessor:
         slot_name = slot_mapping['slot']
         if add_utterance:
             utterance_name = f'utter_ask_{form_name}_{slot_name}'
-            try:
-                Utterances.objects(name=utterance_name, bot=bot, status=True).get()
-            except DoesNotExist:
-                Responses(name=utterance_name,
-                          bot=bot, user=user,
-                          text=ResponseText(text=slot_mapping['utterance'].strip())).save()
+            if not Utility.is_exist(Utterances, raise_error=False, name=utterance_name, bot=bot, status=True):
+                for resp in slot_mapping['responses']:
+                    Responses(name=utterance_name, bot=bot, user=user, text=ResponseText(text=resp.strip())).save()
                 Utterances(name=utterance_name, form_attached=form_name, bot=bot, user=user).save()
         db_formatted_mapping = []
         for mapping in slot_mapping['mapping']:
@@ -3231,12 +3228,8 @@ class MongoProcessor:
     def add_form(self, name: str, path: list, bot: Text, user: Text):
         if Utility.check_empty_string(name):
             raise AppException('Form name cannot be empty or spaces')
-        try:
-            name = name.strip().lower()
-            Forms.objects(name=name, bot=bot, status=True).get()
-            raise AppException(f'Form with name "{name}" exists')
-        except DoesNotExist:
-            pass
+        name = name.strip().lower()
+        Utility.is_exist(Forms, f'Form with name "{name}" exists', name=name, bot=bot, status=True)
         existing_slots = set(Slots.objects(bot=bot, status=True).values_list('name'))
         required_slots = {slots_to_fill['slot'] for slots_to_fill in path if not Utility.check_empty_string(slots_to_fill['slot'])}
         if required_slots.difference(existing_slots).__len__() > 0:
