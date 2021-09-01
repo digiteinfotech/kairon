@@ -3579,12 +3579,12 @@ class TestMongoProcessor:
 
     def test_add_form(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'what is your name?', 'slot': 'name',
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'utterance': 'what is your age?', 'slot': 'age',
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
-                {'utterance': 'what is your occupation?', 'slot': 'occupation',
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'mapping': [
                      {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
                      {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
@@ -3615,30 +3615,33 @@ class TestMongoProcessor:
                                   status=True).get().form_attached == 'know_user'
         assert Utterances.objects(name='utter_ask_know_user_occupation', bot=bot,
                                   status=True).get().form_attached == 'know_user'
-        assert Responses.objects(name='utter_ask_know_user_name', bot=bot,
-                                 status=True).get().text.text == 'what is your name?'
-        assert Responses.objects(name='utter_ask_know_user_age', bot=bot,
-                                 status=True).get().text.text == 'what is your age?'
-        assert Responses.objects(name='utter_ask_know_user_occupation', bot=bot,
-                                 status=True).get().text.text == 'what is your occupation?'
+        resp = list(Responses.objects(name='utter_ask_know_user_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
 
     def test_add_form_slots_not_exists(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'please give us your name?', 'slot': 'name',
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'utterance': 'seats required?', 'slot': 'num_people',
+                {'responses': ['seats required?'], 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
-                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
                  'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
-                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'any preferences?', 'slot': 'preferences',
+                {'responses': ['any preferences?'], 'slot': 'preferences',
                  'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
                  'mapping': [{'type': 'from_text'},
                              {'type': 'from_entity', 'entity': 'feedback'}]},
                 ]
@@ -3653,21 +3656,21 @@ class TestMongoProcessor:
 
     def test_add_form_utterance_exists(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'please give us your name?', 'slot': 'name',
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'utterance': 'seats required?', 'slot': 'num_people',
+                {'responses': ['seats required?'], 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
-                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
                  'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
-                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'any preferences?', 'slot': 'preferences',
+                {'responses': ['any preferences?'], 'slot': 'preferences',
                  'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
                  'mapping': [{'type': 'from_text'},
                              {'type': 'from_entity', 'entity': 'feedback'}]},
                 ]
@@ -3730,14 +3733,14 @@ class TestMongoProcessor:
 
     def test_add_form_slot_name_empty(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'what is your name?', 'slot': 'name',
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'utterance': 'what is your age?', 'slot': 'age',
+                {'responses': ['what is your age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
-                {'utterance': 'where are you located?', 'slot': ' ',
+                {'responses': ['where are you located?'], 'slot': ' ',
                  'mapping': [{'type': 'from_intent', 'entity': 'location'}]},
-                {'utterance': 'what is your occupation?', 'slot': 'occupation',
+                {'responses': ['what is your occupation?'], 'slot': 'occupation',
                  'mapping': [
                      {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
                      {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
@@ -3775,12 +3778,12 @@ class TestMongoProcessor:
 
     def test_add_form_no_entity_and_mapping_type(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'what is your name?', 'slot': 'name',
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'utterance': 'what is your age?', 'slot': 'age',
+                {'responses': ['what is your age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
-                {'utterance': 'where are you located?', 'slot': 'location',
+                {'responses': ['where are you located?'], 'slot': 'location',
                  'mapping': [{}]}
                 ]
         bot = 'test'
@@ -3905,24 +3908,24 @@ class TestMongoProcessor:
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'which location would you prefer?', 'slot': 'location',
+        path = [{'responses': ['which location would you prefer?'], 'slot': 'location',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
                              {'type': 'from_entity', 'entity': 'location'}]},
-                {'utterance': 'seats required?', 'slot': 'num_people',
+                {'responses': ['seats required?'], 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
-                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
                  'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
-                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'any preferences?', 'slot': 'preferences',
+                {'responses': ['any preferences?'], 'slot': 'preferences',
                  'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-                {'utterance': 'do you want to go with an AC room?', 'slot': 'ac_required',
+                {'responses': ['do you want to go with an AC room?'], 'slot': 'ac_required',
                  'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
                  'mapping': [{'type': 'from_text'},
                              {'type': 'from_entity', 'entity': 'feedback'}]}
                 ]
@@ -3989,9 +3992,9 @@ class TestMongoProcessor:
 
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'what is your age?', 'slot': 'age',
+        path = [{'responses': ['what is your age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
-                {'utterance': 'where are you located?', 'slot': 'location',
+                {'responses': ['where are you located?'], 'slot': 'location',
                  'mapping': [{}]}
                 ]
         bot = 'test'
