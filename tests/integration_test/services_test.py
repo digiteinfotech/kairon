@@ -5291,4 +5291,3 @@ def test_delete_form_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Form "form_not_exists" does not exists'
-
