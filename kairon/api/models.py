@@ -425,3 +425,29 @@ class LookupTablesRequest(BaseModel):
             if Utility.check_empty_string(ele):
                 raise ValueError("lookup value cannot be empty or a blank space")
         return v
+
+
+class SlotMappingType(str, Enum):
+    FROM_ENTITY = "from_entity"
+    FROM_INTENT = "from_intent"
+    FROM_TRIGGER_INTENT = "from_trigger_intent"
+    FROM_TEXT = "from_text"
+
+
+class SlotMapping(BaseModel):
+    entity: str = None
+    type: SlotMappingType
+    value: Any = None
+    intent: List[str] = None
+    not_intent: List[str] = None
+
+
+class FormPath(BaseModel):
+    utterance: str
+    slot: str
+    mapping: List[SlotMapping]
+
+
+class Forms(BaseModel):
+    name: str
+    path: List[FormPath]

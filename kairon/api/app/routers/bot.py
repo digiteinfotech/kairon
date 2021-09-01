@@ -17,7 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS, ENDPOINT_TYPE
@@ -268,7 +268,7 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
+            request_data.data.lower(), current_user.get_bot()
         )
     else:
         mongo_processor.delete_response(
@@ -1179,3 +1179,49 @@ async def delete_lookup_value(
     return {
         "message": "Lookup Table removed!"
     }
+
+
+@router.post("/forms", response_model=Response)
+async def add_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Adds a new form.
+    """
+    mongo_processor.add_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    return Response(message='Form added')
+
+
+@router.get("/forms", response_model=Response)
+async def list_forms(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Lists all forms in the bot.
+    """
+    forms = mongo_processor.list_forms(current_user.get_bot())
+    return Response(data=forms)
+
+
+@router.get("/forms/{form_name}", response_model=Response)
+async def get_form(form_name: str = Path(default=None, description="Name of the form"),
+                   current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Get a particular form.
+    """
+    form = mongo_processor.get_form(form_name, current_user.get_bot())
+    return Response(data=form)
+
+
+@router.put("/forms", response_model=Response)
+async def edit_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Edits a form.
+    """
+    mongo_processor.edit_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    return Response(message='Form updated')
+
+
+@router.delete("/forms", response_model=Response)
+async def delete_form(request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Deletes a form and its associated utterances.
+    """
+    mongo_processor.delete_form(request.data, current_user.get_bot())
+    return Response(message='Form deleted')
