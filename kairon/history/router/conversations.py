@@ -5,7 +5,7 @@ from kairon.api.models import Response
 from fastapi import Depends
 from typing import Text
 
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from ..models import HistoryQuery
 from ..processor import ChatHistory
 from ..utils import Authentication

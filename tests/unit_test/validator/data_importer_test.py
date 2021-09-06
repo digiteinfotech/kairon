@@ -7,8 +7,8 @@ import pytest
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.data_processor.constant import REQUIREMENTS
-from kairon.data_processor.processor import MongoProcessor
+from kairon.shared.data.constant import REQUIREMENTS
+from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_importer import DataImporter
 
@@ -22,8 +22,8 @@ class TestDataImporter:
     @pytest.fixture(scope='session', autouse=True)
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         tmp_dir = tempfile.mkdtemp()
         pytest.tmp_dir = tmp_dir
         yield None

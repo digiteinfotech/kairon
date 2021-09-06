@@ -7,11 +7,11 @@ from mongoengine import connect
 import pytest
 
 from kairon.api.app.main import app
-from kairon.api.processor import AccountProcessor
-from kairon.data_processor.processor import MongoProcessor
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.history.processor import ChatHistory
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
 client = TestClient(app)
@@ -27,7 +27,7 @@ def pytest_configure():
 @pytest.fixture(autouse=True)
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
-    Utility.load_evironment()
+    Utility.load_environment()
     connect(**Utility.mongoengine_connection())
 
 

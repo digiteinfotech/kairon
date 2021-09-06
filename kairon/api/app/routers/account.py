@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi import BackgroundTasks
-from kairon.api.auth import Authentication
-from kairon.api.models import Response, RegisterAccount, TextData, Password, User
-from kairon.api.processor import AccountProcessor
-from kairon.utils import Utility
+from kairon.shared.auth import Authentication
+from kairon.api.models import Response, RegisterAccount, TextData, Password
+from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.utils import Utility
 
 router = APIRouter()
 

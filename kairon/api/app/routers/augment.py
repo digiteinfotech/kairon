@@ -2,9 +2,11 @@ import requests
 from fastapi import APIRouter
 from fastapi import Depends
 
-from kairon.api.auth import Authentication
-from kairon.api.models import Response, User, ParaphrasesRequest, TextData, GPTRequest
-from kairon.utils import Utility
+from kairon.shared.auth import Authentication
+from kairon.api.models import Response, ParaphrasesRequest, TextData, GPTRequest
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
+from kairon.shared.data.utils import DataUtility
 
 router = APIRouter()
 
@@ -17,7 +19,7 @@ async def paraphrases(
     Generates other similar text by augmenting original text
     """
     plain_text_data = [
-        Utility.extract_text_and_entities(data)[0] for data in request_data.data
+        DataUtility.extract_text_and_entities(data)[0] for data in request_data.data
     ]
     response = requests.post(
         Utility.environment["augmentation"]["paraphrase_url"], json=plain_text_data

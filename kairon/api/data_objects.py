@@ -12,7 +12,7 @@ from mongoengine import (
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
 
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 
 
 class User(Document):

@@ -1,12 +1,15 @@
 import os
 from typing import Text
+
 from loguru import logger as logging
 from rasa.core.agent import Agent
 from rasa.train import DEFAULT_MODELS_PATH
+
+from kairon.chat.cache import AgentCache
 from kairon.exceptions import AppException
-from kairon.utils import Utility
-from .cache import AgentCache
-from .processor import MongoProcessor
+from kairon.shared.data.processor import MongoProcessor
+from .cache import InMemoryAgentCache
+from ..shared.utils import Utility
 
 
 class AgentProcessor:
@@ -15,7 +18,7 @@ class AgentProcessor:
     """
 
     mongo_processor = MongoProcessor()
-    cache_provider: AgentCache = Utility.create_cache()
+    cache_provider: AgentCache = InMemoryAgentCache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
@@ -62,4 +65,4 @@ class AgentProcessor:
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
             logging.exception(e)
-            raise AppException("Bot has not been trained yet !")
+            raise AppException("Bot has not been trained yet!")

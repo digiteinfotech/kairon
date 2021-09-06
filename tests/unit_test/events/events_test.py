@@ -11,10 +11,10 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS
-from kairon.data_processor.data_objects import Configs, BotSettings
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
+from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.importer.processor import DataImporterLogProcessor
-from kairon.data_processor.processor import MongoProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
 
 
@@ -23,8 +23,8 @@ class TestEvents:
     @pytest.fixture(scope='session', autouse=True)
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         tmp_dir = tempfile.mkdtemp()
         pytest.tmp_dir = tmp_dir
         yield None

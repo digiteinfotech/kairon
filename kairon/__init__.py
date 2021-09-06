@@ -3,7 +3,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from mongoengine import connect
 
 from kairon.cli import importer, training
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 
 """
 CLI to train or import(and validate) data into kairon.
@@ -37,6 +37,6 @@ def create_argument_parser():
 def cli():
     parser = create_argument_parser()
     arguments = parser.parse_args()
-    Utility.load_evironment()
-    connect(**Utility.mongoengine_connection())
+    Utility.load_environment()
+    connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
     arguments.func(arguments)

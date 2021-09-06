@@ -7,29 +7,30 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 
-from kairon.api.auth import Authentication
+from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
-    User,
     ListData,
     Response,
     Endpoint,
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest
 )
-from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.constant import EVENT_STATUS, ENDPOINT_TYPE
-from kairon.data_processor.data_objects import TrainingExamples
-from kairon.data_processor.model_processor import ModelProcessor
-from kairon.data_processor.processor import MongoProcessor
-from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
+from kairon.shared.models import User
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.data_objects import TrainingExamples
+from kairon.shared.data.model_processor import ModelProcessor
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionLog
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
+from kairon.shared.data.utils import DataUtility
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -84,20 +85,6 @@ async def delete_intent(
         delete_dependencies
     )
     return {"message": "Intent deleted!"}
-
-
-@router.post("/intents/predict", response_model=Response)
-async def predict_intent(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
-):
-    """
-    Fetches the predicted intent of the entered text form the loaded agent
-    """
-    model = AgentProcessor.get_agent(current_user.get_bot())
-    response = await model.parse_message_using_nlu_interpreter(request_data.data)
-    intent = response.get("intent").get("name") if response else None
-    confidence = response.get("intent").get("confidence") if response else None
-    return {"data": {"intent": intent, "confidence": confidence}}
 
 
 @router.post("/intents/search", response_model=Response)
@@ -268,7 +255,7 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data.lower(), current_user.get_bot()
+            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
         )
     else:
         mongo_processor.delete_response(
@@ -395,7 +382,7 @@ async def train(
     """
     Trains the chatbot
     """
-    Utility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'train')
+    DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'train')
     return {"message": "Model training started."}
 
 
@@ -483,7 +470,7 @@ async def upload_data_generation_file(
                                                document_path=file_path)
     token = Authentication.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        Utility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
+        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
     )
     return {"message": "File uploaded successfully and training data generation has begun"}
 
@@ -535,7 +522,7 @@ async def get_endpoint(current_user: User = Depends(Authentication.get_current_u
     Fetches the http and mongo endpoint for the bot
     """
     endpoint = mongo_processor.get_endpoints(
-        current_user.get_bot(), raise_exception=False, mask_characters=True
+        current_user.get_bot(), raise_exception=False
     )
     return {"data": {"endpoint": endpoint}}
 
@@ -556,22 +543,6 @@ async def set_endpoint(
     if endpoint.action_endpoint:
         background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
     return {"message": "Endpoint saved successfully!"}
-
-
-@router.delete("/endpoint/{endpoint_type}", response_model=Response)
-async def delete_endpoint(
-        endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
-                                                                      "history_endpoint", example="bot_endpoint"),
-        current_user: User = Depends(Authentication.get_current_user_and_bot)
-):
-    """
-    Deletes the bot endpoint configuration
-    """
-    mongo_processor.delete_endpoint(
-        current_user.get_bot(), endpoint_type
-    )
-
-    return {"message": "Endpoint removed"}
 
 
 @router.get("/config", response_model=Response)
@@ -676,7 +647,7 @@ async def get_http_action(action: str = Path(default=None, description="action n
     """
     http_action_config = mongo_processor.get_http_action_config(action_name=action,
                                                                            bot=current_user.bot)
-    action_config = Utility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
+    action_config = DataUtility.build_http_response_object(http_action_config, current_user.get_user(), current_user.bot)
     return Response(data=action_config)
 
 
@@ -1179,49 +1150,3 @@ async def delete_lookup_value(
     return {
         "message": "Lookup Table removed!"
     }
-
-
-@router.post("/forms", response_model=Response)
-async def add_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Adds a new form.
-    """
-    mongo_processor.add_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
-    return Response(message='Form added')
-
-
-@router.get("/forms", response_model=Response)
-async def list_forms(current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Lists all forms in the bot.
-    """
-    forms = mongo_processor.list_forms(current_user.get_bot())
-    return Response(data=forms)
-
-
-@router.get("/forms/{form_name}", response_model=Response)
-async def get_form(form_name: str = Path(default=None, description="Name of the form"),
-                   current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Get a particular form.
-    """
-    form = mongo_processor.get_form(form_name, current_user.get_bot())
-    return Response(data=form)
-
-
-@router.put("/forms", response_model=Response)
-async def edit_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Edits a form.
-    """
-    mongo_processor.edit_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
-    return Response(message='Form updated')
-
-
-@router.delete("/forms", response_model=Response)
-async def delete_form(request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Deletes a form and its associated utterances.
-    """
-    mongo_processor.delete_form(request.data, current_user.get_bot())
-    return Response(message='Form deleted')

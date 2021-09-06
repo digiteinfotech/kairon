@@ -9,14 +9,14 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
-from kairon.data_processor.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
+from kairon.shared.data.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
     EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
     TrainingDataGenerator, TrainingExamples, BotSettings
-from kairon.data_processor.processor import MongoProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_objects import ValidationLogs
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
 
@@ -41,7 +41,7 @@ class AccountProcessor:
             name__iexact=name,
             status=True,
         )
-        license = {"bots": 2, "intents": 10, "examples": 50, "training": 3, "augmentation": 5}
+        license = {"bots": 2, "intents": 3, "examples": 20, "training": 3, "augmentation": 5}
         return Account(name=name.strip(), user=user, license=license).save().to_mongo().to_dict()
 
     @staticmethod

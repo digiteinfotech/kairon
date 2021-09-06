@@ -1,14 +1,14 @@
 import json
 import os
-os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
-
 from fastapi.testclient import TestClient
+from mongoengine import connect
 import pytest
 
 from kairon.history.main import app
-from kairon.history.processor import ChatHistory
 from kairon.history.utils import HistoryUtils
+from kairon.shared.utils import Utility
 from mongomock import MongoClient
+from kairon.history.processor import ChatHistory
 
 client = TestClient(app)
 
@@ -24,6 +24,7 @@ def pytest_configure():
 def setup():
     os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
     HistoryUtils.load_environment()
+    connect(**Utility.mongoengine_connection(HistoryUtils.environment['tracker']['url']+"/"+HistoryUtils.environment['tracker']['db']), alias="history")
     pytest.bot = '542872407658659274'
 
 

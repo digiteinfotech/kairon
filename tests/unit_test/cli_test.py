@@ -4,7 +4,7 @@ import os
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.events.events import EventsTrigger
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
 import argparse
@@ -16,8 +16,8 @@ class TestTrainingCli:
     @pytest.fixture(autouse=True, scope="session")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=train))
@@ -66,7 +66,7 @@ class TestDataImporterCli:
     @pytest.fixture(autouse=True, scope="session")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
+        Utility.load_environment()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=validate_and_import))

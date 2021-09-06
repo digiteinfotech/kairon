@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Any, Dict
 import validators
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
@@ -14,7 +14,7 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
-from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice
+from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice, History_Month_Enum
 
 
 class Token(BaseModel):
@@ -24,30 +24,6 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str
-
-
-class User(BaseModel):
-    email: str
-    first_name: str
-    last_name: str
-    bot: list
-    account: int
-    status: bool
-    alias_user: str = None
-    is_integration_user: bool
-
-    def get_bot(self):
-        return self.bot
-
-    def get_user(self):
-        if self.is_integration_user:
-            return self.alias_user
-        return self.email
-
-    def get_integration_status(self):
-        if self.is_integration_user:
-            return True
-        return False
 
 
 class Response(BaseModel):
@@ -80,7 +56,7 @@ class RegisterAccount(BaseModel):
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
 
         try:
             Utility.valid_password(v.get_secret_value())
@@ -152,7 +128,7 @@ class Password(BaseModel):
 
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
 
         try:
             Utility.valid_password(v.get_secret_value())
@@ -170,6 +146,13 @@ class Password(BaseModel):
         return v
 
 
+
+
+
+class HistoryMonth(BaseModel):
+    month: History_Month_Enum
+
+
 class HttpActionParameters(BaseModel):
     key: str
     value: str = None
@@ -177,7 +160,7 @@ class HttpActionParameters(BaseModel):
 
     @root_validator
     def check(cls, values):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(values.get('key')):
             raise ValueError("key cannot be empty")
@@ -200,7 +183,7 @@ class HttpActionConfigRequest(BaseModel):
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("action_name is required")
@@ -361,7 +344,7 @@ class SynonymRequest(BaseModel):
 
     @validator("value")
     def validate_value(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         if len(v) <= 0:
             raise ValueError("value field cannot be empty")
         for ele in v:
@@ -371,7 +354,7 @@ class SynonymRequest(BaseModel):
 
     @validator("synonym")
     def validate_synonym(cls, f, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         if Utility.check_empty_string(f):
             raise ValueError("synonym cannot be empty")
         return f
@@ -387,14 +370,14 @@ class RegexRequest(BaseModel):
 
     @validator("name")
     def validate_name(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         if Utility.check_empty_string(v):
             raise ValueError("Regex name cannot be empty or a blank space")
         return v
 
     @validator("pattern")
     def validate_pattern(cls, f, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         import re
         if Utility.check_empty_string(f):
             raise ValueError("Regex pattern cannot be empty or a blank space")
@@ -411,43 +394,17 @@ class LookupTablesRequest(BaseModel):
 
     @validator("name")
     def validate_name(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         if Utility.check_empty_string(v):
             raise ValueError("name cannot be empty or a blank space")
         return v
 
     @validator("value")
     def validate_value(cls, v, values, **kwargs):
-        from kairon.utils import Utility
+        from kairon.shared.utils import Utility
         if len(v) <= 0:
             raise ValueError("value field cannot be empty")
         for ele in v:
             if Utility.check_empty_string(ele):
                 raise ValueError("lookup value cannot be empty or a blank space")
         return v
-
-
-class SlotMappingType(str, Enum):
-    FROM_ENTITY = "from_entity"
-    FROM_INTENT = "from_intent"
-    FROM_TRIGGER_INTENT = "from_trigger_intent"
-    FROM_TEXT = "from_text"
-
-
-class SlotMapping(BaseModel):
-    entity: str = None
-    type: SlotMappingType
-    value: Any = None
-    intent: List[str] = None
-    not_intent: List[str] = None
-
-
-class FormPath(BaseModel):
-    responses: List[str]
-    slot: str
-    mapping: List[SlotMapping]
-
-
-class Forms(BaseModel):
-    name: str
-    path: List[FormPath]

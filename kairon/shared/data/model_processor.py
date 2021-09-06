@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Text
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from .constant import (
     MODEL_TRAINING_STATUS
 )

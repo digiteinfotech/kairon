@@ -1,20 +1,11 @@
 import json
 import logging
-import os
-from pathlib import Path
 from typing import Any, List
+from urllib.parse import urlencode, quote_plus, unquote_plus
 
 import requests
 from loguru import logger
-from mongoengine import DoesNotExist, connect
-from rasa_sdk import Tracker
-from smart_config import ConfigLoader
-
-from .data_objects import HttpActionConfig, HttpActionRequestBody
-from .exception import HttpActionFailure
-from .models import ParameterType
-from urllib.parse import urlencode, quote_plus, unquote_plus
-from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from mongoengine import DoesNotExist
 from pymongo.common import _CaseInsensitiveDictionary
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import (
@@ -24,6 +15,12 @@ from pymongo.uri_parser import (
     SRV_SCHEME,
     parse_userinfo,
 )
+from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from rasa_sdk import Tracker
+
+from .data_objects import HttpActionConfig, HttpActionRequestBody
+from .exception import HttpActionFailure
+from .models import ParameterType
 
 
 class ActionUtility:
@@ -201,17 +198,6 @@ class ActionUtility:
         if "authmechanism" in options:
             config["authentication_mechanism"] = options["authmechanism"]
         return config
-
-    @staticmethod
-    def connect_db():
-        """
-        Creates connection to database.
-        :return: MongoDB connection URL
-        """
-        system_yml_parent_dir = str(Path(os.path.realpath(__file__)).parent)
-        environment = ConfigLoader(os.getenv("system_file", system_yml_parent_dir + "/system.yaml")).get_config()
-        config: dict = ActionUtility.mongoengine_connection(environment)
-        connect(**config)
 
     @staticmethod
     def get_http_action_config(bot: str, action_name: str):

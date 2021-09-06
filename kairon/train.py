@@ -11,13 +11,12 @@ from rasa.train import DEFAULT_MODELS_PATH
 from rasa.train import _train_async_internal, handle_domain_if_not_exists, train
 from rasa.utils.common import TempDirectoryPath
 
-from kairon.data_processor.constant import MODEL_TRAINING_STATUS
-from kairon.data_processor.importer import MongoDataImporter
-from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.model_processor import ModelProcessor
-from kairon.data_processor.processor import MongoProcessor
+from kairon.shared.data.constant import MODEL_TRAINING_STATUS
+from kairon.shared.data.importer import MongoDataImporter
+from kairon.shared.data.model_processor import ModelProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 import elasticapm
 
 
@@ -77,7 +76,7 @@ async def train_model_from_mongo(
     :param additional_arguments:
     :return: model path
 
-    :todo loading data directly from mongo, bot is not able to idetify stories properly
+    :todo loading data directly from mongo, bot is not able to identify stories properly
     """
     data_importer = MongoDataImporter(bot)
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
@@ -162,13 +161,10 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
                 apm_client.begin_transaction(transaction_type="script")
             model_file = train_model_for_bot(bot)
             training_status = MODEL_TRAINING_STATUS.DONE.value
-            agent_url = Utility.environment['model']['train'].get('agent_url')
+            agent_url = Utility.environment['model']['agent'].get('url')
             if agent_url:
                 if token:
                     Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/model/reload"), token, user)
-            else:
-                if reload:
-                    AgentProcessor.reload(bot)
         except Exception as e:
             print(e)
             logging.exception(e)

@@ -1,7 +1,9 @@
 from tornado.test.testing_test import AsyncHTTPTestCase
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig
+from kairon.shared.utils import Utility
 from kairon.shared.actions.utils import ActionUtility
+from mongoengine import connect
 import json
 import responses
 from mock import patch
@@ -9,8 +11,8 @@ import os
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
-
-ActionUtility.connect_db()
+Utility.load_environment()
+connect(**Utility.mongoengine_connection())
 
 
 class TestActionServer(AsyncHTTPTestCase):
@@ -21,7 +23,7 @@ class TestActionServer(AsyncHTTPTestCase):
     def test_index(self):
         response = self.fetch("/")
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.body.decode("utf8"), 'Kairon Action Server Running')
+        self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
 
     def test_http_action_execution(self):
         action_name = "test_run_with_get"

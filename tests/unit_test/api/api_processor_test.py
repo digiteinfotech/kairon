@@ -8,11 +8,11 @@ from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
 from pydantic import SecretStr
 
-from kairon.api.auth import Authentication
+from kairon.shared.auth import Authentication
 from kairon.api.data_objects import User
-from kairon.api.processor import AccountProcessor
-from kairon.data_processor.data_objects import Configs, Rules, Responses
-from kairon.utils import Utility
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from stress_test.data_objects import Bot
 
@@ -26,8 +26,8 @@ def pytest_configure():
 class TestAccountProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")

@@ -9,16 +9,18 @@ from rasa.core.tracker_store import MongoTrackerStore
 from rasa.shared.core.domain import Domain
 
 from kairon.history.processor import ChatHistory
-from kairon.data_processor.processor import MongoProcessor
-from kairon.utils import Utility
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.utils import Utility
+from kairon.history.utils import HistoryUtils
 
 
 class TestHistory:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        HistoryUtils.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def history_conversations(self, *args, **kwargs):
         json_data = json.load(
@@ -85,31 +87,31 @@ class TestHistory:
 
     def test_fetch_chat_users_db_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            users = ChatHistory.fetch_chat_users("tests")
+            users = ChatHistory.fetch_chat_users(collection="tests")
             assert len(users) == 0
 
     def test_fetch_chat_users(self, mock_mongo_client):
-        users = ChatHistory.fetch_chat_users("tests")
+        users = ChatHistory.fetch_chat_users(collection="tests")
         assert len(users) == 2
 
     def test_fetch_chat_users_empty(self, mock_mongo_client_empty):
-        users = ChatHistory.fetch_chat_users("tests")
+        users = ChatHistory.fetch_chat_users(collection="tests")
         assert len(users) == 2
 
     def test_fetch_chat_users_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            users, message = ChatHistory.fetch_chat_users("tests")
+            users, message = ChatHistory.fetch_chat_users(collection="tests")
             assert len(users) == 0
             assert message is None
 
     def test_fetch_chat_history_error(self, mock_mongo_processor):
         with pytest.raises(Exception):
-            history, message = ChatHistory.fetch_chat_history("tests", sender="123")
+            history, message = ChatHistory.fetch_chat_history(sender="123", collection="tests")
             assert len(history) == 0
             assert message is None
 
     def test_fetch_chat_history_empty(self, mock_mongo_client_empty):
-        history, message = ChatHistory.fetch_chat_history("tests", sender="123")
+        history, message = ChatHistory.fetch_chat_history(sender="123", collection="tests")
         assert len(history) == 0
         assert message is None
 
@@ -120,8 +122,7 @@ class TestHistory:
         monkeypatch.setattr(ChatHistory, "fetch_user_history", events)
 
         history, message = ChatHistory.fetch_chat_history(
-            "tests",
-            sender="5e564fbcdcf0d5fad89e3acd"
+            sender="5e564fbcdcf0d5fad89e3acd", collection="tests"
         )
         assert len(history) == 12
         assert history[0]["event"]
@@ -140,22 +141,43 @@ class TestHistory:
             assert message is None
 
     def test_visitor_hit_fallback(self, mock_fallback_user_data, monkeypatch):
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback'}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("conversations")
+        assert hit_fall_back["fallback_count"] == 1
+        assert hit_fall_back["total_count"] == 4
+        assert message is None
+
+    def test_visitor_hit_fallback_action_not_configured(self, mock_fallback_user_data, monkeypatch):
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy"}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("conversations")
         assert hit_fall_back["fallback_count"] == 1
         assert hit_fall_back["total_count"] == 4
         assert message is None
 
     def test_visitor_hit_fallback_custom_action(self, mock_fallback_user_data, monkeypatch):
-        hit_fall_back, message = ChatHistory.visitor_hit_fallback("conversations",
-                                                                  fallback_action='utter_location_query')
+        def _mock_load_config(*args, **kwargs):
+            return {"policies": [{"name": "RulePolicy", 'core_fallback_action_name': 'utter_location_query'}]}
+        monkeypatch.setattr(MongoProcessor, 'load_config', _mock_load_config)
+        hit_fall_back, message = ChatHistory.visitor_hit_fallback("conversations", fallback_action='utter_location_query')
         assert hit_fall_back["fallback_count"] == 1
         assert hit_fall_back["total_count"] == 4
         assert message is None
 
     def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_fallback_user_data):
+        steps = [
+            {"name": "nlu_fallback", "type": "INTENT"},
+            {"name": "utter_please_rephrase", "type": "BOT"}
+        ]
+        rule = {'name': 'fallback_rule', 'steps': steps, 'type': 'RULE'}
+        MongoProcessor().add_complex_story(rule, "5b029887-bed2-4bbb-aa25-bd12fda26244", 'test')
         hit_fall_back, message = ChatHistory.visitor_hit_fallback("conversations",
                                                                   fallback_action="action_default_fallback",
                                                                   nlu_fallback_action="utter_please_rephrase")
+
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 4
         assert message is None

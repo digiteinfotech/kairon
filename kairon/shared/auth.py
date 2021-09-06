@@ -5,11 +5,13 @@ from typing import Text
 from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode, encode
 
-from kairon.utils import Utility
-from .models import User, TokenData
-from .processor import AccountProcessor
+from kairon.shared.utils import Utility
+from kairon.api.models import TokenData
+from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.utils import DataUtility
 
-Utility.load_evironment()
+Utility.load_environment()
 
 
 class Authentication:
@@ -23,7 +25,7 @@ class Authentication:
 
     @staticmethod
     async def get_current_user(
-        request: Request, token: str = Depends(Utility.oauth2_scheme)
+        request: Request, token: str = Depends(DataUtility.oauth2_scheme)
     ):
         """
         validates jwt token
@@ -63,7 +65,7 @@ class Authentication:
         return user_model
 
     @staticmethod
-    async def get_current_user_and_bot(request: Request, token: str = Depends(Utility.oauth2_scheme)):
+    async def get_current_user_and_bot(request: Request, token: str = Depends(DataUtility.oauth2_scheme)):
         user = await Authentication.get_current_user(request, token)
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):

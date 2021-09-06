@@ -4,7 +4,7 @@ from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
-
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 import yaml
 from fastapi import File
 from loguru import logger as logging
@@ -29,8 +29,15 @@ from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
+from kairon.api import models
+from kairon.api.models import HttpActionConfigRequest
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.importer.processor import DataImporterLogProcessor
+from kairon.importer.validator.file_validator import TrainingDataValidator
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.models import StoryEventType, TemplateType
+from kairon.shared.utils import Utility
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -66,15 +73,9 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback, Utterances, BotSettings, ChatClientConfig, ResponseText
+    Feedback, Utterances, BotSettings, ChatClientConfig
 )
-from ..api import models
-from ..api.models import HttpActionConfigRequest, TemplateType
-from ..importer.processor import DataImporterLogProcessor
-from ..importer.validator.file_validator import TrainingDataValidator
-from ..shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
-from ..shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
-from ..shared.models import StoryEventType
+from .utils import DataUtility
 
 
 class MongoProcessor:
@@ -108,7 +109,7 @@ class MongoProcessor:
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -161,8 +162,8 @@ class MongoProcessor:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             http_actions_yml = os.path.join(path, 'http_action.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
-                                        domain_path=domain_path,
-                                        training_data_paths=training_data_path)
+                                                         domain_path=domain_path,
+                                                         training_data_paths=training_data_path)
             domain = await importer.get_domain()
             story_graph = await importer.get_stories()
             config = await importer.get_config()
@@ -170,7 +171,8 @@ class MongoProcessor:
             http_actions = Utility.read_yaml(http_actions_yml)
             TrainingDataValidator.validate_http_actions(http_actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, overwrite, REQUIREMENTS.copy())
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, overwrite,
+                                    REQUIREMENTS.copy())
         except InvalidDomain as e:
             logging.exception(e)
             raise AppException(
@@ -396,11 +398,12 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
+            if 'text' in training_example.data and str(
+                    training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
                 training_data.intent = str(training_example.data[
-                    TRAINING_EXAMPLE.INTENT.value
-                ])
+                                               TRAINING_EXAMPLE.INTENT.value
+                                           ])
                 training_data.text = training_example.data['text']
                 training_data.bot = bot
                 training_data.user = user
@@ -656,7 +659,6 @@ class MongoProcessor:
         for form in forms:
             yield {form.name: form.mapping}
 
-
     def __prepare_training_forms(self, bot: Text):
         forms = list(self.fetch_forms(bot))
         form_dict = {}
@@ -761,7 +763,7 @@ class MongoProcessor:
                 response.name = key.strip()
                 response.bot = bot
                 response.user = user
-                r_type, r_object = Utility.prepare_response(value)
+                r_type, r_object = DataUtility.prepare_response(value)
                 if RESPONSE.Text.value == r_type:
                     response.text = r_object
                 elif RESPONSE.CUSTOM.value == r_type:
@@ -1078,11 +1080,14 @@ class MongoProcessor:
 
         present_config = self.load_config(bot)
         if nlu_confidence_threshold:
-            nlu_confidence_threshold = nlu_confidence_threshold/100
-            fallback_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+            nlu_confidence_threshold = nlu_confidence_threshold / 100
+            fallback_classifier_idx = next(
+                (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"),
+                None)
             if fallback_classifier_idx:
                 del present_config['pipeline'][fallback_classifier_idx]
-            diet_classifier_idx = next((idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
+            diet_classifier_idx = next(
+                (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
             fallback = {'name': 'FallbackClassifier', 'threshold': nlu_confidence_threshold}
             present_config['pipeline'].insert(diet_classifier_idx + 1, fallback)
             rule_policy = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
@@ -1100,7 +1105,8 @@ class MongoProcessor:
                 utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
                                                     name__iexact=action_fallback)
                 if not (utterance_exists or
-                        Utility.is_exist(Actions, raise_error=False, bot=bot, status=True, name__iexact=action_fallback)):
+                        Utility.is_exist(Actions, raise_error=False, bot=bot, status=True,
+                                         name__iexact=action_fallback)):
                     raise AppException(f"Action fallback {action_fallback} does not exists")
             fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
             if not fallback:
@@ -1120,7 +1126,8 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')*100 if nlu_fallback.get('threshold') else None
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') * 100 if nlu_fallback.get(
+            'threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
@@ -1200,7 +1207,8 @@ class MongoProcessor:
                 {"name": utterance.strip().lower(), "type": "BOT"}]
             try:
                 doc_id = self.add_complex_story(
-                    story={'name': story_name.lower(), 'steps': events, 'type': 'STORY', 'template_type': TemplateType.CUSTOM.value},
+                    story={'name': story_name.lower(), 'steps': events, 'type': 'STORY',
+                           'template_type': TemplateType.CUSTOM.value},
                     bot=bot,
                     user=user
                 )
@@ -1252,7 +1260,8 @@ class MongoProcessor:
             bot=bot,
             status=True,
         )
-        saved = Intents(name=text.strip().lower(), bot=bot, user=user, is_integration=is_integration).save().to_mongo().to_dict()
+        saved = Intents(name=text.strip().lower(), bot=bot, user=user,
+                        is_integration=is_integration).save().to_mongo().to_dict()
         return saved["_id"].__str__()
 
     def get_intents(self, bot: Text):
@@ -1291,7 +1300,7 @@ class MongoProcessor:
                     raise AppException(
                         "Training Example cannot be empty or blank spaces"
                     )
-                text, entities = Utility.extract_text_and_entities(example.strip())
+                text, entities = DataUtility.extract_text_and_entities(example.strip())
                 if Utility.is_exist(
                         TrainingExamples,
                         raise_error=False,
@@ -1350,7 +1359,7 @@ class MongoProcessor:
                 yield {"text": example, "_id": None, "message": "Training Example cannot be empty or blank spaces"}
                 continue
 
-            text, entities = Utility.extract_text_and_entities(example.strip())
+            text, entities = DataUtility.extract_text_and_entities(example.strip())
             try:
                 training_example = TrainingExamples.objects(text__iexact=text, bot=bot, status=True).get()
                 training_example.intent = intent.strip().lower()
@@ -1398,7 +1407,7 @@ class MongoProcessor:
         try:
             if Utility.check_empty_string(example):
                 raise AppException("Training Example cannot be empty or blank spaces")
-            text, entities = Utility.extract_text_and_entities(example.strip())
+            text, entities = DataUtility.extract_text_and_entities(example.strip())
             if Utility.is_exist(
                     TrainingExamples,
                     raise_error=False,
@@ -1495,7 +1504,7 @@ class MongoProcessor:
             entities = example["entities"] if "entities" in example else None
             yield {
                 "_id": example["_id"].__str__(),
-                "text": Utility.prepare_nlu_text(example["text"], entities),
+                "text": DataUtility.prepare_nlu_text(example["text"], entities),
             }
 
     def get_all_training_examples(self, bot: Text):
@@ -1604,12 +1613,12 @@ class MongoProcessor:
             raise AppException("Action name cannot be empty or blank spaces")
 
         if not name.startswith('utter_') and not Utility.is_exist(
-                                                Actions,
-                                                raise_error=raise_exception,
-                                                exp_message="Action exists!",
-                                                name__iexact=name.strip(),
-                                                bot=bot,
-                                                status=True):
+                Actions,
+                raise_error=raise_exception,
+                exp_message="Action exists!",
+                name__iexact=name.strip(),
+                bot=bot,
+                status=True):
             action = (
                 Actions(name=name.strip().lower(), bot=bot, user=user).save().to_mongo().to_dict()
             )
@@ -1711,7 +1720,7 @@ class MongoProcessor:
                 response=utterances, bot=bot, exp_message="Utterance already exists!"
             )
             response = Responses.objects(bot=bot, name=name.lower()).get(id=id)
-            r_type, r_object = Utility.prepare_response(utterances)
+            r_type, r_object = DataUtility.prepare_response(utterances)
             if RESPONSE.Text.value == r_type:
                 response.text = r_object
                 response.custom = None
@@ -1817,9 +1826,9 @@ class MongoProcessor:
 
         events = []
         if steps and type == "RULE":
-            if steps[0]['name'] != "..." and steps[0]['type'] != "action":
+            if steps[0]['name'] != RULE_SNIPPET_ACTION_NAME and steps[0]['type'] != "action":
                 events.append(StoryEvents(
-                    name="...",
+                    name=RULE_SNIPPET_ACTION_NAME,
                     type="action"))
         for step in steps:
             if step['type'] == "INTENT":
@@ -1827,9 +1836,6 @@ class MongoProcessor:
                     name=step['name'].strip().lower(),
                     type="user"))
             elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION"]:
-                Utility.is_exist(Utterances,
-                                 f'utterance "{step["name"]}" is attached to a form',
-                                 bot=bot, name__iexact=step['name'], form_attached__ne=None)
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="action"))
@@ -1861,12 +1867,11 @@ class MongoProcessor:
 
         events = self.__complex_story_prepare_steps(steps, type, bot, user)
 
-        data_class = None
         if type == "STORY":
             data_class = Stories
             template_type = story.get('template_type')
             if not template_type:
-                template_type = Utility.get_template_type(story)
+                template_type = DataUtility.get_template_type(story)
             data_object = Stories(template_type=template_type)
         elif type == 'RULE':
             data_class = Rules
@@ -2108,12 +2113,12 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration already exists!")
             endpoint = Endpoints()
 
-        if endpoint_config.get(ENDPOINT_TYPE.BOT_ENDPOINT.value):
-            endpoint.bot_endpoint = EndPointBot(**endpoint_config.get(ENDPOINT_TYPE.BOT_ENDPOINT.value))
+        if endpoint_config.get("bot_endpoint"):
+            endpoint.bot_endpoint = EndPointBot(**endpoint_config.get("bot_endpoint"))
 
-        if endpoint_config.get(ENDPOINT_TYPE.ACTION_ENDPOINT.value):
+        if endpoint_config.get("action_endpoint"):
             endpoint.action_endpoint = EndPointAction(
-                **endpoint_config.get(ENDPOINT_TYPE.ACTION_ENDPOINT.value)
+                **endpoint_config.get("action_endpoint")
             )
 
         if endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value):
@@ -2132,6 +2137,27 @@ class MongoProcessor:
         endpoint.bot = bot
         endpoint.user = user
         return endpoint.save().to_mongo().to_dict()["_id"].__str__()
+
+    def delete_endpoint(self, bot: Text, endpoint_type: ENDPOINT_TYPE):
+        """
+        delete endpoint configuration
+
+        :param bot: bot id
+        :param endpoint_type: Type of endpoint
+        :return:
+        """
+        if not endpoint_type:
+            raise AppException('endpoint_type is required for deletion')
+        try:
+            current_endpoint_config = Endpoints.objects().get(bot=bot)
+            if current_endpoint_config.__getitem__(endpoint_type):
+                current_endpoint_config.__setitem__(endpoint_type, None)
+                current_endpoint_config.save()
+            else:
+                raise AppException("Endpoint not configured")
+        except DoesNotExist as e:
+            logging.exception(e)
+            raise AppException("No Endpoint configured")
 
     def get_history_server_endpoint(self, bot):
         endpoint_config = None
@@ -2154,8 +2180,8 @@ class MongoProcessor:
         fetches endpoint configuration
 
         :param bot: bot id
-        :param raise_exception: wether to raise an exception, default is True
         :param mask_characters: masks last 3 characters of the history server token if True
+        :param raise_exception: wether to raise an exception, default is True
         :return: endpoint configuration
         """
         try:
@@ -2180,27 +2206,6 @@ class MongoProcessor:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
                 return {}
-
-    def delete_endpoint(self, bot: Text, endpoint_type: ENDPOINT_TYPE):
-        """
-        delete endpoint configuration
-
-        :param bot: bot id
-        :param endpoint_type: Type of endpoint
-        :return:
-        """
-        if not endpoint_type:
-            raise AppException('endpoint_type is required for deletion')
-        try:
-            current_endpoint_config = Endpoints.objects().get(bot=bot)
-            if current_endpoint_config.__getitem__(endpoint_type):
-                current_endpoint_config.__setitem__(endpoint_type, None)
-                current_endpoint_config.save()
-            else:
-                raise AppException("Endpoint not configured")
-        except DoesNotExist as e:
-            logging.exception(e)
-            raise AppException("No Endpoint configured")
 
     def add_model_deployment_history(
             self, bot: Text, user: Text, model: Text, url: Text, status: Text
@@ -2315,24 +2320,24 @@ class MongoProcessor:
             logging.exception(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_utterance(self, utterance_name: str, bot: str, validate_has_form: bool = True):
+    def delete_utterance(self, utterance_name: str, bot: str, user: str):
         if not (utterance_name and utterance_name.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
-            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, status=True))
+            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, user=user, status=True))
             if not responses:
                 if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
-                    self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
+                    self.delete_utterance_name(name=utterance_name, bot=bot)
                     return
                 raise DoesNotExist("Utterance does not exists")
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
-            if story:
+            if not story:
+                for response in responses:
+                    response.status = False
+                    response.save()
+                self.delete_utterance_name(name=utterance_name, bot=bot)
+            else:
                 raise AppException("Cannot remove utterance linked to story")
-
-            self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
-            for response in responses:
-                response.status = False
-                response.save()
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -2349,9 +2354,9 @@ class MongoProcessor:
 
             if story and len(responses) <= 1:
                 raise AppException("At least one response is required for utterance linked to story")
-            if len(responses) <= 1:
-                self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=True, raise_exc=True)
             self.remove_document(Responses, utterance_id, bot, user)
+            if len(responses) <= 1:
+                self.delete_utterance_name(name=utterance_name, bot=bot)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -2416,7 +2421,8 @@ class MongoProcessor:
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(http_action_config['action_name'].lower(), bot, user, raise_exception=False)
-        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False}, bot, user,
+        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
+                       "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
         return doc_id
 
@@ -2765,8 +2771,8 @@ class MongoProcessor:
         Finally, a list of files received are returned.
         """
         non_event_validation_summary = None
-        bot_data_home_dir = await Utility.save_uploaded_data(bot, training_files)
-        files_to_prepare = Utility.validate_and_get_requirements(bot_data_home_dir, True)
+        bot_data_home_dir = await DataUtility.save_uploaded_data(bot, training_files)
+        files_to_prepare = DataUtility.validate_and_get_requirements(bot_data_home_dir, True)
         files_received = REQUIREMENTS - files_to_prepare
         is_event_data = False
 
@@ -2865,9 +2871,11 @@ class MongoProcessor:
             rule_policy['core_fallback_threshold'] = 0.3
             self.add_default_fallback_data(bot, user, False, True)
 
-        property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
+        property_idx = next(
+            (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
         if not property_idx:
-            property_idx = next((idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
+            property_idx = next(
+                (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
             fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
             config_obj['pipeline'].insert(property_idx + 1, fallback)
             self.add_default_fallback_data(bot, user, True, False)
@@ -2879,7 +2887,7 @@ class MongoProcessor:
         try:
             rule = Rules.objects(bot=bot, status=True, events__match=event).get()
             for event in rule.events:
-                if 'action' == event.type and event.name != '...':
+                if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
                     action = event.name
                     break
         except DoesNotExist as e:
@@ -2888,7 +2896,8 @@ class MongoProcessor:
 
     def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
         if nlu_fallback:
-            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_please_rephrase'):
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                    name__iexact='utter_please_rephrase'):
                 self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
             steps = [
                 {"name": "...", "type": "BOT"},
@@ -2985,7 +2994,7 @@ class MongoProcessor:
         for value in values:
             yield {"_id": value.id.__str__(), "value": value.value}
 
-    def add_utterance_name(self, name: Text, bot: Text, user: Text, form_attached: str = None, raise_error_if_exists: bool=False):
+    def add_utterance_name(self, name: Text, bot: Text, user: Text, raise_error_if_exists: bool = False):
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
         try:
@@ -2994,7 +3003,7 @@ class MongoProcessor:
                 raise AppException('Utterance exists')
         except DoesNotExist as e:
             logging.exception(e)
-            Utterances(name=name, form_attached=form_attached, bot=bot, user=user).save()
+            Utterances(name=name, bot=bot, user=user).save()
 
     def get_utterances(self, bot: Text):
         utterances = Utterances.objects(bot=bot, status=True)
@@ -3002,15 +3011,11 @@ class MongoProcessor:
             utterance_dict = utterance.to_mongo().to_dict()
             yield {"_id": utterance_dict['_id'].__str__(), 'name': utterance_dict['name']}
 
-    def delete_utterance_name(self, name: Text, bot: Text, validate_has_form: bool = False, raise_exc: bool = False):
+    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
         try:
             utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()
-            if validate_has_form and not Utility.check_empty_string(utterance.form_attached):
-                if raise_exc:
-                    raise AppException(f'Cannot delete utterance attached to a form: {utterance.form_attached}')
-            else:
-                utterance.status = False
-                utterance.save()
+            utterance.status = False
+            utterance.save()
         except DoesNotExist as e:
             logging.exception(e)
             if raise_exc:
@@ -3033,7 +3038,7 @@ class MongoProcessor:
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
                                        {'$count': 'count'}], 'as': 'responses_count'}},
-            {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$responses_count.count'}}}]))
+             {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$responses_count.count'}}}]))
 
         return {'intents': intents_count, 'utterances': utterances_count}
 
@@ -3055,8 +3060,8 @@ class MongoProcessor:
         client_config.save()
 
     def get_chat_client_config(self, bot: Text):
-        from kairon.api.auth import Authentication
-        from kairon.api.processor import AccountProcessor
+        from kairon.shared.auth import Authentication
+        from kairon.shared.account.processor import AccountProcessor
 
         bot_info = AccountProcessor.get_bot(bot)
         try:
@@ -3200,110 +3205,3 @@ class MongoProcessor:
             self.remove_document(LookupTables, lookup_id, bot, user)
         except DoesNotExist as e:
             raise AppException(e)
-
-    def __prepare_slot_mapping(self, slot_mapping: dict, bot: Text, user: Text, form_name: Text, add_utterance: bool = True):
-        slot_name = slot_mapping['slot']
-        if add_utterance:
-            utterance_name = f'utter_ask_{form_name}_{slot_name}'
-            if not Utility.is_exist(Utterances, raise_error=False, name=utterance_name, bot=bot, status=True):
-                for resp in slot_mapping['responses']:
-                    Responses(name=utterance_name, bot=bot, user=user, text=ResponseText(text=resp.strip())).save()
-                Utterances(name=utterance_name, form_attached=form_name, bot=bot, user=user).save()
-        db_formatted_mapping = []
-        for mapping in slot_mapping['mapping']:
-            mapping_type = mapping.get('type') or 'from_entity'
-            mapping_info = {'type': mapping_type}
-            value = mapping.get('value')
-            if mapping_type == 'from_entity':
-                mapping_info['entity'] = mapping.get('entity') or slot_name
-            if value is not None:
-                mapping_info['value'] = value
-            if mapping.get('intent'):
-                mapping_info['intent'] = mapping['intent']
-            if mapping.get('not_intent'):
-                mapping_info['not_intent'] = mapping['not_intent']
-            db_formatted_mapping.append(mapping_info)
-        return db_formatted_mapping
-
-    def add_form(self, name: str, path: list, bot: Text, user: Text):
-        if Utility.check_empty_string(name):
-            raise AppException('Form name cannot be empty or spaces')
-        name = name.strip().lower()
-        Utility.is_exist(Forms, f'Form with name "{name}" exists', name=name, bot=bot, status=True)
-        existing_slots = set(Slots.objects(bot=bot, status=True).values_list('name'))
-        required_slots = {slots_to_fill['slot'] for slots_to_fill in path if not Utility.check_empty_string(slots_to_fill['slot'])}
-        if required_slots.difference(existing_slots).__len__() > 0:
-            raise AppException(f'slots not exists: {required_slots.difference(existing_slots)}')
-
-        mapping = {}
-        for slots_to_fill in path:
-            slot_name = slots_to_fill['slot']
-            if not Utility.check_empty_string(slot_name):
-                mapping[slot_name] = self.__prepare_slot_mapping(slots_to_fill, bot, user, name)
-        Forms(name=name, mapping=mapping, bot=bot, user=user).save()
-
-    @staticmethod
-    def list_forms(bot: Text):
-        return list(Forms.objects(bot=bot, status=True).values_list('name'))
-
-    @staticmethod
-    def get_form(name: Text, bot: Text):
-        try:
-            form = Forms.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
-            form['_id'] = form['_id'].__str__()
-            slot_mapping = []
-            for slot in form['mapping'].keys():
-                utterance = Responses.objects(name=f'utter_ask_{name}_{slot}', bot=bot, status=True).get()
-                slot_mapping.append({'slot': slot, 'mapping': form['mapping'][slot],
-                                     'utterance': {'_id': str(utterance.id), 'text': utterance.text.text}})
-            form['slot_mapping'] = slot_mapping
-            return form
-        except DoesNotExist as e:
-            logging.error(str(e))
-            raise AppException('Form does not exists')
-
-    def edit_form(self, name: str, path: list, bot: Text, user: Text):
-        try:
-            form = Forms.objects(name=name, bot=bot, status=True).get()
-            existing_slots = set(Slots.objects(bot=bot, status=True).values_list('name'))
-            slots_required_for_form = {slots_to_fill['slot'] for slots_to_fill in path}
-            if slots_required_for_form.difference(existing_slots).__len__() > 0:
-                raise AppException(f'slots not exists: {slots_required_for_form.difference(existing_slots)}')
-            existing_slots_for_form = set(form.to_mongo().to_dict()['mapping'].keys())
-            slots_to_remove = existing_slots_for_form.difference(slots_required_for_form)
-            new_slots_to_add = slots_required_for_form.difference(existing_slots_for_form)
-
-            for slot in slots_to_remove:
-                try:
-                    self.delete_utterance(f'utter_ask_{name}_{slot}', bot, False)
-                except AppException:
-                    pass
-
-            mapping = {}
-            for slots_to_fill in path:
-                slot_name = slots_to_fill['slot']
-                add_utterance = False
-                if slot_name in new_slots_to_add:
-                    add_utterance = True
-                mapping[slot_name] = self.__prepare_slot_mapping(slots_to_fill, bot, user, name, add_utterance)
-            form.mapping = mapping
-            form.user = user
-            form.save()
-        except DoesNotExist:
-            raise AppException('Form does not exists')
-
-    def delete_form(self, name: Text, bot: Text):
-        try:
-            form = Forms.objects(name=name, bot=bot, status=True).get()
-            existing_slots_for_form = set(form.to_mongo().to_dict()['mapping'].keys())
-            for slot in existing_slots_for_form:
-                try:
-                    utterance_name = f'utter_ask_{name}_{slot}'
-                    self.delete_utterance(utterance_name, bot, False)
-                except Exception as e:
-                    logging.error(str(e))
-            form.status = False
-            form.save()
-        except DoesNotExist:
-            raise AppException(f'Form "{name}" does not exists')
-

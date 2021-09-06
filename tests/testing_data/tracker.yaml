@@ -4,7 +4,7 @@ authentication:
 tracker:
   type: ${TRACKER_TYPE:"bot"}
   url: ${TRACKER_URL:"mongodb://localhost:27017"}
-  db: ${TRACKER_DB:"rasa"}
+  db: ${TRACKER_DB:"conversation"}
   collection: ${TRACKER_COLLECTION:"conversations"}
 
 elasticsearch:

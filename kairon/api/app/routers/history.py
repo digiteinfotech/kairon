@@ -1,17 +1,17 @@
-from io import BytesIO
-
-from fastapi import APIRouter
-from starlette.responses import StreamingResponse
-
-from kairon.api.auth import Authentication
-from kairon.api.models import Response, User
-from fastapi import Depends, Query
 from typing import Text
 
-from kairon.data_processor.processor import MongoProcessor
-from kairon.utils import Utility
+from fastapi import APIRouter
+from fastapi import Depends, Query
+from starlette.responses import StreamingResponse
+from io import BytesIO
+
+from kairon.api.models import Response
+from kairon.shared.auth import Authentication
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
+from kairon.shared.data.utils import DataUtility
+
 router = APIRouter()
-mongo_processor = MongoProcessor()
 
 
 @router.get("/users", response_model=Response)
@@ -59,7 +59,7 @@ async def visitor_hit_fallback(month: int = Query(default=1, ge=2, le=6), curren
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
-    fallback_action, nlu_fallback_action = Utility.load_fallback_actions(current_user.get_bot())
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback',
@@ -121,7 +121,7 @@ async def complete_conversations(month: int = Query(default=1, ge=2, le=6), curr
     """
     Fetches the number of successful conversations of the bot, which had no fallback
     """
-    fallback_action, nlu_fallback_action = Utility.load_fallback_actions(current_user.get_bot())
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/success',
@@ -173,7 +173,7 @@ async def complete_conversation_trend(month: int = Query(default=6, ge=2, le=6),
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
-    fallback_action, nlu_fallback_action = Utility.load_fallback_actions(current_user.get_bot())
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/success',
@@ -198,7 +198,7 @@ async def fallback_trend(month: int = Query(default=6, ge=2, le=6), current_user
     """
     Fetches the fallback count of the bot for previous months
     """
-    fallback_action, nlu_fallback_action = Utility.load_fallback_actions(current_user.get_bot())
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/fallback',

@@ -27,10 +27,9 @@ from rasa.shared.core.slots import (
 from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from rasa.shared.core.domain import _validate_slot_mappings
-
-from ..api.models import TemplateType
+from kairon.api.models import TemplateType
 
 
 class Entity(EmbeddedDocument):
@@ -347,11 +346,12 @@ class Stories(Document):
     template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
     def validate(self, clean=True):
+        from .utils import DataUtility
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("events cannot be empty")
-        Utility.validate_flow_events(self.events, "STORY", self.block_name)
+        DataUtility.validate_flow_events(self.events, "STORY", self.block_name)
 
 
 class Rules(Document):
@@ -366,11 +366,12 @@ class Rules(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        from .utils import DataUtility
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("rule name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("events cannot be empty")
-        Utility.validate_flow_events(self.events, "RULE", self.block_name)
+        DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
 class Configs(Document):

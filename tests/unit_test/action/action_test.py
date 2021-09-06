@@ -15,7 +15,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import HttpActionFailure
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 import requests
 
 
@@ -24,11 +24,11 @@ class TestActions:
     @pytest.fixture(autouse=True)
     def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
+        Utility.load_environment()
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
 
-        connect(**Utility.mongoengine_connection())
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     @pytest.fixture
     def mock_get_http_action_exception(self, monkeypatch):

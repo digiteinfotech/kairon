@@ -4,7 +4,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.data_processor.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
@@ -15,8 +15,8 @@ class TestDataImporterLogProcessor:
     @pytest.fixture(scope='session', autouse=True)
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
     
     def test_add_log(self):
         bot = 'test'

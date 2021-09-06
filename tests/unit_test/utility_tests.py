@@ -8,7 +8,7 @@ from fastapi import UploadFile
 from mongoengine import connect
 
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 
 
 class TestUtility:
@@ -16,8 +16,8 @@ class TestUtility:
     @pytest.fixture(autouse=True, scope="session")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         pytest.bot = 'test'
         yield None
         shutil.rmtree(os.path.join('training_data', pytest.bot))
@@ -166,7 +166,7 @@ class TestUtility:
 
     @pytest.mark.asyncio
     async def test_write_training_data(self):
-        from kairon.data_processor.processor import MongoProcessor
+        from kairon.shared.data.processor import MongoProcessor
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -182,7 +182,7 @@ class TestUtility:
         assert os.path.exists(training_data_path)
 
     def test_write_training_data_with_rules(self):
-        from kairon.data_processor.processor import MongoProcessor
+        from kairon.shared.data.processor import MongoProcessor
         processor = MongoProcessor()
         training_data = processor.load_nlu("test_load_from_path_yml_training_files")
         story_graph = processor.load_stories("test_load_from_path_yml_training_files")
