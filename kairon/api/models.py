@@ -14,7 +14,7 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
-from ..shared.models import StoryStepType, StoryType, TemplateType, StoryEventType, ParameterChoice, History_Month_Enum
+from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice
 
 
 class Token(BaseModel):
@@ -69,9 +69,6 @@ class ListData(BaseModel):
     data: List[str]
 
 
-
-
-
 class RegisterAccount(BaseModel):
     email: str
     first_name: str
@@ -111,19 +108,15 @@ class EndPointAction(BaseModel):
     url: str
 
 
-class EndPointTracker(BaseModel):
-    type: str = "mongo"
+class EndPointHistory(BaseModel):
     url: str
-    db: str
-    username: str = None
-    password: str = None
-    auth_source: str = None
+    token: str = None
 
 
 class Endpoint(BaseModel):
     bot_endpoint: EndPointBot = None
     action_endpoint: EndPointAction = None
-    tracker_endpoint: EndPointTracker = None
+    history_endpoint: EndPointHistory = None
 
 
 class RasaConfig(BaseModel):
@@ -175,13 +168,6 @@ class Password(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
-
-
-
-
-
-class HistoryMonth(BaseModel):
-    month: History_Month_Enum
 
 
 class HttpActionParameters(BaseModel):
@@ -439,3 +425,29 @@ class LookupTablesRequest(BaseModel):
             if Utility.check_empty_string(ele):
                 raise ValueError("lookup value cannot be empty or a blank space")
         return v
+
+
+class SlotMappingType(str, Enum):
+    FROM_ENTITY = "from_entity"
+    FROM_INTENT = "from_intent"
+    FROM_TRIGGER_INTENT = "from_trigger_intent"
+    FROM_TEXT = "from_text"
+
+
+class SlotMapping(BaseModel):
+    entity: str = None
+    type: SlotMappingType
+    value: Any = None
+    intent: List[str] = None
+    not_intent: List[str] = None
+
+
+class FormPath(BaseModel):
+    responses: List[str]
+    slot: str
+    mapping: List[SlotMapping]
+
+
+class Forms(BaseModel):
+    name: str
+    path: List[FormPath]

@@ -17,10 +17,10 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms
 )
 from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.data_processor.constant import EVENT_STATUS, ENDPOINT_TYPE
 from kairon.data_processor.data_objects import TrainingExamples
 from kairon.data_processor.model_processor import ModelProcessor
 from kairon.data_processor.processor import MongoProcessor
@@ -268,7 +268,7 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
+            request_data.data.lower(), current_user.get_bot()
         )
     else:
         mongo_processor.delete_response(
@@ -535,7 +535,7 @@ async def get_endpoint(current_user: User = Depends(Authentication.get_current_u
     Fetches the http and mongo endpoint for the bot
     """
     endpoint = mongo_processor.get_endpoints(
-        current_user.get_bot(), raise_exception=False
+        current_user.get_bot(), raise_exception=False, mask_characters=True
     )
     return {"data": {"endpoint": endpoint}}
 
@@ -556,6 +556,22 @@ async def set_endpoint(
     if endpoint.action_endpoint:
         background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
     return {"message": "Endpoint saved successfully!"}
+
+
+@router.delete("/endpoint/{endpoint_type}", response_model=Response)
+async def delete_endpoint(
+        endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
+                                                                      "history_endpoint", example="bot_endpoint"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Deletes the bot endpoint configuration
+    """
+    mongo_processor.delete_endpoint(
+        current_user.get_bot(), endpoint_type
+    )
+
+    return {"message": "Endpoint removed"}
 
 
 @router.get("/config", response_model=Response)
@@ -1163,3 +1179,49 @@ async def delete_lookup_value(
     return {
         "message": "Lookup Table removed!"
     }
+
+
+@router.post("/forms", response_model=Response)
+async def add_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Adds a new form.
+    """
+    mongo_processor.add_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    return Response(message='Form added')
+
+
+@router.get("/forms", response_model=Response)
+async def list_forms(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Lists all forms in the bot.
+    """
+    forms = mongo_processor.list_forms(current_user.get_bot())
+    return Response(data=forms)
+
+
+@router.get("/forms/{form_name}", response_model=Response)
+async def get_form(form_name: str = Path(default=None, description="Name of the form"),
+                   current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Get a particular form.
+    """
+    form = mongo_processor.get_form(form_name, current_user.get_bot())
+    return Response(data=form)
+
+
+@router.put("/forms", response_model=Response)
+async def edit_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Edits a form.
+    """
+    mongo_processor.edit_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    return Response(message='Form updated')
+
+
+@router.delete("/forms", response_model=Response)
+async def delete_form(request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Deletes a form and its associated utterances.
+    """
+    mongo_processor.delete_form(request.data, current_user.get_bot())
+    return Response(message='Form deleted')
