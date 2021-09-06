@@ -5,12 +5,15 @@ from mongoengine import (
     StringField,
     DateTimeField,
     BooleanField,
-    ListField, DictField,
+    ListField, DictField, DynamicField
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
 
 from validators import ValidationFailure, url
+
+from kairon.shared.actions.models import ActionType
+from kairon.shared.constants import SLOT_SET_TYPE
 
 
 class HttpActionRequestBody(EmbeddedDocument):
@@ -53,7 +56,7 @@ class HttpActionConfig(Document):
             param.validate()
 
 
-class HttpActionLog(Document):
+class ActionServerLogs(Document):
     intent = StringField()
     action = StringField()
     sender = StringField()
@@ -62,6 +65,36 @@ class HttpActionLog(Document):
     api_response = StringField()
     bot_response = StringField()
     exception = StringField()
+    messages = ListField(StringField())
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
+
+
+class Actions(Document):
+    name = StringField(required=True)
+    type = StringField(choices=[type.value for type in ActionType])
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        from .utils import ActionUtility
+
+        if ActionUtility.is_empty(self.name):
+            raise ValidationError("Action name cannot be empty or blank spaces")
+
+        if self.name.startswith('utter_'):
+            raise ValidationError("Action name cannot start with utter_")
+
+
+class SlotSetAction(Document):
+    name = StringField(required=True)
+    slot = StringField(required=True)
+    type = StringField(required=True, choices=[type.value for type in SLOT_SET_TYPE])
+    value = DynamicField()
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)

@@ -2,6 +2,8 @@ import json
 import os
 import urllib.parse
 
+from kairon.shared.actions.models import ActionType
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
@@ -11,10 +13,10 @@ from mongoengine import connect
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.actions.exception import HttpActionFailure
+from kairon.shared.actions.exception import ActionFailure
 from kairon.utils import Utility
 import requests
 
@@ -33,9 +35,9 @@ class TestActions:
     @pytest.fixture
     def mock_get_http_action_exception(self, monkeypatch):
         def _raise_excep(*arge, **kwargs):
-            raise HttpActionFailure("No HTTP action found for bot and action")
+            raise ActionFailure("No HTTP action found for bot and action")
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _raise_excep)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _raise_excep)
 
     @responses.activate
     def test_execute_http_request_getWith_auth_token(self):
@@ -239,7 +241,7 @@ class TestActions:
             ]
         )
 
-        with pytest.raises(HttpActionFailure, match="Got non-200 status code"):
+        with pytest.raises(ActionFailure, match="Got non-200 status code"):
             ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                           request_method=responses.DELETE, request_body=request_params)
 
@@ -338,17 +340,17 @@ class TestActions:
 
     def test_get_http_action_no_bot(self):
         try:
-            ActionUtility.get_http_action_config(bot=None, action_name="http_action")
+            ActionUtility.get_action_config(bot=None, name="http_action")
             assert False
-        except HttpActionFailure as ex:
-            assert str(ex) == "Bot name and action name are required"
+        except ActionFailure as ex:
+            assert str(ex) == "Bot and action name are required for fetching configuration"
 
     def test_get_http_action_no_http_action(self):
         try:
-            ActionUtility.get_http_action_config(bot="bot", action_name=None)
+            ActionUtility.get_action_config(bot="bot", name=None)
             assert False
-        except HttpActionFailure as ex:
-            assert str(ex) == "Bot name and action name are required"
+        except ActionFailure as ex:
+            assert str(ex) == "Bot and action name are required for fetching configuration"
 
     def test_get_http_action_invalid_bot(self):
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
@@ -367,7 +369,7 @@ class TestActions:
         try:
             ActionUtility.get_http_action_config("bot1", "http_action")
             assert False
-        except HttpActionFailure as ex:
+        except ActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
 
     def test_get_http_action_invalid_http_action(self):
@@ -387,7 +389,7 @@ class TestActions:
         try:
             ActionUtility.get_http_action_config("bot", "http_action1")
             assert False
-        except HttpActionFailure as ex:
+        except ActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
 
     def test_get_http_action_no_request_body(self):
@@ -406,7 +408,7 @@ class TestActions:
         try:
             ActionUtility.get_http_action_config("bot", "http_action1")
             assert False
-        except HttpActionFailure as ex:
+        except ActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
 
     def test_prepare_request(self):
@@ -508,7 +510,7 @@ class TestActions:
         try:
             ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", json1)
             assert False
-        except HttpActionFailure:
+        except ActionFailure:
             assert True
 
     def test_prepare_response_string_response(self):
@@ -544,7 +546,7 @@ class TestActions:
         try:
             ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", json1)
             assert False
-        except HttpActionFailure:
+        except ActionFailure:
             assert True
 
     def test_prepare_response_invalid_response_json(self):
@@ -552,7 +554,7 @@ class TestActions:
         try:
             ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.c}", json_as_string)
             assert False
-        except HttpActionFailure as e:
+        except ActionFailure as e:
             assert str(e) == 'Could not find value for keys in response'
 
     def test_prepare_response_as_json_and_expected_as_plain_string(self):
@@ -588,9 +590,9 @@ class TestActions:
         await ActionProcessor.process_action(dispatcher, tracker, domain, actions_name)
         str(dispatcher.messages[0]['text']).__contains__(
             "I have failed to process your request: No HTTP action found for bot")
-        log = HttpActionLog.objects(sender="sender1",
-                                    bot="5f50fd0a56b698ca10d35d2e",
-                                    status="FAILURE").get()
+        log = ActionServerLogs.objects(sender="sender1",
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
         assert log['exception'].__contains__('No HTTP action found for bot')
 
     @pytest.mark.asyncio
@@ -615,11 +617,9 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         await ActionProcessor.process_action(dispatcher, tracker, domain, actions_name)
-        str(dispatcher.messages[0]['text']).__contains__(
-            "I have failed to process your request: No HTTP action found for bot")
-        log = HttpActionLog.objects(sender="sender1",
-                                    bot="5f50fd0a56b698ca10d35d2e",
-                                    status="FAILURE").get()
+        log = ActionServerLogs.objects(sender="sender1",
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
         assert log['exception'].__contains__('No HTTP action found for bot')
 
     @pytest.mark.asyncio
@@ -633,12 +633,10 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
-        assert str(actual[0]['value']) == 'I have failed to process your request'
-        log = HttpActionLog.objects(sender="sender2",
-                                    status="FAILURE").get()
-        assert log['exception'] == 'Bot id and HTTP action configuration name not found in slot'
+        assert actual is None
+        log = ActionServerLogs.objects(sender="sender2",
+                                       status="FAILURE").get()
+        assert log['exception'] == 'Bot id and action name not found in slot'
 
     @pytest.mark.asyncio
     async def test_run_no_http_action(self):
@@ -651,9 +649,7 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
-        assert str(actual[0]['value']) == 'I have failed to process your request'
+        assert actual is None
 
     @pytest.mark.asyncio
     async def test_run(self, monkeypatch):
@@ -671,9 +667,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         responses.start()
         responses.add(
             method=responses.GET,
@@ -697,8 +693,8 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'This should be response'
-        log = HttpActionLog.objects(sender="sender_test_run",
-                                    status="SUCCESS").get()
+        log = ActionServerLogs.objects(sender="sender_test_run",
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
@@ -725,9 +721,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         responses.start()
         responses.add(
             method=responses.GET,
@@ -751,8 +747,8 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'This should be response'
-        log = HttpActionLog.objects(sender="sender_test_run_with_params",
-                                    status="SUCCESS").get()
+        log = ActionServerLogs.objects(sender="sender_test_run_with_params",
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
@@ -776,9 +772,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
         responses.start()
@@ -818,9 +814,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
         responses.start()
@@ -845,9 +841,9 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
-        log = HttpActionLog.objects(sender="sender_test_run_with_post",
-                                    action="test_run_with_post",
-                                    status="SUCCESS").get()
+        log = ActionServerLogs.objects(sender="sender_test_run_with_post",
+                                       action="test_run_with_post",
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -870,9 +866,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = json.dumps({
             "a": {
@@ -920,9 +916,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -951,9 +947,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8082/mock'
         resp_msg = "This is string http response"
         responses.start()
@@ -1025,7 +1021,7 @@ class TestActions:
         try:
             ActionUtility.retrieve_value_from_response(keys, resp_msg)
             assert False
-        except HttpActionFailure as e:
+        except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
     @pytest.mark.asyncio
@@ -1044,9 +1040,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = {
             "a": {
@@ -1103,9 +1099,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict()
+            return action.to_mongo().to_dict(), ActionType.http_action.value
 
-        monkeypatch.setattr(ActionUtility, "get_http_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = {
             "a": {
@@ -1148,3 +1144,108 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_slot_set_action_from_slot(self, monkeypatch):
+        action_name = "test_slot_set_action_from_slot"
+        action = SlotSetAction(
+            name=action_name,
+            slot="location",
+            type="from_slot",
+            value="current_location",
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'location'
+        assert str(actual[0]['value']) == 'Mumbai'
+
+    @pytest.mark.asyncio
+    async def test_slot_set_action_from_value(self, monkeypatch):
+        action_name = "test_slot_set_action_from_value"
+        action = SlotSetAction(
+            name=action_name,
+            slot="location",
+            type="from_value",
+            value="Bengaluru",
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'location'
+        assert str(actual[0]['value']) == 'Bengaluru'
+
+    @pytest.mark.asyncio
+    async def test_slot_set_action_reset_slot(self, monkeypatch):
+        action_name = "test_slot_set_action_reset_slot"
+        action = SlotSetAction(
+            name=action_name,
+            slot="location",
+            type="reset_slot",
+            value="Bengaluru",
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'location'
+        assert actual[0]['value'] == None
+
+    @pytest.mark.asyncio
+    async def test_execute_action_with_no_type(self, monkeypatch):
+        action_name = "test_execute_action_with_no_type"
+
+        def _get_action(*arge, **kwargs):
+            raise ActionFailure('Only http & slot set actions are compatible with action server')
+
+        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is None

@@ -17,7 +17,7 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest
 )
 from kairon.data_processor.agent_processor import AgentProcessor
 from kairon.data_processor.constant import EVENT_STATUS, ENDPOINT_TYPE
@@ -28,7 +28,7 @@ from kairon.data_processor.training_data_generation_processor import TrainingDat
 from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
 from kairon.importer.processor import DataImporterLogProcessor
-from kairon.shared.actions.data_objects import HttpActionLog
+from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.utils import Utility
 
 router = APIRouter()
@@ -719,7 +719,7 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     """
     try:
         mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
-                                                  bot=current_user.bot)
+                                                  bot=current_user.get_bot())
     except Exception as e:
         raise AppException(e)
     message = "HTTP action deleted"
@@ -732,12 +732,52 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, curren
     Retrieves action server logs for the bot.
     """
     logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
-    row_cnt = mongo_processor.get_row_count(HttpActionLog, current_user.get_bot())
+    row_cnt = mongo_processor.get_row_count(ActionServerLogs, current_user.get_bot())
     data = {
         "logs": logs,
         "total": row_cnt
     }
     return Response(data=data)
+
+
+@router.post("/action/slotset", response_model=Response)
+async def add_slot_set_action(request_data: SlotSetActionRequest,
+                              current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Stores the slot set action config.
+    """
+    mongo_processor.add_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/action/slotset", response_model=Response)
+async def list_slot_set_actions(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Returns list of slot set actions for bot.
+    """
+    actions = mongo_processor.list_slot_set_actions(current_user.get_bot())
+    return Response(data=actions)
+
+
+@router.put("/action/slotset", response_model=Response)
+async def edit_slot_set_action(request_data: SlotSetActionRequest,
+                               current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Edits the slot set action config.
+    """
+    mongo_processor.edit_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/action/slotset/{action}", response_model=Response)
+async def delete_slot_set_action(
+        action: str = Path(default=None, description="action name", example="action_reset_slot"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Deletes the slot set action config.
+    """
+    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')
 
 
 @router.post("/data/bulk", response_model=Response)

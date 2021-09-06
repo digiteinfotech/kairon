@@ -251,21 +251,6 @@ class Responses(Document):
                 self.custom.validate()
 
 
-class Actions(Document):
-    name = StringField(required=True)
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-    status = BooleanField(default=True)
-
-    def validate(self, clean=True):
-        if Utility.check_empty_string(self.name):
-            raise ValidationError("Action name cannot be empty or blank spaces")
-
-        if self.name.startswith('utter_'):
-            raise ValidationError("Action name cannot start with utter_")
-
-
 class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
