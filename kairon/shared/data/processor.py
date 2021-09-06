@@ -1425,7 +1425,7 @@ class MongoProcessor:
                 training_example.entities = list(self.__extract_entities(entities))
             training_example.timestamp = datetime.utcnow()
             training_example.save()
-        except DoesNotExist as e:
+        except DoesNotExist:
             raise AppException("Invalid training example!")
 
     def search_training_examples(self, search: Text, bot: Text):
@@ -1730,7 +1730,7 @@ class MongoProcessor:
             response.user = user
             response.timestamp = datetime.utcnow()
             response.save()
-        except DoesNotExist as e:
+        except DoesNotExist:
             raise AppException("Utterance does not exist!")
 
     def get_response(self, name: Text, bot: Text):

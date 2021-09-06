@@ -2,7 +2,7 @@ import logging
 from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -24,10 +24,10 @@ from pymongo.errors import PyMongoError
 from secure import SecureHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.api.models import Response
-from kairon.shared.account.processor import AccountProcessor
-from kairon.exceptions import AppException
 from kairon.api.app.routers import auth, bot, augment, history, user, account
+from kairon.api.models import Response
+from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 
 logging.basicConfig(level="DEBUG")
