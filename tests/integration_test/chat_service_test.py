@@ -173,6 +173,23 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         assert actual['data']['response']
 
+    def test_chat_with_limited_access_without_integration(self):
+        access_token = Authentication.create_access_token(
+            data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
+            is_integration=False
+        ).decode("utf8")
+        response = self.fetch(
+            f"/api/bot/{bot2}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={
+                "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual['data']['response']
+
     def test_chat_limited_access_prevent_chat(self):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/intent']},

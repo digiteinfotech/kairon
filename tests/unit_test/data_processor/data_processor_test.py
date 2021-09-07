@@ -39,7 +39,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                             Utterances, BotSettings, ChatClientConfig, LookupTables
+                                             Utterances, BotSettings, ChatClientConfig, LookupTables, Forms
                                              )
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -3394,7 +3394,7 @@ class TestMongoProcessor:
     def test_add_utterance_already_exists(self):
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Utterance exists'):
-            processor.add_utterance_name('test_add', 'test', 'testUser', True)
+            processor.add_utterance_name('test_add', 'test', 'testUser', raise_error_if_exists=True)
 
     def test_add_utterance_empty(self):
         processor = MongoProcessor()
@@ -3417,7 +3417,7 @@ class TestMongoProcessor:
     def test_delete_utterance_name_does_not_exists(self):
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Utterance not found'):
-            processor.delete_utterance_name('test_add_1', 'test', True)
+            processor.delete_utterance_name('test_add_1', 'test', raise_exc=True)
 
     def test_delete_utterance_name_does_not_exists_no_exc(self):
         processor = MongoProcessor()
@@ -3706,6 +3706,606 @@ class TestMongoProcessor:
         with pytest.raises(AppException) as exp:
             processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Lookup table value cannot be an empty string"
+
+
+    def test_add_form(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='name', type="text", bot=bot, user=user).save()
+        Slots(name='age', type="float", bot=bot, user=user).save()
+        Slots(name='occupation', type="text", bot=bot, user=user).save()
+
+        processor.add_form('know_user', path, bot, user)
+        form = Forms.objects(name='know_user', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        assert Utterances.objects(name='utter_ask_know_user_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        assert Utterances.objects(name='utter_ask_know_user_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        resp = list(Responses.objects(name='utter_ask_know_user_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+    def test_add_form_slots_not_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]},
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='num_people', type="float", bot=bot, user=user).save()
+        Slots(name='cuisine', type="text", bot=bot, user=user).save()
+
+        with pytest.raises(AppException) as e:
+            processor.add_form('form', path, bot, user)
+            assert str(e).__contains__('slots not exists: {')
+
+    def test_add_form_utterance_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]},
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='outdoor_seating', type="text", bot=bot, user=user).save()
+        Slots(name='preferences', type="text", bot=bot, user=user).save()
+        Slots(name='feedback', type="text", bot=bot, user=user).save()
+        Utterances(name='utter_ask_restaurant_form_name', form_attached='utter_ask_restaurant_form_name', bot=bot,
+                   user=user).save()
+        Responses(name='utter_ask_restaurant_form_name', text=ResponseText(text='what is your name?'), bot=bot).save()
+
+        processor.add_form('restaurant_form', path, bot, user)
+        form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['num_people'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form.mapping['cuisine'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form.mapping['outdoor_seating'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                   {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                   {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form.mapping['preferences'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                               {'type': 'from_intent', 'intent': ['affirm'],
+                                                'value': 'no additional preferences'}]
+        assert form.mapping['feedback'] == [{'type': 'from_text'},
+                                            {'type': 'from_entity', 'entity': 'feedback'}]
+        assert Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_num_people', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_preferences', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_feedback', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_restaurant_form_num_people', bot=bot,
+                                 status=True).get().text.text == 'seats required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                 status=True).get().text.text == 'type of cuisine?'
+        assert Responses.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot,
+                                 status=True).get().text.text == 'outdoor seating required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_preferences', bot=bot,
+                                 status=True).get().text.text == 'any preferences?'
+        assert Responses.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
+                                 status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+    def test_add_form_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match='Form with name "restaurant_form" exists'):
+            processor.add_form('restaurant_form', [], bot, user)
+
+    def test_add_form_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match='Form name cannot be empty or spaces'):
+            processor.add_form(' ', [], bot, user)
+
+    def test_add_form_slot_name_empty(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': ' ',
+                 'mapping': [{'type': 'from_intent', 'entity': 'location'}]},
+                {'responses': ['what is your occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+
+        processor.add_form('user_info', path, bot, user)
+        form = Forms.objects(name='user_info', bot=bot, status=True).get()
+        assert len(form.mapping) == 3
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_user_info_name', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Utterances.objects(name='utter_ask_user_info_age', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Utterances.objects(name='utter_ask_user_info_occupation', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Responses.objects(name='utter_ask_user_info_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_user_info_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_user_info_occupation', bot=bot,
+                                 status=True).get().text.text == 'what is your occupation?'
+
+    def test_add_form_no_entity_and_mapping_type(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': 'location',
+                 'mapping': [{}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='location', type="text", bot=bot, user=user).save()
+
+        processor.add_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 3
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['location'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert Utterances.objects(name='utter_ask_get_user_name', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location', bot=bot,
+                                 status=True).get().text.text == 'where are you located?'
+
+    def test_list_forms(self):
+        processor = MongoProcessor()
+        forms = processor.list_forms('test')
+        assert set(forms) == {'know_user', 'restaurant_form', 'user_info', 'get_user', 'ticket_file_form',
+                              'ticket_attributes_form'}
+
+    def test_list_forms_no_form_added(self):
+        processor = MongoProcessor()
+        forms = processor.list_forms('new_bot')
+        assert forms == []
+
+    def test_get_form(self):
+        form = MongoProcessor.get_form('get_user', 'test')
+        assert len(form['mapping']) == 3
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'age'
+        assert form['slot_mapping'][2]['slot'] == 'location'
+        assert form['slot_mapping'][0]['utterance']['_id']
+        assert form['slot_mapping'][1]['utterance']['_id']
+        assert form['slot_mapping'][2]['utterance']['_id']
+        assert form['slot_mapping'][0]['utterance']['text'] == 'what is your name?'
+        assert form['slot_mapping'][1]['utterance']['text'] == 'what is your age?'
+        assert form['slot_mapping'][2]['utterance']['text'] == 'where are you located?'
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                                      {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form['slot_mapping'][2]['mapping'] == [{'type': 'from_entity', 'entity': 'location'}]
+
+    def test_get_form_not_added(self):
+        with pytest.raises(AppException, match='Form does not exists'):
+            MongoProcessor.get_form('form_not_present', 'test')
+
+    def test_get_form_having_on_intent_and_not_intent(self):
+        form = MongoProcessor.get_form('restaurant_form', 'test')
+        assert len(form['mapping']) == 6
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'num_people'
+        assert form['slot_mapping'][2]['slot'] == 'cuisine'
+        assert form['slot_mapping'][3]['slot'] == 'outdoor_seating'
+        assert form['slot_mapping'][4]['slot'] == 'preferences'
+        assert form['slot_mapping'][5]['slot'] == 'feedback'
+        assert form['slot_mapping'][0]['utterance']['_id']
+        assert form['slot_mapping'][1]['utterance']['_id']
+        assert form['slot_mapping'][2]['utterance']['_id']
+        assert form['slot_mapping'][3]['utterance']['_id']
+        assert form['slot_mapping'][4]['utterance']['_id']
+        assert form['slot_mapping'][5]['utterance']['_id']
+        assert form['slot_mapping'][0]['utterance']['text'] == 'what is your name?'
+        assert form['slot_mapping'][1]['utterance']['text'] == 'seats required?'
+        assert form['slot_mapping'][2]['utterance']['text'] == 'type of cuisine?'
+        assert form['slot_mapping'][3]['utterance']['text'] == 'outdoor seating required?'
+        assert form['slot_mapping'][4]['utterance']['text'] == 'any preferences?'
+        assert form['slot_mapping'][5]['utterance']['text'] == 'Please give your feedback on your experience so far'
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                                      {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form['slot_mapping'][2]['mapping'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form['slot_mapping'][3]['mapping'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                      {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                      {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form['slot_mapping'][4]['mapping'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                                      {'type': 'from_intent', 'intent': ['affirm'],
+                                                       'value': 'no additional preferences'}]
+        assert form['slot_mapping'][5]['mapping'] == [{'type': 'from_text'},
+                                                      {'type': 'from_entity', 'entity': 'feedback'}]
+
+    def test_edit_form_slot_not_present(self):
+        processor = MongoProcessor()
+        path = [{'utterance': 'which location would you prefer?', 'slot': 'restaurant_location',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
+                             {'type': 'from_entity', 'entity': 'location'}]},
+                {'utterance': 'seats required?', 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'utterance': 'any preferences?', 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'utterance': 'do you want to go with an AC room?', 'slot': 'ac_required',
+                 'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]}
+                ]
+        bot = 'test'
+        user = 'user'
+
+        with pytest.raises(AppException) as e:
+            processor.edit_form('restaurant_form', path, bot, user)
+            assert str(e).__contains__('slots not exists: {')
+
+    def test_edit_form_remove_and_add_slots(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['which location would you prefer?'], 'slot': 'location',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
+                             {'type': 'from_entity', 'entity': 'location'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='ac_required', type="text", bot=bot, user=user).save()
+
+        processor.edit_form('restaurant_form', path, bot, user)
+        form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
+        assert not form.mapping.get('name')
+        assert form.mapping['location'] == [{'type': 'from_text', 'value': 'user'},
+                                            {'type': 'from_entity', 'entity': 'location'}]
+        assert form.mapping['num_people'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form.mapping['cuisine'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form.mapping['outdoor_seating'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                   {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                   {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form.mapping['preferences'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                               {'type': 'from_intent', 'intent': ['affirm'],
+                                                'value': 'no additional preferences'}]
+        assert form.mapping['feedback'] == [{'type': 'from_text'},
+                                            {'type': 'from_entity', 'entity': 'feedback'}]
+        assert form.mapping['ac_required'] == [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                               {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert Utterances.objects(name='utter_ask_restaurant_form_location', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_num_people', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_preferences', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_ac_required', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_location',
+                                 bot=bot, status=True).get().text.text == 'which location would you prefer?'
+        assert Responses.objects(name='utter_ask_restaurant_form_num_people',
+                                 bot=bot, status=True).get().text.text == 'seats required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine',
+                                 bot=bot, status=True).get().text.text == 'type of cuisine?'
+        assert Responses.objects(name='utter_ask_restaurant_form_outdoor_seating',
+                                 bot=bot, status=True).get().text.text == 'outdoor seating required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_preferences',
+                                 bot=bot, status=True).get().text.text == 'any preferences?'
+        assert Responses.objects(name='utter_ask_restaurant_form_ac_required',
+                                 bot=bot, status=True).get().text.text == 'do you want to go with an AC room?'
+        assert Responses.objects(name='utter_ask_restaurant_form_feedback',
+                                 bot=bot,
+                                 status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+    def test_edit_form_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form does not exists'):
+            processor.edit_form('form_not_present', [], 'test', 'test')
+
+    def test_edit_form_utterance_not_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': 'location',
+                 'mapping': [{}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        utterance = Utterances.objects(name='utter_ask_get_user_name', bot=bot).get()
+        utterance.status = False
+        utterance.save()
+        response = Responses.objects(name='utter_ask_get_user_name', bot=bot).get()
+        response.status = False
+        response.save()
+
+        processor.edit_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 2
+        assert not form.mapping.get('name')
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['location'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location',
+                                 bot=bot, status=True).get().text.text == 'where are you located?'
+
+    def test_edit_form_add_value_intent_and_not_intent(self):
+        processor = MongoProcessor()
+        path = [{'utterance': 'what is your age?', 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]},
+                {'utterance': 'where are you located?', 'slot': 'location',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
+                             {'type': 'from_text', 'value': 'Bengaluru'},
+                             {'type': 'from_entity', 'entity': 'location'},
+                             {'type': 'from_trigger_intent', 'value': 'Kolkata',
+                              'intent': ['get_location', 'is_location', 'current_location'],
+                              'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 2
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                                        'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]
+        assert form.mapping['location'] == [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
+                                            {'type': 'from_text', 'value': 'Bengaluru'},
+                                            {'type': 'from_entity', 'entity': 'location'},
+                                            {'type': 'from_trigger_intent', 'value': 'Kolkata',
+                                             'intent': ['get_location', 'is_location', 'current_location'],
+                                             'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location',
+                                 bot=bot, status=True).get().text.text == 'where are you located?'
+
+    def test_delete_form(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.delete_form('get_user', bot)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='get_user', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_get_user_location', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_get_user_age', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_get_user_location', bot=bot, status=True).get()
+
+    def test_delete_form_not_exists(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form "get_user" does not exists'):
+            processor.delete_form('get_user', bot)
+        with pytest.raises(AppException, match='Form "form_not_present" does not exists'):
+            processor.delete_form('form_not_present', bot)
+
+    def test_delete_empty_form(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form " " does not exists'):
+            processor.delete_form(' ', bot)
+
+    def test_delete_form_utterance_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        utterance = Utterances.objects(name='utter_ask_know_user_age', bot=bot).get()
+        utterance.status = False
+        utterance.save()
+        processor.delete_form('know_user', bot)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='know_user', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_know_user_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_know_user_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_know_user_location', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_know_user_location', bot=bot, status=True).get()
+
+    def test_delete_utterance_linked_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+            processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test")
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_delete_response_linked_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+            processor.delete_response(str(response.id), bot, user)
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_edit_utterance_for_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        processor.edit_text_response(str(response.id), 'what cuisine are you interested in?',
+                                     'utter_ask_restaurant_form_cuisine', bot, user)
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                 status=True).get().text.text == 'what cuisine are you interested in?'
+
+    def test_delete_response_linked_to_form_validation_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, False)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_add_utterance_to_story_that_is_attached_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_ask_restaurant_form_outdoor_seating", "type": "BOT"},
+        ]
+        story_dict = {'name': "story with form utterance", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException,
+                           match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
+            processor.add_complex_story(story_dict, bot, user)
+
+    def test_update_story_step_that_is_attached_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_ask_restaurant_form_outdoor_seating", "type": "BOT"},
+        ]
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException,
+                           match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
+            processor.update_complex_story(story_dict, bot, user)
+
+
 
 
 # pylint: disable=R0201
