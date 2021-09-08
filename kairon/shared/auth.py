@@ -4,6 +4,7 @@ from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode, encode
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.shared.utils import Utility
 from kairon.api.models import TokenData
@@ -142,6 +143,32 @@ class Authentication:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Access denied for this endpoint',
             )
+
+    @staticmethod
+    async def authenticate_and_get_collection(request: Request, token: str = Depends(DataUtility.oauth2_scheme_non_strict)):
+        token_configured = Utility.environment['authentication']['token']
+        if token_configured != token:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if 'bot' == Utility.environment['tracker']['type']:
+            bot_id = request.path_params.get('bot')
+            if Utility.check_empty_string(bot_id):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Bot id is required",
+                )
+            return bot_id
+        else:
+            collection = Utility.environment['tracker']['collection']
+            if Utility.check_empty_string(collection):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Collection not configured",
+                )
+            return collection
 
     @staticmethod
     def generate_integration_token(bot: Text, account: int, expiry: int = 0, access_limit: list = None):

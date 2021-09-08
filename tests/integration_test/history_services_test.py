@@ -5,10 +5,9 @@ from mongoengine import connect
 import pytest
 
 from kairon.history.main import app
-from kairon.history.utils import HistoryUtils
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
-from kairon.history.processor import ChatHistory
+from kairon.history.processor import HistoryProcessor
 
 client = TestClient(app)
 
@@ -23,17 +22,17 @@ def pytest_configure():
 @pytest.fixture(autouse=True)
 def setup():
     os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
-    HistoryUtils.load_environment()
-    connect(**Utility.mongoengine_connection(HistoryUtils.environment['tracker']['url']+"/"+HistoryUtils.environment['tracker']['db']), alias="history")
+    Utility.load_environment()
+    connect(**Utility.mongoengine_connection(Utility.environment['tracker']['url']), alias="history")
     pytest.bot = '542872407658659274'
 
 
 @pytest.fixture
 def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
-        return MongoClient(), "conversation", None
+        return MongoClient(Utility.environment['tracker']['url']), None
 
-    monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
+    monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 
 
 def history_users(*args, **kwargs):
@@ -63,14 +62,14 @@ def history_conversations(*args, **kwargs):
 
 @pytest.fixture
 def mock_chat_history(monkeypatch):
-    monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
-    monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
+    monkeypatch.setattr(HistoryProcessor, "fetch_user_history", user_history)
+    monkeypatch.setattr(HistoryProcessor, "fetch_chat_users", history_users)
 
 
 def test_chat_history_users(mock_chat_history):
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/users",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -83,7 +82,7 @@ def test_chat_history_users(mock_chat_history):
 def test_chat_history(mock_chat_history):
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -96,7 +95,7 @@ def test_chat_history(mock_chat_history):
 def test_visitor_hit_fallback(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/fallback",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -110,7 +109,7 @@ def test_visitor_hit_fallback(mock_db_client):
 def test_conversation_steps(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/steps",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -123,7 +122,7 @@ def test_conversation_steps(mock_db_client):
 def test_conversation_time(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -136,7 +135,7 @@ def test_conversation_time(mock_db_client):
 def test_user_with_metrics(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -149,7 +148,7 @@ def test_user_with_metrics(mock_db_client):
 def test_engaged_users(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users/engaged",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -162,7 +161,7 @@ def test_engaged_users(mock_db_client):
 def test_new_users(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users/new",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -175,7 +174,7 @@ def test_new_users(mock_db_client):
 def test_successful_conversation(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/success",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -189,7 +188,7 @@ def test_successful_conversation_with_request(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/success",
         json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -200,11 +199,11 @@ def test_successful_conversation_with_request(mock_db_client):
 
 
 def test_successful_conversation_with_request_and_static_collection(mock_db_client):
-    HistoryUtils.environment['tracker']['type'] = 'static'
+    Utility.environment['tracker']['type'] = 'static'
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/success",
         json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -217,7 +216,7 @@ def test_successful_conversation_with_request_and_static_collection(mock_db_clie
 def test_user_retention(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users/retention",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -230,7 +229,7 @@ def test_user_retention(mock_db_client):
 def test_engaged_user_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/users/engaged",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -243,7 +242,7 @@ def test_engaged_user_range(mock_db_client):
 def test_new_user_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/users/new",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -256,7 +255,7 @@ def test_new_user_range(mock_db_client):
 def test_successful_conversation_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/conversations/success",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -270,7 +269,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/conversations/success",
         json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -283,7 +282,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
 def test_user_retention_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/users/retention",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -297,7 +296,7 @@ def test_engaged_users_with_value(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users/engaged",
         json={'month': 5, 'conversation_step_threshold': 11},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -311,7 +310,7 @@ def test_engaged_user_range_with_value(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/users/engaged",
         json={'month': 5, 'conversation_step_threshold': 11},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -324,7 +323,7 @@ def test_engaged_user_range_with_value(mock_db_client):
 def test_fallback_count_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/fallback",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -338,7 +337,7 @@ def test_fallback_count_range_with_request(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/fallback",
         json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -351,7 +350,7 @@ def test_fallback_count_range_with_request(mock_db_client):
 def test_flat_conversations(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/conversations",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
@@ -374,19 +373,19 @@ def mock_flatten_api_with_error(*args, **kwargs):
 
 
 def test_download_conversation_with_data(monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_data)
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_data)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     assert "test_value" in str(response.content)
 
 
 def test_download_conversation_with_no_data(monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_no_data)
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_no_data)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -395,10 +394,10 @@ def test_download_conversation_with_no_data(monkeypatch):
 
 
 def test_download_conversation_with_error(monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_error)
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_error)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -432,7 +431,7 @@ def test_chat_history_users_invalid_auth(mock_chat_history):
 
 
 def test_no_auth_configured(mock_chat_history):
-    HistoryUtils.environment['authentication']['token'] = None
+    Utility.environment['authentication']['token'] = None
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
     )
@@ -445,10 +444,10 @@ def test_no_auth_configured(mock_chat_history):
 
 
 def test_no_bot_id():
-    HistoryUtils.environment['tracker']['type'] = 'bot'
+    Utility.environment['tracker']['type'] = 'bot'
     response = client.get(
         f"/api/history/       /conversations/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']}
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']}
     )
 
     actual = response.json()
@@ -459,11 +458,11 @@ def test_no_bot_id():
 
 
 def test_no_collection():
-    HistoryUtils.environment['tracker']['type'] = 'static'
-    HistoryUtils.environment['tracker']['collection'] = None
+    Utility.environment['tracker']['type'] = 'static'
+    Utility.environment['tracker']['collection'] = None
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": 'Bearer ' + HistoryUtils.environment['authentication']['token']},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()

@@ -1891,6 +1891,23 @@ def test_save_empty_endpoint():
     assert actual['success']
 
 
+def test_save_history_endpoint():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"history_endpoint": {
+            "url": "http://localhost:27019/",
+            "token": "kairon-history-user",
+        }}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == 'Endpoint saved successfully!'
+    assert actual['success']
+
+
 def test_save_endpoint(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -1919,6 +1936,50 @@ def test_save_endpoint(monkeypatch):
     assert actual['data']['endpoint'].get('bot_endpoint')
     assert actual['data']['endpoint'].get('action_endpoint')
     assert actual['data']['endpoint'].get('history_endpoint')
+
+
+def test_save_empty_history_endpoint():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"history_endpoint": {
+            "url": " ",
+            "token": "testing-endpoint"
+        }}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == 'url cannot be blank or empty spaces'
+    assert not actual['success']
+
+
+def test_get_history_endpoint():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data']['endpoint']['history_endpoint']['url'] == "http://localhost"
+    assert actual['data']['endpoint']['history_endpoint']['token'] == "rasa234***"
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert actual['success']
+
+
+def test_delete_endpoint():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/endpoint/history_endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == 'Endpoint removed'
+    assert actual['success']
 
 
 def test_get_templates():

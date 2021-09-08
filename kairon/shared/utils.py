@@ -940,4 +940,8 @@ class Utility:
         decrypted_msg = fernet.decrypt(encoded_msg)
         return decrypted_msg.decode('utf-8')
 
+    @staticmethod
+    def load_default_actions():
+        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
+        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
