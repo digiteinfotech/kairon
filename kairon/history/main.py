@@ -27,7 +27,6 @@ from kairon import Utility
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.history.router import metrics, conversations, trends
-from kairon.history.utils import HistoryUtils
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()
@@ -42,7 +41,6 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-HistoryUtils.load_environment()
 Utility.load_environment()
 apm_client = Utility.initiate_apm_client()
 if apm_client:

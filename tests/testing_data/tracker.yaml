@@ -3,8 +3,7 @@ authentication:
 
 tracker:
   type: ${TRACKER_TYPE:"bot"}
-  url: ${TRACKER_URL:"mongodb://localhost:27017"}
-  db: ${TRACKER_DB:"conversation"}
+  url: ${TRACKER_URL:"mongodb://test_kairon:27016/conversation"}
   collection: ${TRACKER_COLLECTION:"conversations"}
 
 elasticsearch:

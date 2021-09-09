@@ -31,6 +31,7 @@ class DataUtility:
     """Class contains logic for various utilities"""
 
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+    oauth2_scheme_non_strict = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
     markdown_reader = MarkdownReader()
 
     @staticmethod

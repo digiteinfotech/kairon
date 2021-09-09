@@ -3,8 +3,8 @@ from kairon.api.models import Response
 from fastapi import Depends
 
 from ..models import HistoryQuery
-from ..processor import ChatHistory
-from ..utils import Authentication
+from ..processor import HistoryProcessor
+from ...shared.auth import Authentication
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ async def user_with_metrics(
         request: HistoryQuery = HistoryQuery(),
         collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the list of user who has conversation with the agent with steps and time."""
-    users, message = ChatHistory.user_with_metrics(
+    users, message = HistoryProcessor.user_with_metrics(
         collection, request.month
     )
     return {"data": {"users": users}, "message": message}
@@ -24,7 +24,7 @@ async def user_with_metrics(
 async def visitor_hit_fallback_count(request: HistoryQuery = HistoryQuery(),
                                      collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries."""
-    visitor_hit_fallback, message = ChatHistory.visitor_hit_fallback(
+    visitor_hit_fallback, message = HistoryProcessor.visitor_hit_fallback(
         collection, request.month, request.action_fallback, request.nlu_fallback
     )
     return {"data": visitor_hit_fallback, "message": message}
@@ -34,7 +34,7 @@ async def visitor_hit_fallback_count(request: HistoryQuery = HistoryQuery(),
 async def conversation_steps(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of conversation steps that took place in the chat between the users and the agent."""
-    conversation_steps, message = ChatHistory.conversation_steps(collection, request.month)
+    conversation_steps, message = HistoryProcessor.conversation_steps(collection, request.month)
     return {"data": conversation_steps, "message": message}
 
 
@@ -42,7 +42,7 @@ async def conversation_steps(request: HistoryQuery = HistoryQuery(),
 async def conversation_time(request: HistoryQuery = HistoryQuery(),
                             collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the duration of the chat that took place between the users and the agent."""
-    conversation_time, message = ChatHistory.conversation_time(collection, request.month)
+    conversation_time, message = HistoryProcessor.conversation_time(collection, request.month)
     return {"data": conversation_time, "message": message}
 
 
@@ -50,7 +50,7 @@ async def conversation_time(request: HistoryQuery = HistoryQuery(),
 async def count_engaged_users(request: HistoryQuery = HistoryQuery(),
                               collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of engaged users of the bot."""
-    engaged_user_count, message = ChatHistory.engaged_users(
+    engaged_user_count, message = HistoryProcessor.engaged_users(
         collection, request.month, request.conversation_step_threshold
     )
     return {"data": engaged_user_count, "message": message}
@@ -60,7 +60,7 @@ async def count_engaged_users(request: HistoryQuery = HistoryQuery(),
 async def count_new_users(request: HistoryQuery = HistoryQuery(),
                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of new users of the bot."""
-    user_count, message = ChatHistory.new_users(
+    user_count, message = HistoryProcessor.new_users(
         collection, request.month
     )
     return {"data": user_count, "message": message}
@@ -70,7 +70,7 @@ async def count_new_users(request: HistoryQuery = HistoryQuery(),
 async def complete_conversations(request: HistoryQuery = HistoryQuery(),
                                  collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of successful conversations of the bot, which had no fallback."""
-    conversation_count, message = ChatHistory.successful_conversations(
+    conversation_count, message = HistoryProcessor.successful_conversations(
         collection, request.month, request.action_fallback, request.nlu_fallback
     )
     return {"data": conversation_count, "message": message}
@@ -80,7 +80,7 @@ async def complete_conversations(request: HistoryQuery = HistoryQuery(),
 async def calculate_retention(request: HistoryQuery = HistoryQuery(),
                               collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the user retention percentage of the bot."""
-    retention_count, message = ChatHistory.user_retention(
+    retention_count, message = HistoryProcessor.user_retention(
         collection, request.month
     )
     return {"data": retention_count, "message": message}

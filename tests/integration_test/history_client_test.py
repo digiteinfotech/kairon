@@ -10,7 +10,7 @@ from kairon.api.app.main import app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
-from kairon.history.processor import ChatHistory
+from kairon.history.processor import HistoryProcessor
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
@@ -81,7 +81,7 @@ def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
         return MongoClient(), "conversation", None
 
-    monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
+    monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 
 
 def history_users(*args, **kwargs):
@@ -111,8 +111,8 @@ def history_conversations(*args, **kwargs):
 
 @pytest.fixture
 def mock_chat_history(monkeypatch):
-    monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
-    monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
+    monkeypatch.setattr(HistoryProcessor, "fetch_user_history", user_history)
+    monkeypatch.setattr(HistoryProcessor, "fetch_chat_users", history_users)
 
 
 def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):

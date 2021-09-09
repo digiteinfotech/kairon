@@ -20,7 +20,7 @@ from kairon.api.models import (
 )
 from kairon.shared.models import User
 from kairon.chat.agent_processor import AgentProcessor
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -522,7 +522,7 @@ async def get_endpoint(current_user: User = Depends(Authentication.get_current_u
     Fetches the http and mongo endpoint for the bot
     """
     endpoint = mongo_processor.get_endpoints(
-        current_user.get_bot(), raise_exception=False
+        current_user.get_bot(), mask_characters=True, raise_exception=False
     )
     return {"data": {"endpoint": endpoint}}
 
@@ -543,6 +543,22 @@ async def set_endpoint(
     if endpoint.action_endpoint:
         background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
     return {"message": "Endpoint saved successfully!"}
+
+
+@router.delete("/endpoint/{endpoint_type}", response_model=Response)
+async def delete_endpoint(
+        endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
+                                                                      "history_endpoint", example="bot_endpoint"),
+        current_user: User = Depends(Authentication.get_current_user_and_bot)
+):
+    """
+    Deletes the bot endpoint configuration
+    """
+    mongo_processor.delete_endpoint(
+        current_user.get_bot(), endpoint_type
+    )
+
+    return {"message": "Endpoint removed"}
 
 
 @router.get("/config", response_model=Response)
