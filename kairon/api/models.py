@@ -1,19 +1,11 @@
-from enum import Enum
 from typing import List, Any, Dict
 import validators
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE
+from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator
-from rasa.shared.core.slots import (
-    CategoricalSlot,
-    FloatSlot,
-    UnfeaturizedSlot,
-    ListSlot,
-    TextSlot,
-    BooleanSlot, AnySlot,
-)
 from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice, History_Month_Enum
 
 
@@ -144,9 +136,6 @@ class Password(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
-
-
-
 
 
 class HistoryMonth(BaseModel):
@@ -317,19 +306,9 @@ class ParaphrasesRequest(BaseModel):
         return v
 
 
-class SlotType(str, Enum):
-    FLOAT = FloatSlot.type_name,
-    CATEGORICAL = CategoricalSlot.type_name,
-    UNFEATURIZED = UnfeaturizedSlot.type_name,
-    LIST = ListSlot.type_name,
-    TEXT = TextSlot.type_name,
-    BOOLEAN = BooleanSlot.type_name,
-    ANY = AnySlot.type_name
-
-
 class SlotRequest(BaseModel):
     name: str
-    type: SlotType
+    type: SLOT_TYPE
     initial_value: Any = None
     auto_fill: bool = True
     values: List[str] = None
@@ -410,16 +389,9 @@ class LookupTablesRequest(BaseModel):
         return v
 
 
-class SlotMappingType(str, Enum):
-    FROM_ENTITY = "from_entity"
-    FROM_INTENT = "from_intent"
-    FROM_TRIGGER_INTENT = "from_trigger_intent"
-    FROM_TEXT = "from_text"
-
-
 class SlotMapping(BaseModel):
     entity: str = None
-    type: SlotMappingType
+    type: SLOT_MAPPING_TYPE
     value: Any = None
     intent: List[str] = None
     not_intent: List[str] = None
@@ -435,3 +407,9 @@ class Forms(BaseModel):
     name: str
     path: List[FormPath]
 
+
+class SlotSetActionRequest(BaseModel):
+    name: str
+    slot: str
+    type: SLOT_SET_TYPE
+    value: Any = None
