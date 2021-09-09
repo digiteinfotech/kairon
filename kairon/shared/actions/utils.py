@@ -18,9 +18,9 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody
-from .exception import HttpActionFailure
-from .models import ParameterType
+from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction
+from .exception import ActionFailure
+from .models import ParameterType, ActionType
 
 
 class ActionUtility:
@@ -55,15 +55,15 @@ class ActionUtility:
             elif request_method.lower() in ['post', 'put', 'delete']:
                 response = requests.request(request_method.upper(), http_url, json=request_body, headers=header)
             else:
-                raise HttpActionFailure("Invalid request method!")
+                raise ActionFailure("Invalid request method!")
             logger.debug("raw response: " + str(response.text))
             logger.debug("status " + str(response.status_code))
 
             if response.status_code not in [200, 202, 201, 204]:
-                raise HttpActionFailure("Got non-200 status code")
+                raise ActionFailure("Got non-200 status code")
         except Exception as e:
             logger.error(str(e))
-            raise HttpActionFailure("Failed to execute the url: " + str(e))
+            raise ActionFailure("Failed to execute the url: " + str(e))
 
         try:
             http_response_as_json = response.json()
@@ -200,6 +200,26 @@ class ActionUtility:
         return config
 
     @staticmethod
+    def get_action_config(bot: str, name: str):
+        if ActionUtility.is_empty(bot) or ActionUtility.is_empty(name):
+            raise ActionFailure("Bot and action name are required for fetching configuration")
+
+        try:
+            action = Actions.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("http_action_config: " + str(action))
+            if action.get('type') == ActionType.http_action.value:
+                config = ActionUtility.get_http_action_config(bot, name)
+            elif action.get('type') == ActionType.slot_set_action.value:
+                config = ActionUtility.get_slot_set_config(bot, name)
+            else:
+                raise ActionFailure('Only http & slot set actions are compatible with action server')
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("No action found for bot")
+
+        return config, action.get('type')
+
+    @staticmethod
     def get_http_action_config(bot: str, action_name: str):
         """
         Fetch HTTP action configuration parameters from the MongoDB database
@@ -209,7 +229,7 @@ class ActionUtility:
         :return: HttpActionConfig object containing configuration for the action
         """
         if ActionUtility.is_empty(bot) or ActionUtility.is_empty(action_name):
-            raise HttpActionFailure("Bot name and action name are required")
+            raise ActionFailure("Bot name and action name are required")
 
         try:
             http_config_dict = HttpActionConfig.objects().get(bot=bot,
@@ -217,9 +237,20 @@ class ActionUtility:
             logger.debug("http_action_config: " + str(http_config_dict))
         except DoesNotExist as e:
             logger.exception(e)
-            raise HttpActionFailure("No HTTP action found for bot")
+            raise ActionFailure("No HTTP action found for bot")
 
         return http_config_dict
+
+    @staticmethod
+    def get_slot_set_config(bot: str, name: str):
+        try:
+            action = SlotSetAction.objects().get(bot=bot, name=name, status=True).to_mongo().to_dict()
+            logger.debug("slot_set_action_config: " + str(action))
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("No slot set action found for bot")
+
+        return action
 
     @staticmethod
     def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
@@ -242,7 +273,7 @@ class ActionUtility:
 
                 value_mapping['${' + punctuation_separated_key + '}'] = json_search_region
         except Exception as e:
-            raise HttpActionFailure("Unable to retrieve value for key from HTTP response: " + str(e))
+            raise ActionFailure("Unable to retrieve value for key from HTTP response: " + str(e))
         return value_mapping
 
     @staticmethod
@@ -278,7 +309,7 @@ class ActionUtility:
 
         if type(http_response) not in [dict, list]:
             if keys_with_placeholders is not None:
-                raise HttpActionFailure("Could not find value for keys in response")
+                raise ActionFailure("Could not find value for keys in response")
 
         value_mapping = ActionUtility.retrieve_value_from_response(keys_without_placeholders, http_response)
         for key in value_mapping:
