@@ -1,4 +1,12 @@
 from enum import Enum
+from rasa.shared.core.slots import (
+    CategoricalSlot,
+    FloatSlot,
+    UnfeaturizedSlot,
+    ListSlot,
+    TextSlot,
+    BooleanSlot, AnySlot,
+)
 
 
 TRAINING_DATA_GENERATOR_DIR = 'data_generator'
@@ -98,6 +106,23 @@ class ENDPOINT_TYPE(str, Enum):
     BOT_ENDPOINT = "bot_endpoint"
     ACTION_ENDPOINT = "action_endpoint"
     HISTORY_ENDPOINT = "history_endpoint"
+
+
+class SLOT_TYPE(str, Enum):
+    FLOAT = FloatSlot.type_name,
+    CATEGORICAL = CategoricalSlot.type_name,
+    UNFEATURIZED = UnfeaturizedSlot.type_name,
+    LIST = ListSlot.type_name,
+    TEXT = TextSlot.type_name,
+    BOOLEAN = BooleanSlot.type_name,
+    ANY = AnySlot.type_name
+
+
+class SLOT_MAPPING_TYPE(str, Enum):
+    FROM_ENTITY = "from_entity"
+    FROM_INTENT = "from_intent"
+    FROM_TRIGGER_INTENT = "from_trigger_intent"
+    FROM_TEXT = "from_text"
 
 
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
