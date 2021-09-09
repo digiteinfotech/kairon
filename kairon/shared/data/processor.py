@@ -1,4 +1,5 @@
 import itertools
+import json
 import os
 from collections import ChainMap
 from datetime import datetime
@@ -34,8 +35,8 @@ from kairon.api.models import HttpActionConfigRequest
 from kairon.exceptions import AppException
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, HttpActionLog
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, SlotSetAction
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from kairon.shared.models import StoryEventType, TemplateType
 from kairon.shared.utils import Utility
 from .constant import (
@@ -48,7 +49,7 @@ from .constant import (
     RESPONSE,
     ENTITY,
     SLOTS,
-    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT,
+    UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE
 )
 from .data_objects import (
@@ -60,7 +61,6 @@ from .data_objects import (
     EntitySynonyms,
     TrainingExamples,
     Stories,
-    Actions,
     Intents,
     Forms,
     LookupTables,
@@ -76,7 +76,7 @@ from .data_objects import (
     Feedback, Utterances, BotSettings, ChatClientConfig, ResponseText
 )
 from .utils import DataUtility
-
+from ...shared.constants import SLOT_SET_TYPE
 
 class MongoProcessor:
     """
@@ -1600,13 +1600,14 @@ class MongoProcessor:
         entities = Entities.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(entities, "name"))
 
-    def add_action(self, name: Text, bot: Text, user: Text, raise_exception=True):
+    def add_action(self, name: Text, bot: Text, user: Text, raise_exception=True, action_type: ActionType = None):
         """
         adds action
         :param name: action name
         :param bot: bot id
         :param user: user id
         :param raise_exception: default is True to raise exception if Entity already exists
+        :param action_type: one of http_action or slot_set_action
         :return: action id
         """
         if Utility.check_empty_string(name):
@@ -1620,7 +1621,7 @@ class MongoProcessor:
                 bot=bot,
                 status=True):
             action = (
-                Actions(name=name.strip().lower(), bot=bot, user=user).save().to_mongo().to_dict()
+                Actions(name=name.strip().lower(), type=action_type, bot=bot, user=user).save().to_mongo().to_dict()
             )
             return action["_id"].__str__()
         else:
@@ -2424,7 +2425,7 @@ class MongoProcessor:
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
-        self.add_action(http_action_config['action_name'].lower(), bot, user, raise_exception=False)
+        self.add_action(http_action_config['action_name'].lower(), bot, user, action_type=ActionType.http_action.value, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
                        "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
@@ -2500,7 +2501,7 @@ class MongoProcessor:
         if Utility.check_empty_string(slot_value.get('name')):
             raise AppException("Slot Name cannot be empty or blank spaces")
 
-        if slot_value.get('type') not in [item for item in models.SlotType]:
+        if slot_value.get('type') not in [item for item in SLOT_TYPE]:
             raise AppException("Invalid slot type.")
 
         try:
@@ -2567,7 +2568,7 @@ class MongoProcessor:
         :param page_size: number of rows
         :return: List of Http actions.
         """
-        for log in HttpActionLog.objects(bot=bot).order_by("-timestamp").skip(start_idx).limit(page_size):
+        for log in ActionServerLogs.objects(bot=bot).order_by("-timestamp").skip(start_idx).limit(page_size):
             log = log.to_mongo().to_dict()
             log.pop("bot")
             log.pop("_id")
@@ -2695,7 +2696,7 @@ class MongoProcessor:
                 if actions.get('auth_token'):
                     http_obj.auth_token = actions['auth_token']
                 http_obj.save()
-                self.add_action(action_name, bot, user, raise_exception=False)
+                self.add_action(action_name, bot, user, action_type=ActionType.http_action.value, raise_exception=False)
 
     def load_http_action(self, bot: Text):
         """
@@ -3322,4 +3323,51 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException(f'Form "{name}" does not exists')
 
+    def add_slot_set_action(self, action: dict, bot: Text, user: Text):
+        if Utility.check_empty_string(action.get("name")) or Utility.check_empty_string(action.get("slot")):
+            raise AppException('Slot setting action name and slot cannot be empty or spaces')
+        action["name"] = action["name"].lower()
+        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name=action['name'], bot=bot, status=True)
+        if not Utility.is_exist(Slots, raise_error=False, name=action['slot'], bot=bot, status=True):
+            raise AppException(f'Slot with name "{action["slot"]}" not found')
+        SlotSetAction(name=action["name"],
+                      slot=action["slot"],
+                      type=action["type"],
+                      value=action.get("value"),
+                      bot=bot, user=user).save()
+        self.add_action(action["name"], bot, user, action_type=ActionType.slot_set_action.value)
 
+    @staticmethod
+    def list_slot_set_actions(bot: Text):
+        actions = SlotSetAction.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp', 'status').to_json()
+        return json.loads(actions)
+
+    @staticmethod
+    def edit_slot_set_action(action: dict, bot: Text, user: Text):
+        try:
+            if not Utility.is_exist(Slots, raise_error=False, name=action.get('slot'), bot=bot, status=True):
+                raise AppException(f'Slot with name "{action.get("slot")}" not found')
+            slot_set_action = SlotSetAction.objects(name=action.get('name'), bot=bot, status=True).get()
+            slot_set_action.slot = action['slot']
+            slot_set_action.type = action['type']
+            slot_set_action.value = action.get('value')
+            slot_set_action.user = user
+            slot_set_action.timestamp = datetime.utcnow()
+            slot_set_action.save()
+        except DoesNotExist:
+            raise AppException(f'Slot setting action with name "{action.get("name")}" not found')
+
+    def delete_action(self, name: Text, bot: Text, user: Text):
+        try:
+            action = Actions.objects(name=name, bot=bot, status=True).get()
+            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=name, events__type__exact='action'))
+            if story:
+                raise AppException(f'Cannot remove action "{name}" linked to story "{story[0].block_name}"')
+            if action.type == ActionType.slot_set_action.value:
+                Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
+            action.status = False
+            action.user = user
+            action.timestamp = datetime.utcnow()
+            action.save()
+        except DoesNotExist:
+            raise AppException(f'Slot setting action with name "{name}" not found')

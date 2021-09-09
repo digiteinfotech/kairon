@@ -24,17 +24,16 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api import models
 from kairon.shared.auth import Authentication
-from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, SlotType
+from kairon.api.models import HttpActionParameters, HttpActionConfigRequest
 from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
                                              Intents,
-                                             Actions,
                                              Responses,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
@@ -45,7 +44,9 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction
+from kairon.shared.actions.models import ActionType
+from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
@@ -1562,8 +1563,8 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
 
-        for slot_type in SlotType:
-            if slot_type == SlotType.FLOAT or slot_type == SlotType.CATEGORICAL:
+        for slot_type in SLOT_TYPE:
+            if slot_type == SLOT_TYPE.FLOAT or slot_type == SLOT_TYPE.CATEGORICAL:
                 continue
             else:
                 print(slot_type)
@@ -1594,9 +1595,9 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
 
-        for slot_type in SlotType:
+        for slot_type in SLOT_TYPE:
 
-            if slot_type == SlotType.CATEGORICAL:
+            if slot_type == SLOT_TYPE.CATEGORICAL:
                 continue
             else:
                 processor.add_slot(
@@ -1918,48 +1919,48 @@ class TestMongoProcessor:
         expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                       timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                       url="http://kairon-api.digite.com/api/bot",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot_2).save()
-        HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent7", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent8", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent9", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent10", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot_2).save()
-        HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent11", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
+        ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
         processor = MongoProcessor()
@@ -2002,10 +2003,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = "test_bot"
         bot_2 = "testing_bot"
-        cnt = processor.get_row_count(HttpActionLog, bot)
+        cnt = processor.get_row_count(ActionServerLogs, bot)
         assert cnt == 11
 
-        cnt = processor.get_row_count(HttpActionLog, bot_2)
+        cnt = processor.get_row_count(ActionServerLogs, bot_2)
         assert cnt == 3
 
     def test_get_existing_slots(self):
@@ -4305,7 +4306,205 @@ class TestMongoProcessor:
                            match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
             processor.update_complex_story(story_dict, bot, user)
 
+    def test_add_slot_set_action_from_value_no_value_passed(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='name', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, slot='name',
+                                     bot=bot, user=user, status=True).get()
 
+    def test_add_slot_set_action_from_value(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, value='5',
+                                     slot='name', bot=bot, user=user, status=True).get()
+
+    def test_add_slot_set_action_reset(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='location', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_location_slot', 'slot': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_location_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_location_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value=None,
+                                     slot='location', bot=bot, user=user, status=True).get()
+
+    def test_add_slot_set_action_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+        action = {'name': None, 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_slot_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_slot_name', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+        action = {'name': 'action_set_slot_name', 'slot': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_slot_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_slot_non_existant', 'slot': 'non_existant',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_simple_action_with_same_name_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Actions(name='action_trigger_some_api', bot=bot, user=user).save()
+        action = {'name': 'action_trigger_some_api', 'slot': 'some_api',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_list_slot_set_actions(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = processor.list_slot_set_actions(bot)
+        assert len(actions) == 3
+        assert actions[0] == {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
+        assert actions[1] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                              'value': '5'}
+        assert actions[2] == {'name': 'action_set_location_slot', 'slot': 'location',
+                              'type': SLOT_SET_TYPE.RESET_SLOT.value}
+
+    def test_list_slot_set_actions_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        actions = processor.list_slot_set_actions(bot)
+        assert len(actions) == 0
+
+    def test_edit_slot_set_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='name_new', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_name_slot', 'slot': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
+                  'value': 'name'}
+        processor.edit_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value='name',
+                                     slot='name_new', bot=bot, user=user, status=True).get()
+
+    def test_edit_slot_set_action_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_non_existant', 'slot': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_slot_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_slot_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_delete_slot_set_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        processor.delete_action('action_set_name_slot', bot, user)
+
+    def test_delete_slot_set_action_already_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Slot setting action with name "action_set_name_slot" not found'):
+            processor.delete_action('action_set_name_slot', bot, user)
+
+    def test_delete_slot_set_action_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Slot setting action with name "action_non_existant" not found'):
+            processor.delete_action('action_non_existant', bot, user)
+
+    def test_delete_slot_set_action_linked_to_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "action_set_age_slot", "type": "ACTION"},
+        ]
+        story_dict = {'name': "story with slot set action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        with pytest.raises(AppException,
+                           match=f'Cannot remove action "action_set_age_slot" linked to story "story with slot set action"'):
+            processor.delete_action('action_set_age_slot', bot, user)
+
+    def test_delete_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Actions(name='action_custom', bot=bot, user=user).save()
+        processor.delete_action('action_custom', bot, user)
+
+    def test_delete_action_already_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Slot setting action with name "action_custom" not found'):
+            processor.delete_action('action_custom', bot, user)
 
 
 # pylint: disable=R0201
