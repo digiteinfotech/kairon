@@ -9,13 +9,13 @@ from validators import ValidationFailure
 from validators import email as mail_check
 
 from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
-from kairon.shared.data.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
+from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
     EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
     TrainingDataGenerator, TrainingExamples, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_objects import ValidationLogs
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -119,7 +119,7 @@ class AccountProcessor:
             bot_info.status = False
             bot_info.save()
             Utility.hard_delete_document([Actions, Configs, Endpoints, Entities, EntitySynonyms, Forms,
-                                          HttpActionConfig, HttpActionLog, Intents, LookupTables, ModelDeployment,
+                                          HttpActionConfig, ActionServerLogs, Intents, LookupTables, ModelDeployment,
                                           ModelTraining, RegexFeatures, Responses, Rules, SessionConfigs, Slots,
                                           Stories, TrainingDataGenerator, TrainingExamples, ValidationLogs], bot,
                                          user=user)

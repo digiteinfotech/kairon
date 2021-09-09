@@ -26,7 +26,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_objects import ValidationLogs
-from kairon.shared.actions.data_objects import HttpActionLog
+from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 
@@ -3545,38 +3545,38 @@ def test_list_action_server_logs():
     request_params = {"key": "value", "key2": "value2"}
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
-    HttpActionLog(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
+    ActionServerLogs(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                   url="http://kairon-api.digite.com/api/bot",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                   status="FAILURE").save()
-    HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
-    HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                   status="FAILURE").save()
-    HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                   status="FAILURE").save()
-    HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent7", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent8", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent9", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent10", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
-    HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent11", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
-    HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
+    ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
                   status="FAILURE").save()
-    HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
+    ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                   request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                   status="FAILURE").save()
     response = client.get(
@@ -5239,3 +5239,109 @@ def test_delete_form_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Form "form_not_exists" does not exists'
+
+
+def test_add_slot_set_action():
+    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_slot_set_action_slot_not_exists():
+    request = {'name': 'action_set_new_user_slot', 'slot': 'new_user', 'type': 'from_slot', 'value': False}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Slot with name "new_user" not found'
+
+
+def test_list_slot_set_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"][0] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+
+
+def test_edit_slot_set_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "age", "type": "float"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot added successfully!"
+
+    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_slot', 'value': 'age'}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_edit_slot_set_action_slot_not_exists():
+    request = {'name': 'action_set_name_slot', 'slot': 'non_existant', 'type': 'from_slot', 'value': 'age'}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Slot with name "non_existant" not found'
+
+
+def test_delete_slot_set_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/slotset/non_existant",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "non_existant" not found'
+
+
+def test_delete_slot_set_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/slotset/action_set_name_slot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_list_slot_set_action_none_present():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
