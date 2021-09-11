@@ -104,8 +104,7 @@ services:
       - 8083:8083
     environment:
       TRACKER_TYPE: 'bot'
-      TRACKER_URL: "mongodb://mongo:27017/kairon"
-      TRACKER_DB: "rasa"
+      TRACKER_URL: "mongodb://mongo:27017/test_conversations"
       TRACKER_COLLECTION: "conversations"
       AUTH_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
     networks:
@@ -119,7 +118,6 @@ services:
       - 83:80
     networks:
       - chatbotnetwork
-
 
 networks:
   chatbotnetwork:
