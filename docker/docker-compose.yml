@@ -55,6 +55,10 @@ services:
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
+      AGENT_URL: "http://kairon-chat/"
+      KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
+      KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
+
 
   kairon-ui:
     image: digite/kairon-ui:latest
@@ -104,6 +108,15 @@ services:
       TRACKER_DB: "rasa"
       TRACKER_COLLECTION: "conversations"
       AUTH_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
+    networks:
+      - chatbotnetwork
+
+  kairon-chat:
+    image: digite/kairon-chat:latest
+    container_name: kairon-chat
+    hostname: kairon-chat
+    ports:
+      - 83:80
     networks:
       - chatbotnetwork
 
