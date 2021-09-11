@@ -10,6 +10,7 @@ python -m pip install smart-config==0.1.3 && \
 python -m pip install validators && \
 python -m pip install rasa_sdk==2.1.2 && \
 python -m pip install dnspython && \
+python -m pip install pyjwt && \
 python -m pip install elastic-apm
 RUN python3 -m pip install pymongo==3.12.0
 
