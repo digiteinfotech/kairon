@@ -1,5 +1,5 @@
 from kairon.shared.data.data_objects import Intents, TrainingExamples, ModelTraining
-from kairon.api.data_objects import Account, Bot
+from kairon.shared.account.data_objects import Account, Bot
 from kairon.shared.models import User
 from kairon.exceptions import AppException
 from datetime import datetime

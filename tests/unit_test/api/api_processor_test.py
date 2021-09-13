@@ -9,7 +9,7 @@ import pytest
 from pydantic import SecretStr
 
 from kairon.shared.auth import Authentication
-from kairon.api.data_objects import User
+from kairon.shared.account.data_objects import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.utils import Utility

@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 
-from kairon.api.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation
 from kairon.shared.data.data_objects import Intents, Responses, Stories, Actions, Configs, Endpoints, Entities, \
     EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
     TrainingDataGenerator, TrainingExamples, BotSettings
