@@ -16,7 +16,6 @@ from urllib.parse import unquote_plus
 from password_strength.tests import Special, Uppercase, Numbers, Length
 import requests
 import yaml
-from elasticapm.contrib.starlette import make_apm_client
 from jwt import encode, decode
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -589,6 +588,8 @@ class Utility:
 
     @staticmethod
     def initiate_apm_client():
+        from elasticapm.contrib.starlette import make_apm_client
+
         logger.debug(f'apm_enable: {Utility.environment["elasticsearch"].get("enable")}')
         if Utility.environment["elasticsearch"].get("enable"):
             server_url = Utility.environment["elasticsearch"].get("apm_server_url")
