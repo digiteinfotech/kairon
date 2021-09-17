@@ -858,12 +858,13 @@ class HistoryProcessor:
             )
 
     @staticmethod
-    def flatten_conversations(collection: Text, month: int = 3):
+    def flatten_conversations(collection: Text, month: int = 3, sort_by_date: bool = True):
 
         """
         Retrieves the flattened conversation data of the bot
         :param collection: collection to connect to
         :param month: default is 3 months
+        :param sort_by_date: This flag sorts the records by timestamp if set to True
         :return: dictionary of the bot users and their conversation data
         """
 
@@ -902,9 +903,13 @@ class HistoryProcessor:
                             ["$user_array", {"$add": [{"$indexOfArray": ["$user_array", "$events"]}, 1]}]}]},
                          {"$indexOfArray": ["$all_events", "$events"]}]}, 1]}]}, {"$slice": ["$all_events",
                          {"$add": [{"$indexOfArray": ["$all_events", "$events"]}, 1]}, 100]}]}}},
-                         {"$project": {"user_input": 1, "intent": 1, "confidence": 1,
-                            "action": "$action_bot_array.name", "message_id": 1, "timestamp": 1,
-                            "bot_response": "$action_bot_array.text"}}
+                         {"$addFields": {"t_stamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}},
+                         {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": "$action_bot_array.name"
+                          , "timestamp": "$t_stamp", "bot_response": "$action_bot_array.text", "sort": {
+                             "$cond": {"if": sort_by_date, "then": "$t_stamp", "else": "_id"}}}},
+                         {"$sort": {"sort": -1}},
+                         {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": 1,
+                                       "timestamp": 1, "bot_response": 1}}
                          ], allowDiskUse=True))
             except Exception as e:
                 logger.error(e)
