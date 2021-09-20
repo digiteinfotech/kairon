@@ -234,6 +234,58 @@ class TestMongoProcessor:
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
 
     @pytest.mark.asyncio
+    async def test_upload_case_insensitivity(self):
+        processor = MongoProcessor()
+        await (
+            processor.save_from_path(
+                "./tests/testing_data/upper_case_data", bot="test_upload_case_insensitivity", user="testUser"
+            )
+        )
+        training_data = processor.load_nlu("test_upload_case_insensitivity")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.intents == {'deny', 'greet'}
+        assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka', 'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'}, {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
+        assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']}, {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        story_graph = processor.load_stories("test_upload_case_insensitivity")
+        assert story_graph.story_steps[0].block_name == 'greet'
+        assert story_graph.story_steps[1].block_name == 'say goodbye'
+        domain = processor.load_domain("test_upload_case_insensitivity")
+        assert [slot.name for slot in domain.slots] == ['application_name', 'bot', 'email_id', 'location', 'user']
+        assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye', 'utter_default']
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name']
+        assert domain.forms == {'ask_user': {'USER': [{'type': 'from_entity', 'entity': 'USER'}],
+                                             'EMAIL_ID': [{'type': 'from_entity', 'entity': 'EMAIL_ID'}]},
+                                'ask_location': {'LOCATION': [{'type': 'from_entity', 'entity': 'LOCATION'}],
+                                                 'APPLICATION_NAME': [
+                                                     {'type': 'from_entity', 'entity': 'APPLICATION_NAME'}]}}
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+                                       'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
+        assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application', 'action_get_microsoft_application']
+        assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
+        assert domain.templates == {
+            'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
+            'utter_greet': [{'text': 'Hey! How are you?'}], 'utter_goodbye': [{'text': 'Bye'}],
+            'utter_default': [{'text': 'Can you rephrase!'}]}
+        rules = processor.fetch_rule_block_names("test_upload_case_insensitivity")
+        assert rules == ['rule which will not wait for user message once it was applied', 'ask the user to rephrase whenever they send a message with low nlu confidence']
+        actions = processor.load_http_action("test_upload_case_insensitivity")
+        assert actions == {'http_actions': [
+            {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
+             'request_method': 'GET', 'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]},
+            {'action_name': 'action_get_microsoft_application', 'response': 'json',
+             'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
+             'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]}]}
+        assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
+                                                                                                'utter_greet',
+                                                                                                'utter_default',
+                                                                                                'utter_please_rephrase'}
+
+    @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
         await (
@@ -254,12 +306,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -323,12 +375,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -372,12 +424,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -648,23 +700,23 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert (
-                results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+                results[0]["text"] == "Make [TKT456](ticketid) a [critical issue](priority)"
         )
         assert results[0]["message"] == "Training Example added"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
-        new_slot = slots.get(name="ticketID")
+        new_slot = slots.get(name="ticketid")
         assert any(
             [value["text"] == "Log a [critical issue](priority)" for value in actual]
         )
         assert any(
             [
-                value["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+                value["text"] == "Make [TKT456](ticketid) a [critical issue](priority)"
                 for value in actual
             ]
         )
         assert slots.__len__() == 3
-        assert new_slot.name == "ticketID"
+        assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
         actual = list(processor.get_training_examples("greet", "tests"))
@@ -710,7 +762,7 @@ class TestMongoProcessor:
 
     def test_get_entities(self):
         processor = MongoProcessor()
-        expected = ["priority", "file_text", "ticketID"]
+        expected = ["priority", "file_text", "ticketid"]
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -796,7 +848,7 @@ class TestMongoProcessor:
 
     def test_add_text_response(self):
         processor = MongoProcessor()
-        assert processor.add_text_response("Great", "utter_happy", "tests", "testUser")
+        assert processor.add_text_response("Great", "utter_Happy", "tests", "testUser")
         response = Responses.objects(
             bot="tests", name="utter_happy", text__text="Great"
         ).get()
@@ -1268,7 +1320,7 @@ class TestMongoProcessor:
     def test_edit_training_example_case_insensitive(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
-        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="Greet", bot="tests",
+        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="greet", bot="tests",
                                         user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hello, there" for example in examples)
@@ -1276,10 +1328,10 @@ class TestMongoProcessor:
     def test_edit_training_example_with_entities(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
-        processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](Location) India", intent="greet",
+        processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](location) India", intent="greet",
                                         bot="tests", user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
-        assert any(example['text'] == "[Meghalaya](Location) India" for example in examples)
+        assert any(example['text'] == "[Meghalaya](location) India" for example in examples)
 
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
@@ -1315,7 +1367,7 @@ class TestMongoProcessor:
     def test_edit_responses_case_insensitivity(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
-        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests",
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="utter_happy", bot="tests",
                                      user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(
@@ -2091,12 +2143,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2148,12 +2200,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2197,12 +2249,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2254,12 +2306,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2306,12 +2358,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2416,12 +2468,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
 
     def test_delete_config_and_actions_only(self):
         bot = 'test'
@@ -3281,9 +3333,9 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         processor.add_synonym(
-            {"synonym": "bot", "value": ["exp"]}, bot, user)
-        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
-        assert syn[0]['synonym'] == "bot"
+            {"name": "bot", "value": ["exp"]}, bot, user)
+        syn = list(EntitySynonyms.objects(name__iexact='bot', bot=bot, user=user))
+        assert syn[0]['name'] == "bot"
         assert syn[0]['value'] == "exp"
 
     def test_get_specific_synonym(self):
@@ -3297,7 +3349,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+            processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym value already exists"
 
     def test_edit_specific_synonym(self):
@@ -3329,7 +3381,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
         processor.delete_synonym_value(response[0]["_id"], bot, user)
@@ -3377,7 +3429,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": []}, bot, user)
+            processor.add_synonym({"name": "bot", "value": []}, bot, user)
         assert str(exp.value) == "Synonym value cannot be an empty string"
 
     def test_add_synonym_with_empty_element_in_value_list(self):
@@ -3385,7 +3437,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
+            processor.add_synonym({"name": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Synonym value cannot be an empty string"
 
     def test_add_utterance(self):

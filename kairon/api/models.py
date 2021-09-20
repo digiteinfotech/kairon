@@ -5,8 +5,8 @@ from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
-from pydantic import BaseModel, validator, SecretStr, root_validator
-from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice, History_Month_Enum
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr
+from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice
 
 
 class Token(BaseModel):
@@ -31,6 +31,10 @@ class RequestData(BaseModel):
 
 class TextData(BaseModel):
     data: str
+
+
+class TextDataLowerCase(BaseModel):
+    data: constr(to_lower=True, strip_whitespace=True)
 
 
 class ListData(BaseModel):
@@ -138,10 +142,6 @@ class Password(BaseModel):
         return v
 
 
-class HistoryMonth(BaseModel):
-    month: History_Month_Enum
-
-
 class HttpActionParameters(BaseModel):
     key: str
     value: str = None
@@ -161,7 +161,7 @@ class HttpActionParameters(BaseModel):
 
 class HttpActionConfigRequest(BaseModel):
     auth_token: str = None
-    action_name: str
+    action_name: constr(to_lower=True, strip_whitespace=True)
     response: str
     http_url: str
     request_method: str
@@ -209,7 +209,7 @@ class HttpActionConfigResponse(BaseModel):
 
 
 class TrainingData(BaseModel):
-    intent: str
+    intent: constr(to_lower=True, strip_whitespace=True)
     training_examples: List[str]
     response: str
 
@@ -232,12 +232,12 @@ class TrainingDataGeneratorStatusModel(BaseModel):
 
 
 class StoryStepRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     type: StoryStepType
 
 
 class StoryRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     type: StoryType
     steps: List[StoryStepRequest]
     template_type: TemplateType = None
@@ -307,7 +307,7 @@ class ParaphrasesRequest(BaseModel):
 
 
 class SlotRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     type: SLOT_TYPE
     initial_value: Any = None
     auto_fill: bool = True
@@ -318,7 +318,7 @@ class SlotRequest(BaseModel):
 
 
 class SynonymRequest(BaseModel):
-    synonym: str
+    name: constr(to_lower=True, strip_whitespace=True)
     value: List[str]
 
     @validator("value")
@@ -331,7 +331,7 @@ class SynonymRequest(BaseModel):
                 raise ValueError("value cannot be an empty string")
         return v
 
-    @validator("synonym")
+    @validator("name")
     def validate_synonym(cls, f, values, **kwargs):
         from kairon.shared.utils import Utility
         if Utility.check_empty_string(f):
@@ -344,7 +344,7 @@ class DictData(BaseModel):
 
 
 class RegexRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     pattern: str
 
     @validator("name")
@@ -368,7 +368,7 @@ class RegexRequest(BaseModel):
 
 
 class LookupTablesRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     value: List[str]
 
     @validator("name")
@@ -404,12 +404,12 @@ class FormPath(BaseModel):
 
 
 class Forms(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     path: List[FormPath]
 
 
 class SlotSetActionRequest(BaseModel):
-    name: str
+    name: constr(to_lower=True, strip_whitespace=True)
     slot: str
     type: SLOT_SET_TYPE
     value: Any = None

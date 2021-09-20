@@ -1,0 +1,12 @@
+version: "2.0"
+stories:
+- story: GREET
+  steps:
+  - intent: GREET
+  - action: utter_GREET
+  - action: action_restart
+- story: SAY GOODBYE
+  steps:
+  - intent: DENY
+  - action: utter_GOODBYE
+  - action: action_restart

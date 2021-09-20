@@ -1,0 +1,67 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- GREET:
+    use_entities: true
+- DENY:
+    use_entities: true
+responses:
+  utter_GOODBYE:
+  - text: Bye
+  utter_GREET:
+  - text: Hey! How are you?
+  utter_default:
+    - text: Can you rephrase!
+
+entities:
+- USER
+- LOCATION
+- EMAIL_ID
+- APPLICATION_NAME
+
+slots:
+  APPLICATION_NAME:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  EMAIL_ID:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  LOCATION:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  USER:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+actions:
+- ACTION_GET_GOOGLE_APPLICATION
+- ACTION_GET_MICROSOFT_APPLICATION
+- utter_GREET
+- utter_GOODBYE
+
+forms:
+  ASK_USER:
+    USER:
+      - type: from_entity
+        entity: USER
+    EMAIL_ID:
+      - type: from_entity
+        entity: EMAIL_ID
+  ASK_LOCATION:
+    LOCATION:
+      - type: from_entity
+        entity: LOCATION
+    APPLICATION_NAME:
+      - type: from_entity
+        entity: APPLICATION_NAME
