@@ -1281,6 +1281,14 @@ class TestMongoProcessor:
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "[Meghalaya](Location) India" for example in examples)
 
+    def test_edit_same_training_example_with_entities(self):
+        processor = MongoProcessor()
+        examples = list(processor.add_training_example(["What is the weather today"], intent="greet", bot="tests", user="test", is_integration=False))
+        processor.edit_training_example(examples[0]["_id"], example="What is the weather [today](date)", intent="greet",
+                                        bot="tests", user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "What is the weather [today](date)" for example in examples)
+
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))

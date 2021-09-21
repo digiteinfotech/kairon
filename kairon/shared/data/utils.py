@@ -203,7 +203,7 @@ class DataUtility:
         :return: plain intent, list of extracted entities
         """
         example = entities_parser.parse_training_example(text)
-        return example.get(TEXT), example.get('entities', [])
+        return example.get(TEXT), example.get('entities', None)
 
     @staticmethod
     def __extract_response_button(buttons: Dict):

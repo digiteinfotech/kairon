@@ -1412,6 +1412,7 @@ class MongoProcessor:
                     TrainingExamples,
                     raise_error=False,
                     text__iexact=text,
+                    entities=entities,
                     bot=bot,
                     status=True,
             ):
