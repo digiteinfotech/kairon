@@ -18,7 +18,7 @@ async def flat_conversations(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the flattened conversation data of the bot for previous months."""
     flat_data, message = HistoryProcessor.flatten_conversations(
-        collection, request.month
+        collection, request.month, request.sort_by_date
     )
     return {"data": flat_data, "message": message}
 
@@ -30,7 +30,7 @@ async def download_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
-    conversation_data, message = HistoryProcessor.flatten_conversations(collection, request.month)
+    conversation_data, message = HistoryProcessor.flatten_conversations(collection, request.month, request.sort_by_date)
     file, temp_path = Utility.download_csv(conversation_data, message)
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
