@@ -43,6 +43,9 @@ class HttpActionConfig(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if self.action_name is None or not self.action_name.strip():
             raise ValidationError("Action name cannot be empty")
         if self.http_url is None or not self.http_url.strip():
@@ -54,6 +57,9 @@ class HttpActionConfig(Document):
 
         for param in self.params_list:
             param.validate()
+
+    def clean(self):
+        self.action_name = self.action_name.strip().lower()
 
 
 class ActionServerLogs(Document):
@@ -80,7 +86,13 @@ class Actions(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def clean(self):
+        self.name = self.name.strip().lower()
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         from .utils import ActionUtility
 
         if ActionUtility.is_empty(self.name):
@@ -100,3 +112,9 @@ class SlotSetAction(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()

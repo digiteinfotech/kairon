@@ -39,12 +39,18 @@ class Entity(EmbeddedDocument):
     entity = StringField(required=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
         if Utility.check_empty_string(self.value) or Utility.check_empty_string(
                 self.entity
         ):
             raise ValidationError(
                 "Entity name and value cannot be empty or blank spaces"
             )
+
+    def clean(self):
+        if not Utility.check_empty_string(self.entity):
+            self.entity = self.entity.strip().lower()
 
 
 class TrainingExamples(Document):
@@ -59,6 +65,9 @@ class TrainingExamples(Document):
     meta = {"indexes": [{"fields": ["$text"]}]}
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if self.entities:
             for ent in self.entities:
                 ent.validate()
@@ -79,10 +88,16 @@ class TrainingExamples(Document):
                 "Training Example name and text cannot be empty or blank spaces"
             )
 
+    def clean(self):
+        self.intent = self.intent.strip().lower()
+        if self.entities:
+            for ent in self.entities:
+                ent.clean()
+
 
 class EntitySynonyms(Document):
     bot = StringField(required=True)
-    synonym = StringField(required=True)
+    name = StringField(required=True)
     value = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -91,12 +106,19 @@ class EntitySynonyms(Document):
     meta = {"indexes": [{"fields": ["$value"]}]}
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.synonym) or Utility.check_empty_string(
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name) or Utility.check_empty_string(
                 self.value
         ):
             raise ValidationError(
                 "Synonym name and value cannot be empty or blank spaces"
             )
+
+    def clean(self):
+        self.name = self.name.strip().strip().lower()
+        self.value = self.value.strip()
 
 
 class LookupTables(Document):
@@ -110,12 +132,18 @@ class LookupTables(Document):
     meta = {"indexes": [{"fields": ["$value"]}]}
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
                 self.value
         ):
             raise ValidationError(
                 "Lookup name and value cannot be empty or blank spaces"
             )
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 class RegexFeatures(Document):
@@ -128,7 +156,13 @@ class RegexFeatures(Document):
 
     meta = {"indexes": [{"fields": ["$pattern"]}]}
 
+    def clean(self):
+        self.name = self.name.strip().lower()
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
                 self.pattern
         ):
@@ -152,8 +186,14 @@ class Intents(Document):
     use_entities = BooleanField(default=False)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name):
             raise ValidationError("Intent Name cannot be empty or blank spaces")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 class Entities(Document):
@@ -163,7 +203,13 @@ class Entities(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def clean(self):
+        self.name = self.name.strip().lower()
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name):
             raise ValidationError("Entity Name cannot be empty or blank spaces")
 
@@ -177,12 +223,18 @@ class Forms(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name):
             raise ValidationError("Form name cannot be empty or blank spaces")
         try:
             _validate_slot_mappings({self.name: self.mapping})
         except Exception as e:
             raise ValidationError(e)
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 class Utterances(Document):
@@ -194,8 +246,14 @@ class Utterances(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name):
             raise ValidationError("Utterance Name cannot be empty or blank spaces")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 class ResponseButton(EmbeddedDocument):
@@ -239,6 +297,9 @@ class Responses(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name):
             raise ValidationError("Response name cannot be empty or blank spaces")
         elif not self.text and not self.custom:
@@ -248,6 +309,9 @@ class Responses(Document):
                 self.text.validate()
             elif self.custom:
                 self.custom.validate()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 class SessionConfigs(Document):
@@ -284,7 +348,13 @@ class Slots(Document):
     status = BooleanField(default=True)
     influence_conversation = BooleanField(default=False)
 
+    def clean(self):
+        self.name = self.name.strip().lower()
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
                 self.type
         ):
@@ -315,8 +385,17 @@ class StoryEvents(EmbeddedDocument):
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
         if not Utility.check_empty_string(self.value) and self.type != 'slot':
             raise ValidationError("Value is allowed only for slot")
+
+    def clean(self):
+        if not Utility.check_empty_string(self.name):
+            self.name = self.name.strip().lower()
+        if self.entities:
+            for entity in self.entities:
+                entity.clean()
 
 
 class Stories(Document):
@@ -331,12 +410,20 @@ class Stories(Document):
     template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         from .utils import DataUtility
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("events cannot be empty")
         DataUtility.validate_flow_events(self.events, "STORY", self.block_name)
+
+    def clean(self):
+        self.block_name = self.block_name.strip().lower()
+        for event in self.events:
+            event.clean()
 
 
 class Rules(Document):
@@ -350,7 +437,14 @@ class Rules(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def clean(self):
+        self.block_name = self.block_name.strip().lower()
+        for event in self.events:
+            event.clean()
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
         from .utils import DataUtility
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("rule name cannot be empty or blank spaces")
