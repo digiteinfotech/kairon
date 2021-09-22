@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import constr
 
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -16,7 +17,8 @@ from kairon.api.models import (
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     FeedbackRequest, SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
+    TextDataLowerCase
 )
 from kairon.shared.models import User
 from kairon.chat.agent_processor import AgentProcessor
@@ -54,13 +56,13 @@ async def get_intents_with_training_examples(current_user: User = Depends(Authen
 
 @router.post("/intents", response_model=Response)
 async def add_intents(
-        request_data: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)
+        request_data: TextDataLowerCase, current_user: User = Depends(Authentication.get_current_user_and_bot)
 ):
     """
     Adds a new intent to the bot
     """
     intent_id = mongo_processor.add_intent(
-        text=request_data.data.strip().lower(),
+        text=request_data.data,
         bot=current_user.get_bot(),
         user=current_user.get_user(),
         is_integration=current_user.get_integration_status()
@@ -118,7 +120,7 @@ async def get_training_examples(
 
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
-        intent: str,
+        intent: constr(to_lower=True, strip_whitespace=True),
         request_data: ListData,
         current_user: User = Depends(Authentication.get_current_user_and_bot),
 ):
@@ -127,7 +129,7 @@ async def add_training_examples(
     """
     results = list(
         mongo_processor.add_training_example(
-            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user(),
+            request_data.data, intent, current_user.get_bot(), current_user.get_user(),
             current_user.get_integration_status()
         )
     )
@@ -136,7 +138,7 @@ async def add_training_examples(
 
 @router.post("/training_examples/move/{intent}", response_model=Response)
 async def move_training_examples(
-        intent: str,
+        intent: constr(to_lower=True, strip_whitespace=True),
         request_data: ListData,
         current_user: User = Depends(Authentication.get_current_user_and_bot),
 ):
@@ -145,7 +147,7 @@ async def move_training_examples(
     """
     results = list(
         mongo_processor.add_or_move_training_example(
-            request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
+            request_data.data, intent, current_user.get_bot(), current_user.get_user()
         )
     )
     return {"data": results}
@@ -162,7 +164,7 @@ async def edit_training_examples(
     Updates existing training example
     """
     mongo_processor.edit_training_example(
-        id, request_data.data, intent.lower(), current_user.get_bot(), current_user.get_user()
+        id, request_data.data, intent, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Training Example updated!"}
 
@@ -203,21 +205,21 @@ async def get_responses(
     Fetches list of utterances against utterance name
     """
     return {
-        "data": list(mongo_processor.get_response(utterance.lower(), current_user.get_bot()))
+        "data": list(mongo_processor.get_response(utterance, current_user.get_bot()))
     }
 
 
 @router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
         request_data: TextData,
-        utterance: str,
+        utterance: constr(to_lower=True, strip_whitespace=True),
         current_user: User = Depends(Authentication.get_current_user_and_bot),
 ):
     """
     Adds utterance value in particular utterance
     """
     utterance_id = mongo_processor.add_text_response(
-        request_data.data, utterance.lower(), current_user.get_bot(), current_user.get_user()
+        request_data.data, utterance, current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
@@ -235,7 +237,7 @@ async def edit_responses(
     mongo_processor.edit_text_response(
         id,
         request_data.data,
-        utterance.lower(),
+        utterance,
         current_user.get_bot(),
         current_user.get_user(),
     )
@@ -255,7 +257,7 @@ async def remove_responses(
     """
     if delete_utterance:
         mongo_processor.delete_utterance(
-            request_data.data.lower(), current_user.get_bot(), current_user.get_user()
+            request_data.data, current_user.get_bot(), current_user.get_user()
         )
     else:
         mongo_processor.delete_response(
@@ -353,9 +355,9 @@ async def chat(
     It is basically used to test the chat functionality of the agent
     """
     return await Utility.chat(request_data.data,
-                        bot=current_user.get_bot(),
-                        user=current_user.get_user(),
-                        email=current_user.email)
+                              bot=current_user.get_bot(),
+                              user=current_user.get_user(),
+                              email=current_user.email)
 
 
 @router.post("/chat/{user}", response_model=Response)
@@ -369,9 +371,9 @@ async def augment_chat(
     It is basically used to test the chat functionality of the agent
     """
     return await Utility.chat(request_data.data,
-                        bot=current_user.get_bot(),
-                        user=user,
-                        email=current_user.email)
+                              bot=current_user.get_bot(),
+                              user=user,
+                              email=current_user.email)
 
 
 @router.post("/train", response_model=Response)
@@ -806,7 +808,7 @@ async def update_training_data_generator_status(
 
 
 @router.get("/data/generation/history", response_model=Response)
-async def get_trainData_history(
+async def get_train_data_history(
         current_user: User = Depends(Authentication.get_current_user_and_bot),
 ):
     """
@@ -924,8 +926,7 @@ async def validate_training_data(
     DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
     DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
     Utility.make_dirs(os.path.join("training_data", current_user.get_bot(), str(datetime.utcnow())))
-    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(),
-                                     is_data_uploaded=False)
+    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(), is_data_uploaded=False)
     background_tasks.add_task(EventsTrigger.trigger_data_importer,
                               current_user.get_bot(), current_user.get_user(),
                               False, False)
@@ -1017,7 +1018,7 @@ async def delete_synonym_value(
 
 
 @router.post("/utterance", response_model=Response)
-async def add_utterance(request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def add_utterance(request: TextDataLowerCase, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
                                        raise_error_if_exists=True)
     return {'message': 'Utterance added!'}
