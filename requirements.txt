@@ -2,7 +2,7 @@ pyyaml
 torch
 rasa[full]==2.1.2
 fastapi>=0.68.1
-mongomock==3.21.0
+mongomock==3.23.0
 pytest==6.1.2
 pytest-html==3.0.0
 pytest-cov==2.10.1
