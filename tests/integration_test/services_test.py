@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import shutil
@@ -7,7 +6,6 @@ import tempfile
 from io import BytesIO
 from zipfile import ZipFile
 
-import mongomock
 import pytest
 import responses
 from fastapi.testclient import TestClient
@@ -15,20 +13,22 @@ from mongoengine import connect
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
-from kairon.shared.auth import Authentication
-from kairon.shared.models import StoryEventType
-from kairon.shared.models import User
+from kairon.exceptions import AppException
+from kairon.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.exceptions import AppException
-from kairon.importer.data_objects import ValidationLogs
-from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import StoryEventType
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
+import json
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -2023,12 +2023,22 @@ def test_set_templates_invalid():
     assert not actual['success']
 
 
+@responses.activate
 def test_reload_model(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setitem(Utility.environment['action'], "url", None)
+    monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+
+    responses.add(
+        responses.GET,
+        f"http://localhost/api/bot/{pytest.bot}/reload",
+        status=200,
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
+    )
+
     response = client.get(
         f"/api/bot/{pytest.bot}/model/reload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -3546,39 +3556,48 @@ def test_list_action_server_logs():
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
     ActionServerLogs(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
-                  url="http://kairon-api.digite.com/api/bot",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     url="http://kairon-api.digite.com/api/bot",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot_2).save()
     ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent7", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent8", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent9", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent10", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot_2).save()
     ActionServerLogs(intent="intent11", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})

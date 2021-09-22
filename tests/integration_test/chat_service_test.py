@@ -15,7 +15,7 @@ from kairon.shared.utils import Utility
 from kairon.train import start_training
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
-os.environ['ASYNC_TEST_TIMEOUT'] = "360"
+os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
 Utility.load_environment()
 connect(**Utility.mongoengine_connection())
 
@@ -35,12 +35,15 @@ bot = user['bot'][0]
 start_training(bot, "test@chat.com", reload=False)
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(
-                "template/use-cases/Hi-Hello", bot2, user="test@chat.com"
-            ))
+    "template/use-cases/Hi-Hello", bot2, user="test@chat.com"
+))
 start_training(bot2, "test@chat.com", reload=False)
 
 
 class TestChatServer(AsyncHTTPTestCase):
+
+    def setUp(self) -> None:
+        super(TestChatServer, self).setUp()
 
     def get_app(self):
         return make_app()
@@ -206,3 +209,18 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = json.loads(response.body.decode("utf8"))
         print(actual)
         assert actual["message"] == "Access denied for this endpoint"
+
+    def test_reload(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/reload",
+            method="GET",
+            headers={
+                "Authorization": token_type + " " + token
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"] is None
+        assert actual["message"] == "Reloading Model!"

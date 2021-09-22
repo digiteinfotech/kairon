@@ -434,14 +434,15 @@ class Utility:
         :return: mongo tracker
         """
         from rasa.core.tracker_store import MongoTrackerStore
-        username, password, url, db_name = Utility.get_local_db()
+        config = Utility.get_local_db()
         return MongoTrackerStore(
             domain=domain,
-            host=url,
-            db=db_name,
+            host=config['host'],
+            db=config['db'],
             collection=bot,
-            username=username,
-            password=password,
+            username=config.get('username'),
+            password=config.get('password'),
+            auth_source= config['options'].get("authSource") if config['options'].get("authSource") else "admin"
         )
 
     @staticmethod
@@ -504,9 +505,11 @@ class Utility:
         return config
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
+    def http_request(method: str, url: str, token: str, user: str=None, json: Dict = None):
         logger.info("agent event started " + url)
-        headers = {'content-type': 'application/json', 'X-USER': user}
+        headers = {'content-type': 'application/json'}
+        if user:
+            headers['X-USER'] = user
         if token:
             headers['Authorization'] = 'Bearer ' + token
         if method.lower() == 'get':
@@ -891,6 +894,17 @@ class Utility:
             token = Authentication.create_access_token(data={"sub": email})
             response = Utility.http_request('post', urljoin(agent_url, f"/api/bot/{bot}/chat"), token.decode('utf8'),
                                             user, json={'data': data})
+            return json.loads(response)
+        else:
+            raise AppException("Agent config not found!")
+
+    @staticmethod
+    async def reload_model(bot: Text, email: Text):
+        if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
+            from kairon.shared.auth import Authentication
+            agent_url = Utility.environment['model']['agent'].get('url')
+            token = Authentication.create_access_token(data={"sub": email})
+            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token.decode('utf8'))
             return json.loads(response)
         else:
             raise AppException("Agent config not found!")

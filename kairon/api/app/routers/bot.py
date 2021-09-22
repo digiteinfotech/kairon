@@ -394,8 +394,10 @@ async def reload_model(
     """
     Reloads model with configuration in cache
     """
-    background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
-    return {"message": "Reloading Model!"}
+    response = await Utility.reload_model(
+        bot=current_user.get_bot(),
+        email=current_user.email)
+    return response
 
 
 @router.get("/train/history", response_model=Response)
