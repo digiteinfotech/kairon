@@ -1416,12 +1416,12 @@ class TestMongoProcessor:
             json='{"message": "Reloading Model!"}',
             status=200
         )
-        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
+        monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
         model_path = start_training("tests", "testUser", token, reload=False)
         assert model_path
 
     def test_start_training_done_reload_event_without_token(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
+        monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
         model_path = start_training("tests", "testUser")
         assert model_path
 
