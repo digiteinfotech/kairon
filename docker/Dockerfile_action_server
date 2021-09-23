@@ -17,6 +17,7 @@ RUN python3 -m pip install pymongo==3.12.0
 
 COPY kairon/actions /app/kairon/actions/
 COPY kairon/shared/actions /app/kairon/shared/actions
+COPY kairon/shared/accounts /app/kairon/shared/accounts
 COPY kairon/shared/tornado /app/kairon/shared/tornado
 COPY kairon/shared/utils.py /app/kairon/shared/
 COPY system.yaml /app/

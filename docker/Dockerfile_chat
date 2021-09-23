@@ -31,6 +31,6 @@ COPY system.yaml /app/
 COPY email.yaml /app/
 
 USER 1001
-EXPOSE 5055
+EXPOSE 5000
 CMD ["python","-m", "kairon.chat.server"]
 
