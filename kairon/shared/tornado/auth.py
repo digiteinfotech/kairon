@@ -4,12 +4,17 @@ from jwt import PyJWTError, decode
 from tornado.httputil import HTTPServerRequest
 
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.auth import Authentication
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
+Utility.load_environment()
+
 
 class TornadoAuthenticate:
+
+    SECRET_KEY = Utility.environment['security']["secret_key"]
+    ALGORITHM = Utility.environment['security']["algorithm"]
+    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
 
     @staticmethod
     def get_token(request: HTTPServerRequest):
@@ -35,7 +40,7 @@ class TornadoAuthenticate:
                                            "headers": {"WWW-Authenticate": "Bearer"}})
         try:
             token = TornadoAuthenticate.get_token(request)
-            payload = decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+            payload = decode(token, TornadoAuthenticate.SECRET_KEY, algorithms=[TornadoAuthenticate.ALGORITHM])
             username: str = payload.get("sub")
             TornadoAuthenticate.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:

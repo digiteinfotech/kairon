@@ -271,37 +271,37 @@ class TestUtility:
         assert not requirements
 
     def test_initiate_apm_client_disabled(self):
-        assert not Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_enabled(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        assert not Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
 
-        assert not Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_service_url_not_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', None)
 
-        assert not Utility.initiate_apm_client()
+        assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_env_not_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
 
-        assert Utility.initiate_apm_client() is None
+        assert Utility.initiate_apm_client_config() is None
 
     def test_initiate_apm_client_with_url_present(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
 
-        client = Utility.initiate_apm_client()
+        client = Utility.initiate_apm_client_config()
         config = client.config._config
         assert config.server_url == "http://localhost:8082"
         assert config.service_name == "kairon"
@@ -310,7 +310,7 @@ class TestUtility:
 
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'secret_token', "12345")
 
-        client = Utility.initiate_apm_client()
+        client = Utility.initiate_apm_client_config()
         config = client.config._config
         assert config.server_url == "http://localhost:8082"
         assert config.service_name == "kairon"

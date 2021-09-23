@@ -155,7 +155,7 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
         Utility.train_model_event(bot, user, token)
     else:
         try:
-            apm_client = Utility.initiate_apm_client()
+            apm_client = Utility.initiate_fastapi_apm_client()
             if apm_client:
                 elasticapm.instrument()
                 apm_client.begin_transaction(transaction_type="script")

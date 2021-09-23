@@ -13,14 +13,22 @@ python -m pip install dnspython && \
 python -m pip install pyjwt && \
 python -m pip install elastic-apm
 RUN python3 -m pip install pymongo==3.12.0
+RUN python3 -m pip install pydantic~=1.8.2
+RUN python3 -m pip install password-strength
+RUN python3 -m pip install passlib[bcrypt]
+RUN python3 -m pip install cryptography~=3.4.8
 
 
 COPY kairon/actions /app/kairon/actions/
 COPY kairon/shared/actions /app/kairon/shared/actions
-COPY kairon/shared/accounts /app/kairon/shared/accounts
+COPY kairon/shared/account /app/kairon/shared/account
 COPY kairon/shared/tornado /app/kairon/shared/tornado
 COPY kairon/shared/utils.py /app/kairon/shared/
+COPY kairon/shared/models.py /app/kairon/shared/
+COPY kairon/shared/constants.py /app/kairon/shared/
+COPY kairon/exceptions.py /app/kairon/exceptions.py
 COPY system.yaml /app/
+COPY email.yaml /app/
 
 USER 1001
 EXPOSE 5055
