@@ -21,7 +21,6 @@ from kairon.api.models import (
     TextDataLowerCase
 )
 from kairon.shared.models import User
-from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
@@ -506,7 +505,7 @@ async def download_model(
     Downloads latest trained model file
     """
     try:
-        model_path = AgentProcessor.get_latest_model(current_user.get_bot())
+        model_path = Utility.get_latest_model(current_user.get_bot())
         response = FileResponse(
             model_path,
             filename=os.path.basename(model_path),
@@ -545,7 +544,7 @@ async def set_endpoint(
     )
 
     if endpoint.action_endpoint:
-        background_tasks.add_task(AgentProcessor.reload, current_user.get_bot())
+        background_tasks.add_task(Utility.reload_model, current_user.get_bot(), current_user.email)
     return {"message": "Endpoint saved successfully!"}
 
 

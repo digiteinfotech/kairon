@@ -968,3 +968,16 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    def get_latest_model(bot: Text):
+        """
+        fetches the latest model from the path
+
+        :param bot: bot id
+        :return: latest model path
+        """
+        from rasa.shared.constants import DEFAULT_MODELS_PATH
+
+        model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
+        return Utility.get_latest_file(model_file, "*.tar.gz")
