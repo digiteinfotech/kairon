@@ -32,12 +32,12 @@ token = Authentication.authenticate("test@chat.com", "testChat@12").decode("utf8
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bot'][0]
-start_training(bot, "test@chat.com", reload=False)
+start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(
     "template/use-cases/Hi-Hello", bot2, user="test@chat.com"
 ))
-start_training(bot2, "test@chat.com", reload=False)
+start_training(bot2, "test@chat.com")
 
 
 class TestChatServer(AsyncHTTPTestCase):

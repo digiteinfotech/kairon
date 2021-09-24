@@ -1907,6 +1907,7 @@ def test_save_history_endpoint():
     assert actual['message'] == 'Endpoint saved successfully!'
     assert actual['success']
 
+
 @responses.activate
 def test_save_endpoint(monkeypatch):
     def mongo_store(*args, **kwargs):

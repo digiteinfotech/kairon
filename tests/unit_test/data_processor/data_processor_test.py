@@ -1024,7 +1024,7 @@ class TestMongoProcessor:
             "./tests/testing_data/initial", bot="test_initial", user="testUser"
         ))
 
-        model_path = start_training("test_initial", "testUser", reload=False)
+        model_path = start_training("test_initial", "testUser")
         assert model_path
         model_training = ModelTraining.objects(bot="test_initial", status="Done")
         assert model_training.__len__() == 1
@@ -1412,16 +1412,23 @@ class TestMongoProcessor:
         bot = "tests"
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/{bot}/model/reload",
+            f"http://localhost/api/bot/{bot}/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
         monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
-        model_path = start_training("tests", "testUser", token, reload=False)
+        model_path = start_training("tests", "testUser", token)
         assert model_path
 
+    @responses.activate
     def test_start_training_done_reload_event_without_token(self, monkeypatch):
         monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+        responses.add(
+            responses.GET,
+            f"http://localhost/api/bot/tests/reload",
+            json='{"message": "Reloading Model!"}',
+            status=200
+        )
         model_path = start_training("tests", "testUser")
         assert model_path
 

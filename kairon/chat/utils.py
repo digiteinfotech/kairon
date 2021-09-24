@@ -13,7 +13,7 @@ class ChatUtils:
         return chat_response
 
     @staticmethod
-    async def reload(bot: Text):
+    def reload(bot: Text):
         AgentProcessor.reload(bot)
 
 
