@@ -1907,13 +1907,22 @@ def test_save_history_endpoint():
     assert actual['message'] == 'Endpoint saved successfully!'
     assert actual['success']
 
-
+@responses.activate
 def test_save_endpoint(monkeypatch):
-    def mongo_store(*arge, **kwargs):
+    def mongo_store(*args, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setitem(Utility.environment['action'], "url", None)
+    monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+
+    responses.add(
+        responses.GET,
+        f"http://localhost/api/bot/{pytest.bot}/reload",
+        status=200,
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
+    )
+
     response = client.put(
         f"/api/bot/{pytest.bot}/endpoint",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

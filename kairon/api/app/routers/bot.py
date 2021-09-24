@@ -395,7 +395,7 @@ async def reload_model(
     """
     Reloads model with configuration in cache
     """
-    response = await Utility.reload_model(
+    response = Utility.reload_model(
         bot=current_user.get_bot(),
         email=current_user.email)
     return response
