@@ -728,10 +728,13 @@ class HistoryProcessor:
             fallback_count = []
             try:
                 total = list(
-                    conversations.aggregate([{"$match": {"latest_event_time": {
-                        "$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
-                        {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
+                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ]))
 
