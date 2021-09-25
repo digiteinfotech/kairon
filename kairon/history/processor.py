@@ -366,7 +366,8 @@ class HistoryProcessor:
                                                  "steps": 1,
                                                  "time": 1,
                                                  "latest_event_time": 1,
-                                             }}
+                                             }},
+                                             {"$sort": {"latest_event_time": -1}}
                                              ], allowDiskUse=True))
             except Exception as e:
                 logger.error(e)
