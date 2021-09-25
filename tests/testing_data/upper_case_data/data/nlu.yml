@@ -1,0 +1,35 @@
+version: "2.0"
+nlu:
+- intent: GREET
+  examples: |
+    - hey
+    - hello
+    - hi
+- intent: DENY
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+- synonym: KARNATAKA
+  examples: |
+    - KA
+    - karnataka
+    - bengaluru
+    - Bangalore
+- regex: EMAIL_ID
+  examples: |
+    - [^@]+@[^@]+\.[^@]+
+- regex: APPLICATION_NAME
+  examples: |
+    - [azAz09\s+]*
+- lookup: LOCATION
+  examples: |
+    - Mumbai
+    - Karnataka
+    - Bangalore
+- lookup: APPLICATION_NAME
+  examples: |
+    - Firefox
+    - Chrome
+    - Tor

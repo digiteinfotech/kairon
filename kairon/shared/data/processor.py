@@ -393,6 +393,7 @@ class MongoProcessor:
                 value=entity[ENTITY.VALUE.value],
                 entity=entity[ENTITY.ENTITY.value],
             )
+            entity_data.clean()
             yield entity_data
 
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
@@ -413,6 +414,7 @@ class MongoProcessor:
                             training_example.data[TRAINING_EXAMPLE.ENTITIES.value]
                         )
                     )
+                training_data.clean()
                 yield training_data
 
     def __fetch_all_synonyms_value(self, bot: Text):
@@ -425,7 +427,9 @@ class MongoProcessor:
         saved_synonyms = self.__fetch_all_synonyms_value(bot)
         for key, value in synonyms.items():
             if key not in saved_synonyms:
-                yield EntitySynonyms(bot=bot, synonym=value, value=key, user=user)
+                new_synonym = EntitySynonyms(bot=bot, name=value, value=key, user=user)
+                new_synonym.clean()
+                yield new_synonym
 
     def __save_entity_synonyms(self, entity_synonyms, bot: Text, user: Text):
         if entity_synonyms:
@@ -443,7 +447,7 @@ class MongoProcessor:
         """
         entitySynonyms = EntitySynonyms.objects(bot=bot, status=status)
         for entitySynonym in entitySynonyms:
-            yield {entitySynonym.value: entitySynonym.synonym}
+            yield {entitySynonym.value: entitySynonym.name}
 
     def __prepare_training_synonyms(self, bot: Text):
         synonyms = list(self.fetch_synonyms(bot))
@@ -487,7 +491,9 @@ class MongoProcessor:
             name = lookup_table[LOOKUP_TABLE.NAME.value]
             for element in lookup_table[LOOKUP_TABLE.ELEMENTS.value]:
                 if element not in saved_lookup:
-                    yield LookupTables(name=name, value=element, bot=bot, user=user)
+                    new_lookup = LookupTables(name=name, value=element, bot=bot, user=user)
+                    new_lookup.clean()
+                    yield new_lookup
 
     def __save_lookup_tables(self, lookup_tables, bot: Text, user: Text):
         if lookup_tables:
@@ -528,6 +534,7 @@ class MongoProcessor:
                 regex_data = RegexFeatures(**regex_feature)
                 regex_data.bot = bot
                 regex_data.user = user
+                regex_data.clean()
                 yield regex_data
 
     def __save_regex_features(self, regex_features, bot: Text, user: Text):
@@ -563,10 +570,12 @@ class MongoProcessor:
         """
         saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
-            if intent not in saved_intents:
+            if intent.strip().lower() not in saved_intents:
                 entities = intents[intent].get('used_entities')
                 use_entities = True if entities else False
-                yield Intents(name=intent.strip(), bot=bot, user=user, use_entities=use_entities)
+                new_intent = Intents(name=intent, bot=bot, user=user, use_entities=use_entities)
+                new_intent.clean()
+                yield new_intent
 
     def __save_intents(self, intents, bot: Text, user: Text):
         if intents:
@@ -603,8 +612,10 @@ class MongoProcessor:
     def __extract_domain_entities(self, entities: List[str], bot: Text, user: Text):
         saved_entities = self.__prepare_training_domain_entities(bot=bot)
         for entity in entities:
-            if entity not in saved_entities:
-                yield Entities(name=entity, bot=bot, user=user)
+            if entity.strip().lower() not in saved_entities:
+                new_entity = Entities(name=entity, bot=bot, user=user)
+                new_entity.clean()
+                yield new_entity
 
     def __save_domain_entities(self, entities: List[str], bot: Text, user: Text):
         if entities:
@@ -628,17 +639,19 @@ class MongoProcessor:
         return entities
 
     def __extract_forms(self, forms, bot: Text, user: Text):
-
         saved_forms = list(self.fetch_forms(bot, status=True))
-
+        saved_form_names = {key for name_mapping in saved_forms for key in name_mapping.keys()}
         for form, mappings in forms.items():
-            form_object = self.__save_form_logic(form, mappings, saved_forms, bot, user)
-            if form_object:
-                yield form_object
+            if form not in saved_form_names:
+                form_object = self.__save_form_logic(form, mappings, saved_forms, bot, user)
+                if form_object:
+                    yield form_object
 
     def __save_form_logic(self, name, mapping, saved_forms, bot, user):
         if {name: mapping} not in saved_forms:
-            return Forms(name=name, mapping=mapping, bot=bot, user=user)
+            form = Forms(name=name, mapping=mapping, bot=bot, user=user)
+            form.clean()
+            return form
         return None
 
     def __save_forms(self, forms, bot: Text, user: Text):
@@ -670,8 +683,10 @@ class MongoProcessor:
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
-            if action not in saved_actions:
-                yield Actions(name=action, bot=bot, user=user)
+            if action.strip().lower() not in saved_actions:
+                new_action = Actions(name=action, bot=bot, user=user)
+                new_action.clean()
+                yield new_action
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -768,6 +783,7 @@ class MongoProcessor:
                     response.text = r_object
                 elif RESPONSE.CUSTOM.value == r_type:
                     response.custom = r_object
+                response.clean()
                 yield response
 
     def __extract_response(self, responses, bot: Text, user: Text):
@@ -790,8 +806,10 @@ class MongoProcessor:
             new_utterances = []
             existing_utterances = Utterances.objects(bot=bot, status=True).values_list('name')
             for utterance in utterances:
-                if utterance not in existing_utterances:
-                    new_utterances.append(Utterances(name=utterance, bot=bot, user=user))
+                if utterance.strip().lower() not in existing_utterances:
+                    new_utter = Utterances(name=utterance, bot=bot, user=user)
+                    new_utter.clean()
+                    new_utterances.append(new_utter)
             if new_utterances:
                 Utterances.objects.insert(new_utterances)
 
@@ -843,14 +861,16 @@ class MongoProcessor:
         slots_name_list = self.__fetch_slot_names(bot)
         for slot in slots:
             items = vars(slot)
-            if items["name"] not in slots_name_list:
+            if items["name"].strip().lower() not in slots_name_list:
                 items["type"] = slot.type_name
                 items["value_reset_delay"] = items["_value_reset_delay"]
                 items.pop("_value_reset_delay")
                 items["bot"] = bot
                 items["user"] = user
                 items.pop("value")
-                yield Slots._from_son(items)
+                new_slot = Slots._from_son(items)
+                new_slot.clean()
+                yield new_slot
 
     def __save_slots(self, slots, bot: Text, user: Text):
         if slots:
@@ -910,15 +930,23 @@ class MongoProcessor:
                     end=entity.get('end'),
                     value=entity.get('value'),
                     entity=entity.get('entity')) for entity in event.entities]
-                yield StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
+                story_event = StoryEvents(type=event.type_name, name=event.intent_name, entities=entities)
+                story_event.clean()
+                yield story_event
             elif isinstance(event, ActionExecuted):
-                yield StoryEvents(type=event.type_name, name=event.action_name)
+                story_event = StoryEvents(type=event.type_name, name=event.action_name)
+                story_event.clean()
+                yield story_event
             elif isinstance(event, ActiveLoop):
-                yield StoryEvents(type=event.type_name, name=event.name)
+                story_event = StoryEvents(type=event.type_name, name=event.name)
+                story_event.clean()
+                yield story_event
             elif isinstance(event, SlotSet):
-                yield StoryEvents(
+                story_event = StoryEvents(
                     type=event.type_name, name=event.key, value=event.value
                 )
+                story_event.clean()
+                yield story_event
 
     def __fetch_story_block_names(self, bot: Text):
         saved_stories = list(
@@ -929,7 +957,7 @@ class MongoProcessor:
     def __extract_story_step(self, story_steps, bot: Text, user: Text):
         saved_stories = self.__fetch_story_block_names(bot)
         for story_step in story_steps:
-            if not isinstance(story_step, RuleStep) and story_step.block_name not in saved_stories:
+            if not isinstance(story_step, RuleStep) and story_step.block_name.strip().lower() not in saved_stories:
                 story_events = list(self.__extract_story_events(story_step.events))
                 story = Stories(
                     block_name=story_step.block_name,
@@ -946,6 +974,7 @@ class MongoProcessor:
                 )
                 story.bot = bot
                 story.user = user
+                story.clean()
                 yield story
 
     def __save_stories(self, story_steps, bot: Text, user: Text):
@@ -1191,23 +1220,23 @@ class MongoProcessor:
             status = {}
             try:
                 intent_id = self.add_intent(
-                    text=data.intent.strip().lower(),
+                    text=data.intent,
                     bot=bot,
                     user=user,
                     is_integration=is_integration
                 )
-                status[data.intent.strip().lower()] = intent_id
+                status[data.intent] = intent_id
             except AppException as e:
-                status[data.intent.strip().lower()] = str(e)
+                status[data.intent] = str(e)
 
-            story_name = "path_" + data.intent.strip().lower()
-            utterance = "utter_" + data.intent.strip().lower()
+            story_name = "path_" + data.intent
+            utterance = "utter_" + data.intent
             events = [
-                {"name": data.intent.strip().lower(), "type": "INTENT"},
-                {"name": utterance.strip().lower(), "type": "BOT"}]
+                {"name": data.intent, "type": "INTENT"},
+                {"name": utterance, "type": "BOT"}]
             try:
                 doc_id = self.add_complex_story(
-                    story={'name': story_name.lower(), 'steps': events, 'type': 'STORY',
+                    story={'name': story_name, 'steps': events, 'type': 'STORY',
                            'template_type': TemplateType.CUSTOM.value},
                     bot=bot,
                     user=user
@@ -1218,7 +1247,7 @@ class MongoProcessor:
             try:
                 status_message = list(
                     self.add_training_example(
-                        data.training_examples, data.intent.lower(), bot, user,
+                        data.training_examples, data.intent, bot, user,
                         is_integration)
                 )
                 status['training_examples'] = status_message
@@ -1226,7 +1255,7 @@ class MongoProcessor:
                 for training_data_add_status in status_message:
                     if training_data_add_status['_id']:
                         training_examples.append(training_data_add_status['text'])
-                training_data_added[data.intent.strip().lower()] = training_examples
+                training_data_added[data.intent] = training_examples
             except AppException as e:
                 status['training_examples'] = str(e)
 
@@ -1260,7 +1289,7 @@ class MongoProcessor:
             bot=bot,
             status=True,
         )
-        saved = Intents(name=text.strip().lower(), bot=bot, user=user,
+        saved = Intents(name=text, bot=bot, user=user,
                         is_integration=is_integration).save().to_mongo().to_dict()
         return saved["_id"].__str__()
 
@@ -1320,7 +1349,7 @@ class MongoProcessor:
                         new_entities = None
 
                     training_example = TrainingExamples(
-                        intent=intent.strip().lower(),
+                        intent=intent,
                         text=text,
                         entities=new_entities,
                         bot=bot,
@@ -1328,8 +1357,11 @@ class MongoProcessor:
                     )
 
                     saved = training_example.save().to_mongo().to_dict()
+                    new_entities_as_dict = []
+                    if new_entities:
+                        new_entities_as_dict = [json.loads(e.to_json()) for e in new_entities]
                     yield {
-                        "text": example,
+                        "text": DataUtility.prepare_nlu_text(text, new_entities_as_dict),
                         "_id": saved["_id"].__str__(),
                         "message": "Training Example added",
                     }
@@ -1360,17 +1392,21 @@ class MongoProcessor:
                 continue
 
             text, entities = DataUtility.extract_text_and_entities(example.strip())
+            new_entities_as_dict = []
             try:
                 training_example = TrainingExamples.objects(text__iexact=text, bot=bot, status=True).get()
-                training_example.intent = intent.strip().lower()
+                training_example.intent = intent
                 message = "Training Example moved"
+                if training_example.entities:
+                    new_entities_as_dict = [json.loads(e.to_json()) for e in training_example.entities]
             except DoesNotExist:
                 if entities:
                     new_entities = self.save_entities_and_add_slots(entities, bot, user)
+                    new_entities_as_dict = [json.loads(e.to_json()) for e in new_entities]
                 else:
                     new_entities = None
                 training_example = TrainingExamples(
-                    intent=intent.strip().lower(),
+                    intent=intent,
                     text=text,
                     entities=new_entities,
                     bot=bot,
@@ -1378,8 +1414,9 @@ class MongoProcessor:
                 )
                 message = "Training Example added"
             saved = training_example.save().to_mongo().to_dict()
+
             yield {
-                "text": example,
+                "text": DataUtility.prepare_nlu_text(text, new_entities_as_dict),
                 "_id": saved["_id"].__str__(),
                 "message": message
             }
@@ -1412,11 +1449,12 @@ class MongoProcessor:
                     TrainingExamples,
                     raise_error=False,
                     text__iexact=text,
+                    entities=entities,
                     bot=bot,
                     status=True,
             ):
                 raise AppException("Training Example already exists!")
-            training_example = TrainingExamples.objects(bot=bot, intent=intent.strip().lower()).get(
+            training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
                 id=id
             )
             training_example.user = user
@@ -1582,12 +1620,12 @@ class MongoProcessor:
             status=True,
         )
         entity = (
-            Entities(name=name.strip(), bot=bot, user=user).save().to_mongo().to_dict()
+            Entities(name=name, bot=bot, user=user).save().to_mongo().to_dict()
         )
         if not Utility.is_exist(
                 Slots, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Slots(name=name.strip(), type="text", bot=bot, user=user).save()
+            Slots(name=name, type="text", bot=bot, user=user).save()
         return entity["_id"].__str__()
 
     def get_entities(self, bot: Text):
@@ -1617,11 +1655,11 @@ class MongoProcessor:
                 Actions,
                 raise_error=raise_exception,
                 exp_message="Action exists!",
-                name__iexact=name.strip(),
+                name__iexact=name,
                 bot=bot,
                 status=True):
             action = (
-                Actions(name=name.strip().lower(), type=action_type, bot=bot, user=user).save().to_mongo().to_dict()
+                Actions(name=name, type=action_type, bot=bot, user=user).save().to_mongo().to_dict()
             )
             return action["_id"].__str__()
         else:
@@ -1639,11 +1677,13 @@ class MongoProcessor:
 
     def __add_slots_from_entities(self, entities: List[Text], bot: Text, user: Text):
         slot_name_list = self.__fetch_slot_names(bot)
-        slots = [
-            Slots(name=entity, type="text", bot=bot, user=user)
-            for entity in entities
-            if entity not in slot_name_list
-        ]
+        slots = []
+        for entity in entities:
+            if entity.strip().lower() not in slot_name_list:
+                slot = Slots(name=entity, type="text", bot=bot, user=user)
+                slot.clean()
+                slots.append(slot)
+
         if slots:
             Slots.objects.insert(slots)
 
@@ -1661,7 +1701,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         return self.add_response(
-            utterances={"text": utterance.strip()}, name=name.strip().lower(), bot=bot, user=user
+            utterances={"text": utterance}, name=name, bot=bot, user=user
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text):
@@ -1679,11 +1719,11 @@ class MongoProcessor:
         )
         response = list(
             self.__extract_response_value(
-                values=[utterances], key=name.strip().lower(), bot=bot, user=user
+                values=[utterances], key=name, bot=bot, user=user
             )
         )[0]
         value = response.save().to_mongo().to_dict()
-        self.add_utterance_name(name=name.strip().lower(), bot=bot, user=user)
+        self.add_utterance_name(name=name, bot=bot, user=user)
         return value["_id"].__str__()
 
     def edit_text_response(
@@ -1700,7 +1740,7 @@ class MongoProcessor:
         :return: None
         :raises: DoesNotExist: if utterance does not exist
         """
-        self.edit_response(id, {"text": utterance}, name.lower(), bot, user)
+        self.edit_response(id, {"text": utterance}, name, bot, user)
 
     def edit_response(
             self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
@@ -1720,7 +1760,7 @@ class MongoProcessor:
             self.__check_response_existence(
                 response=utterances, bot=bot, exp_message="Utterance already exists!"
             )
-            response = Responses.objects(bot=bot, name=name.lower()).get(id=id)
+            response = Responses.objects(bot=bot, name=name).get(id=id)
             r_type, r_object = DataUtility.prepare_response(utterances)
             if RESPONSE.Text.value == r_type:
                 response.text = r_object
@@ -1887,7 +1927,7 @@ class MongoProcessor:
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="FLow already exists!")
 
-        data_object.block_name = name.strip().lower()
+        data_object.block_name = name
         data_object.events = events
         data_object.bot = bot
         data_object.user = user
@@ -2328,7 +2368,7 @@ class MongoProcessor:
         if not (utterance_name and utterance_name.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
-            responses = list(Responses.objects(name=utterance_name.strip().lower(), bot=bot, status=True))
+            responses = list(Responses.objects(name=utterance_name, bot=bot, status=True))
             if not responses:
                 if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
                     self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
@@ -2417,7 +2457,7 @@ class MongoProcessor:
 
         doc_id = HttpActionConfig(
             auth_token=http_action_config.get("auth_token"),
-            action_name=http_action_config['action_name'].lower(),
+            action_name=http_action_config['action_name'],
             response=http_action_config['response'],
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
@@ -2425,7 +2465,7 @@ class MongoProcessor:
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
-        self.add_action(http_action_config['action_name'].lower(), bot, user, action_type=ActionType.http_action.value, raise_exception=False)
+        self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value, raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
                        "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
@@ -2578,7 +2618,7 @@ class MongoProcessor:
         saved_rules = self.fetch_rule_block_names(bot)
 
         for story_step in story_steps:
-            if isinstance(story_step, RuleStep) and story_step.block_name not in saved_rules:
+            if isinstance(story_step, RuleStep) and story_step.block_name.strip().lower() not in saved_rules:
                 rule = self.__extract_rule_events(story_step, bot, user)
                 yield rule
 
@@ -2599,6 +2639,7 @@ class MongoProcessor:
             bot=bot,
             user=user
         )
+        rule.clean()
         return rule
 
     @staticmethod
@@ -2675,12 +2716,12 @@ class MongoProcessor:
 
         actions_data = http_action['http_actions']
         for actions in actions_data:
-            if actions['action_name'] not in saved_http_actions:
-                action_name = str(actions['action_name']).lower()
+            if actions['action_name'].strip().lower() not in saved_http_actions:
+                action_name = str(actions['action_name'])
                 http_obj = HttpActionConfig()
                 http_obj.bot = bot
                 http_obj.user = user
-                http_obj.action_name = action_name.strip()
+                http_obj.action_name = action_name
                 http_obj.http_url = actions['http_url']
                 http_obj.response = actions['response']
                 http_obj.request_method = actions['request_method']
@@ -2920,21 +2961,21 @@ class MongoProcessor:
                 self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)
 
     def add_synonym(self, synonyms_dict: Dict, bot, user):
-        if Utility.check_empty_string(synonyms_dict.get('synonym')):
+        if Utility.check_empty_string(synonyms_dict.get('name')):
             raise AppException("Synonym name cannot be an empty string")
         if not synonyms_dict.get('value'):
             raise AppException("Synonym value cannot be an empty string")
         empty_element = any([Utility.check_empty_string(elem) for elem in synonyms_dict.get('value')])
         if empty_element:
             raise AppException("Synonym value cannot be an empty string")
-        synonym = list(EntitySynonyms.objects(synonym__iexact=synonyms_dict['synonym'], bot=bot, status=True))
+        synonym = list(EntitySynonyms.objects(name__iexact=synonyms_dict['name'], bot=bot, status=True))
         value_list = set(item.value for item in synonym)
         check = any(item in value_list for item in synonyms_dict.get('value'))
         if check:
             raise AppException("Synonym value already exists")
         for val in synonyms_dict.get('value'):
             entity_synonym = EntitySynonyms()
-            entity_synonym.synonym = synonyms_dict['synonym']
+            entity_synonym.name = synonyms_dict['name']
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
@@ -2953,12 +2994,12 @@ class MongoProcessor:
         :return: None
         :raises: AppException
         """
-        synonym = list(EntitySynonyms.objects(synonym__iexact=name, bot=bot, status=True))
+        synonym = list(EntitySynonyms.objects(name__iexact=name, bot=bot, status=True))
         value_list = set(item.value for item in synonym)
         if value in value_list:
             raise AppException("Synonym value already exists")
         try:
-            val = EntitySynonyms.objects(bot=bot, synonym__iexact=name).get(id=synonym_id)
+            val = EntitySynonyms.objects(bot=bot, name__iexact=name).get(id=synonym_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
@@ -2969,7 +3010,7 @@ class MongoProcessor:
     def delete_synonym(self, synonym_name: str, bot: str, user: str):
         if not (synonym_name and synonym_name.strip()):
             raise AppException("Synonym cannot be empty or spaces")
-        values = list(EntitySynonyms.objects(synonym__iexact=synonym_name, bot=bot, user=user, status=True))
+        values = list(EntitySynonyms.objects(name__iexact=synonym_name, bot=bot, user=user, status=True))
         if not values:
             raise AppException("Synonym does not exist")
         for value in values:
@@ -2993,7 +3034,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: yields the values
         """
-        values = EntitySynonyms.objects(bot=bot, status=True, synonym__iexact=name).order_by(
+        values = EntitySynonyms.objects(bot=bot, status=True, name__iexact=name).order_by(
             "-timestamp"
         )
         for value in values:
@@ -3083,8 +3124,8 @@ class MongoProcessor:
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = bot_info['user']
-        token = Authentication().generate_integration_token(bot, bot_info['account'], expiry=1440,
-                                                            access_limit=['/api/bot/.+/chat'])
+        token = Authentication.generate_integration_token(bot, bot_info['account'], expiry=1440,
+                                                          access_limit=['/api/bot/.+/chat'])
         client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
         return client_config
 
@@ -3243,8 +3284,7 @@ class MongoProcessor:
     def add_form(self, name: str, path: list, bot: Text, user: Text):
         if Utility.check_empty_string(name):
             raise AppException('Form name cannot be empty or spaces')
-        name = name.strip().lower()
-        Utility.is_exist(Forms, f'Form with name "{name}" exists', name=name, bot=bot, status=True)
+        Utility.is_exist(Forms, f'Form with name "{name}" exists', name__iexact=name, bot=bot, status=True)
         existing_slots = set(Slots.objects(bot=bot, status=True).values_list('name'))
         required_slots = {slots_to_fill['slot'] for slots_to_fill in path if
                           not Utility.check_empty_string(slots_to_fill['slot'])}
@@ -3326,8 +3366,7 @@ class MongoProcessor:
     def add_slot_set_action(self, action: dict, bot: Text, user: Text):
         if Utility.check_empty_string(action.get("name")) or Utility.check_empty_string(action.get("slot")):
             raise AppException('Slot setting action name and slot cannot be empty or spaces')
-        action["name"] = action["name"].lower()
-        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name=action['name'], bot=bot, status=True)
+        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name__iexact=action['name'], bot=bot, status=True)
         if not Utility.is_exist(Slots, raise_error=False, name=action['slot'], bot=bot, status=True):
             raise AppException(f'Slot with name "{action["slot"]}" not found')
         SlotSetAction(name=action["name"],

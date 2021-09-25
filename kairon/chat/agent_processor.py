@@ -33,17 +33,6 @@ class AgentProcessor:
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
-    def get_latest_model(bot: Text):
-        """
-        fetches the latest model from the path
-
-        :param bot: bot id
-        :return: latest model path
-        """
-        model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
-        return Utility.get_latest_file(model_file, "*.tar.gz")
-
-    @staticmethod
     def reload(bot: Text):
         """
         reload bot agent
@@ -56,7 +45,7 @@ class AgentProcessor:
                 bot, raise_exception=False
             )
             action_endpoint = Utility.get_action_url(endpoint)
-            model_path = AgentProcessor.get_latest_model(bot)
+            model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
             agent = Agent.load(

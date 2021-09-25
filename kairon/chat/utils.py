@@ -12,4 +12,8 @@ class ChatUtils:
         )
         return chat_response
 
+    @staticmethod
+    def reload(bot: Text):
+        AgentProcessor.reload(bot)
+
 

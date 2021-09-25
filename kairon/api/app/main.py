@@ -43,7 +43,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_apm_client()
+apm_client = Utility.initiate_fastapi_apm_client()
 if apm_client:
     app.add_middleware(ElasticAPM, client=apm_client)
 

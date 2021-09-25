@@ -31,8 +31,6 @@ from pymongo.uri_parser import (
     parse_userinfo,
 )
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
-from rasa.shared.constants import DEFAULT_MODELS_PATH
-from rasa.shared.importers.rasa import Domain
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
@@ -40,7 +38,6 @@ from password_strength import PasswordPolicy
 from ..exceptions import AppException
 from passlib.context import CryptContext
 from urllib.parse import urljoin
-from cryptography.fernet import Fernet
 
 
 class Utility:
@@ -216,6 +213,8 @@ class Utility:
         :param bot: bot id
         :return: endpoint deployed response
         """
+        from rasa.shared.constants import DEFAULT_MODELS_PATH
+
         if not endpoint or not endpoint.get("bot_endpoint"):
             raise AppException("Please configure the bot endpoint for deployment!")
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
@@ -425,7 +424,7 @@ class Utility:
         return settings
 
     @staticmethod
-    def get_local_mongo_store(bot: Text, domain: Domain):
+    def get_local_mongo_store(bot: Text, domain):
         """
         create local mongo tracker
 
@@ -434,14 +433,15 @@ class Utility:
         :return: mongo tracker
         """
         from rasa.core.tracker_store import MongoTrackerStore
-        username, password, url, db_name = Utility.get_local_db()
+        config = Utility.get_local_db()
         return MongoTrackerStore(
             domain=domain,
-            host=url,
-            db=db_name,
+            host=config['host'],
+            db=config['db'],
             collection=bot,
-            username=username,
-            password=password,
+            username=config.get('username'),
+            password=config.get('password'),
+            auth_source= config['options'].get("authSource") if config['options'].get("authSource") else "admin"
         )
 
     @staticmethod
@@ -504,9 +504,11 @@ class Utility:
         return config
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str, json: Dict = None):
+    def http_request(method: str, url: str, token: str, user: str=None, json: Dict = None):
         logger.info("agent event started " + url)
-        headers = {'content-type': 'application/json', 'X-USER': user}
+        headers = {'content-type': 'application/json'}
+        if user:
+            headers['X-USER'] = user
         if token:
             headers['Authorization'] = 'Bearer ' + token
         if method.lower() == 'get':
@@ -587,23 +589,20 @@ class Utility:
         smtp.quit()
 
     @staticmethod
-    def initiate_apm_client():
-        from elasticapm.contrib.starlette import make_apm_client
-
+    def initiate_apm_client_config():
         logger.debug(f'apm_enable: {Utility.environment["elasticsearch"].get("enable")}')
         if Utility.environment["elasticsearch"].get("enable"):
             server_url = Utility.environment["elasticsearch"].get("apm_server_url")
             service_name = Utility.environment["elasticsearch"].get("service_name")
             env = Utility.environment["elasticsearch"].get("env_type")
-            request = {"SERVER_URL": server_url,
+            config = {"SERVER_URL": server_url,
                        "SERVICE_NAME": service_name,
                        'ENVIRONMENT': env, }
             if Utility.environment["elasticsearch"].get("secret_token"):
-                request['SECRET_TOKEN'] = Utility.environment["elasticsearch"].get("secret_token")
-            logger.debug(f'apm: {request}')
+                config['SECRET_TOKEN'] = Utility.environment["elasticsearch"].get("secret_token")
+            logger.debug(f'apm: {config}')
             if service_name and server_url:
-                apm = make_apm_client(request)
-                return apm
+                return config
 
     @staticmethod
     def read_yaml(path: Text, raise_exception: bool = False):
@@ -803,7 +802,7 @@ class Utility:
         """
         from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
         from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-
+        from rasa.shared.importers.rasa import Domain
 
         temp_path = tempfile.mkdtemp()
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
@@ -843,7 +842,7 @@ class Utility:
 
     @staticmethod
     def create_zip_file(
-            nlu, domain: Domain, stories, config: Dict, bot: Text,
+            nlu, domain, stories, config: Dict, bot: Text,
             rules = None,
             http_action: Dict = None
     ):
@@ -896,11 +895,30 @@ class Utility:
             raise AppException("Agent config not found!")
 
     @staticmethod
+    def reload_model(bot: Text, email: Text):
+        if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
+            from kairon.shared.auth import Authentication
+            agent_url = Utility.environment['model']['agent'].get('url')
+            token = Authentication.create_access_token(data={"sub": email})
+            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token.decode('utf8'))
+            return json.loads(response)
+        else:
+            raise AppException("Agent config not found!")
+
+    @staticmethod
     def initiate_tornado_apm_client(app):
         from elasticapm.contrib.tornado import ElasticAPM
-        if Utility.initiate_apm_client():
+        config = Utility.initiate_apm_client_config()
+        if config:
+            app.settings['ELASTIC_APM'] = config
             ElasticAPM(app)
 
+    @staticmethod
+    def initiate_fastapi_apm_client():
+        from elasticapm.contrib.starlette import make_apm_client
+        config = Utility.initiate_apm_client_config()
+        if config:
+            return make_apm_client(config)
 
     @staticmethod
     def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET',
@@ -927,6 +945,8 @@ class Utility:
 
     @staticmethod
     def encrypt_message(msg: Text):
+        from cryptography.fernet import Fernet
+
         key = Utility.environment['security']["fernet_key"]
         fernet = Fernet(key.encode('utf-8'))
         encoded_msg = msg.encode('utf-8')
@@ -935,6 +955,8 @@ class Utility:
 
     @staticmethod
     def decrypt_message(msg: Text):
+        from cryptography.fernet import Fernet
+
         key = Utility.environment['security']["fernet_key"]
         fernet = Fernet(key.encode('utf-8'))
         encoded_msg = msg.encode('utf-8')
@@ -946,3 +968,16 @@ class Utility:
         from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
 
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
+
+    @staticmethod
+    def get_latest_model(bot: Text):
+        """
+        fetches the latest model from the path
+
+        :param bot: bot id
+        :return: latest model path
+        """
+        from rasa.shared.constants import DEFAULT_MODELS_PATH
+
+        model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
+        return Utility.get_latest_file(model_file, "*.tar.gz")

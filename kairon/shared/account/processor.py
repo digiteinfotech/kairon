@@ -7,15 +7,8 @@ from mongoengine.errors import ValidationError
 from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
-
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation
-from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
-    EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, Slots, \
-    TrainingDataGenerator, TrainingExamples, BotSettings
-from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
-from kairon.importer.data_objects import ValidationLogs
-from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -69,6 +62,9 @@ class AccountProcessor:
         :param is_new_account: True if it is a new account
         :return: bot id
         """
+        from kairon.shared.data.processor import MongoProcessor
+        from kairon.shared.data.data_objects import BotSettings
+
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
 
@@ -114,6 +110,12 @@ class AccountProcessor:
 
     @staticmethod
     def delete_bot(bot: Text, user: Text):
+        from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
+            EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, \
+            Slots, TrainingDataGenerator, TrainingExamples
+        from kairon.importer.data_objects import ValidationLogs
+        from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
+
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.status = False
@@ -302,6 +304,8 @@ class AccountProcessor:
         :param user: user id
         :return: dict user details, user email id, confirmation mail subject, mail body
         """
+        from kairon.shared.data.processor import MongoProcessor
+
         account = None
         bot = None
         body = None

@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import shutil
@@ -7,7 +6,6 @@ import tempfile
 from io import BytesIO
 from zipfile import ZipFile
 
-import mongomock
 import pytest
 import responses
 from fastapi.testclient import TestClient
@@ -15,20 +13,22 @@ from mongoengine import connect
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
-from kairon.shared.auth import Authentication
-from kairon.shared.models import StoryEventType
-from kairon.shared.models import User
+from kairon.exceptions import AppException
+from kairon.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.exceptions import AppException
-from kairon.importer.data_objects import ValidationLogs
-from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import StoryEventType
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
+import json
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -1908,12 +1908,22 @@ def test_save_history_endpoint():
     assert actual['success']
 
 
+@responses.activate
 def test_save_endpoint(monkeypatch):
-    def mongo_store(*arge, **kwargs):
+    def mongo_store(*args, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setitem(Utility.environment['action'], "url", None)
+    monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+
+    responses.add(
+        responses.GET,
+        f"http://localhost/api/bot/{pytest.bot}/reload",
+        status=200,
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
+    )
+
     response = client.put(
         f"/api/bot/{pytest.bot}/endpoint",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -2023,12 +2033,22 @@ def test_set_templates_invalid():
     assert not actual['success']
 
 
+@responses.activate
 def test_reload_model(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setitem(Utility.environment['action'], "url", None)
+    monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+
+    responses.add(
+        responses.GET,
+        f"http://localhost/api/bot/{pytest.bot}/reload",
+        status=200,
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
+    )
+
     response = client.get(
         f"/api/bot/{pytest.bot}/model/reload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -3546,39 +3566,48 @@ def test_list_action_server_logs():
     expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                         "intent4", "intent3", "intent2"]
     ActionServerLogs(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
-                  url="http://kairon-api.digite.com/api/bot",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     url="http://kairon-api.digite.com/api/bot",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot_2).save()
     ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent7", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent8", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent9", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent10", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot_2).save()
     ActionServerLogs(intent="intent11", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot).save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
     ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
+                     status="FAILURE").save()
     ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
-                  request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                  status="FAILURE").save()
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -4205,7 +4234,7 @@ def test_get_synonyms():
 def test_add_synonyms():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any"]},
+        json={"name": "bot_add", "value": ["any"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4215,7 +4244,7 @@ def test_add_synonyms():
 
     client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any1"]},
+        json={"name": "bot_add", "value": ["any1"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -4241,7 +4270,7 @@ def test_get_specific_synonym_values():
 def test_add_synonyms_duplicate():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ["any"]},
+        json={"name": "bot_add", "value": ["any"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4253,7 +4282,7 @@ def test_add_synonyms_duplicate():
 def test_add_synonyms_value_empty():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": []},
+        json={"name": "bot_add", "value": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4265,7 +4294,7 @@ def test_add_synonyms_value_empty():
 def test_add_synonyms_empty():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "", "value": ["h"]},
+        json={"name": "", "value": ["h"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4351,7 +4380,7 @@ def test_delete_synonym():
 def test_add_synonyms_empty_value_element():
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonyms",
-        json={"synonym": "bot_add", "value": ['df', '']},
+        json={"name": "bot_add", "value": ['df', '']},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5345,3 +5374,389 @@ def test_list_slot_set_action_none_present():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == []
+
+
+def test_add_intent_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        json={"data": "CASE_INSENSITIVE_INTENT"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Intent added successfully!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    intents_added = [i['name'] for i in actual["data"]]
+    assert 'CASE_INSENSITIVE_INTENT' not in intents_added
+    assert 'case_insensitive_intent' in intents_added
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/CASE_INSENSITIVE_INTENT",
+        json={"data": ["IS THIS CASE_INSENSITIVE_INTENT?"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][0]["message"] == "Training Example added"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/case_insensitive_intent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    training_examples = [t['text'] for t in actual["data"]]
+    assert "IS THIS CASE_INSENSITIVE_INTENT?" in training_examples
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_training_example_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/training_examples/CASE_INSENSITIVE_TRAINING_EX_INTENT",
+        json={"data": ["IS THIS CASE_INSENSITIVE_TRAINING_EX_INTENT?"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][0]["message"] == "Training Example added"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/case_insensitive_training_ex_intent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "IS THIS CASE_INSENSITIVE_TRAINING_EX_INTENT?" in [t['text'] for t in actual["data"]]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_utterances_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/utterance",
+        json={"data": "utter_CASE_INSENSITIVE_UTTERANCE"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance added!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/utterance",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    utterances_added = [u['name'] for u in actual['data']['utterances']]
+    assert 'utter_CASE_INSENSITIVE_UTTERANCE' not in utterances_added
+    assert 'utter_case_insensitive_utterance' in utterances_added
+
+
+def test_add_responses_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/utter_CASE_INSENSITIVE_RESPONSE",
+        json={"data": "yes, this is utter_CASE_INSENSITIVE_RESPONSE"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Response added!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_CASE_INSENSITIVE_RESPONSE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][0]['value'] == {'text': 'yes, this is utter_CASE_INSENSITIVE_RESPONSE'}
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_case_insensitive_response",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+
+
+def test_add_story_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "CASE_INSENSITIVE_STORY",
+            "type": "STORY",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "case_insensitive_training_ex_intent", "type": "INTENT"},
+                {"name": "utter_case_insensitive_response", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+    stories_added = [s['name'] for s in actual["data"]]
+    assert 'CASE_INSENSITIVE_STORY' not in stories_added
+    assert 'case_insensitive_story' in stories_added
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/stories/case_insensitive_story/STORY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow deleted successfully"
+
+
+def test_add_rule_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "CASE_INSENSITIVE_RULE",
+            "type": "RULE",
+            "steps": [
+                {"name": "case_insensitive_training_ex_intent", "type": "INTENT"},
+                {"name": "utter_case_insensitive_response", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+    stories_added = [s['name'] for s in actual["data"]]
+    assert 'CASE_INSENSITIVE_RULE' not in stories_added
+    assert 'case_insensitive_rule' in stories_added
+
+
+def test_add_regex_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/regex",
+        json={"name": "CASE_INSENSITIVE_REGEX", "pattern": "b*b"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Regex pattern added successfully!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/regex",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+    assert "CASE_INSENSITIVE_REGEX" != actual['data'][0]['name']
+    assert "case_insensitive_regex" == actual['data'][0]['name']
+
+
+def test_add_lookup_table_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        json={"name": "CASE_INSENSITIVE_LOOKUP", "value": ["test1", "test2"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup table and values added successfully!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/lookup/tables",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    lookups_added = [l['name'] for l in actual['data']]
+    assert 'CASE_INSENSITIVE_LOOKUP' not in lookups_added
+    assert 'case_insensitive_lookup' in lookups_added
+
+
+def test_add_entity_synonym_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        json={"name": "CASE_INSENSITIVE", "value": ["CASE_INSENSITIVE_SYNONYM"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym and values added successfully!"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entity/synonyms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['data'] == [{'CASE_INSENSITIVE_SYNONYM': 'case_insensitive'}]
+
+
+def test_add_slot_case_insensitivity():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "CASE_INSENSITIVE_SLOT", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/slots",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert "data" in actual
+    assert len(actual["data"])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_form_case_insensitivity():
+    path = [{'responses': ['please give us your name?'], 'slot': 'name',
+             'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                         {'type': 'from_entity', 'entity': 'name'}]},
+            ]
+    request = {'name': 'CASE_INSENSITIVE_FORM', 'path': path}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Form added"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/CASE_INSENSITIVE_FORM",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Form does not exists'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/case_insensitive_form",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']
+
+
+def test_add_slot_set_action_case_insensitivity():
+    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/slotset",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'slot': 'name', 'type': 'from_value', 'value': 5}
+
+
+def test_add_http_action_case_insensitivity():
+    request_body = {
+        "action_name": "CASE_INSENSITIVE_HTTP_ACTION",
+        "response": "string",
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [{
+            "key": "testParam1",
+            "parameter_type": "value",
+            "value": "testValue1"
+        }]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/CASE_INSENSITIVE_HTTP_ACTION",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual['data']
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/case_insensitive_http_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]

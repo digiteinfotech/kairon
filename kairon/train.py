@@ -136,7 +136,7 @@ def train_model_for_bot(bot: str):
     return model
 
 
-def start_training(bot: str, user: str, token: str = None, reload=True):
+def start_training(bot: str, user: str, token: str = None):
     """
     prevents training of the bot,
     if the training session is in progress otherwise start training
@@ -155,7 +155,7 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
         Utility.train_model_event(bot, user, token)
     else:
         try:
-            apm_client = Utility.initiate_apm_client()
+            apm_client = Utility.initiate_fastapi_apm_client()
             if apm_client:
                 elasticapm.instrument()
                 apm_client.begin_transaction(transaction_type="script")
@@ -164,7 +164,7 @@ def start_training(bot: str, user: str, token: str = None, reload=True):
             agent_url = Utility.environment['model']['agent'].get('url')
             if agent_url:
                 if token:
-                    Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/model/reload"), token, user)
+                    Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
         except Exception as e:
             print(e)
             logging.exception(e)
