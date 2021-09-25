@@ -165,33 +165,41 @@ class HistoryProcessor:
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
-            values = []
+            fallback_counts, total_counts = [], []
             try:
-                values = list(conversations.aggregate([{"$unwind": "$events"},
-                                                       {"$match": {"events.event": "action",
-                                                                   "events.name": {"$nin": default_actions},
-                                                                   "events.timestamp": {
-                                                                       "$gte": Utility.get_timestamp_previous_month(
-                                                                           month)}}},
-                                                       {"$group": {"_id": "$sender_id", "total_count": {"$sum": 1},
-                                                                   "events": {"$push": "$events"}}},
-                                                       {"$unwind": "$events"},
-                                                       {"$match": {'$or': [{"events.name": fallback_action},
-                                                                           {"events.name": nlu_fallback_action}]}},
-                                                       {"$group": {"_id": None,
-                                                                   "total_count": {"$first": "$total_count"},
-                                                                   "fallback_count": {"$sum": 1}}},
-                                                       {"$project": {"total_count": 1, "fallback_count": 1, "_id": 0}}
-                                                       ], allowDiskUse=True))
+                fallback_counts = list(conversations.aggregate([{"$unwind": "$events"},
+                                                                {"$match": {"events.event": "action",
+                                                                            "events.name": {"$nin": default_actions},
+                                                                            "events.timestamp": {
+                                                                        "$gte": Utility.get_timestamp_previous_month(
+                                                                                    month)}}},
+                                                                {"$match": {'$or': [{"events.name": fallback_action},
+                                                                                    {
+                                                                                "events.name": nlu_fallback_action}]}},
+                                                                {"$group": {"_id": None,
+                                                                            "fallback_count": {"$sum": 1}}},
+                                                                {"$project": {"fallback_count": 1, "_id": 0}}
+                                                                ], allowDiskUse=True))
+
+                total_counts = list(conversations.aggregate([{"$unwind": "$events"},
+                                                             {"$match": {"events.event": "action",
+                                                                         "events.name": {"$nin": default_actions},
+                                                                         "events.timestamp": {
+                                                                         "$gte": Utility.get_timestamp_previous_month(
+                                                                                 month)}}},
+                                                             {"$group": {"_id": None, "total_count": {"$sum": 1}}},
+                                                             {"$project": {"total_count": 1, "_id": 0}}
+                                                             ], allowDiskUse=True))
+
             except Exception as e:
                 logger.error(e)
                 message = '\n'.join([message, str(e)])
-            if not values:
+            if not (fallback_counts and total_counts):
                 fallback_count = 0
                 total_count = 0
             else:
-                fallback_count = values[0]['fallback_count'] if values[0]['fallback_count'] else 0
-                total_count = values[0]['total_count'] if values[0]['total_count'] else 0
+                fallback_count = fallback_counts[0]['fallback_count'] if fallback_counts[0]['fallback_count'] else 0
+                total_count = total_counts[0]['total_count'] if total_counts[0]['total_count'] else 0
             return (
                 {"fallback_count": fallback_count, "total_count": total_count},
                 message,
