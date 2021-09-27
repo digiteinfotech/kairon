@@ -630,3 +630,48 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth, mock_mon
     assert actual["error_code"] == 422
     assert actual["message"] == "No data available!"
     assert not actual["success"]
+
+
+@responses.activate
+def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/topmost/intents",
+        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        status=200,
+        json={"data": [{'_id': 'action_google_search_kanban', 'count': 43}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/intents",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'action_google_search_kanban', 'count': 43}]
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/topmost/actions",
+        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        status=200,
+        json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
+    assert actual["message"] is None
+    assert actual["success"]
+

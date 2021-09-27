@@ -8,3 +8,4 @@ class HistoryQuery(BaseModel):
     action_fallback: str = Query(default="action_default_fallback")
     nlu_fallback: str = Query(default=None)
     sort_by_date: bool = Query(default=True)
+    top_n: int = Query(default=10, ge=1)
