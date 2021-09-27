@@ -289,3 +289,21 @@ class TestHistory:
         conversation_steps, message = HistoryProcessor.total_conversation_range("tests")
         assert conversation_steps["total_conversation_range"] == {}
         assert message
+
+    def test_top_intent_error(self, mock_db_timeout):
+        with pytest.raises(Exception):
+            HistoryProcessor.top_n_intents("tests")
+
+    def test_top_intent(self, mock_mongo_client):
+        top_n, message = HistoryProcessor.top_n_intents("tests")
+        assert top_n == []
+        assert message
+
+    def test_top_action_error(self, mock_db_timeout):
+        with pytest.raises(Exception):
+            HistoryProcessor.top_n_actions("tests")
+
+    def test_top_action(self, mock_mongo_client):
+        top_n, message = HistoryProcessor.top_n_actions("tests")
+        assert top_n == []
+        assert message

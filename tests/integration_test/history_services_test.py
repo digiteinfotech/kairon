@@ -497,3 +497,29 @@ def test_total_conversation_range_with_request(mock_db_client):
     assert actual["data"]["total_conversation_range"] == {}
     assert actual["message"]
     assert actual["success"]
+
+
+def test_top_intents(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/intents",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_top_actions(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/actions",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
