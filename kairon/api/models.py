@@ -1,6 +1,7 @@
 from typing import List, Any, Dict
 import validators
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE
+from ..shared.actions.models import SlotValidationOperators, LogicalOperators
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
@@ -397,10 +398,28 @@ class SlotMapping(BaseModel):
     not_intent: List[str] = None
 
 
+class Validation(BaseModel):
+    operator: SlotValidationOperators
+    value: Any
+
+
+class Expression(BaseModel):
+    logical_operator: LogicalOperators = None
+    validations: List[Validation]
+
+
+class SlotValidation(BaseModel):
+    logical_operator: LogicalOperators = LogicalOperators.and_operator.value
+    expressions: List[Expression]
+
+
 class FormPath(BaseModel):
     responses: List[str]
     slot: str
     mapping: List[SlotMapping]
+    validation: SlotValidation = None
+    utter_msg_on_valid: str = None
+    utter_msg_on_invalid: str = None
 
 
 class Forms(BaseModel):

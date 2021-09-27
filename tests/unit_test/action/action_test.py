@@ -2,19 +2,21 @@ import json
 import os
 import urllib.parse
 
+from kairon.shared.data.data_objects import Slots
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect
+from mongoengine import connect, QuerySet
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions
+    Actions, FormValidations
 from kairon.actions.handlers.processor import ActionProcessor
-from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 import requests
@@ -1267,3 +1269,313 @@ class TestActions:
         Actions(name='test_get_action_config_custom_user_action',  bot=bot, user=user).save()
         with pytest.raises(ActionFailure, match='Only http & slot set actions are compatible with action server'):
             ActionUtility.get_action_config(bot, 'test_get_action_config_custom_user_action')
+
+    def test_get_form_validation_config_single_validation(self):
+        bot = 'test_actions'
+        user = 'test'
+        validation_semantic = {'or': [{'less_than': '5'}, {'is_exactly': 6}]}
+        expected_output = FormValidations(name='validate_form', slot='name', validation_semantic=validation_semantic,
+                                          bot=bot, user=user).save().to_mongo().to_dict()
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
+        config.pop('timestamp')
+        expected_output.pop('timestamp')
+        assert config == expected_output
+
+    def test_get_form_validation_config_multiple_validations(self):
+        bot = 'test_actions'
+        user = 'test'
+        validation_semantic = {'or': [{'less_than': '5'}, {'is_exactly': 6}]}
+        expected_outputs = []
+        for slot in ['name', 'user', 'location']:
+            expected_output = FormValidations(name='validate_form_1', slot=slot,
+                                            validation_semantic=validation_semantic,
+                                            bot=bot, user=user).save().to_mongo().to_dict()
+            expected_output.pop('_id')
+            expected_output.pop('timestamp')
+            expected_outputs.append(expected_output)
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form_1').to_json()
+        config = json.loads(config)
+        for c in config:
+            c.pop('timestamp')
+            c.pop('_id')
+        assert config[0] == expected_outputs[0]
+        assert config[1] == expected_outputs[1]
+        assert config[2] == expected_outputs[2]
+
+    def test_get_form_validation_config_not_exists(self):
+        bot = 'test_actions'
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form_2')
+        assert not config
+        assert isinstance(config, QuerySet)
+
+    def test_get_action_config_form_validation(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='validate_form_1', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_1')
+        assert config[0]
+        assert config[1]
+        assert config[2]
+        assert action_type == ActionType.form_validation_action.value
+
+    def test_get_action_config_form_validation_not_exists(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='validate_form_2', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_2')
+        assert not config
+        assert action_type == ActionType.form_validation_action.value
+
+    def test_get_slot_type(self):
+        bot = 'test_actions'
+        user = 'test'
+        Slots(name='location', type='text', bot=bot, user=user).save()
+        slot_type = ActionUtility.get_slot_type(bot, 'location')
+        assert slot_type == 'text'
+
+    def test_get_slot_type_not_exists(self):
+        bot = 'test_actions'
+        with pytest.raises(ActionFailure, match='Slot not found in database: non_existant'):
+            ActionUtility.get_slot_type(bot, 'non_existant')
+
+    def test_is_valid_slot_value_multiple_expressions_1(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 'valid_slot_value'},
+                                       {'operator': 'contains', 'value': '_slot_'},
+                                       {'operator': 'is_in', 'value': ['valid_slot_value', 'slot_value']},
+                                       {'operator': 'starts_with', 'value': 'valid'},
+                                       {'operator': 'ends_with', 'value': 'value'},
+                                       {'operator': 'has_length', 'value': 16},
+                                       {'operator': 'has_length_greater_than', 'value': 15},
+                                       {'operator': 'has_length_less_than', 'value': 20},
+                                       {'operator': 'has_no_whitespace'},
+                                       {'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'or': [{'operator': 'is_exactly', 'value': 'valid_slot_value'},
+                                      {'operator': 'is_an_email_address'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+    def test_is_valid_slot_value_multiple_expressions_2(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
+                                               {'operator': 'is_in', 'value': ['valid_slot_value', 'slot_value']},
+                                               {'operator': 'starts_with', 'value': 'valid'},
+                                               {'operator': 'ends_with', 'value': 'value'},
+                                               ]},
+                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                                              {'operator': 'has_no_whitespace'},
+                                              {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
+                                               {'operator': 'is_in', 'value': ['valid_slot_value', 'slot_value']},
+                                               {'operator': 'starts_with', 'value': 'valid'},
+                                               {'operator': 'ends_with', 'value': 'value'},
+                                               ]},
+                               {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                                              {'operator': 'is_an_email_address'},
+                                              {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+    def test_is_valid_slot_value_text_type(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+
+        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[r]+.*[e]$'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_an_email_address'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, 'pandey.udit867@gmail.com', semantic_expression)
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 'valid__slot_value'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 'valid_slot_value'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 'valid'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 'not_present'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': ['valid_slot_value', 'slot_value']}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': ['another_value', 'slot_value']}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'starts_with', 'value': 'valid'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'starts_with', 'value': 'slot'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'ends_with', 'value': 'value'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'ends_with', 'value': 'slot'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 16}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 15}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 15}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 16}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 17}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 16}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value', semantic_expression)
+
+        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "is_greater_than" for slot type "text"'):
+            semantic_expression = {'and': [{'operator': 'is_greater_than'}]}
+            ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value', semantic_expression)
+
+    def test_is_valid_slot_value_float_type(self):
+        slot_type = 'float'
+        slot_value = 5
+
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 5}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 6}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_greater_than', 'value': 5}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_greater_than', 'value': 4}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_less_than', 'value': 5}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_less_than', 'value': 6}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': [1, 2, 5, 6]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': [1, 2, 3, 4]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': 5.0}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_less_than', 'value': 6.12}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, 6.10, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_not_in', 'value': [1, 2, 5, 6]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, 7, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_in', 'value': [1, 2, 5, 6]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
+
+        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "has_length" for slot type "float"'):
+            semantic_expression = {'and': [{'operator': 'has_length', 'value': 6}]}
+            ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
+
+    def test_is_valid_slot_value_boolean_type(self):
+        slot_type = 'bool'
+        slot_value = True
+
+        semantic_expression = {'and': [{'operator': 'is_true'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_true'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, False, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_false'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, False, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_false'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, str(slot_value), semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, 'False', semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, str(slot_value), semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, 'False', semantic_expression)
+
+    def test_is_valid_slot_value_list_type(self):
+        slot_type = 'list'
+        slot_value = [1, 2, 3, 4]
+
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': [1, 2, 3, 4]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_exactly', 'value': [1, 2, 3, 5]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 1}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 10}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': [1, 2, 3, 4, 5, 6, 7, 8, 9]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_in', 'value': [4, 5, 6, 7, 8, 9]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_not_in', 'value': [6, 7, 8, 9]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_in', 'value': [4, 5, 6, 7, 8, 9]}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_in', 'value': [1, 2, 3, 4]}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 4}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 5}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 2}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 4}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 5}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 4}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert not ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
