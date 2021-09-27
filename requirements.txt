@@ -22,7 +22,7 @@ secure==0.2.1
 password-strength==0.0.3.post2
 loguru
 nltk==3.6
-transformers==4.0.1
+transformers==4.11.0
 smart-config==0.1.3
 moto
 locust
