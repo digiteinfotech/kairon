@@ -44,7 +44,8 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction
+from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
+    FormValidations
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -3775,7 +3776,6 @@ class TestMongoProcessor:
             processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Lookup table value cannot be an empty string"
 
-
     def test_add_form(self):
         processor = MongoProcessor()
         path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
@@ -4008,10 +4008,104 @@ class TestMongoProcessor:
         assert Responses.objects(name='utter_ask_get_user_location', bot=bot,
                                  status=True).get().text.text == 'where are you located?'
 
+    def test_add_form_with_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and', 'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                      {'operator': 'has_no_whitespace'}]}]}
+        age_validation = {'logical_operator': 'and', 'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10},
+                                                                     {'operator': 'is_less_than', 'value': 70},
+                                                                     {'operator': 'starts_with', 'value': 'valid'},
+                                                                     {'operator': 'ends_with', 'value': 'value'}]}]}
+        occupation_validation = {'logical_operator': 'and', 'expressions': [
+            {'logical_operator': 'and',
+             'validations': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                             {'operator': 'has_no_whitespace'},
+                             {'operator': 'ends_with', 'value': 'value'}]},
+            {'logical_operator': 'or',
+             'validations': [{'operator': 'has_length_greater_than', 'value': 20},
+                             {'operator': 'has_no_whitespace'},
+                             {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': age_validation,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': occupation_validation}]
+        bot = 'test'
+        user = 'user'
+        processor.add_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 3
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
+        assert validations_added[1].slot == 'age'
+        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10},
+                                                                    {'operator': 'is_less_than', 'value': 70},
+                                                                    {'operator': 'starts_with', 'value': 'valid'},
+                                                                    {'operator': 'ends_with', 'value': 'value'},
+                                                                    ]}
+        assert validations_added[1].utter_msg_on_valid == 'valid entry'
+        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+
+        assert validations_added[2].slot == 'occupation'
+        assert validations_added[2].validation_semantic == {'and': [
+            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                     {'operator': 'has_no_whitespace'},
+                     {'operator': 'ends_with', 'value': 'value'}]},
+            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                    {'operator': 'has_no_whitespace'},
+                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert not validations_added[2].utter_msg_on_valid
+        assert not validations_added[2].utter_msg_on_invalid
+
     def test_list_forms(self):
         processor = MongoProcessor()
         forms = processor.list_forms('test')
-        assert set(forms) == {'know_user', 'restaurant_form', 'user_info', 'get_user', 'ticket_file_form',
+        assert set(forms) == {'know_user', 'know_user_form', 'restaurant_form', 'user_info', 'get_user', 'ticket_file_form',
                               'ticket_attributes_form'}
 
     def test_list_forms_no_form_added(self):
@@ -4020,28 +4114,82 @@ class TestMongoProcessor:
         assert forms == []
 
     def test_get_form(self):
-        form = MongoProcessor.get_form('get_user', 'test')
+        form = MongoProcessor().get_form('get_user', 'test')
         assert len(form['mapping']) == 3
         assert form['slot_mapping'][0]['slot'] == 'name'
         assert form['slot_mapping'][1]['slot'] == 'age'
         assert form['slot_mapping'][2]['slot'] == 'location'
-        assert form['slot_mapping'][0]['utterance']['_id']
-        assert form['slot_mapping'][1]['utterance']['_id']
-        assert form['slot_mapping'][2]['utterance']['_id']
-        assert form['slot_mapping'][0]['utterance']['text'] == 'what is your name?'
-        assert form['slot_mapping'][1]['utterance']['text'] == 'what is your age?'
-        assert form['slot_mapping'][2]['utterance']['text'] == 'where are you located?'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value'] == {'text': 'what is your name?'}
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['value'] == {'text': 'what is your age?'}
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['value'] == {'text': 'where are you located?'}
         assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
                                                       {'type': 'from_entity', 'entity': 'name'}]
         assert form['slot_mapping'][1]['mapping'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
         assert form['slot_mapping'][2]['mapping'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert not form['slot_mapping'][0]['validations']
+        assert not form['slot_mapping'][0]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][0]['utter_msg_on_valid']
+        assert not form['slot_mapping'][1]['validations']
+        assert not form['slot_mapping'][1]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][1]['utter_msg_on_valid']
+        assert not form['slot_mapping'][2]['validations']
+        assert not form['slot_mapping'][2]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][2]['utter_msg_on_valid']
+
+    def test_get_form_with_validations(self):
+        form = MongoProcessor().get_form('know_user_form', 'test')
+        assert len(form['mapping']) == 3
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'age'
+        assert form['slot_mapping'][2]['slot'] == 'occupation'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][0]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form['slot_mapping'][2]['mapping'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert form['slot_mapping'][0]['validations'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert form['slot_mapping'][0]['utter_msg_on_invalid'] == 'please rephrase'
+        assert form['slot_mapping'][0]['utter_msg_on_valid'] == 'got it'
+        assert form['slot_mapping'][1]['validations'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
+                                                                    {'operator': 'is_less_than', 'value': 70},
+                                                                    {'operator': 'starts_with', 'value': 'valid'},
+                                                                    {'operator': 'ends_with', 'value': 'value'},
+                                                                    ]}
+        assert form['slot_mapping'][1]['utter_msg_on_invalid'] == 'please enter again'
+        assert form['slot_mapping'][1]['utter_msg_on_valid'] == 'valid entry'
+        assert form['slot_mapping'][2]['validations'] == {'and': [
+            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                     {'operator': 'has_no_whitespace'},
+                     {'operator': 'ends_with', 'value': 'value'}]},
+            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                    {'operator': 'has_no_whitespace'},
+                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert not form['slot_mapping'][2]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][2]['utter_msg_on_valid']
 
     def test_get_form_not_added(self):
         with pytest.raises(AppException, match='Form does not exists'):
-            MongoProcessor.get_form('form_not_present', 'test')
+            MongoProcessor().get_form('form_not_present', 'test')
 
     def test_get_form_having_on_intent_and_not_intent(self):
-        form = MongoProcessor.get_form('restaurant_form', 'test')
+        form = MongoProcessor().get_form('restaurant_form', 'test')
         assert len(form['mapping']) == 6
         assert form['slot_mapping'][0]['slot'] == 'name'
         assert form['slot_mapping'][1]['slot'] == 'num_people'
@@ -4049,18 +4197,18 @@ class TestMongoProcessor:
         assert form['slot_mapping'][3]['slot'] == 'outdoor_seating'
         assert form['slot_mapping'][4]['slot'] == 'preferences'
         assert form['slot_mapping'][5]['slot'] == 'feedback'
-        assert form['slot_mapping'][0]['utterance']['_id']
-        assert form['slot_mapping'][1]['utterance']['_id']
-        assert form['slot_mapping'][2]['utterance']['_id']
-        assert form['slot_mapping'][3]['utterance']['_id']
-        assert form['slot_mapping'][4]['utterance']['_id']
-        assert form['slot_mapping'][5]['utterance']['_id']
-        assert form['slot_mapping'][0]['utterance']['text'] == 'what is your name?'
-        assert form['slot_mapping'][1]['utterance']['text'] == 'seats required?'
-        assert form['slot_mapping'][2]['utterance']['text'] == 'type of cuisine?'
-        assert form['slot_mapping'][3]['utterance']['text'] == 'outdoor seating required?'
-        assert form['slot_mapping'][4]['utterance']['text'] == 'any preferences?'
-        assert form['slot_mapping'][5]['utterance']['text'] == 'Please give your feedback on your experience so far'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][3]['utterance'][0]['_id']
+        assert form['slot_mapping'][4]['utterance'][0]['_id']
+        assert form['slot_mapping'][5]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][3]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][4]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][5]['utterance'][0]['value']['text']
         assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
                                                       {'type': 'from_entity', 'entity': 'name'}]
         assert form['slot_mapping'][1]['mapping'] == [
@@ -4105,6 +4253,164 @@ class TestMongoProcessor:
             processor.edit_form('restaurant_form', path, bot, user)
             assert str(e).__contains__('slots not exists: {')
 
+    def test_edit_form_change_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                            {'operator': 'has_no_whitespace'}]}]}
+        age_validation = {'logical_operator': 'and',
+                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': age_validation,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 2
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
+        assert validations_added[1].slot == 'age'
+        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10}]}
+        assert validations_added[1].utter_msg_on_valid == 'valid entry'
+        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+
+    def test_edit_form_remove_validations(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 0
+
+    def test_edit_form_add_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 1
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
         path = [{'responses': ['which location would you prefer?'], 'slot': 'location',
@@ -4113,7 +4419,9 @@ class TestMongoProcessor:
                 {'responses': ['seats required?'], 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
                 {'responses': ['type of cuisine?'], 'slot': 'cuisine',
-                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}],
+                 'validation': {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}},
                 {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
@@ -4183,6 +4491,11 @@ class TestMongoProcessor:
         assert Responses.objects(name='utter_ask_restaurant_form_feedback',
                                  bot=bot,
                                  status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+        validations_added = list(FormValidations.objects(name='validate_restaurant_form', bot=bot, status=True))
+        assert len(validations_added) == 1
+        assert validations_added[0].slot == 'cuisine'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()
@@ -4255,8 +4568,9 @@ class TestMongoProcessor:
 
     def test_delete_form(self):
         bot = 'test'
+        user = 'user'
         processor = MongoProcessor()
-        processor.delete_form('get_user', bot)
+        processor.delete_form('get_user', bot, user)
         with pytest.raises(DoesNotExist):
             Forms.objects(name='get_user', bot=bot, status=True).get()
         with pytest.raises(DoesNotExist):
@@ -4268,27 +4582,40 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             Responses.objects(name='utter_ask_get_user_location', bot=bot, status=True).get()
 
+    def test_delete_form_with_validations(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        processor.delete_form('know_user_form', bot, user)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='know_user_form', bot=bot, status=True).get()
+        form_validations = list(FormValidations.objects(name='know_user_form', bot=bot, status=True))
+        assert not form_validations
+
     def test_delete_form_not_exists(self):
         bot = 'test'
+        user = 'user'
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Form "get_user" does not exists'):
-            processor.delete_form('get_user', bot)
+            processor.delete_form('get_user', bot, user)
         with pytest.raises(AppException, match='Form "form_not_present" does not exists'):
-            processor.delete_form('form_not_present', bot)
+            processor.delete_form('form_not_present', bot, user)
 
     def test_delete_empty_form(self):
         bot = 'test'
+        user = 'user'
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Form " " does not exists'):
-            processor.delete_form(' ', bot)
+            processor.delete_form(' ', bot, user)
 
     def test_delete_form_utterance_deleted(self):
         processor = MongoProcessor()
         bot = 'test'
+        user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_age', bot=bot).get()
         utterance.status = False
         utterance.save()
-        processor.delete_form('know_user', bot)
+        processor.delete_form('know_user', bot, user)
         with pytest.raises(DoesNotExist):
             Forms.objects(name='know_user', bot=bot, status=True).get()
         with pytest.raises(DoesNotExist):
@@ -4535,14 +4862,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match=f'Slot setting action with name "action_set_name_slot" not found'):
+        with pytest.raises(AppException, match=f'Action with name "action_set_name_slot" not found'):
             processor.delete_action('action_set_name_slot', bot, user)
 
     def test_delete_slot_set_action_not_present(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match=f'Slot setting action with name "action_non_existant" not found'):
+        with pytest.raises(AppException, match=f'Action with name "action_non_existant" not found'):
             processor.delete_action('action_non_existant', bot, user)
 
     def test_delete_slot_set_action_linked_to_story(self):
@@ -4570,7 +4897,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match=f'Slot setting action with name "action_custom" not found'):
+        with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
 

@@ -2,19 +2,21 @@ import json
 import os
 import urllib.parse
 
+from kairon.shared.data.data_objects import Slots
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect
+from mongoengine import connect, QuerySet
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions
+    Actions, FormValidations
 from kairon.actions.handlers.processor import ActionProcessor
-from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 import requests
@@ -53,7 +55,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                      request_method=responses.GET)
+                                                           request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
         assert len(response['test_class']) == 2
@@ -71,7 +73,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                      request_method=responses.GET)
+                                                           request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
         assert len(response['test_class']) == 2
@@ -88,12 +90,12 @@ class TestActions:
             json={'data': 'test_data', 'test_class': [{'key': 'value'}, {'key2': 'value2'}]},
             status=200
         )
-        params = {"test":"val1", "test2":"val2"}
+        params = {"test": "val1", "test2": "val2"}
         response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
                                                            request_method=responses.GET, request_body=params)
         assert response
         assert response['data'] == 'test_data'
-        assert url == http_url+"?"+urlencode(params, quote_via=quote_plus)
+        assert url == http_url + "?" + urlencode(params, quote_via=quote_plus)
         assert len(response['test_class']) == 2
         assert response['test_class'][1]['key2'] == 'value2'
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -122,7 +124,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                      request_method=responses.POST, request_body=request_params)
+                                                           request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -142,7 +144,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                      request_method=responses.POST, request_body=request_params)
+                                                           request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -164,7 +166,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                      request_method=responses.PUT, request_body=request_params)
+                                                           request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -184,7 +186,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                      request_method=responses.PUT, request_body=request_params)
+                                                           request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -206,7 +208,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                      request_method=responses.DELETE, request_body=request_params)
+                                                           request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -226,7 +228,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                      request_method=responses.DELETE, request_body=None)
+                                                           request_method=responses.DELETE, request_body=None)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -249,7 +251,7 @@ class TestActions:
 
         with pytest.raises(ActionFailure, match="Got non-200 status code"):
             ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                          request_method=responses.DELETE, request_body=request_params)
+                                               request_method=responses.DELETE, request_body=request_params)
 
     @responses.activate
     def test_execute_http_request_delete_no_auth_token(self):
@@ -268,7 +270,7 @@ class TestActions:
         )
 
         response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                      request_method=responses.DELETE, request_body=request_params)
+                                                           request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -437,7 +439,8 @@ class TestActions:
                                      HttpActionRequestBody(key="param3", value="", parameter_type="slot")]
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
                           followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker, http_action_config_params=http_action_config_params)
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert not request_params['param3']
 
@@ -446,9 +449,11 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="user_id", value="", parameter_type="sender_id")]
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False, latest_message=None,
+        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
+                          latest_message=None,
                           followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker, http_action_config_params=http_action_config_params)
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert request_params['user_id'] == "kairon_user@digite.com"
 
@@ -578,7 +583,7 @@ class TestActions:
                  "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
-        actions_name="test_run_invalid_http_action1"
+        actions_name = "test_run_invalid_http_action1"
         HttpActionConfig(
             auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name=actions_name,
@@ -595,8 +600,8 @@ class TestActions:
         domain: Dict[Text, Any] = None
         await ActionProcessor.process_action(dispatcher, tracker, domain, actions_name)
         log = ActionServerLogs.objects(sender="sender1",
-                                    bot="5f50fd0a56b698ca10d35d2e",
-                                    status="FAILURE").get()
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
         assert log['exception'].__contains__('No HTTP action found for bot')
 
     @pytest.mark.asyncio
@@ -612,7 +617,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
         log = ActionServerLogs.objects(sender="sender2",
-                                    status="FAILURE").get()
+                                       status="FAILURE").get()
         assert log['exception'] == 'Bot id and action name not found in slot'
 
     @pytest.mark.asyncio
@@ -671,7 +676,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run",
-                                    status="SUCCESS").get()
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
@@ -725,14 +730,14 @@ class TestActions:
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run_with_params",
-                                    status="SUCCESS").get()
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
         assert log['action']
         assert log['bot_response']
         assert log['api_response']
-        assert log['url'] == http_url+"?"+urlencode({"key1": "value1", "key2": "value2"}, quote_via=quote_plus)
+        assert log['url'] == http_url + "?" + urlencode({"key1": "value1", "key2": "value2"}, quote_via=quote_plus)
         assert not log['request_params']
 
     @pytest.mark.asyncio
@@ -770,7 +775,8 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, "test_run_with_post")
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
         assert actual is not None
         assert actual[0]['name'] == 'KAIRON_ACTION_RESPONSE'
         assert actual[0]['value'] == 'Data added successfully, id:5000'
@@ -813,14 +819,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, "test_run_with_post")
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
         responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="sender_test_run_with_post",
-                                    action="test_run_with_post",
-                                    status="SUCCESS").get()
+                                       action="test_run_with_post",
+                                       status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -872,7 +879,8 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, "test_run_with_post")
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post")
         responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
@@ -1045,8 +1053,9 @@ class TestActions:
                 return json.dumps(resp_msg)
 
         def mock_get(url, headers):
-            if headers and url == http_url+'?'+urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
+            if headers and url == http_url + '?' + urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
                 return MockResponse(url, headers)
+
         monkeypatch.setattr(requests, "get", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -1264,6 +1273,447 @@ class TestActions:
     def test_get_action_config_custom_user_action(self):
         bot = 'test_actions'
         user = 'test'
-        Actions(name='test_get_action_config_custom_user_action',  bot=bot, user=user).save()
+        Actions(name='test_get_action_config_custom_user_action', bot=bot, user=user).save()
         with pytest.raises(ActionFailure, match='Only http & slot set actions are compatible with action server'):
             ActionUtility.get_action_config(bot, 'test_get_action_config_custom_user_action')
+
+    def test_get_form_validation_config_single_validation(self):
+        bot = 'test_actions'
+        user = 'test'
+        validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
+        expected_output = FormValidations(name='validate_form', slot='name', validation_semantic=validation_semantic,
+                                          bot=bot, user=user).save().to_mongo().to_dict()
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
+        config.pop('timestamp')
+        expected_output.pop('timestamp')
+        assert config == expected_output
+
+    def test_get_form_validation_config_multiple_validations(self):
+        bot = 'test_actions'
+        user = 'test'
+        validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
+        expected_outputs = []
+        for slot in ['name', 'user', 'location']:
+            expected_output = FormValidations(name='validate_form_1', slot=slot,
+                                              validation_semantic=validation_semantic,
+                                              bot=bot, user=user).save().to_mongo().to_dict()
+            expected_output.pop('_id')
+            expected_output.pop('timestamp')
+            expected_outputs.append(expected_output)
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form_1').to_json()
+        config = json.loads(config)
+        for c in config:
+            c.pop('timestamp')
+            c.pop('_id')
+        assert config[0] == expected_outputs[0]
+        assert config[1] == expected_outputs[1]
+        assert config[2] == expected_outputs[2]
+
+    def test_get_form_validation_config_not_exists(self):
+        bot = 'test_actions'
+        config = ActionUtility.get_form_validation_config(bot, 'validate_form_2')
+        assert not config
+        assert isinstance(config, QuerySet)
+
+    def test_get_action_config_form_validation(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='validate_form_1', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_1')
+        assert config[0]
+        assert config[1]
+        assert config[2]
+        assert action_type == ActionType.form_validation_action.value
+
+    def test_get_action_config_form_validation_not_exists(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='validate_form_2', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_2')
+        assert not config
+        assert action_type == ActionType.form_validation_action.value
+
+    def test_get_slot_type(self):
+        bot = 'test_actions'
+        user = 'test'
+        Slots(name='location', type='text', bot=bot, user=user).save()
+        slot_type = ActionUtility.get_slot_type(bot, 'location')
+        assert slot_type == 'text'
+
+    def test_get_slot_type_not_exists(self):
+        bot = 'test_actions'
+        with pytest.raises(ActionFailure, match='Slot not found in database: non_existant'):
+            ActionUtility.get_slot_type(bot, 'non_existant')
+
+    def test_is_valid_slot_value_multiple_expressions_1(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+        semantic_expression = {'and': [{'operator': '==', 'value': 'valid_slot_value'},
+                                       {'operator': 'contains', 'value': '_slot_'},
+                                       {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
+                                       {'operator': 'startswith', 'value': 'valid'},
+                                       {'operator': 'endswith', 'value': 'value'},
+                                       {'operator': 'has_length', 'value': 16},
+                                       {'operator': 'has_length_greater_than', 'value': 15},
+                                       {'operator': 'has_length_less_than', 'value': 20},
+                                       {'operator': 'has_no_whitespace'},
+                                       {'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'or': [{'operator': '==', 'value': 'valid_slot_value'},
+                                      {'operator': 'is_an_email_address'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+    def test_is_valid_slot_value_multiple_expressions_2(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
+                                                {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
+                                                {'operator': 'startswith', 'value': 'valid'},
+                                                {'operator': 'endswith', 'value': 'value'},
+                                                ]},
+                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                                               {'operator': 'has_no_whitespace'},
+                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        final_expr = '{{("_slot_" in "valid_slot_value")and("valid_slot_value" in "[\'valid_slot_value\', \'slot_value\']")and("valid_slot_value".startswith("valid"))and("valid_slot_value".endswith("value"))}and{(len("valid_slot_value") > 20)or(" " not in "valid_slot_value")or(valid_slot_value.matches_regex(^[e]+.*[e]$))}}'
+
+        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
+                                                {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
+                                                {'operator': 'startswith', 'value': 'valid'},
+                                                {'operator': 'endswith', 'value': 'value'},
+                                                ]},
+                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                                               {'operator': 'is_an_email_address'},
+                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+        assert final_expr == '{{("_slot_" in "valid_slot_value")and("valid_slot_value" in "[\'valid_slot_value\', \'slot_value\']")and("valid_slot_value".startswith("valid"))and("valid_slot_value".endswith("value"))}and{(len("valid_slot_value") > 20)or(is_an_email_address(valid_slot_value))or(valid_slot_value.matches_regex(^[e]+.*[e]$))}}'
+
+    def test_is_valid_slot_value_text_type(self):
+        slot_type = 'text'
+        slot_value = 'valid_slot_value'
+
+        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[r]+.*[e]$'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_an_email_address'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'pandey.udit867@gmail.com',
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': '==', 'value': 'valid__slot_value'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': '==', 'value': 'valid_slot_value'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 'valid'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 'not_present'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'in', 'value': ['valid_slot_value', 'slot_value']}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'in', 'value': ['another_value', 'slot_value']}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'startswith', 'value': 'valid'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'startswith', 'value': 'slot'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'endswith', 'value': 'value'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'endswith', 'value': 'slot'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 16}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 15}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 15}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 16}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 17}]}
+        assert ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic_expression)
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 16}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value',
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator ">" for current slot type'):
+            semantic_expression = {'and': [{'operator': '>'}]}
+            ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value', semantic_expression)
+
+    def test_is_valid_slot_value_float_type(self):
+        slot_type = 'float'
+        slot_value = 5
+
+        semantic_expression = {'and': [{'operator': '==', 'value': 5}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': '==', 'value': 6}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': '>', 'value': 5}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': '>', 'value': 4}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': '<', 'value': 5}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': '<', 'value': 6}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 5, 6]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': '==', 'value': 5.0}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': '<', 'value': 6.12}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6.10, semantic_expression)
+        assert is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 7, semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
+        assert not is_slot_data_valid
+
+        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "has_length" for slot type "float"'):
+            semantic_expression = {'and': [{'operator': 'has_length', 'value': 6}]}
+            ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
+
+    def test_is_valid_slot_value_boolean_type(self):
+        slot_type = 'bool'
+        slot_value = 'true'
+
+        semantic_expression = {'and': [{'operator': 'is_true'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_true'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'false',
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_false'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'false',
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_false'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        # assert ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, True, semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'False',
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        # assert not ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, str(slot_value),
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'False',
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+
+    def test_is_valid_slot_value_list_type(self):
+        slot_type = 'list'
+        slot_value = [1, 2, 3, 4]
+
+        semantic_expression = {'and': [{'operator': '==', 'value': [1, 2, 3, 4]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': '==', 'value': [1, 2, 3, 5]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 1}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'contains', 'value': 10}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4, 5, 6, 7, 8, 9]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'in', 'value': [4, 5, 6, 7, 8, 9]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'not in', 'value': [6, 7, 8, 9]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'not in', 'value': [4, 5, 6, 7, 8, 9]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 3, 4]}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 4}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'has_length', 'value': 5}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 2}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 4}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 5}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 4}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        assert is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert not is_slot_data_valid
+
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
+        assert not is_slot_data_valid
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
