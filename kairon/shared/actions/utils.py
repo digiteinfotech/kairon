@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
@@ -18,9 +19,11 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction
+from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidations
 from .exception import ActionFailure
-from .models import ParameterType, ActionType
+from .models import ParameterType, ActionType, SlotValidationOperators, LogicalOperators
+from ..data.constant import SLOT_TYPE
+from ..data.data_objects import Slots
 
 
 class ActionUtility:
@@ -211,6 +214,8 @@ class ActionUtility:
                 config = ActionUtility.get_http_action_config(bot, name)
             elif action.get('type') == ActionType.slot_set_action.value:
                 config = ActionUtility.get_slot_set_config(bot, name)
+            elif action.get('type') == ActionType.form_validation_action.value:
+                config = ActionUtility.get_form_validation_config(bot, name)
             else:
                 raise ActionFailure('Only http & slot set actions are compatible with action server')
         except DoesNotExist as e:
@@ -251,6 +256,21 @@ class ActionUtility:
             raise ActionFailure("No slot set action found for bot")
 
         return action
+
+    @staticmethod
+    def get_form_validation_config(bot: str, name: str):
+        action = FormValidations.objects(bot=bot, name=name, status=True)
+        logger.debug("form_validation_config: " + str(action.to_json()))
+        return action
+
+    @staticmethod
+    def get_slot_type(bot: str, slot: str):
+        try:
+            slot_info = Slots.objects(name=slot, bot=bot, status=True).get()
+            return slot_info.type
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure(f'Slot not found in database: {slot}')
 
     @staticmethod
     def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
@@ -320,3 +340,153 @@ class ActionUtility:
                 parsed_output = parsed_output.replace(key, str(value_mapping[key]))
 
         return parsed_output
+
+
+class ExpressionEvaluator:
+
+    @staticmethod
+    def is_valid_slot_value(slot_type: str, slot_value: Any, semantic_expression: dict):
+        is_slot_data_valid = True
+        if semantic_expression:
+            result = []
+            for parent_operator, expressions in semantic_expression.items():
+                for sub_expression in expressions:
+                    if sub_expression.get(LogicalOperators.and_operator.value):
+                        all_sub_expressions = list(ExpressionEvaluator.__evaluate_expression_list(
+                            sub_expression[LogicalOperators.and_operator.value], slot_type, slot_value
+                        ))
+                        is_valid = all(all_sub_expressions)
+                    elif sub_expression.get(LogicalOperators.or_operator.value):
+                        all_sub_expressions = list(ExpressionEvaluator.__evaluate_expression_list(
+                            sub_expression[LogicalOperators.or_operator.value], slot_type, slot_value
+                        ))
+                        is_valid = any(all_sub_expressions)
+                    else:
+                        is_valid = next(ExpressionEvaluator.__evaluate_expression_list([sub_expression], slot_type, slot_value))
+                    result.append(is_valid)
+                if parent_operator == LogicalOperators.and_operator.value:
+                    is_slot_data_valid = all(result)
+                else:
+                    is_slot_data_valid = any(result)
+                break
+
+        return is_slot_data_valid
+
+    @staticmethod
+    def __evaluate_expression_list(expressions: list, slot_type: str, slot_value: Any):
+        for expression in expressions:
+            operator = expression.get('operator')
+            operand = expression.get('value')
+            yield ExpressionEvaluator.__evaluate_expression(slot_type, slot_value, operator, operand)
+
+    @staticmethod
+    def __evaluate_expression(slot_type: str, slot_value: Any, operator: str, operand: Any):
+        is_valid = False
+        if slot_type in {SLOT_TYPE.TEXT.value, SLOT_TYPE.CATEGORICAL.value, SLOT_TYPE.ANY.value}:
+            is_valid = ExpressionEvaluator.__evaluate_text_type(slot_value, operator, operand)
+        elif slot_type == SLOT_TYPE.FLOAT.value:
+            is_valid = ExpressionEvaluator.__evaluate_float_type(slot_value, operator, operand)
+        elif slot_type == SLOT_TYPE.BOOLEAN.value:
+            is_valid = ExpressionEvaluator.__evaluate_boolean_type(slot_value, operator)
+        elif slot_type == SLOT_TYPE.LIST.value:
+            is_valid = ExpressionEvaluator.__evaluate_list_type(slot_value, operator, operand)
+        return is_valid
+
+    @staticmethod
+    def __evaluate_float_type(slot_value: Any, operator: str, operand: Any):
+        is_valid = False
+        try:
+            slot_value = int(slot_value)
+        except ValueError:
+            return is_valid
+
+        if operator == SlotValidationOperators.is_exactly.value:
+             is_valid = slot_value == operand
+        elif operator == SlotValidationOperators.is_greater_than.value:
+            is_valid = slot_value > operand
+        elif operator == SlotValidationOperators.is_less_than.value:
+            is_valid = slot_value < operand
+        elif operator == SlotValidationOperators.is_in.value:
+            is_valid = slot_value in operand
+        elif operator == SlotValidationOperators.is_not_in.value:
+            is_valid = slot_value not in operand
+        else:
+            raise ActionFailure(f'Cannot evaluate invalid operator "{operator}" for slot type "float"')
+
+        return is_valid
+
+    @staticmethod
+    def __evaluate_text_type(slot_value: Any, operator: str, operand: Any):
+        if operator == SlotValidationOperators.is_exactly.value:
+            is_valid = slot_value == operand
+        elif operator == SlotValidationOperators.case_insensitive_is_exactly.value:
+            is_valid = slot_value.lower() == operand.lower()
+        elif operator == SlotValidationOperators.contains.value:
+            is_valid = operand in slot_value
+        elif operator == SlotValidationOperators.is_in.value:
+            is_valid = slot_value in operand
+        elif operator == SlotValidationOperators.is_not_in.value:
+            is_valid = slot_value not in operand
+        elif operator == SlotValidationOperators.starts_with.value:
+            is_valid = slot_value.startswith(operand)
+        elif operator == SlotValidationOperators.ends_with.value:
+            is_valid = slot_value.endswith(operand)
+        elif operator == SlotValidationOperators.has_length.value:
+            is_valid = len(slot_value) == operand
+        elif operator == SlotValidationOperators.has_length_greater_than.value:
+            is_valid = len(slot_value) > operand
+        elif operator == SlotValidationOperators.has_length_less_than.value:
+            is_valid = len(slot_value) < operand
+        elif operator == SlotValidationOperators.has_no_whitespace.value:
+            is_valid = " " not in slot_value
+        elif operator == SlotValidationOperators.is_not_null_or_empty.value:
+            is_valid = not ActionUtility.is_empty(slot_value)
+        elif operator == SlotValidationOperators.is_an_email_address.value:
+            regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            is_valid = True if re.fullmatch(regex, slot_value) else False
+        elif operator == SlotValidationOperators.matches_regex.value:
+            is_valid = True if re.fullmatch(operand, slot_value) else False
+        else:
+            raise ActionFailure(f'Cannot evaluate invalid operator "{operator}" for slot type "text"')
+
+        return is_valid
+
+    @staticmethod
+    def __evaluate_boolean_type(slot_value: Any, operator: str):
+        if operator == SlotValidationOperators.is_true.value:
+            is_valid = bool(slot_value) is True
+        elif operator == SlotValidationOperators.is_false.value:
+            is_valid = bool(slot_value) is False
+        elif operator == SlotValidationOperators.is_null_or_empty.value:
+            is_valid = ActionUtility.is_empty(slot_value)
+        elif operator == SlotValidationOperators.is_not_null_or_empty.value:
+            is_valid = not ActionUtility.is_empty(slot_value)
+        else:
+            raise ActionFailure(f'Cannot evaluate invalid operator: "{operator}" for slot type "boolean"')
+
+        return is_valid
+
+    @staticmethod
+    def __evaluate_list_type(slot_value: Any, operator: str, operand: Any):
+        if operator == SlotValidationOperators.is_exactly.value:
+            is_valid = list(slot_value) == operand
+        elif operator == SlotValidationOperators.contains.value:
+            is_valid = operand in list(slot_value)
+        elif operator == SlotValidationOperators.is_in.value:
+            is_valid = False if set(slot_value).difference(set(operand)) else True
+        elif operator == SlotValidationOperators.is_not_in.value:
+            is_valid = True if set(slot_value).difference(set(operand)) else False
+        elif operator == SlotValidationOperators.has_length.value:
+            is_valid = len(list(slot_value)) == operand
+        elif operator == SlotValidationOperators.has_length_greater_than.value:
+            is_valid = len(list(slot_value)) > operand
+        elif operator == SlotValidationOperators.has_length_less_than.value:
+            is_valid = len(list(slot_value)) < operand
+        elif operator == SlotValidationOperators.is_null_or_empty.value:
+            is_valid = False if (slot_value and list(slot_value)) else True
+        elif operator == SlotValidationOperators.is_not_null_or_empty.value:
+            is_valid = True if (slot_value and list(slot_value)) else False
+        else:
+            raise ActionFailure(f'Cannot evaluate invalid operator: "{operator}" for slot type "list"')
+
+        return is_valid

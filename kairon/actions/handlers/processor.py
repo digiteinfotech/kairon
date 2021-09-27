@@ -1,5 +1,6 @@
 from typing import Dict, Text, List, Any
 
+from mongoengine import DoesNotExist
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 from rasa_sdk.interfaces import Tracker
@@ -7,7 +8,7 @@ from rasa_sdk.interfaces import Tracker
 from ...shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from ...shared.actions.data_objects import ActionServerLogs
 from ...shared.actions.exception import ActionFailure
-from ...shared.actions.utils import ActionUtility
+from ...shared.actions.utils import ActionUtility, ExpressionEvaluator
 from loguru import logger
 
 from ...shared.constants import SLOT_SET_TYPE
@@ -26,7 +27,8 @@ class ActionProcessor:
                                tracker: Tracker,
                                domain: Dict[Text, Any], action) -> List[Dict[Text, Any]]:
         slot = KAIRON_ACTION_RESPONSE_SLOT
-        bot_response = None
+        slot_value = None
+        action_type = None
         try:
             logger.info(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
@@ -40,13 +42,17 @@ class ActionProcessor:
             if action_type == ActionType.http_action.value:
                 slot, bot_response = await ActionProcessor.__process_http_action(tracker, action_config)
                 dispatcher.utter_message(bot_response)
+                slot_value = bot_response
             elif action_type == ActionType.slot_set_action.value:
-                slot, bot_response = await ActionProcessor.__process_slot_set_action(tracker, action_config)
-            return [SlotSet(slot, bot_response)]
+                slot, slot_value = await ActionProcessor.__process_slot_set_action(tracker, action_config)
+            elif action_type == ActionType.form_validation_action.value:
+                slot, slot_value = await ActionProcessor.__process_form_validation_action(dispatcher, tracker, action_config)
+            return [SlotSet(slot, slot_value)]
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
             logger.exception(e)
             ActionServerLogs(
+                type=action_type,
                 intent=tracker.get_intent_of_latest_message(),
                 action=action,
                 sender=tracker.sender_id,
@@ -124,3 +130,46 @@ class ActionProcessor:
             status=status
         ).save()
         return action_config['slot'], value
+
+    @staticmethod
+    async def __process_form_validation_action(dispatcher: CollectingDispatcher, tracker: Tracker, form_validations):
+        slot = tracker.get_slot('requested_slot')
+        slot_value = tracker.get_slot(slot)
+        msg = [f'slot: {slot} | slot_value: {slot_value}']
+        status = "SKIPPED"
+        try:
+            if form_validations:
+                validation = form_validations.get(slot=slot)
+                slot_type = ActionUtility.get_slot_type(validation.bot, slot)
+                semantic = validation.validation_semantic
+                msg.append(f'validation: {semantic}')
+                utter_msg_on_valid = validation.utter_msg_on_valid
+                utter_msg_on_invalid = validation.utter_msg_on_invalid
+                msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
+                msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
+                is_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic)
+
+                if is_valid and utter_msg_on_valid:
+                    dispatcher.utter_message(utter_msg_on_valid)
+
+                if not is_valid:
+                    slot_value = None
+                    if utter_msg_on_invalid:
+                        dispatcher.utter_message(utter_msg_on_invalid)
+                status = 'SUCCESS'
+        except DoesNotExist as e:
+            logger.exception(e)
+            msg.append(f'Skipping validation as no validation config found for slot: {slot}')
+            logger.debug(e)
+        finally:
+            ActionServerLogs(
+                type=ActionType.form_validation_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=tracker.latest_action_name,
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                messages=msg,
+                status=status
+            ).save()
+
+        return slot, slot_value
