@@ -2196,13 +2196,13 @@ def test_delete_intent():
 
 
 def test_api_login_with_account_not_verified():
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
 
     assert not actual['success']
     assert actual['error_code'] == 422
@@ -2216,7 +2216,7 @@ async def mock_smtp(*args, **kwargs):
 
 def test_account_registration_with_confirmation(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/registration",
         json={
@@ -2240,7 +2240,7 @@ def test_account_registration_with_confirmation(monkeypatch):
                                'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
                            )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
 
     assert actual['message'] == "Account Verified!"
     assert actual['data'] is None
@@ -2455,13 +2455,13 @@ def test_delete_bot():
 
 
 def test_login_for_verified():
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@1"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -2480,13 +2480,13 @@ def test_list_bots_for_different_user():
 
 def test_reset_password_for_valid_id(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/password/reset",
         json={"data": "integ1@gmail.com"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Success! A password reset link has been sent to your mail id"
@@ -2494,13 +2494,13 @@ def test_reset_password_for_valid_id(monkeypatch):
 
 
 def test_reset_password_for_invalid_id():
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/password/reset",
         json={"data": "sasha.41195@gmail.com"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Error! There is no user with the following mail id"
@@ -2559,13 +2559,13 @@ def test_login_old_password():
 
 def test_send_link_for_valid_id(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
                                'data': 'integration@demo.ai'},
                            )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Success! Confirmation link sent'
@@ -2573,13 +2573,13 @@ def test_send_link_for_valid_id(monkeypatch):
 
 
 def test_send_link_for_confirmed_id():
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
                                'data': 'integ1@gmail.com'},
                            )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Email already confirmed!'
@@ -2587,7 +2587,7 @@ def test_send_link_for_confirmed_id():
 
 
 def test_overwrite_password_for_non_matching_passwords():
-    AccountProcessor.EMAIL_ENABLED = True
+    Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/password/change",
         json={
@@ -2596,7 +2596,7 @@ def test_overwrite_password_for_non_matching_passwords():
             "confirm_password": "Welcume@2"},
     )
     actual = response.json()
-    AccountProcessor.EMAIL_ENABLED = False
+    Utility.email_conf["email"]["enable"] = False
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual['data'] is None

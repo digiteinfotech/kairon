@@ -15,7 +15,6 @@ Utility.load_email_configuration()
 
 
 class AccountProcessor:
-    EMAIL_ENABLED = Utility.email_conf["email"]["enable"]
 
     @staticmethod
     def add_account(name: str, user: str):
@@ -311,6 +310,7 @@ class AccountProcessor:
         body = None
         subject = None
         mail_to = None
+        email_enabled = Utility.email_conf["email"]["enable"]
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
             bot = AccountProcessor.add_bot('Hi-Hello', account["_id"], user, True)
@@ -327,7 +327,7 @@ class AccountProcessor:
             await MongoProcessor().save_from_path(
                 "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
-            if AccountProcessor.EMAIL_ENABLED:
+            if email_enabled:
                 token = Utility.generate_token(account_setup.get("email"))
                 link = Utility.email_conf["app"]["url"] + '/verify/' + token
                 body = Utility.email_conf['email']['templates']['confirmation_body'] + link
@@ -406,7 +406,9 @@ class AccountProcessor:
         :param email: email of the user
         :return: None
         """
-        if AccountProcessor.EMAIL_ENABLED:
+        email_enabled = Utility.email_conf["email"]["enable"]
+
+        if email_enabled:
             AccountProcessor.is_user_confirmed(email)
 
     @staticmethod
@@ -417,7 +419,9 @@ class AccountProcessor:
         :param mail: email id of the user
         :return: mail id, mail subject, mail body
         """
-        if AccountProcessor.EMAIL_ENABLED:
+        email_enabled = Utility.email_conf["email"]["enable"]
+
+        if email_enabled:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
             if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
@@ -461,7 +465,9 @@ class AccountProcessor:
         :param mail: the mail id of the user
         :return: mail id, mail subject and mail body
         """
-        if AccountProcessor.EMAIL_ENABLED:
+        email_enabled = Utility.email_conf["email"]["enable"]
+
+        if email_enabled:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
             Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
