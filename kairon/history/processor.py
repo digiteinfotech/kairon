@@ -1002,9 +1002,6 @@ class HistoryProcessor:
                     ]))[:top_n]
 
                 return values, message
-            except ServerSelectionTimeoutError as e:
-                logger.error(e)
-                raise AppException(f'Could not connect to tracker: {e}')
             except Exception as e:
                 logger.error(e)
                 raise AppException(e)
@@ -1037,9 +1034,6 @@ class HistoryProcessor:
                       ]))[:top_n]
 
                 return values, message
-            except ServerSelectionTimeoutError as e:
-                logger.error(e)
-                raise AppException(f'Could not connect to tracker: {e}')
             except Exception as e:
                 logger.error(e)
                 raise AppException(e)
