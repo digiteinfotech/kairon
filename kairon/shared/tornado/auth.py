@@ -12,10 +12,6 @@ Utility.load_environment()
 
 class TornadoAuthenticate:
 
-    SECRET_KEY = Utility.environment['security']["secret_key"]
-    ALGORITHM = Utility.environment['security']["algorithm"]
-    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
-
     @staticmethod
     def get_token(request: HTTPServerRequest):
         authorization = request.headers.get('Authorization')
@@ -38,9 +34,11 @@ class TornadoAuthenticate:
         credentials_exception = Exception({"status_code": 401,
                                            "detail": "Could not validate credentials",
                                            "headers": {"WWW-Authenticate": "Bearer"}})
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
         try:
             token = TornadoAuthenticate.get_token(request)
-            payload = decode(token, TornadoAuthenticate.SECRET_KEY, algorithms=[TornadoAuthenticate.ALGORITHM])
+            payload = decode(token, secret_key, algorithms=[algorithm])
             username: str = payload.get("sub")
             TornadoAuthenticate.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:

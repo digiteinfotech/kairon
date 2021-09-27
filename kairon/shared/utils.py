@@ -929,7 +929,7 @@ class Utility:
         mongo_processor = MongoProcessor()
         history_server = mongo_processor.get_history_server_endpoint(bot)
         if not Utility.check_empty_string(history_server.get('token')):
-            headers = {'Authorization': history_server['token']}
+            headers = {'Authorization': f'Bearer {history_server["token"]}'}
         url = urljoin(history_server['url'], endpoint)
         try:
             logger.info(f"url : {url} {request_body}")
