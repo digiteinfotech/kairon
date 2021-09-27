@@ -118,6 +118,11 @@ services:
       - 83:80
     networks:
       - chatbotnetwork
+    environment:
+      DATABASE_URL: "mongodb://192.168.100.38:27017/conversations"
+      SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
+      TEST_DB: "test_conversations"
+      KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:5000/"
 
 networks:
   chatbotnetwork:
