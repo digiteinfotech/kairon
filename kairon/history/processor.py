@@ -935,3 +935,72 @@ class HistoryProcessor:
                 {"conversation_data": user_data},
                 message
             )
+
+    @staticmethod
+    def top_n_intents(collection: Text, month: int = 1, top_n: int = 10):
+
+        """
+        Fetches the top n identified intents of the bot for a given time
+
+        :param month: default is current month and max is last 6 months
+        :param collection: collection to connect to
+        :param top_n: The first n number of most occurring intents
+        :return: list of intents and their counts
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        with client as client:
+            try:
+                db = client.get_database()
+                conversations = db.get_collection(collection)
+                values = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$project": {"intent": "$events.parse_data.intent.name", "_id": 0}},
+                        {"$group": {"_id": "$intent", "count": {"$sum": 1}}},
+                        {"$match": {"_id": {"$ne": None}}},
+                        {"$sort": {"count": -1}}
+                    ]))[:top_n]
+
+                return values, message
+            except ServerSelectionTimeoutError as e:
+                logger.error(e)
+                raise AppException(f'Could not connect to tracker: {e}')
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)
+
+    @staticmethod
+    def top_n_actions(collection: Text, month: int = 1, top_n: int = 10):
+
+        """
+        Fetches the top n identified actions of the bot for a given time
+
+        :param month: default is current month and max is last 6 months
+        :param collection: collection to connect to
+        :param top_n: The first n number of most occurring actions
+        :return: list of actions and their counts
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        with client as client:
+            try:
+                db = client.get_database()
+                conversations = db.get_collection(collection)
+                values = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$match": {"events.event": "action"}},
+                        {"$match": {"events.name": {"$nin": ['action_listen', 'action_session_start']}}},
+                        {"$project": {"action": "$events.name", "_id": 0}},
+                        {"$group": {"_id": "$action", "count": {"$sum": 1}}},
+                        {"$sort": {"count": -1}}
+                      ]))[:top_n]
+
+                return values, message
+            except ServerSelectionTimeoutError as e:
+                logger.error(e)
+                raise AppException(f'Could not connect to tracker: {e}')
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)

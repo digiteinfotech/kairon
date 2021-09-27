@@ -470,3 +470,29 @@ def test_no_collection():
     assert not actual["data"]
     assert actual["message"] == "Collection not configured"
     assert not actual["success"]
+
+
+def test_top_intents(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/intents",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_top_actions(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/topmost/actions",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
