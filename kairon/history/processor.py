@@ -19,7 +19,7 @@ class HistoryProcessor:
     def get_mongo_connection():
         url = Utility.environment["tracker"]["url"]
         config = ActionUtility.extract_db_config(url)
-        message = f"Loading host:{config.get('host')}, db:{config.get('db')}, collection:{config.get('collection')}"
+        message = f"Loading host:{config.get('host')}, db:{config.get('db')}"
         client = MongoClient(host=url)
         return client, message
 
@@ -52,6 +52,7 @@ class HistoryProcessor:
         :return: list of user id
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -116,6 +117,7 @@ class HistoryProcessor:
         :return: list of conversation events
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             try:
                 db = client.get_database()
@@ -158,6 +160,7 @@ class HistoryProcessor:
         :return: list of visitor fallback
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         default_actions = Utility.load_default_actions()
         with client as client:
             db = client.get_database()
@@ -208,6 +211,7 @@ class HistoryProcessor:
         """
         values = []
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -261,6 +265,7 @@ class HistoryProcessor:
         :return: list of users duration
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         db = client.get_database()
         conversations = db.get_collection(collection)
         values = []
@@ -313,6 +318,7 @@ class HistoryProcessor:
         :return: list of users with step and time in conversation
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -378,6 +384,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -440,6 +447,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -484,6 +492,7 @@ class HistoryProcessor:
         :return: number of successful conversations
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -542,6 +551,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -603,6 +613,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -667,6 +678,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -712,6 +724,7 @@ class HistoryProcessor:
         :return: dictionary of counts of successful bot conversations for the previous months
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -761,6 +774,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -815,6 +829,7 @@ class HistoryProcessor:
         :return: dictionary of fallback counts for the previous months
         """
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
@@ -869,6 +884,7 @@ class HistoryProcessor:
         """
 
         client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)

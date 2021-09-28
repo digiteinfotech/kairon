@@ -149,7 +149,7 @@ def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_pr
         f"/api/history/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    assert responses.calls[len(responses.calls) - 1].request.headers['Authorization'] == 'test_token'
+    assert responses.calls[len(responses.calls) - 1].request.headers['Authorization'] == 'Bearer test_token'
 
     actual = response.json()
     assert actual["error_code"] == 0
@@ -171,7 +171,7 @@ def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_
         f"/api/history/{pytest.bot}/users",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    assert responses.calls[0].request.headers['Authorization'] == Utility.environment['history_server']['token']
+    assert responses.calls[0].request.headers['Authorization'] == 'Bearer ' + Utility.environment['history_server']['token']
 
     actual = response.json()
     assert actual["error_code"] == 0
