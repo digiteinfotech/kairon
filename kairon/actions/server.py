@@ -24,7 +24,7 @@ if __name__ == "__main__":
     Utility.initiate_tornado_apm_client(app)
     server = HTTPServer(app)
     server.bind(5055)
-    server.start(getenv("WEB_CONCURRENCY", 1))
+    server.start(int(getenv("WEB_CONCURRENCY", "1")))
     parse_command_line()
     logger.info("Server Started")
     IOLoop.current().start()
