@@ -7,6 +7,7 @@ from .handlers.action import ActionHandler
 from ..shared.utils import Utility
 from loguru import logger
 from mongoengine import connect
+from os import getenv
 Utility.load_environment()
 
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     Utility.initiate_tornado_apm_client(app)
     server = HTTPServer(app)
     server.bind(5055)
-    server.start(0)
+    server.start(getenv("WEB_CONCURRENCY", 1))
     parse_command_line()
     logger.info("Server Started")
     IOLoop.current().start()
