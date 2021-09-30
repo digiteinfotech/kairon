@@ -481,7 +481,6 @@ def test_top_intents(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == []
-    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -494,5 +493,4 @@ def test_top_actions(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == []
-    assert actual["message"] is None
     assert actual["success"]
