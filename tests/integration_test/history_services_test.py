@@ -474,7 +474,7 @@ def test_no_collection():
 
 def test_top_intents(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/topmost/intents",
+        f"/api/history/{pytest.bot}/metrics/intents/topmost",
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
@@ -487,7 +487,7 @@ def test_top_intents(mock_db_client):
 
 def test_top_actions(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/topmost/actions",
+        f"/api/history/{pytest.bot}/metrics/actions/topmost",
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
