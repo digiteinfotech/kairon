@@ -998,8 +998,9 @@ class HistoryProcessor:
                         {"$project": {"intent": "$events.parse_data.intent.name", "_id": 0}},
                         {"$group": {"_id": "$intent", "count": {"$sum": 1}}},
                         {"$match": {"_id": {"$ne": None}}},
-                        {"$sort": {"count": -1}}
-                    ]))[:top_n]
+                        {"$sort": {"count": -1}},
+                        {"$limit": top_n}
+                    ]))
 
                 return values, message
             except Exception as e:
@@ -1030,8 +1031,9 @@ class HistoryProcessor:
                         {"$match": {"events.name": {"$nin": ['action_listen', 'action_session_start']}}},
                         {"$project": {"action": "$events.name", "_id": 0}},
                         {"$group": {"_id": "$action", "count": {"$sum": 1}}},
-                        {"$sort": {"count": -1}}
-                      ]))[:top_n]
+                        {"$sort": {"count": -1}},
+                        {"$limit": top_n}
+                      ]))
 
                 return values, message
             except Exception as e:

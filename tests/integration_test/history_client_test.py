@@ -658,14 +658,14 @@ def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_proce
 def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/topmost/intents",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost",
         match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
         status=200,
         json={"data": [{'_id': 'action_google_search_kanban', 'count': 43}]}
     )
 
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/topmost/intents",
+        f"/api/history/{pytest.bot}/metrics/intents/topmost",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -680,14 +680,14 @@ def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
 def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/topmost/actions",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost",
         match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
         status=200,
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
 
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/topmost/actions",
+        f"/api/history/{pytest.bot}/metrics/actions/topmost",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 

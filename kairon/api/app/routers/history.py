@@ -234,6 +234,32 @@ async def download_conversations(
     return StreamingResponse(BytesIO(response.content), headers=response.headers)
 
 
+@router.get("/metrics/intents/topmost", response_model=Response)
+async def top_n_intents(month: int = Query(default=1, ge=1, le=6), top_n: int = Query(default=10, ge=1),
+                        current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the top n identified intents of the bot
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/intents/topmost',
+        {'month': month, 'top_n': top_n}
+    )
+
+
+@router.get("/metrics/actions/topmost", response_model=Response)
+async def top_n_actions(month: int = Query(default=1, ge=1, le=6), top_n: int = Query(default=10, ge=1),
+                        current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the top n identified actions of the bot
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/actions/topmost',
+        {'month': month, 'top_n': top_n}
+    )
+
+
 @router.get("/metrics/trend/conversations/total", response_model=Response)
 async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
@@ -243,30 +269,4 @@ async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), cu
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/total',
         {'month': month}
-    )
-
-
-@router.get("/metrics/topmost/intents", response_model=Response)
-async def top_n_intents(month: int = Query(default=1, ge=2, le=6), top_n: int = Query(default=10, ge=1),
-                        current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Fetches the top n identified intents of the bot
-    """
-    return Utility.trigger_history_server_request(
-        current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/metrics/topmost/intents',
-        {'month': month, 'top_n': top_n}
-    )
-
-
-@router.get("/metrics/topmost/actions", response_model=Response)
-async def top_n_actions(month: int = Query(default=1, ge=2, le=6), top_n: int = Query(default=10, ge=1),
-                        current_user: User = Depends(Authentication.get_current_user_and_bot)):
-    """
-    Fetches the top n identified actions of the bot
-    """
-    return Utility.trigger_history_server_request(
-        current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/metrics/topmost/actions',
-        {'month': month, 'top_n': top_n}
     )
