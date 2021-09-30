@@ -279,3 +279,13 @@ class TestHistory:
         f_count, message = HistoryProcessor.flatten_conversations("tests")
         assert f_count["conversation_data"] == []
         assert message
+
+    def test_total_conversation_range_error(self, mock_db_timeout):
+        conversation_steps, message = HistoryProcessor.total_conversation_range("tests")
+        assert conversation_steps["total_conversation_range"] == {}
+        assert message
+
+    def test_total_conversation_range(self, mock_mongo_client):
+        conversation_steps, message = HistoryProcessor.total_conversation_range("tests")
+        assert conversation_steps["total_conversation_range"] == {}
+        assert message

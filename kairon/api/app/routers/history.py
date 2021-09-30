@@ -232,3 +232,15 @@ async def download_conversations(
         {'month': month}, return_json=False
     )
     return StreamingResponse(BytesIO(response.content), headers=response.headers)
+
+
+@router.get("/metrics/trend/conversations/total", response_model=Response)
+async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the counts of conversations of the bot for previous months
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/trends/conversations/total',
+        {'month': month}
+    )
