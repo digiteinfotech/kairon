@@ -1252,5 +1252,5 @@ async def delete_form(request: TextData, current_user: User = Depends(Authentica
     """
     Deletes a form and its associated utterances.
     """
-    mongo_processor.delete_form(request.data, current_user.get_bot())
+    mongo_processor.delete_form(request.data, current_user.get_bot(), current_user.get_user())
     return Response(message='Form deleted')
