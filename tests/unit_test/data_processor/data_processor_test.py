@@ -4677,6 +4677,13 @@ class TestMongoProcessor:
                            match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
             processor.add_complex_story(story_dict, bot, user)
 
+    def test_delete_intent_attached_to_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match='Cannot remove intent linked to story'):
+            processor.delete_intent('greet', bot, user, False)
+
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()
         bot = 'test'

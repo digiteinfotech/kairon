@@ -2340,7 +2340,9 @@ class MongoProcessor:
         try:
             # status to be filtered as Invalid Intent should not be fetched
             intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
-
+            stories_with_intent = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
+            if len(stories_with_intent) > 0:
+                raise AppException("Cannot remove intent linked to story")
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
