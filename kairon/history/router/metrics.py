@@ -84,3 +84,23 @@ async def calculate_retention(request: HistoryQuery = HistoryQuery(),
         collection, request.month
     )
     return {"data": retention_count, "message": message}
+
+
+@router.get("/intents/topmost", response_model=Response)
+async def top_intents(request: HistoryQuery = HistoryQuery(),
+                      collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the top n identified intents of the bot."""
+    top_intent, message = HistoryProcessor.top_n_intents(
+        collection, request.month, request.top_n
+    )
+    return {"data": top_intent, "message": message}
+
+
+@router.get("/actions/topmost", response_model=Response)
+async def top_actions(request: HistoryQuery = HistoryQuery(),
+                      collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the top n identified actions of the bot."""
+    top_action, message = HistoryProcessor.top_n_actions(
+        collection, request.month, request.top_n
+    )
+    return {"data": top_action, "message": message}

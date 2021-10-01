@@ -35,7 +35,8 @@ from kairon.api.models import HttpActionConfigRequest
 from kairon.exceptions import AppException
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, SlotSetAction
+from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
+    SlotSetAction, FormValidations
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from kairon.shared.models import StoryEventType, TemplateType
 from kairon.shared.utils import Utility
@@ -3281,6 +3282,57 @@ class MongoProcessor:
             db_formatted_mapping.append(mapping_info)
         return db_formatted_mapping
 
+    def __prepare_form_validation_insertion(self, form: Text, path: list, bot: Text, user: Text):
+        for slots_to_fill in path:
+            slot = slots_to_fill.get('slot')
+            validations = slots_to_fill.get('validation')
+            if not Utility.check_empty_string(slot) and validations:
+                validation_semantic = Utility.prepare_form_validation_semantic(validations)
+                validation = FormValidations(name=f'validate_{form}', slot=slot,
+                                             validation_semantic=validation_semantic,
+                                             bot=bot, user=user,
+                                             utter_msg_on_valid=slots_to_fill.get('utter_msg_on_valid'),
+                                             utter_msg_on_invalid=slots_to_fill.get('utter_msg_on_invalid'))
+                validation.clean()
+                yield validation
+
+    def __edit_form_validations(self, name: Text, path: list, bot: Text, user: Text):
+        existing_slot_validations = FormValidations.objects(name=name, bot=bot, status=True)
+        existing_validations = {validation.slot for validation in list(existing_slot_validations)}
+        slots_required_for_form = {slots_to_fill['slot'] for slots_to_fill in path}
+        existing_slots_with_no_validations = {slots_to_fill['slot'] for slots_to_fill in path if
+                                              slots_to_fill['slot'] in existing_validations and
+                                              slots_to_fill.get('validation') is None}
+
+        for slots_to_fill in path:
+            slot = slots_to_fill.get('slot')
+            validations = slots_to_fill.get('validation')
+            if not Utility.check_empty_string(slot) and validations:
+                validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
+                if slot in existing_validations:
+                    validation = existing_slot_validations.get(slot=slot)
+                    validation.validation_semantic = validation_semantic
+                    validation.utter_msg_on_valid = slots_to_fill.get('utter_msg_on_valid')
+                    validation.utter_msg_on_invalid = slots_to_fill.get('utter_msg_on_invalid')
+                    validation.user = user
+                    validation.timestamp = datetime.utcnow()
+                    validation.save()
+                else:
+                    FormValidations(name=name, slot=slot,
+                                    validation_semantic=validation_semantic,
+                                    bot=bot, user=user,
+                                    utter_msg_on_valid=slots_to_fill.get('utter_msg_on_valid'),
+                                    utter_msg_on_invalid=slots_to_fill.get('utter_msg_on_invalid')).save()
+
+        slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
+        slot_validations_to_delete.update(existing_slots_with_no_validations)
+        for slot in slot_validations_to_delete:
+            validation = existing_slot_validations.get(slot=slot)
+            validation.user = user
+            validation.timestamp = datetime.utcnow()
+            validation.status = False
+            validation.save()
+
     def add_form(self, name: str, path: list, bot: Text, user: Text):
         if Utility.check_empty_string(name):
             raise AppException('Form name cannot be empty or spaces')
@@ -3297,21 +3349,33 @@ class MongoProcessor:
             if not Utility.check_empty_string(slot_name):
                 mapping[slot_name] = self.__prepare_slot_mapping(slots_to_fill, bot, user, name)
         Forms(name=name, mapping=mapping, bot=bot, user=user).save()
+        form_validations = list(self.__prepare_form_validation_insertion(name, path, bot, user))
+        if form_validations:
+            FormValidations.objects.insert(form_validations)
+        self.add_action(f'validate_{name}', bot, user, action_type=ActionType.form_validation_action.value)
 
     @staticmethod
     def list_forms(bot: Text):
         return list(Forms.objects(bot=bot, status=True).values_list('name'))
 
-    @staticmethod
-    def get_form(name: Text, bot: Text):
+    def get_form(self, name: Text, bot: Text):
         try:
             form = Forms.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+            form_validations = FormValidations.objects(name=f'validate_{name}', bot=bot, status=True)
+            existing_slots = {validation.slot for validation in form_validations}
             form['_id'] = form['_id'].__str__()
             slot_mapping = []
             for slot in form['mapping'].keys():
-                utterance = Responses.objects(name=f'utter_ask_{name}_{slot}', bot=bot, status=True).get()
-                slot_mapping.append({'slot': slot, 'mapping': form['mapping'][slot],
-                                     'utterance': {'_id': str(utterance.id), 'text': utterance.text.text}})
+                utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))
+                mapping = {'slot': slot, 'mapping': form['mapping'][slot],
+                           'utterance': utterance,
+                           'validations': None, 'utter_msg_on_valid': None, 'utter_msg_on_invalid': None}
+                if slot in existing_slots:
+                    validations = form_validations.get(slot=slot).to_mongo().to_dict()
+                    mapping['validations'] = validations.get('validation_semantic')
+                    mapping['utter_msg_on_valid'] = validations.get('utter_msg_on_valid')
+                    mapping['utter_msg_on_invalid'] = validations.get('utter_msg_on_invalid')
+                slot_mapping.append(mapping)
             form['slot_mapping'] = slot_mapping
             return form
         except DoesNotExist as e:
@@ -3345,10 +3409,11 @@ class MongoProcessor:
             form.mapping = mapping
             form.user = user
             form.save()
+            self.__edit_form_validations(f'validate_{name}', path, bot, user)
         except DoesNotExist:
             raise AppException('Form does not exists')
 
-    def delete_form(self, name: Text, bot: Text):
+    def delete_form(self, name: Text, bot: Text, user: Text):
         try:
             form = Forms.objects(name=name, bot=bot, status=True).get()
             existing_slots_for_form = set(form.to_mongo().to_dict()['mapping'].keys())
@@ -3360,6 +3425,8 @@ class MongoProcessor:
                     logging.error(str(e))
             form.status = False
             form.save()
+            if Utility.is_exist(FormValidations, raise_error=False, name__iexact=f'validate_{name}', bot=bot, status=True):
+                self.delete_action(f'validate_{name}', bot, user)
         except DoesNotExist:
             raise AppException(f'Form "{name}" does not exists')
 
@@ -3404,9 +3471,11 @@ class MongoProcessor:
                 raise AppException(f'Cannot remove action "{name}" linked to story "{story[0].block_name}"')
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.form_validation_action.value:
+                Utility.delete_document([FormValidations], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
             action.save()
         except DoesNotExist:
-            raise AppException(f'Slot setting action with name "{name}" not found')
+            raise AppException(f'Action with name "{name}" not found')

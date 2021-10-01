@@ -472,6 +472,30 @@ def test_no_collection():
     assert not actual["success"]
 
 
+def test_top_intents(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/intents/topmost",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["success"]
+
+
+def test_top_actions(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/actions/topmost",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["success"]
+
+
 def test_total_conversation_range(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/trends/conversations/total",

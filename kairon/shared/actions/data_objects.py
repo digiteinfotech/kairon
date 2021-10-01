@@ -112,8 +112,29 @@ class SlotSetAction(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
     def clean(self):
         self.name = self.name.strip().lower()
+        self.slot = self.slot.strip().lower()
+
+
+class FormValidations(Document):
+    name = StringField(required=True)
+    slot = StringField(required=True)
+    validation_semantic = DictField(default={})
+    utter_msg_on_valid = StringField(default=None)
+    utter_msg_on_invalid = StringField(default=None)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        self.slot = self.slot.strip().lower()
 
     def validate(self, clean=True):
         if clean:
