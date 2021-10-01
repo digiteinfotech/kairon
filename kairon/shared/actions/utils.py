@@ -1,4 +1,3 @@
-import ast
 import json
 import logging
 import re
@@ -408,54 +407,73 @@ class ExpressionEvaluator:
             slot_value = int(slot_value)
         except ValueError:
             return is_valid
-        if operator not in {SlotValidationOperators.equal_to.value, SlotValidationOperators.is_greater_than.value,
-                            SlotValidationOperators.is_less_than.value, SlotValidationOperators.is_in.value,
-                            SlotValidationOperators.is_not_in.value}:
-            raise ActionFailure(f'Cannot evaluate invalid operator "{operator}"')
-
         expression = f'({slot_value} {operator} {operand})'
-        is_valid = ExpressionEvaluator.__evaluate_using_ast(expression)
+        if operator == SlotValidationOperators.equal_to.value:
+            is_valid = slot_value == operand
+        elif operator == SlotValidationOperators.is_greater_than.value:
+            is_valid = slot_value > operand
+        elif operator == SlotValidationOperators.is_less_than.value:
+            is_valid = slot_value < operand
+        elif operator == SlotValidationOperators.is_in.value:
+            is_valid = slot_value in operand
+        elif operator == SlotValidationOperators.is_not_in.value:
+            is_valid = slot_value not in operand
+        else:
+            raise ActionFailure(f'Cannot evaluate invalid operator "{operator}" for slot type "float"')
         return expression, is_valid
 
     @staticmethod
     def __evaluate_text_type(slot_value: Any, operator: str, operand: Any):
-        expression = None
-        if operator in {SlotValidationOperators.equal_to.value, SlotValidationOperators.is_in.value,
-                        SlotValidationOperators.is_not_in.value}:
+        if operator == SlotValidationOperators.equal_to.value:
             expression = f'("{slot_value}" {operator} "{operand}")'
+            is_valid = slot_value == operand
+        elif operator == SlotValidationOperators.not_equal_to.value:
+            expression = f'("{slot_value}" {operator} "{operand}")'
+            is_valid = slot_value != operand
         elif operator == SlotValidationOperators.case_insensitive_equals.value:
-            expression = f'("{slot_value.lower()}" == "{operand.lower()}")'
+            slot_value = slot_value.lower() if slot_value else slot_value
+            expression = f'("{slot_value}" == "{operand.lower()}")'
+            is_valid = slot_value == operand.lower()
         elif operator == SlotValidationOperators.contains.value:
             expression = f'("{operand}" in "{slot_value}")'
+            is_valid = operand in slot_value if slot_value else False
         elif operator == SlotValidationOperators.starts_with.value:
             expression = f'("{slot_value}".startswith("{operand}"))'
+            is_valid = slot_value.startswith(operand) if slot_value else False
         elif operator == SlotValidationOperators.ends_with.value:
             expression = f'("{slot_value}".endswith("{operand}"))'
+            is_valid = slot_value.endswith(operand) if slot_value else False
         elif operator == SlotValidationOperators.has_length.value:
             expression = f'(len("{slot_value}") == {operand})'
+            is_valid = len(slot_value) == operand if slot_value else False
         elif operator == SlotValidationOperators.has_length_greater_than.value:
             expression = f'(len("{slot_value}") > {operand})'
+            is_valid = len(slot_value) > operand if slot_value else False
         elif operator == SlotValidationOperators.has_length_less_than.value:
             expression = f'(len("{slot_value}") < {operand})'
+            is_valid = len(slot_value) < operand if slot_value else False
         elif operator == SlotValidationOperators.has_no_whitespace.value:
             expression = f'(" " not in "{slot_value}")'
+            is_valid = " " not in slot_value if slot_value else False
         elif operator == SlotValidationOperators.is_in.value:
             expression = f'("{slot_value}" in {operand})'
+            is_valid = slot_value in operand
         elif operator == SlotValidationOperators.is_not_in.value:
             expression = f'("{slot_value}" not in {operand})'
-
-        if not ActionUtility.is_empty(expression):
-            is_valid = ExpressionEvaluator.__evaluate_using_ast(expression)
+            is_valid = slot_value not in operand
         elif operator == SlotValidationOperators.is_not_null_or_empty.value:
             expression = f'(is_empty({slot_value}))'
             is_valid = not ActionUtility.is_empty(slot_value)
+        elif operator == SlotValidationOperators.is_null_or_empty.value:
+            expression = f'(is_empty({slot_value}))'
+            is_valid = ActionUtility.is_empty(slot_value)
         elif operator == SlotValidationOperators.is_an_email_address.value:
             expression = f'(is_an_email_address({slot_value}))'
             regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-            is_valid = True if re.fullmatch(regex, slot_value) else False
+            is_valid = True if slot_value and re.fullmatch(regex, slot_value) else False
         elif operator == SlotValidationOperators.matches_regex.value:
             expression = f'({slot_value}.matches_regex({operand}))'
-            is_valid = True if re.fullmatch(operand, slot_value) else False
+            is_valid = True if slot_value and re.fullmatch(operand, slot_value) else False
         else:
             raise ActionFailure(f'Cannot evaluate invalid operator "{operator}" for current slot type')
 
@@ -482,26 +500,27 @@ class ExpressionEvaluator:
 
     @staticmethod
     def __evaluate_list_type(slot_value: Any, operator: str, operand: Any):
-        expression = None
         if operator == SlotValidationOperators.equal_to.value:
             expression = f'({slot_value} == {operand})'
+            is_valid = slot_value == operand if slot_value else False
         elif operator == SlotValidationOperators.contains.value:
             expression = f'({operand} in {slot_value})'
+            is_valid = operand in slot_value if slot_value else False
         elif operator == SlotValidationOperators.has_length.value:
             expression = f'(len({slot_value}) == {operand})'
+            is_valid = len(slot_value) == operand if slot_value else False
         elif operator == SlotValidationOperators.has_length_greater_than.value:
             expression = f'(len({slot_value}) > {operand})'
+            is_valid = len(slot_value) > operand if slot_value else False
         elif operator == SlotValidationOperators.has_length_less_than.value:
             expression = f'(len({slot_value}) < {operand})'
-
-        if not ActionUtility.is_empty(expression):
-            is_valid = ExpressionEvaluator.__evaluate_using_ast(expression)
+            is_valid = len(slot_value) < operand if slot_value else False
         elif operator == SlotValidationOperators.is_in.value:
             expression = f'({slot_value} in {operand})'
-            is_valid = False if set(slot_value).difference(set(operand)) else True
+            is_valid = False if slot_value and set(slot_value).difference(set(operand)) else True
         elif operator == SlotValidationOperators.is_not_in.value:
             expression = f'({slot_value} not in {operand})'
-            is_valid = True if set(slot_value).difference(set(operand)) else False
+            is_valid = True if slot_value and set(slot_value).difference(set(operand)) else False
         elif operator == SlotValidationOperators.is_null_or_empty.value:
             expression = f'(is_null_or_empty({operand}))'
             is_valid = False if (slot_value and list(slot_value)) else True
@@ -512,11 +531,6 @@ class ExpressionEvaluator:
             raise ActionFailure(f'Cannot evaluate invalid operator: "{operator}" for slot type "list"')
 
         return expression, is_valid
-
-    @staticmethod
-    def __evaluate_using_ast(expression: str):
-        code = ast.parse(expression, mode='eval')
-        return eval(compile(code, '', mode='eval'))
 
     @staticmethod
     def expr_as_str(sub_expressions: list, operator: str):

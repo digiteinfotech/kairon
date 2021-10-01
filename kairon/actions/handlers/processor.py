@@ -141,6 +141,7 @@ class ActionProcessor:
             if form_validations:
                 validation = form_validations.get(slot=slot)
                 slot_type = ActionUtility.get_slot_type(validation.bot, slot)
+                msg.append(f'slot_type: {slot_type}')
                 semantic = validation.validation_semantic
                 msg.append(f'validation: {semantic}')
                 utter_msg_on_valid = validation.utter_msg_on_valid
