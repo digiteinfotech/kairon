@@ -1,6 +1,6 @@
 from typing import Text
 
-from cachetools.lru import LRUCache
+from cachetools import LRUCache
 from rasa.core.agent import Agent
 
 
