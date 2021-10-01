@@ -630,3 +630,25 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth, mock_mon
     assert actual["error_code"] == 422
     assert actual["message"] == "No data available!"
     assert not actual["success"]
+
+
+@responses.activate
+def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/total",
+        status=200,
+        match=[responses.json_params_matcher({'month': 6})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/conversations/total",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]

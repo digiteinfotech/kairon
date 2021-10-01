@@ -500,8 +500,9 @@ class HistoryProcessor:
             fallback_count = []
             try:
                 total = list(
-                    conversations.aggregate([{"$match": {"latest_event_time": {
-                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                             {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                             {"$group": {"_id": "$sender_id"}},
                                              {"$group": {"_id": None, "count": {"$sum": 1}}},
                                              {"$project": {"_id": 0, "count": 1}}
                                              ]))
@@ -933,5 +934,43 @@ class HistoryProcessor:
 
             return (
                 {"conversation_data": user_data},
+                message
+            )
+
+    @staticmethod
+    def total_conversation_range(collection: Text, month: int = 6):
+
+        """
+        Computes the trend for conversation count
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of counts of bot conversations for the previous months
+        """
+
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            total = []
+            try:
+                total = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
+                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            total_users = {d['_id']: d['count'] for d in total}
+            return (
+                {"total_conversation_range": total_users},
                 message
             )

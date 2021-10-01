@@ -57,3 +57,14 @@ async def fallback(request: HistoryQuery = HistoryQuery(month=6),
         collection, request.month, request.action_fallback, request.nlu_fallback
     )
     return {"data": range_value, "message": message}
+
+
+@router.get("/conversations/total", response_model=Response)
+async def total_conversations(request: HistoryQuery = HistoryQuery(month=6),
+                                collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the counts of conversations of the bot for previous months."""
+    range_value, message = HistoryProcessor.total_conversation_range(
+        collection, request.month
+    )
+    return {"data": range_value, "message": message}
+
