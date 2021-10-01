@@ -652,3 +652,47 @@ def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_proce
     assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
+
+
+@responses.activate
+def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost",
+        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        status=200,
+        json={"data": [{'_id': 'action_google_search_kanban', 'count': 43}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/intents/topmost",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'action_google_search_kanban', 'count': 43}]
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost",
+        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        status=200,
+        json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/actions/topmost",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
+    assert actual["message"] is None
+    assert actual["success"]
