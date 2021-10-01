@@ -1858,7 +1858,7 @@ class MongoProcessor:
             if not raise_error:
                 return False
 
-    def __complex_story_prepare_steps(self, steps: List[Dict], type, bot, user):
+    def __complex_story_prepare_steps(self, steps: List[Dict], flowtype, bot, user):
         """
         convert kairon story events to rasa story events
         :param steps: list of story steps
@@ -1866,7 +1866,7 @@ class MongoProcessor:
         """
 
         events = []
-        if steps and type == "RULE":
+        if steps and flowtype == "RULE":
             if steps[0]['name'] != RULE_SNIPPET_ACTION_NAME and steps[0]['type'] != "action":
                 events.append(StoryEvents(
                     name=RULE_SNIPPET_ACTION_NAME,
@@ -1902,22 +1902,22 @@ class MongoProcessor:
         """
         name = story['name']
         steps = story['steps']
-        type = story['type']
+        flowtype = story['type']
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
             raise AppException("steps are required")
 
-        events = self.__complex_story_prepare_steps(steps, type, bot, user)
+        events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
 
-        if type == "STORY":
+        if flowtype == "STORY":
             data_class = Stories
             template_type = story.get('template_type')
             if not template_type:
                 template_type = DataUtility.get_template_type(story)
             data_object = Stories(template_type=template_type)
-        elif type == 'RULE':
+        elif flowtype == 'RULE':
             data_class = Rules
             data_object = Rules()
         else:
@@ -1955,16 +1955,16 @@ class MongoProcessor:
         """
         name = story['name']
         steps = story['steps']
-        type = story['type']
+        flowtype = story['type']
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
         if not steps:
             raise AppException("steps are required")
 
-        if type == 'STORY':
+        if flowtype == 'STORY':
             data_class = Stories
-        elif type == 'RULE':
+        elif flowtype == 'RULE':
             data_class = Rules
         else:
             raise AppException("Invalid type")
@@ -1974,7 +1974,7 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("FLow does not exists")
 
-        events = self.__complex_story_prepare_steps(steps, type, bot, user)
+        events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         data_object['events'] = events
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),

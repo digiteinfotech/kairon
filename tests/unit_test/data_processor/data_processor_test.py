@@ -5734,6 +5734,8 @@ class TestTrainingDataProcessor:
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
         assert len(story.events) == 4
+        assert story.events[0].name == "..."
+        assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == []
 
@@ -5867,6 +5869,8 @@ class TestTrainingDataProcessor:
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[2].name == "utter_nonsense"
+        assert rule.events[0].name == "..."
+        assert rule.events[0].type == "action"
 
     def test_case_insensitive_update_rule(self):
         processor = MongoProcessor()
