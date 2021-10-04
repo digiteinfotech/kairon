@@ -2038,7 +2038,7 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == "..." and event['type'] == "action":
+                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == "action":
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
