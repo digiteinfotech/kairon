@@ -28,7 +28,6 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from rasa.shared.core.domain import _validate_slot_mappings
 from kairon.api.models import TemplateType
 
 
@@ -223,6 +222,8 @@ class Forms(Document):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        from rasa.shared.core.domain import _validate_slot_mappings
+
         if clean:
             self.clean()
 
