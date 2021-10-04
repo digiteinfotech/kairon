@@ -3690,11 +3690,12 @@ def test_feedback():
         'rating': 5.0, 'scale': 5.0, 'feedback': 'The product is better than rasa.'
     }
     response = client.post(
-        f"/api/bot/{pytest.bot}/feedback",
+        f"/api/account/feedback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json=request
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]

@@ -7,7 +7,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, ListField
+    DictField, ListField, FloatField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -76,3 +76,11 @@ class UserEmailConfirmation(Document):
             raise ValidationError("Email cannot be empty or blank spaces")
         elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Invalid email address")
+
+
+class Feedback(Document):
+    rating = FloatField(required=True)
+    scale = FloatField(default=5.0)
+    feedback = StringField(default=None)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

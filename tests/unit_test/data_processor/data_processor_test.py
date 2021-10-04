@@ -37,7 +37,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Responses,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                             TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
+                                             TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms
                                              )
 from kairon.shared.data.model_processor import ModelProcessor
@@ -2108,33 +2108,6 @@ class TestMongoProcessor:
     def test_get_existing_slots_bot_not_exists(self):
         slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
         assert len(slots) == 0
-
-    def test_add_feedback(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(4.5, 'test', 'test', feedback='product is good')
-        feedback = Feedback.objects(bot='test', user='test').get()
-        assert feedback['rating'] == 4.5
-        assert feedback['scale'] == 5.0
-        assert feedback['feedback'] == 'product is good'
-        assert feedback['timestamp']
-
-    def test_add_feedback_2(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(5.0, 'test', 'test_user', scale=10, feedback='i love kairon')
-        feedback = Feedback.objects(bot='test', user='test_user').get()
-        assert feedback['rating'] == 5.0
-        assert feedback['scale'] == 10
-        assert feedback['feedback'] == 'i love kairon'
-        assert feedback['timestamp']
-
-    def test_add_feedback_3(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(5.0, 'test', 'test')
-        feedback = list(Feedback.objects(bot='test', user='test'))
-        assert feedback[1]['rating'] == 5.0
-        assert feedback[1]['scale'] == 5.0
-        assert not feedback[1]['feedback']
-        assert feedback[1]['timestamp']
 
     @pytest.mark.asyncio
     async def test_save_training_data_all(self, get_training_data):

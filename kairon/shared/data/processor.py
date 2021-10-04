@@ -74,7 +74,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback, Utterances, BotSettings, ChatClientConfig, ResponseText
+    Utterances, BotSettings, ChatClientConfig, ResponseText
 )
 from .utils import DataUtility
 
@@ -2778,19 +2778,6 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
-
-    @staticmethod
-    def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
-        """
-        Add user feedback.
-        @param rating: user given rating.
-        @param bot: bot id.
-        @param user: Kairon username.
-        @param scale: Scale on which rating is given. %.0 is the default value.
-        @param feedback: feedback if any.
-        @return:
-        """
-        Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
     async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
         DataImporterLogProcessor.is_limit_exceeded(bot)

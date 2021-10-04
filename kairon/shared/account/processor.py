@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -480,3 +480,15 @@ class AccountProcessor:
             return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")
+
+    @staticmethod
+    def add_feedback(rating: float, user: str, scale: float = 5.0, feedback: str = None):
+        """
+        Add user feedback.
+        @param rating: user given rating.
+        @param user: Kairon username.
+        @param scale: Scale on which rating is given. %.0 is the default value.
+        @param feedback: feedback if any.
+        @return:
+        """
+        Feedback(rating=rating, scale=scale, feedback=feedback, user=user).save()
