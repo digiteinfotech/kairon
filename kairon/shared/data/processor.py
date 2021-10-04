@@ -1868,10 +1868,10 @@ class MongoProcessor:
 
         events = []
         if steps and flowtype == "RULE":
-            if steps[0]['name'] != RULE_SNIPPET_ACTION_NAME and steps[0]['type'] != "action":
+            if steps[0]['name'] != RULE_SNIPPET_ACTION_NAME and steps[0]['type'] != ActionExecuted.type_name:
                 events.append(StoryEvents(
                     name=RULE_SNIPPET_ACTION_NAME,
-                    type="action"))
+                    type=ActionExecuted.type_name))
         for step in steps:
             if step['type'] == "INTENT":
                 events.append(StoryEvents(
@@ -1883,7 +1883,7 @@ class MongoProcessor:
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
-                    type="action"))
+                    type=ActionExecuted.type_name))
                 if step['type'] == "ACTION":
                     self.add_action(step['name'], bot, user, raise_exception=False)
             else:
@@ -2038,7 +2038,7 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == "action":
+                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
