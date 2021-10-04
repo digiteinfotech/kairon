@@ -28,7 +28,7 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from kairon.api.models import TemplateType
+from kairon.shared.models import TemplateType
 
 
 class Entity(EmbeddedDocument):
