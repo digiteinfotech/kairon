@@ -102,7 +102,7 @@ async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_c
 
 
 @router.post("/feedback", response_model=Response)
-async def feedback(request_data: FeedbackRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def feedback(request_data: FeedbackRequest, current_user: User = Depends(Authentication.get_current_user)):
     """
     Receive feedback from user.
     """
