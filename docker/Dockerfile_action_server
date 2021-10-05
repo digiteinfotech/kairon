@@ -34,5 +34,5 @@ COPY email.yaml /app/
 
 USER 1001
 EXPOSE 5055
-CMD ["python","-m", "kairon.actions.server"]
+CMD ["python","-m", "kairon.actions.server", "--logging=debug"]
 

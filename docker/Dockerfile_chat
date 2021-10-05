@@ -32,5 +32,5 @@ COPY email.yaml /app/
 
 USER 1001
 EXPOSE 5000
-CMD ["python","-m", "kairon.chat.server"]
+CMD ["python","-m", "kairon.chat.server","--logging=debug"]
 
