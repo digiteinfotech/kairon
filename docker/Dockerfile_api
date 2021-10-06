@@ -29,6 +29,7 @@ RUN python3 -m pip install tensorflow==2.3.2
 RUN python3 -m pip install numpy==1.19.5
 RUN python3 -m pip install elastic-apm
 RUN python3 -m pip install pymongo==3.12.0
+RUN python3 -m pip install cryptography~=3.4.8
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN mkdir training_data

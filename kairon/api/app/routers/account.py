@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi import BackgroundTasks
-from kairon.api.auth import Authentication
-from kairon.api.models import Response, RegisterAccount, TextData, Password, User
-from kairon.api.processor import AccountProcessor
-from kairon.utils import Utility
+from kairon.shared.auth import Authentication
+from kairon.api.models import Response, RegisterAccount, TextData, Password
+from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.utils import Utility
 
 router = APIRouter()
 
@@ -14,7 +15,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     Registers a new account
     """
     user, mail, subject, body = await AccountProcessor.account_setup(register_account.dict(), "sysadmin")
-    if AccountProcessor.EMAIL_ENABLED:
+    if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
     else:

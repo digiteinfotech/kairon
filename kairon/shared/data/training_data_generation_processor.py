@@ -5,7 +5,7 @@ from loguru import logger
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, TRAINING_DATA_GENERATOR_DIR
 from .data_objects import TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator
 

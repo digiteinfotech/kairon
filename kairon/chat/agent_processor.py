@@ -1,12 +1,15 @@
 import os
 from typing import Text
+
 from loguru import logger as logging
 from rasa.core.agent import Agent
 from rasa.train import DEFAULT_MODELS_PATH
+
+from kairon.chat.cache import AgentCache
 from kairon.exceptions import AppException
-from kairon.utils import Utility
-from .cache import AgentCache
-from .processor import MongoProcessor
+from kairon.shared.data.processor import MongoProcessor
+from .cache import InMemoryAgentCache
+from ..shared.utils import Utility
 
 
 class AgentProcessor:
@@ -15,7 +18,7 @@ class AgentProcessor:
     """
 
     mongo_processor = MongoProcessor()
-    cache_provider: AgentCache = Utility.create_cache()
+    cache_provider: AgentCache = InMemoryAgentCache()
 
     @staticmethod
     def get_agent(bot: Text) -> Agent:
@@ -30,17 +33,6 @@ class AgentProcessor:
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
-    def get_latest_model(bot: Text):
-        """
-        fetches the latest model from the path
-
-        :param bot: bot id
-        :return: latest model path
-        """
-        model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
-        return Utility.get_latest_file(model_file, "*.tar.gz")
-
-    @staticmethod
     def reload(bot: Text):
         """
         reload bot agent
@@ -53,7 +45,7 @@ class AgentProcessor:
                 bot, raise_exception=False
             )
             action_endpoint = Utility.get_action_url(endpoint)
-            model_path = AgentProcessor.get_latest_model(bot)
+            model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
             agent = Agent.load(
@@ -62,4 +54,4 @@ class AgentProcessor:
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
             logging.exception(e)
-            raise AppException("Bot has not been trained yet !")
+            raise AppException("Bot has not been trained yet!")

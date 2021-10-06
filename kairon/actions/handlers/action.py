@@ -4,7 +4,7 @@ from abc import ABC
 from rasa_sdk import utils
 from rasa_sdk.interfaces import ActionExecutionRejection, ActionNotFoundException
 from tornado.escape import json_decode, json_encode
-from .base import BaseHandler
+from kairon.shared.tornado.handlers.base import BaseHandler
 from rasa_sdk.executor import CollectingDispatcher, ActionExecutor
 from .processor import ActionProcessor
 

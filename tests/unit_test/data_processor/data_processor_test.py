@@ -23,39 +23,43 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api import models
-from kairon.api.auth import Authentication
-from kairon.api.models import StoryEventType, HttpActionParameters, HttpActionConfigRequest, SlotType
-from kairon.api.processor import AccountProcessor
-from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
+from kairon.shared.auth import Authentication
+from kairon.api.models import HttpActionParameters, HttpActionConfigRequest
+from kairon.shared.account.processor import AccountProcessor
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE
-from kairon.data_processor.data_objects import (TrainingExamples,
-                                                Slots,
-                                                Entities, EntitySynonyms, RegexFeatures,
-                                                Intents,
-                                                Actions,
-                                                Responses,
-                                                ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
-                                                TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                                TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
-                                                Utterances, BotSettings, ChatClientConfig, LookupTables
-                                                )
-from kairon.data_processor.model_processor import ModelProcessor
-from kairon.data_processor.processor import MongoProcessor
-from kairon.data_processor.training_data_generation_processor import TrainingDataGenerationProcessor
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE
+from kairon.shared.data.data_objects import (TrainingExamples,
+                                             Slots,
+                                             Entities, EntitySynonyms, RegexFeatures,
+                                             Intents,
+                                             Responses,
+                                             ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
+                                             TrainingDataGenerator, TrainingDataGeneratorResponse,
+                                             TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
+                                             Utterances, BotSettings, ChatClientConfig, LookupTables, Forms
+                                             )
+from kairon.shared.data.model_processor import ModelProcessor
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionLog
+from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
+    FormValidations
+from kairon.shared.actions.models import ActionType
+from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.models import StoryEventType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
+from kairon.shared.data.constant import ENDPOINT_TYPE
+
 
 class TestMongoProcessor:
 
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_d" \
-                                    "ata/system.yaml"
-        Utility.load_evironment()
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
         connect(**Utility.mongoengine_connection())
 
     @pytest.fixture()
@@ -75,6 +79,7 @@ class TestMongoProcessor:
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             return nlu, story_graph, domain, config, http_actions
+
         return _read_and_get_data
 
     @pytest.mark.asyncio
@@ -230,6 +235,58 @@ class TestMongoProcessor:
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
 
     @pytest.mark.asyncio
+    async def test_upload_case_insensitivity(self):
+        processor = MongoProcessor()
+        await (
+            processor.save_from_path(
+                "./tests/testing_data/upper_case_data", bot="test_upload_case_insensitivity", user="testUser"
+            )
+        )
+        training_data = processor.load_nlu("test_upload_case_insensitivity")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.intents == {'deny', 'greet'}
+        assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka', 'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'}, {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
+        assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']}, {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        story_graph = processor.load_stories("test_upload_case_insensitivity")
+        assert story_graph.story_steps[0].block_name == 'greet'
+        assert story_graph.story_steps[1].block_name == 'say goodbye'
+        domain = processor.load_domain("test_upload_case_insensitivity")
+        assert [slot.name for slot in domain.slots] == ['application_name', 'bot', 'email_id', 'location', 'user']
+        assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye', 'utter_default']
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name']
+        assert domain.forms == {'ask_user': {'USER': [{'type': 'from_entity', 'entity': 'USER'}],
+                                             'EMAIL_ID': [{'type': 'from_entity', 'entity': 'EMAIL_ID'}]},
+                                'ask_location': {'LOCATION': [{'type': 'from_entity', 'entity': 'LOCATION'}],
+                                                 'APPLICATION_NAME': [
+                                                     {'type': 'from_entity', 'entity': 'APPLICATION_NAME'}]}}
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+                                       'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
+        assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application', 'action_get_microsoft_application']
+        assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
+        assert domain.templates == {
+            'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
+            'utter_greet': [{'text': 'Hey! How are you?'}], 'utter_goodbye': [{'text': 'Bye'}],
+            'utter_default': [{'text': 'Can you rephrase!'}]}
+        rules = processor.fetch_rule_block_names("test_upload_case_insensitivity")
+        assert rules == ['rule which will not wait for user message once it was applied', 'ask the user to rephrase whenever they send a message with low nlu confidence']
+        actions = processor.load_http_action("test_upload_case_insensitivity")
+        assert actions == {'http_actions': [
+            {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
+             'request_method': 'GET', 'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]},
+            {'action_name': 'action_get_microsoft_application', 'response': 'json',
+             'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
+             'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]}]}
+        assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
+                                                                                                'utter_greet',
+                                                                                                'utter_default',
+                                                                                                'utter_please_rephrase'}
+
+    @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
         await (
@@ -250,12 +307,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -319,12 +376,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -368,12 +425,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -644,23 +701,23 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"]
         assert (
-                results[0]["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+                results[0]["text"] == "Make [TKT456](ticketid) a [critical issue](priority)"
         )
         assert results[0]["message"] == "Training Example added"
         actual = list(processor.get_training_examples("get_priority", "tests"))
         slots = Slots.objects(bot="tests")
-        new_slot = slots.get(name="ticketID")
+        new_slot = slots.get(name="ticketid")
         assert any(
             [value["text"] == "Log a [critical issue](priority)" for value in actual]
         )
         assert any(
             [
-                value["text"] == "Make [TKT456](ticketID) a [critical issue](priority)"
+                value["text"] == "Make [TKT456](ticketid) a [critical issue](priority)"
                 for value in actual
             ]
         )
         assert slots.__len__() == 3
-        assert new_slot.name == "ticketID"
+        assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
         actual = list(processor.get_training_examples("greet", "tests"))
@@ -706,7 +763,7 @@ class TestMongoProcessor:
 
     def test_get_entities(self):
         processor = MongoProcessor()
-        expected = ["priority", "file_text", "ticketID"]
+        expected = ["priority", "file_text", "ticketid"]
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -792,7 +849,7 @@ class TestMongoProcessor:
 
     def test_add_text_response(self):
         processor = MongoProcessor()
-        assert processor.add_text_response("Great", "utter_happy", "tests", "testUser")
+        assert processor.add_text_response("Great", "utter_Happy", "tests", "testUser")
         response = Responses.objects(
             bot="tests", name="utter_happy", text__text="Great"
         ).get()
@@ -933,7 +990,7 @@ class TestMongoProcessor:
         folder = "models/tests"
         file = Utility.get_latest_file(folder, '*.tar.gz')
         Utility.move_old_models(folder, file)
-        assert len(list(glob.glob(folder+'/*.tar.gz'))) == 1
+        assert len(list(glob.glob(folder + '/*.tar.gz'))) == 1
 
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
@@ -965,10 +1022,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         loop = asyncio.get_event_loop()
         loop.run_until_complete(processor.save_from_path(
-                "./tests/testing_data/initial", bot="test_initial", user="testUser"
-            ))
+            "./tests/testing_data/initial", bot="test_initial", user="testUser"
+        ))
 
-        model_path = start_training("test_initial", "testUser", reload=False)
+        model_path = start_training("test_initial", "testUser")
         assert model_path
         model_training = ModelTraining.objects(bot="test_initial", status="Done")
         assert model_training.__len__() == 1
@@ -1027,68 +1084,102 @@ class TestMongoProcessor:
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("tracker") is None
 
-    def test_add_endpoints_add_tracker_endpoint_missing_db(self):
-        processor = MongoProcessor()
-        config = {"tracker_endpoint": {"url": "mongodb://localhost:27017"}}
-        with pytest.raises(ValidationError):
-            processor.add_endpoints(config, bot="tests3", user="testUser")
-            endpoint = processor.get_endpoints("tests3")
-            assert endpoint.get("bot_endpoint") is None
-            assert endpoint.get("action_endpoint") is None
-            assert endpoint.get("tracker_endpoint") is None
-
-    def test_add_endpoints_add_tracker_endpoint_invalid_url(self):
+    def test_add_endpoints_add_history_endpoint(self):
         processor = MongoProcessor()
         config = {
-            "tracker_endpoint": {
-                "url": "mongo://localhost:27017",
-                "db": "conversations",
-            }
-        }
-        with pytest.raises(AppException):
-            processor.add_endpoints(config, bot="tests3", user="testUser")
-            endpoint = processor.get_endpoints("tests3")
-            assert endpoint.get("bot_endpoint") is None
-            assert endpoint.get("action_endpoint") is None
-            assert endpoint.get("tracker") is None
-
-    def test_add_endpoints_add_tracker_endpoint(self):
-        processor = MongoProcessor()
-        config = {
-            "tracker_endpoint": {
-                "url": "mongodb://localhost:27017/",
-                "db": "conversations",
+            "history_endpoint": {
+                "url": "http://localhost:27017/",
+                "token": "conversations"
             }
         }
         processor.add_endpoints(config, bot="tests3", user="testUser")
         endpoint = processor.get_endpoints("tests3")
         assert endpoint.get("bot_endpoint") is None
         assert endpoint.get("action_endpoint") is None
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27017/"
+        assert endpoint.get("history_endpoint").get("token") == "conversations"
+
+    def test_get_endpoints_mask_history_server_token(self):
+        processor = MongoProcessor()
+        config = {
+            "history_endpoint": {
+                "url": "http://localhost:27017/",
+                "token": "conversations"
+            }
+        }
+        processor.add_endpoints(config, bot="tests3", user="testUser")
+        endpoint = processor.get_endpoints("tests3", mask_characters=True)
+        assert endpoint.get("bot_endpoint") is None
+        assert endpoint.get("action_endpoint") is None
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27017/"
+        assert endpoint.get("history_endpoint").get("token") == "conversati***"
+
+    def test_get_history_server_endpoint(self):
+        processor = MongoProcessor()
+        endpoint = processor.get_history_server_endpoint("tests3")
+        assert endpoint.get("url") == "http://localhost:27017/"
+        assert endpoint.get("token") == "conversations"
+        assert endpoint.get("type") == 'user'
+
+    def test_get_kairon_history_server_endpoint(self):
+        processor = MongoProcessor()
+        endpoint = processor.get_history_server_endpoint("test_bot")
+        assert endpoint.get("url") == "http://localhost:8083"
+        assert endpoint.get("token")
+        assert endpoint.get("type") == 'kairon'
 
     def test_update_endpoints(self):
         processor = MongoProcessor()
         config = {
             "action_endpoint": {"url": "http://localhost:8000/"},
             "bot_endpoint": {"url": "http://localhost:5000/"},
-            "tracker_endpoint": {
-                "url": "mongodb://localhost:27017/",
-                "db": "conversations",
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "token": "kairon-history-user",
             },
         }
         processor.add_endpoints(config, bot="tests", user="testUser")
         endpoint = processor.get_endpoints("tests")
         assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("token") == "kairon-history-user"
+
+    def test_update_endpoints_token_less_than_8_chars(self):
+        processor = MongoProcessor()
+        config = {
+            "action_endpoint": {"url": "http://localhost:8000/"},
+            "bot_endpoint": {"url": "http://localhost:5000/"},
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "token": "kairon",
+            },
+        }
+        with pytest.raises(AppException, match='token must contain at least 8 characters'):
+            processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("token") == "kairon-history-user"
+
+    def test_update_endpoints_token_with_space(self):
+        processor = MongoProcessor()
+        config = {
+            "action_endpoint": {"url": "http://localhost:8000/"},
+            "bot_endpoint": {"url": "http://localhost:5000/"},
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "token": "kairon token",
+            },
+        }
+        with pytest.raises(AppException, match='token cannot contain spaces'):
+            processor.add_endpoints(config, bot="tests", user="testUser")
+        endpoint = processor.get_endpoints("tests")
+        assert endpoint.get("bot_endpoint").get("url") == "http://localhost:5000/"
+        assert endpoint.get("action_endpoint").get("url") == "http://localhost:8000/"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("token") == "kairon-history-user"
 
     def test_update_endpoints_any(self):
         processor = MongoProcessor()
@@ -1100,11 +1191,82 @@ class TestMongoProcessor:
         endpoint = processor.get_endpoints("tests")
         assert endpoint.get("bot_endpoint").get("url") == "http://127.0.0.1:5000/"
         assert endpoint.get("action_endpoint").get("url") == "http://127.0.0.1:8000/"
-        assert (
-                endpoint.get("tracker_endpoint").get("url") == "mongodb://localhost:27017/"
-        )
-        assert endpoint.get("tracker_endpoint").get("db") == "conversations"
-        assert endpoint.get("tracker_endpoint").get("type") == "mongo"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+        assert endpoint.get("history_endpoint").get("token") == "kairon-history-user"
+
+    def test_delete_endpoints(self):
+        processor = MongoProcessor()
+        config = {
+            "bot_endpoint": {"url": "http://127.0.0.1:5000/"},
+            "action_endpoint": {"url": "http://127.0.0.1:8000/"},
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "token": "kairon-history-user",
+            },
+        }
+        processor.add_endpoints(config, bot="test_delete_endpoint", user="testUser")
+
+        processor.delete_endpoint('test_delete_endpoint', ENDPOINT_TYPE.BOT_ENDPOINT.value)
+        endpoint = processor.get_endpoints("test_delete_endpoint")
+        assert not endpoint.get(ENDPOINT_TYPE.BOT_ENDPOINT)
+        assert endpoint.get("action_endpoint").get("url") == "http://127.0.0.1:8000/"
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+
+        processor.delete_endpoint('test_delete_endpoint', ENDPOINT_TYPE.ACTION_ENDPOINT.value)
+        endpoint = processor.get_endpoints("test_delete_endpoint")
+        assert not endpoint.get(ENDPOINT_TYPE.BOT_ENDPOINT)
+        assert not endpoint.get(ENDPOINT_TYPE.ACTION_ENDPOINT)
+        assert endpoint.get("history_endpoint").get("url") == "http://localhost:27019/"
+
+        processor.delete_endpoint('test_delete_endpoint', ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
+        endpoint = processor.get_endpoints("test_delete_endpoint")
+        assert not endpoint.get(ENDPOINT_TYPE.BOT_ENDPOINT.value)
+        assert not endpoint.get(ENDPOINT_TYPE.ACTION_ENDPOINT.value)
+        assert not endpoint.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
+
+    def test_delete_endpoints_none(self):
+        processor = MongoProcessor()
+        config = {
+            "bot_endpoint": {"url": "http://127.0.0.1:5000/"},
+            "action_endpoint": {"url": "http://127.0.0.1:8000/"},
+            "history_endpoint": {
+                "url": "http://localhost:27019/",
+                "token": "kairon-history-user",
+            },
+        }
+        processor.add_endpoints(config, bot="test_delete_endpoint", user="testUser")
+
+        with pytest.raises(AppException, match='endpoint_type is required for deletion'):
+            processor.delete_endpoint('test_delete_endpoint', None)
+
+    def test_delete_endpoints_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException) as e:
+            processor.delete_endpoint('test_delete_endpoints_not_exists', ENDPOINT_TYPE.BOT_ENDPOINT.value)
+        assert str(e).__contains__("No Endpoint configured")
+
+    def test_delete_endpoints_type_not_exists(self):
+        processor = MongoProcessor()
+        config = {
+            "bot_endpoint": {"url": "http://127.0.0.1:5000/"},
+        }
+        processor.add_endpoints(config, bot="test_delete_endpoints_type_not_exists", user="testUser")
+
+        with pytest.raises(AppException, match='Endpoint not configured'):
+            processor.delete_endpoint('test_delete_endpoints_type_not_exists', ENDPOINT_TYPE.ACTION_ENDPOINT.value)
+
+        processor.delete_endpoint('test_delete_endpoints_type_not_exists', ENDPOINT_TYPE.BOT_ENDPOINT.value)
+        endpoint = processor.get_endpoints("test_delete_endpoints_type_not_exists")
+        assert not endpoint.get(ENDPOINT_TYPE.BOT_ENDPOINT.value)
+
+        with pytest.raises(AppException, match='Endpoint not configured') as e:
+            processor.delete_endpoint('test_delete_endpoints_type_not_exists', ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
+
+    def test_get_kairon_history_server_endpoint_none_configured(self):
+        processor = MongoProcessor()
+        Utility.environment['history_server']['url'] = None
+        with pytest.raises(AppException, match='No history server endpoint configured'):
+            endpoint = processor.get_history_server_endpoint("test_bot")
 
     def test_download_data_files(self):
         processor = MongoProcessor()
@@ -1120,7 +1282,7 @@ class TestMongoProcessor:
     def test_get_utterance_from_empty_intent(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            response = processor.get_utterance_from_intent("", "tests")
+            processor.get_utterance_from_intent("", "tests")
 
     def test_get_stories(self):
         processor = MongoProcessor()
@@ -1159,7 +1321,7 @@ class TestMongoProcessor:
     def test_edit_training_example_case_insensitive(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
-        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="Greet", bot="tests",
+        processor.edit_training_example(examples[0]["_id"], example="hello, there", intent="greet", bot="tests",
                                         user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "hello, there" for example in examples)
@@ -1167,10 +1329,18 @@ class TestMongoProcessor:
     def test_edit_training_example_with_entities(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
-        processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](Location) India", intent="greet",
+        processor.edit_training_example(examples[0]["_id"], example="[Meghalaya](location) India", intent="greet",
                                         bot="tests", user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
-        assert any(example['text'] == "[Meghalaya](Location) India" for example in examples)
+        assert any(example['text'] == "[Meghalaya](location) India" for example in examples)
+
+    def test_edit_same_training_example_with_entities(self):
+        processor = MongoProcessor()
+        examples = list(processor.add_training_example(["What is the weather today"], intent="greet", bot="tests", user="test", is_integration=False))
+        processor.edit_training_example(examples[0]["_id"], example="What is the weather [today](date)", intent="greet",
+                                        bot="tests", user="testUser")
+        examples = list(processor.get_training_examples("greet", "tests"))
+        assert any(example['text'] == "What is the weather [today](date)" for example in examples)
 
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
@@ -1206,7 +1376,7 @@ class TestMongoProcessor:
     def test_edit_responses_case_insensitivity(self):
         processor = MongoProcessor()
         responses = list(processor.get_response("utter_happy", "tests"))
-        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="Utter_Happy", bot="tests",
+        processor.edit_text_response(responses[0]["_id"], "That's Great!", name="utter_happy", bot="tests",
                                      user="testUser")
         responses = list(processor.get_response("utter_happy", "tests"))
         assert any(
@@ -1243,16 +1413,23 @@ class TestMongoProcessor:
         bot = "tests"
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/{bot}/model/reload",
+            f"http://localhost/api/bot/{bot}/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
-        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
-        model_path = start_training("tests", "testUser", token, reload=False)
+        monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+        model_path = start_training("tests", "testUser", token)
         assert model_path
 
+    @responses.activate
     def test_start_training_done_reload_event_without_token(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "agent_url", "http://localhost/")
+        monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+        responses.add(
+            responses.GET,
+            f"http://localhost/api/bot/tests/reload",
+            json='{"message": "Reloading Model!"}',
+            status=200
+        )
         model_path = start_training("tests", "testUser")
         assert model_path
 
@@ -1454,8 +1631,8 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
 
-        for slot_type in SlotType:
-            if slot_type == SlotType.FLOAT or slot_type == SlotType.CATEGORICAL:
+        for slot_type in SLOT_TYPE:
+            if slot_type == SLOT_TYPE.FLOAT or slot_type == SLOT_TYPE.CATEGORICAL:
                 continue
             else:
                 print(slot_type)
@@ -1486,9 +1663,9 @@ class TestMongoProcessor:
         bot = 'test_add_slot'
         user = 'test_user'
 
-        for slot_type in SlotType:
+        for slot_type in SLOT_TYPE:
 
-            if slot_type == SlotType.CATEGORICAL:
+            if slot_type == SLOT_TYPE.CATEGORICAL:
                 continue
             else:
                 processor.add_slot(
@@ -1518,7 +1695,7 @@ class TestMongoProcessor:
         user = 'test_user'
         with pytest.raises(ValidationError):
             msg = processor.add_slot({"name": "bot", "type": "categorical",
-                                "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                                      "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
             assert msg == "CategoricalSlot must have list of categories in values field"
 
     def test_delete_slot(self):
@@ -1810,48 +1987,48 @@ class TestMongoProcessor:
         expected_intents = ["intent13", "intent11", "intent9", "intent8", "intent7", "intent6", "intent5",
                             "intent4", "intent3", "intent2"]
         request_params = {"key": "value", "key2": "value2"}
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                       timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent2", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                       url="http://kairon-api.digite.com/api/bot",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent1", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot_2).save()
-        HttpActionLog(intent="intent3", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent4", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent5", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent6", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent7", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent7", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent8", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent8", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent9", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent9", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent10", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent10", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot_2).save()
-        HttpActionLog(intent="intent11", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent11", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response",
                       bot=bot).save()
-        HttpActionLog(intent="intent12", action="http_action", sender="sender_id",
+        ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
                       status="FAILURE").save()
-        HttpActionLog(intent="intent13", action="http_action", sender="sender_id_13",
+        ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                       request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
                       status="FAILURE").save()
         processor = MongoProcessor()
@@ -1894,10 +2071,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = "test_bot"
         bot_2 = "testing_bot"
-        cnt = processor.get_row_count(HttpActionLog, bot)
+        cnt = processor.get_row_count(ActionServerLogs, bot)
         assert cnt == 11
 
-        cnt = processor.get_row_count(HttpActionLog, bot_2)
+        cnt = processor.get_row_count(ActionServerLogs, bot_2)
         assert cnt == 3
 
     def test_get_existing_slots(self):
@@ -1982,12 +2159,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2039,12 +2216,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
         assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2088,12 +2265,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2145,12 +2322,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2197,12 +2374,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
@@ -2307,12 +2484,12 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[14].events[2].entities[0].get('start')
         assert not story_graph.story_steps[14].events[2].entities[0].get('end')
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
         assert not story_graph.story_steps[15].events[2].entities[0].get('start')
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdResponse'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
 
     def test_delete_config_and_actions_only(self):
         bot = 'test'
@@ -2440,7 +2617,8 @@ class TestMongoProcessor:
         assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
         assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
 
-    def test_prepare_training_data_for_validation_with_home_dir(self, resource_prepare_training_data_for_validation_with_home_dir):
+    def test_prepare_training_data_for_validation_with_home_dir(self,
+                                                                resource_prepare_training_data_for_validation_with_home_dir):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.dir)
@@ -2465,7 +2643,8 @@ class TestMongoProcessor:
         yield 'resource_prepare_training_data_for_validation_rules_only'
         Utility.delete_directory(pytest.nlu_only_tmp_dir)
 
-    def test_prepare_training_data_for_validation_nlu_domain_only(self, resource_prepare_training_data_for_validation_nlu_only):
+    def test_prepare_training_data_for_validation_nlu_domain_only(self,
+                                                                  resource_prepare_training_data_for_validation_nlu_only):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'nlu', 'domain'})
@@ -2479,7 +2658,8 @@ class TestMongoProcessor:
         assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 0
         assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 0
 
-    def test_prepare_training_data_for_validation_rules_only(self, resource_prepare_training_data_for_validation_rules_only):
+    def test_prepare_training_data_for_validation_rules_only(self,
+                                                             resource_prepare_training_data_for_validation_rules_only):
         bot = 'test'
         processor = MongoProcessor()
         processor.prepare_training_data_for_validation(bot, pytest.nlu_only_tmp_dir, {'rules'})
@@ -2523,7 +2703,8 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_zip(self, resource_unzip_and_validate):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert REQUIREMENTS == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2560,7 +2741,9 @@ class TestMongoProcessor:
 
         pytest.bot = 'test_validate_and_prepare_data'
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
-        actions = {"http_actions": [{"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com", "request_method": "GET", "response": "json"}]}
+        actions = {"http_actions": [
+            {"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com",
+             "request_method": "GET", "response": "json"}]}
         actions = json.dumps(actions).encode('utf-8')
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
         pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(actions))
@@ -2571,7 +2754,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert REQUIREMENTS == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2587,7 +2771,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_nlu_only(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.nlu]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'nlu'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2603,7 +2788,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_stories_only(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.stories]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'stories'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2619,7 +2805,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_config(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("config")
@@ -2634,7 +2821,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.rules]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'rules'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2650,7 +2838,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_actions(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.http_actions]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'http_actions'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2661,7 +2850,8 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.domain]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'domain'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
@@ -2674,10 +2864,12 @@ class TestMongoProcessor:
         assert not non_event_validation_summary
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self, resource_save_and_validate_training_files):
+    async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self,
+                                                                               resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.http_actions, pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2689,10 +2881,12 @@ class TestMongoProcessor:
         assert config['language']
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_save_actions_and_config_append(self, resource_validate_and_prepare_data_save_actions_and_config_append):
+    async def test_validate_and_prepare_data_save_actions_and_config_append(self,
+                                                                            resource_validate_and_prepare_data_save_actions_and_config_append):
         processor = MongoProcessor()
         training_file = [pytest.http_actions, pytest.config]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', training_file, False)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, False)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2714,7 +2908,8 @@ class TestMongoProcessor:
         os.remove(zip_file + '.zip')
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_no_valid_file_received(self, resource_validate_and_prepare_data_no_valid_file_in_zip):
+    async def test_validate_and_prepare_data_no_valid_file_received(self,
+                                                                    resource_validate_and_prepare_data_no_valid_file_in_zip):
         processor = MongoProcessor()
         bot = 'test_validate_and_prepare_data'
         with pytest.raises(AppException) as e:
@@ -2735,9 +2930,11 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_zip_actions_config(self, resource_validate_and_prepare_data_zip_actions_config):
+    async def test_validate_and_prepare_data_zip_actions_config(self,
+                                                                resource_validate_and_prepare_data_zip_actions_config):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert {'http_actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
@@ -2765,9 +2962,11 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self,
+                                                                        resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(pytest.bot, 'test', [pytest.zip], True)
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', [pytest.zip], True)
         assert non_event_validation_summary['summary']['http_actions'] == ['Required http action fields not found']
         assert files_received == {'http_actions', 'config'}
         assert not is_event_data
@@ -2878,7 +3077,7 @@ class TestMongoProcessor:
                 {"name": "TEDPolicy",
                  "epochs": 400},
                 {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
-                 'core_fallback_threshold': 0.3 }]
+                 'core_fallback_threshold': 0.3}]
         }
         assert config == expected
 
@@ -3150,9 +3349,9 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         processor.add_synonym(
-            {"synonym": "bot", "value": ["exp"]}, bot, user)
-        syn = list(EntitySynonyms.objects(synonym__iexact='bot', bot=bot, user=user))
-        assert syn[0]['synonym'] == "bot"
+            {"name": "bot", "value": ["exp"]}, bot, user)
+        syn = list(EntitySynonyms.objects(name__iexact='bot', bot=bot, user=user))
+        assert syn[0]['name'] == "bot"
         assert syn[0]['value'] == "exp"
 
     def test_get_specific_synonym(self):
@@ -3166,7 +3365,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+            processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym value already exists"
 
     def test_edit_specific_synonym(self):
@@ -3198,7 +3397,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym({"synonym": "bot", "value": ["exp"]}, bot, user)
+        processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
         processor.delete_synonym_value(response[0]["_id"], bot, user)
@@ -3246,7 +3445,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": []}, bot, user)
+            processor.add_synonym({"name": "bot", "value": []}, bot, user)
         assert str(exp.value) == "Synonym value cannot be an empty string"
 
     def test_add_synonym_with_empty_element_in_value_list(self):
@@ -3254,7 +3453,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "bot", "value": ["df", '']}, bot, user)
+            processor.add_synonym({"name": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Synonym value cannot be an empty string"
 
     def test_add_utterance(self):
@@ -3264,7 +3463,7 @@ class TestMongoProcessor:
     def test_add_utterance_already_exists(self):
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Utterance exists'):
-            processor.add_utterance_name('test_add', 'test', 'testUser', True)
+            processor.add_utterance_name('test_add', 'test', 'testUser', raise_error_if_exists=True)
 
     def test_add_utterance_empty(self):
         processor = MongoProcessor()
@@ -3287,7 +3486,7 @@ class TestMongoProcessor:
     def test_delete_utterance_name_does_not_exists(self):
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Utterance not found'):
-            processor.delete_utterance_name('test_add_1', 'test', True)
+            processor.delete_utterance_name('test_add_1', 'test', raise_exc=True)
 
     def test_delete_utterance_name_does_not_exists_no_exc(self):
         processor = MongoProcessor()
@@ -3577,6 +3776,1130 @@ class TestMongoProcessor:
             processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
         assert str(exp.value) == "Lookup table value cannot be an empty string"
 
+    def test_add_form(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='name', type="text", bot=bot, user=user).save()
+        Slots(name='age', type="float", bot=bot, user=user).save()
+        Slots(name='occupation', type="text", bot=bot, user=user).save()
+
+        processor.add_form('know_user', path, bot, user)
+        form = Forms.objects(name='know_user', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        assert Utterances.objects(name='utter_ask_know_user_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        assert Utterances.objects(name='utter_ask_know_user_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
+        resp = list(Responses.objects(name='utter_ask_know_user_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+    def test_add_form_slots_not_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]},
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='num_people', type="float", bot=bot, user=user).save()
+        Slots(name='cuisine', type="text", bot=bot, user=user).save()
+
+        with pytest.raises(AppException) as e:
+            processor.add_form('form', path, bot, user)
+            assert str(e).__contains__('slots not exists: {')
+
+    def test_add_form_utterance_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['please give us your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]},
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='outdoor_seating', type="text", bot=bot, user=user).save()
+        Slots(name='preferences', type="text", bot=bot, user=user).save()
+        Slots(name='feedback', type="text", bot=bot, user=user).save()
+        Utterances(name='utter_ask_restaurant_form_name', form_attached='utter_ask_restaurant_form_name', bot=bot,
+                   user=user).save()
+        Responses(name='utter_ask_restaurant_form_name', text=ResponseText(text='what is your name?'), bot=bot).save()
+
+        processor.add_form('restaurant_form', path, bot, user)
+        form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['num_people'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form.mapping['cuisine'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form.mapping['outdoor_seating'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                   {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                   {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form.mapping['preferences'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                               {'type': 'from_intent', 'intent': ['affirm'],
+                                                'value': 'no additional preferences'}]
+        assert form.mapping['feedback'] == [{'type': 'from_text'},
+                                            {'type': 'from_entity', 'entity': 'feedback'}]
+        assert Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_num_people', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_preferences', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_feedback', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_restaurant_form_num_people', bot=bot,
+                                 status=True).get().text.text == 'seats required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                 status=True).get().text.text == 'type of cuisine?'
+        assert Responses.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot,
+                                 status=True).get().text.text == 'outdoor seating required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_preferences', bot=bot,
+                                 status=True).get().text.text == 'any preferences?'
+        assert Responses.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
+                                 status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+    def test_add_form_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match='Form with name "restaurant_form" exists'):
+            processor.add_form('restaurant_form', [], bot, user)
+
+    def test_add_form_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match='Form name cannot be empty or spaces'):
+            processor.add_form(' ', [], bot, user)
+
+    def test_add_form_slot_name_empty(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': ' ',
+                 'mapping': [{'type': 'from_intent', 'entity': 'location'}]},
+                {'responses': ['what is your occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+
+        processor.add_form('user_info', path, bot, user)
+        form = Forms.objects(name='user_info', bot=bot, status=True).get()
+        assert len(form.mapping) == 3
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_user_info_name', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Utterances.objects(name='utter_ask_user_info_age', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Utterances.objects(name='utter_ask_user_info_occupation', bot=bot,
+                                  status=True).get().form_attached == 'user_info'
+        assert Responses.objects(name='utter_ask_user_info_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_user_info_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_user_info_occupation', bot=bot,
+                                 status=True).get().text.text == 'what is your occupation?'
+
+    def test_add_form_no_entity_and_mapping_type(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}]},
+                {'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': 'location',
+                 'mapping': [{}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='location', type="text", bot=bot, user=user).save()
+
+        processor.add_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 3
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['location'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert Utterances.objects(name='utter_ask_get_user_name', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_name', bot=bot,
+                                 status=True).get().text.text == 'what is your name?'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location', bot=bot,
+                                 status=True).get().text.text == 'where are you located?'
+
+    def test_add_form_with_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and', 'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                      {'operator': 'has_no_whitespace'}]}]}
+        age_validation = {'logical_operator': 'and', 'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10},
+                                                                     {'operator': 'is_less_than', 'value': 70},
+                                                                     {'operator': 'starts_with', 'value': 'valid'},
+                                                                     {'operator': 'ends_with', 'value': 'value'}]}]}
+        occupation_validation = {'logical_operator': 'and', 'expressions': [
+            {'logical_operator': 'and',
+             'validations': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                             {'operator': 'has_no_whitespace'},
+                             {'operator': 'ends_with', 'value': 'value'}]},
+            {'logical_operator': 'or',
+             'validations': [{'operator': 'has_length_greater_than', 'value': 20},
+                             {'operator': 'has_no_whitespace'},
+                             {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': age_validation,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': occupation_validation}]
+        bot = 'test'
+        user = 'user'
+        processor.add_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 3
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
+        assert validations_added[1].slot == 'age'
+        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10},
+                                                                    {'operator': 'is_less_than', 'value': 70},
+                                                                    {'operator': 'starts_with', 'value': 'valid'},
+                                                                    {'operator': 'ends_with', 'value': 'value'},
+                                                                    ]}
+        assert validations_added[1].utter_msg_on_valid == 'valid entry'
+        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+
+        assert validations_added[2].slot == 'occupation'
+        assert validations_added[2].validation_semantic == {'and': [
+            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                     {'operator': 'has_no_whitespace'},
+                     {'operator': 'ends_with', 'value': 'value'}]},
+            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                    {'operator': 'has_no_whitespace'},
+                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert not validations_added[2].utter_msg_on_valid
+        assert not validations_added[2].utter_msg_on_invalid
+
+    def test_list_forms(self):
+        processor = MongoProcessor()
+        forms = processor.list_forms('test')
+        assert set(forms) == {'know_user', 'know_user_form', 'restaurant_form', 'user_info', 'get_user', 'ticket_file_form',
+                              'ticket_attributes_form'}
+
+    def test_list_forms_no_form_added(self):
+        processor = MongoProcessor()
+        forms = processor.list_forms('new_bot')
+        assert forms == []
+
+    def test_get_form(self):
+        form = MongoProcessor().get_form('get_user', 'test')
+        assert len(form['mapping']) == 3
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'age'
+        assert form['slot_mapping'][2]['slot'] == 'location'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value'] == {'text': 'what is your name?'}
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['value'] == {'text': 'what is your age?'}
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['value'] == {'text': 'where are you located?'}
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                                      {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form['slot_mapping'][2]['mapping'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert not form['slot_mapping'][0]['validations']
+        assert not form['slot_mapping'][0]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][0]['utter_msg_on_valid']
+        assert not form['slot_mapping'][1]['validations']
+        assert not form['slot_mapping'][1]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][1]['utter_msg_on_valid']
+        assert not form['slot_mapping'][2]['validations']
+        assert not form['slot_mapping'][2]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][2]['utter_msg_on_valid']
+
+    def test_get_form_with_validations(self):
+        form = MongoProcessor().get_form('know_user_form', 'test')
+        assert len(form['mapping']) == 3
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'age'
+        assert form['slot_mapping'][2]['slot'] == 'occupation'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][0]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][1]['value']['text']
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form['slot_mapping'][2]['mapping'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert form['slot_mapping'][0]['validations'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert form['slot_mapping'][0]['utter_msg_on_invalid'] == 'please rephrase'
+        assert form['slot_mapping'][0]['utter_msg_on_valid'] == 'got it'
+        assert form['slot_mapping'][1]['validations'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
+                                                                    {'operator': 'is_less_than', 'value': 70},
+                                                                    {'operator': 'starts_with', 'value': 'valid'},
+                                                                    {'operator': 'ends_with', 'value': 'value'},
+                                                                    ]}
+        assert form['slot_mapping'][1]['utter_msg_on_invalid'] == 'please enter again'
+        assert form['slot_mapping'][1]['utter_msg_on_valid'] == 'valid entry'
+        assert form['slot_mapping'][2]['validations'] == {'and': [
+            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
+                     {'operator': 'has_no_whitespace'},
+                     {'operator': 'ends_with', 'value': 'value'}]},
+            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
+                    {'operator': 'has_no_whitespace'},
+                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert not form['slot_mapping'][2]['utter_msg_on_invalid']
+        assert not form['slot_mapping'][2]['utter_msg_on_valid']
+
+    def test_get_form_not_added(self):
+        with pytest.raises(AppException, match='Form does not exists'):
+            MongoProcessor().get_form('form_not_present', 'test')
+
+    def test_get_form_having_on_intent_and_not_intent(self):
+        form = MongoProcessor().get_form('restaurant_form', 'test')
+        assert len(form['mapping']) == 6
+        assert form['slot_mapping'][0]['slot'] == 'name'
+        assert form['slot_mapping'][1]['slot'] == 'num_people'
+        assert form['slot_mapping'][2]['slot'] == 'cuisine'
+        assert form['slot_mapping'][3]['slot'] == 'outdoor_seating'
+        assert form['slot_mapping'][4]['slot'] == 'preferences'
+        assert form['slot_mapping'][5]['slot'] == 'feedback'
+        assert form['slot_mapping'][0]['utterance'][0]['_id']
+        assert form['slot_mapping'][1]['utterance'][0]['_id']
+        assert form['slot_mapping'][2]['utterance'][0]['_id']
+        assert form['slot_mapping'][3]['utterance'][0]['_id']
+        assert form['slot_mapping'][4]['utterance'][0]['_id']
+        assert form['slot_mapping'][5]['utterance'][0]['_id']
+        assert form['slot_mapping'][0]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][1]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][2]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][3]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][4]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][5]['utterance'][0]['value']['text']
+        assert form['slot_mapping'][0]['mapping'] == [{'type': 'from_text', 'value': 'user'},
+                                                      {'type': 'from_entity', 'entity': 'name'}]
+        assert form['slot_mapping'][1]['mapping'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form['slot_mapping'][2]['mapping'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form['slot_mapping'][3]['mapping'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                      {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                      {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form['slot_mapping'][4]['mapping'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                                      {'type': 'from_intent', 'intent': ['affirm'],
+                                                       'value': 'no additional preferences'}]
+        assert form['slot_mapping'][5]['mapping'] == [{'type': 'from_text'},
+                                                      {'type': 'from_entity', 'entity': 'feedback'}]
+
+    def test_edit_form_slot_not_present(self):
+        processor = MongoProcessor()
+        path = [{'utterance': 'which location would you prefer?', 'slot': 'restaurant_location',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
+                             {'type': 'from_entity', 'entity': 'location'}]},
+                {'utterance': 'seats required?', 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
+                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'utterance': 'any preferences?', 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'utterance': 'do you want to go with an AC room?', 'slot': 'ac_required',
+                 'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]}
+                ]
+        bot = 'test'
+        user = 'user'
+
+        with pytest.raises(AppException) as e:
+            processor.edit_form('restaurant_form', path, bot, user)
+            assert str(e).__contains__('slots not exists: {')
+
+    def test_edit_form_change_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                            {'operator': 'has_no_whitespace'}]}]}
+        age_validation = {'logical_operator': 'and',
+                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': age_validation,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 2
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
+        assert validations_added[1].slot == 'age'
+        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10}]}
+        assert validations_added[1].utter_msg_on_valid == 'valid entry'
+        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+
+    def test_edit_form_remove_validations(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+        form = Forms.objects(name='know_user_form', bot=bot).get()
+        assert form.mapping['name'] == [{'type': 'from_text', 'value': 'user'},
+                                        {'type': 'from_entity', 'entity': 'name'}]
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['occupation'] == [
+            {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester',
+             'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        assert Utterances.objects(name='utter_ask_know_user_form_occupation', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_name', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your name?'
+        assert resp[1].text.text == 'name?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_age', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your age?'
+        assert resp[1].text.text == 'age?'
+        resp = list(Responses.objects(name='utter_ask_know_user_form_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 0
+
+    def test_edit_form_add_validations(self):
+        processor = MongoProcessor()
+        name_validation = {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}
+        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                             {'type': 'from_entity', 'entity': 'name'}],
+                 'validation': name_validation,
+                 'utter_msg_on_valid': 'got it',
+                 'utter_msg_on_invalid': 'please rephrase'},
+                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
+                 'validation': None,
+                 'utter_msg_on_valid': 'valid entry',
+                 'utter_msg_on_invalid': 'please enter again'
+                 },
+                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'mapping': [
+                     {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
+                     {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
+                     {'type': 'from_entity', 'entity': 'occupation'},
+                     {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
+                      'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
+                 'validation': None}]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('know_user_form', path, bot, user)
+
+        validations_added = list(FormValidations.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations_added) == 1
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].utter_msg_on_valid == 'got it'
+        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+
+    def test_edit_form_remove_and_add_slots(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['which location would you prefer?'], 'slot': 'location',
+                 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
+                             {'type': 'from_entity', 'entity': 'location'}]},
+                {'responses': ['seats required?'], 'slot': 'num_people',
+                 'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
+                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}],
+                 'validation': {'logical_operator': 'and',
+                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}},
+                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['any preferences?'], 'slot': 'preferences',
+                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
+                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
+                {'responses': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
+                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'mapping': [{'type': 'from_text'},
+                             {'type': 'from_entity', 'entity': 'feedback'}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        Slots(name='ac_required', type="text", bot=bot, user=user).save()
+
+        processor.edit_form('restaurant_form', path, bot, user)
+        form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
+        assert not form.mapping.get('name')
+        assert form.mapping['location'] == [{'type': 'from_text', 'value': 'user'},
+                                            {'type': 'from_entity', 'entity': 'location'}]
+        assert form.mapping['num_people'] == [
+            {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]
+        assert form.mapping['cuisine'] == [{'type': 'from_entity', 'entity': 'cuisine'}]
+        assert form.mapping['outdoor_seating'] == [{'type': 'from_entity', 'entity': 'seating'},
+                                                   {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                                   {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert form.mapping['preferences'] == [{'type': 'from_text', 'not_intent': ['affirm']},
+                                               {'type': 'from_intent', 'intent': ['affirm'],
+                                                'value': 'no additional preferences'}]
+        assert form.mapping['feedback'] == [{'type': 'from_text'},
+                                            {'type': 'from_entity', 'entity': 'feedback'}]
+        assert form.mapping['ac_required'] == [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                                               {'type': 'from_intent', 'intent': ['deny'], 'value': False}]
+        assert Utterances.objects(name='utter_ask_restaurant_form_location', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_num_people', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_outdoor_seating', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_preferences', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        assert Utterances.objects(name='utter_ask_restaurant_form_ac_required', bot=bot,
+                                  status=True).get().form_attached == 'restaurant_form'
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_location',
+                                 bot=bot, status=True).get().text.text == 'which location would you prefer?'
+        assert Responses.objects(name='utter_ask_restaurant_form_num_people',
+                                 bot=bot, status=True).get().text.text == 'seats required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine',
+                                 bot=bot, status=True).get().text.text == 'type of cuisine?'
+        assert Responses.objects(name='utter_ask_restaurant_form_outdoor_seating',
+                                 bot=bot, status=True).get().text.text == 'outdoor seating required?'
+        assert Responses.objects(name='utter_ask_restaurant_form_preferences',
+                                 bot=bot, status=True).get().text.text == 'any preferences?'
+        assert Responses.objects(name='utter_ask_restaurant_form_ac_required',
+                                 bot=bot, status=True).get().text.text == 'do you want to go with an AC room?'
+        assert Responses.objects(name='utter_ask_restaurant_form_feedback',
+                                 bot=bot,
+                                 status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+        validations_added = list(FormValidations.objects(name='validate_restaurant_form', bot=bot, status=True))
+        assert len(validations_added) == 1
+        assert validations_added[0].slot == 'cuisine'
+        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+
+    def test_edit_form_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form does not exists'):
+            processor.edit_form('form_not_present', [], 'test', 'test')
+
+    def test_edit_form_utterance_not_exists(self):
+        processor = MongoProcessor()
+        path = [{'responses': ['what is your age?'], 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+                {'responses': ['where are you located?'], 'slot': 'location',
+                 'mapping': [{}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        utterance = Utterances.objects(name='utter_ask_get_user_name', bot=bot).get()
+        utterance.status = False
+        utterance.save()
+        response = Responses.objects(name='utter_ask_get_user_name', bot=bot).get()
+        response.status = False
+        response.save()
+
+        processor.edit_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 2
+        assert not form.mapping.get('name')
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert form.mapping['location'] == [{'type': 'from_entity', 'entity': 'location'}]
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location',
+                                 bot=bot, status=True).get().text.text == 'where are you located?'
+
+    def test_edit_form_add_value_intent_and_not_intent(self):
+        processor = MongoProcessor()
+        path = [{'utterance': 'what is your age?', 'slot': 'age',
+                 'mapping': [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]},
+                {'utterance': 'where are you located?', 'slot': 'location',
+                 'mapping': [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
+                             {'type': 'from_text', 'value': 'Bengaluru'},
+                             {'type': 'from_entity', 'entity': 'location'},
+                             {'type': 'from_trigger_intent', 'value': 'Kolkata',
+                              'intent': ['get_location', 'is_location', 'current_location'],
+                              'not_intent': ['get_age', 'get_name']}]}
+                ]
+        bot = 'test'
+        user = 'user'
+        processor.edit_form('get_user', path, bot, user)
+        form = Forms.objects(name='get_user', bot=bot, status=True).get()
+        assert len(form.mapping) == 2
+        assert form.mapping['age'] == [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                                        'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]
+        assert form.mapping['location'] == [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
+                                            {'type': 'from_text', 'value': 'Bengaluru'},
+                                            {'type': 'from_entity', 'entity': 'location'},
+                                            {'type': 'from_trigger_intent', 'value': 'Kolkata',
+                                             'intent': ['get_location', 'is_location', 'current_location'],
+                                             'not_intent': ['get_age', 'get_name']}]
+        assert Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get().form_attached == 'get_user'
+        assert Utterances.objects(name='utter_ask_get_user_location', bot=bot,
+                                  status=True).get().form_attached == 'get_user'
+        assert Responses.objects(name='utter_ask_get_user_age', bot=bot,
+                                 status=True).get().text.text == 'what is your age?'
+        assert Responses.objects(name='utter_ask_get_user_location',
+                                 bot=bot, status=True).get().text.text == 'where are you located?'
+
+    def test_delete_form(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        processor.delete_form('get_user', bot, user)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='get_user', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_get_user_age', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_get_user_location', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_get_user_age', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_get_user_location', bot=bot, status=True).get()
+
+    def test_delete_form_with_validations(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        processor.delete_form('know_user_form', bot, user)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='know_user_form', bot=bot, status=True).get()
+        form_validations = list(FormValidations.objects(name='know_user_form', bot=bot, status=True))
+        assert not form_validations
+
+    def test_delete_form_not_exists(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form "get_user" does not exists'):
+            processor.delete_form('get_user', bot, user)
+        with pytest.raises(AppException, match='Form "form_not_present" does not exists'):
+            processor.delete_form('form_not_present', bot, user)
+
+    def test_delete_empty_form(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Form " " does not exists'):
+            processor.delete_form(' ', bot, user)
+
+    def test_delete_form_utterance_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        utterance = Utterances.objects(name='utter_ask_know_user_age', bot=bot).get()
+        utterance.status = False
+        utterance.save()
+        processor.delete_form('know_user', bot, user)
+        with pytest.raises(DoesNotExist):
+            Forms.objects(name='know_user', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_know_user_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_know_user_name', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_know_user_location', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_know_user_location', bot=bot, status=True).get()
+
+    def test_delete_utterance_linked_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+            processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test")
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_delete_response_linked_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+            processor.delete_response(str(response.id), bot, user)
+        assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_edit_utterance_for_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        processor.edit_text_response(str(response.id), 'what cuisine are you interested in?',
+                                     'utter_ask_restaurant_form_cuisine', bot, user)
+        assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot,
+                                 status=True).get().text.text == 'what cuisine are you interested in?'
+
+    def test_delete_response_linked_to_form_validation_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, False)
+        with pytest.raises(DoesNotExist):
+            Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+        with pytest.raises(DoesNotExist):
+            Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
+
+    def test_add_utterance_to_story_that_is_attached_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_ask_restaurant_form_outdoor_seating", "type": "BOT"},
+        ]
+        story_dict = {'name': "story with form utterance", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException,
+                           match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
+            processor.add_complex_story(story_dict, bot, user)
+
+    def test_update_story_step_that_is_attached_to_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_ask_restaurant_form_outdoor_seating", "type": "BOT"},
+        ]
+        story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException,
+                           match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
+            processor.update_complex_story(story_dict, bot, user)
+
+    def test_add_slot_set_action_from_value_no_value_passed(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='name', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, slot='name',
+                                     bot=bot, user=user, status=True).get()
+
+    def test_add_slot_set_action_from_value(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, value='5',
+                                     slot='name', bot=bot, user=user, status=True).get()
+
+    def test_add_slot_set_action_reset(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='location', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_location_slot', 'slot': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        processor.add_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_location_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_location_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value=None,
+                                     slot='location', bot=bot, user=user, status=True).get()
+
+    def test_add_slot_set_action_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+        action = {'name': None, 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_slot_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_slot_name', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+        action = {'name': 'action_set_slot_name', 'slot': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_slot_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_slot_non_existant', 'slot': 'non_existant',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_add_slot_set_action_simple_action_with_same_name_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Actions(name='action_trigger_some_api', bot=bot, user=user).save()
+        action = {'name': 'action_trigger_some_api', 'slot': 'some_api',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+            processor.add_slot_set_action(action, bot, user)
+
+    def test_list_slot_set_actions(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = processor.list_slot_set_actions(bot)
+        assert len(actions) == 3
+        assert actions[0] == {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
+        assert actions[1] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                              'value': '5'}
+        assert actions[2] == {'name': 'action_set_location_slot', 'slot': 'location',
+                              'type': SLOT_SET_TYPE.RESET_SLOT.value}
+
+    def test_list_slot_set_actions_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        actions = processor.list_slot_set_actions(bot)
+        assert len(actions) == 0
+
+    def test_edit_slot_set_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Slots(name='name_new', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_name_slot', 'slot': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
+                  'value': 'name'}
+        processor.edit_slot_set_action(action, bot, user)
+        assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
+                               bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value='name',
+                                     slot='name_new', bot=bot, user=user, status=True).get()
+
+    def test_edit_slot_set_action_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_non_existant', 'slot': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_slot_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_edit_slot_set_action_slot_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'action_set_name_slot', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}
+        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+            processor.edit_slot_set_action(action, bot, user)
+
+    def test_delete_slot_set_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        processor.delete_action('action_set_name_slot', bot, user)
+
+    def test_delete_slot_set_action_already_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Action with name "action_set_name_slot" not found'):
+            processor.delete_action('action_set_name_slot', bot, user)
+
+    def test_delete_slot_set_action_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Action with name "action_non_existant" not found'):
+            processor.delete_action('action_non_existant', bot, user)
+
+    def test_delete_slot_set_action_linked_to_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "action_set_age_slot", "type": "ACTION"},
+        ]
+        story_dict = {'name': "story with slot set action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        with pytest.raises(AppException,
+                           match=f'Cannot remove action "action_set_age_slot" linked to story "story with slot set action"'):
+            processor.delete_action('action_set_age_slot', bot, user)
+
+    def test_delete_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        Actions(name='action_custom', bot=bot, user=user).save()
+        processor.delete_action('action_custom', bot, user)
+
+    def test_delete_action_already_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
+            processor.delete_action('action_custom', bot, user)
+
 
 # pylint: disable=R0201
 class TestAgentProcessor:
@@ -3603,7 +4926,7 @@ class TestModelProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
+        Utility.load_environment()
         connect(**Utility.mongoengine_connection())
 
     @pytest.fixture
@@ -3770,12 +5093,15 @@ class TestModelProcessor:
     def test_move_training_example(self):
         processor = MongoProcessor()
         list(processor.add_training_example(["moving to another location", "i will stay"], "test_move_training_example",
-                                       "tests", "testUser", is_integration=False))
-        list(processor.add_training_example(["moving to another intent [move_to_location](move_to_location)", "i will be here"], "move_training_example",
-                                       "tests", "testUser", is_integration=False))
+                                            "tests", "testUser", is_integration=False))
+        list(processor.add_training_example(
+            ["moving to another intent [move_to_location](move_to_location)", "i will be here"],
+            "move_training_example",
+            "tests", "testUser", is_integration=False))
         list(processor.add_training_example(["this is forever"], "move_to_location",
-                                       "tests", "testUser", is_integration=False))
-        examples_to_move = ["moving to another location", "moving to another place", "moving to another intent [move_to_location](move_to_location)", "this is new", "", " "]
+                                            "tests", "testUser", is_integration=False))
+        examples_to_move = ["moving to another location", "moving to another place",
+                            "moving to another intent [move_to_location](move_to_location)", "this is new", "", " "]
         result = list(processor.add_or_move_training_example(examples_to_move, 'move_to_location', "tests", "testUser"))
         actual = list(processor.get_training_examples('move_to_location', "tests"))
         assert len(actual) == 5
@@ -4288,7 +5614,8 @@ class TestModelProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         with pytest.raises(Exception):
-            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+            story_dict = {'name': "story duplicate using events", 'steps': steps, 'type': 'STORY',
+                          'template_type': 'CUSTOM'}
             processor.add_complex_story(story_dict, "tests", "testUser")
 
     def test_add_complex_story_with_invalid_event(self):
@@ -4563,7 +5890,7 @@ class TestTrainingDataProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
+        Utility.load_environment()
         connect(**Utility.mongoengine_connection())
 
     def test_set_status_new_status(self):
@@ -4734,6 +6061,8 @@ class TestTrainingDataProcessor:
         processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
         assert len(story.events) == 4
+        assert story.events[0].name == "..."
+        assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == []
 
@@ -4747,7 +6076,6 @@ class TestTrainingDataProcessor:
         with pytest.raises(Exception):
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
             processor.add_complex_story(rule_dict, "tests", "testUser")
-
 
     def test_add_rule_invalid_type(self):
         processor = MongoProcessor()
@@ -4818,7 +6146,8 @@ class TestTrainingDataProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         rule_dict = {'name': "rule with multiple intents", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        with pytest.raises(ValidationError, match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
+        with pytest.raises(ValidationError,
+                           match="Found rules 'rule with multiple intents' that contain more than user event.\nPlease use stories for this case"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
 
     def test_add_rule_with_invalid_event(self):
@@ -4867,6 +6196,8 @@ class TestTrainingDataProcessor:
         processor.update_complex_story(rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[2].name == "utter_nonsense"
+        assert rule.events[0].name == "..."
+        assert rule.events[0].type == "action"
 
     def test_case_insensitive_update_rule(self):
         processor = MongoProcessor()
@@ -4905,7 +6236,7 @@ class TestTrainingDataProcessor:
     def test_fetch_stories_with_rules(self):
         processor = MongoProcessor()
         data = list(processor.get_stories("tests"))
-        assert all( item['type'] in ['STORY', 'RULE'] for item in data)
+        assert all(item['type'] in ['STORY', 'RULE'] for item in data)
         assert len(data) == 9
 
     def test_update_empty_rule_name(self):
@@ -4958,7 +6289,8 @@ class TestTrainingDataProcessor:
             {"name": "mood_great", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"}
         ]
-        with pytest.raises(ValidationError, match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
+        with pytest.raises(ValidationError,
+                           match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
             rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
             processor.update_complex_story(rule_dict, "tests", "testUser")
 

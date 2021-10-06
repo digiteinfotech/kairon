@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 
-from kairon.api.auth import Authentication
-from kairon.api.processor import AccountProcessor
-from kairon.api.models import Response, User
+from kairon.shared.auth import Authentication
+from kairon.shared.account.processor import AccountProcessor
+from kairon.api.models import Response
+from kairon.shared.models import User
 from fastapi import Depends
 
 router = APIRouter()

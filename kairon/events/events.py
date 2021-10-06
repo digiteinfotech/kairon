@@ -4,10 +4,10 @@ from typing import Text
 from loguru import logger
 from requests import exceptions
 
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.importer.data_importer import DataImporter
 from kairon.importer.processor import DataImporterLogProcessor
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 
 
 class EventsTrigger:

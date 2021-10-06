@@ -3,9 +3,9 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
-from kairon.data_processor.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from .data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
 

@@ -4,9 +4,10 @@ import shutil
 import pytest
 
 from kairon import Utility
-from kairon.data_processor.agent_processor import AgentProcessor
-from kairon.data_processor.processor import MongoProcessor
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
+from kairon.chat.utils import ChatUtils
 
 
 class TestAgentProcessor:
@@ -14,7 +15,7 @@ class TestAgentProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_evironment()
+        Utility.load_environment()
         bot = 'agent_testing_user'
         pytest.bot = bot
         model_path = os.path.join('models', bot)
@@ -45,16 +46,15 @@ class TestAgentProcessor:
 
         with pytest.raises(AppException) as e:
             AgentProcessor.reload('test_user')
-        assert str(e).__contains__("Bot has not been trained yet !")
+        assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent_not_exists(self):
         with pytest.raises(AppException) as e:
             AgentProcessor.get_agent('test_user')
-        assert str(e).__contains__("Bot has not been trained yet !")
+        assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent(self):
         assert AgentProcessor.get_agent(pytest.bot)
 
     def test_get_agent_not_cached(self, mock_agent_properties):
-        AgentProcessor.cache_provider = Utility.create_cache()
         assert AgentProcessor.get_agent(pytest.bot)

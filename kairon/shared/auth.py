@@ -4,12 +4,15 @@ from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode, encode
+from starlette.status import HTTP_401_UNAUTHORIZED
 
-from kairon.utils import Utility
-from .models import User, TokenData
-from .processor import AccountProcessor
+from kairon.shared.utils import Utility
+from kairon.api.models import TokenData
+from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.utils import DataUtility
 
-Utility.load_evironment()
+Utility.load_environment()
 
 
 class Authentication:
@@ -17,13 +20,9 @@ class Authentication:
     Class contains logic for api Authentication
     """
 
-    SECRET_KEY = Utility.environment['security']["secret_key"]
-    ALGORITHM = Utility.environment['security']["algorithm"]
-    ACCESS_TOKEN_EXPIRE_MINUTES = Utility.environment['security']["token_expire"]
-
     @staticmethod
     async def get_current_user(
-        request: Request, token: str = Depends(Utility.oauth2_scheme)
+        request: Request, token: str = Depends(DataUtility.oauth2_scheme)
     ):
         """
         validates jwt token
@@ -37,8 +36,10 @@ class Authentication:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
         try:
-            payload = decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+            payload = decode(token, secret_key, algorithms=[algorithm])
             username: str = payload.get("sub")
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
@@ -63,7 +64,7 @@ class Authentication:
         return user_model
 
     @staticmethod
-    async def get_current_user_and_bot(request: Request, token: str = Depends(Utility.oauth2_scheme)):
+    async def get_current_user_and_bot(request: Request, token: str = Depends(DataUtility.oauth2_scheme)):
         user = await Authentication.get_current_user(request, token)
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):
@@ -86,19 +87,22 @@ class Authentication:
         return user
 
     @staticmethod
-    def create_access_token( *, data: dict, is_integration=False, token_expire: int=0):
+    def create_access_token( *, data: dict, is_integration=False, token_expire: int = 0):
+        access_token_expire_minutes = Utility.environment['security']["token_expire"]
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
         to_encode = data.copy()
         if not is_integration:
             if token_expire > 0:
                 expire = datetime.utcnow() + timedelta(minutes=token_expire)
             else:
-                if Authentication.ACCESS_TOKEN_EXPIRE_MINUTES:
-                    expires_delta = timedelta(minutes=Authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
+                if access_token_expire_minutes:
+                    expires_delta = timedelta(minutes=access_token_expire_minutes)
                 else:
                     expires_delta = timedelta(minutes=15)
                 expire = datetime.utcnow() + expires_delta
             to_encode.update({"exp": expire})
-        encoded_jwt = encode(to_encode, Authentication.SECRET_KEY, algorithm=Authentication.ALGORITHM)
+        encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
         return encoded_jwt
 
     @staticmethod
@@ -140,6 +144,32 @@ class Authentication:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Access denied for this endpoint',
             )
+
+    @staticmethod
+    async def authenticate_and_get_collection(request: Request, token: str = Depends(DataUtility.oauth2_scheme_non_strict)):
+        token_configured = Utility.environment['authentication']['token']
+        if token_configured != token:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if 'bot' == Utility.environment['tracker']['type']:
+            bot_id = request.path_params.get('bot')
+            if Utility.check_empty_string(bot_id):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Bot id is required",
+                )
+            return bot_id
+        else:
+            collection = Utility.environment['tracker']['collection']
+            if Utility.check_empty_string(collection):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Collection not configured",
+                )
+            return collection
 
     @staticmethod
     def generate_integration_token(bot: Text, account: int, expiry: int = 0, access_limit: list = None):

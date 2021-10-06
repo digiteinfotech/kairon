@@ -4,8 +4,8 @@ from typing import Text
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 
 from .validator.file_validator import TrainingDataValidator
-from ..data_processor.constant import REQUIREMENTS
-from ..data_processor.processor import MongoProcessor
+from kairon.shared.data.constant import REQUIREMENTS
+from kairon.shared.data.processor import MongoProcessor
 
 
 class DataImporter:

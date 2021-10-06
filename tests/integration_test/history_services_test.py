@@ -1,16 +1,14 @@
 import json
 import os
-
 from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
 
-from kairon.api.app.main import app
-from kairon.api.processor import AccountProcessor
-from kairon.data_processor.history import ChatHistory
-from kairon.data_processor.processor import MongoProcessor
-from kairon.utils import Utility
+from kairon.history.main import app
+from kairon.shared.utils import Utility
 from mongomock import MongoClient
+from kairon.history.processor import HistoryProcessor
+
 client = TestClient(app)
 
 
@@ -23,345 +21,347 @@ def pytest_configure():
 
 @pytest.fixture(autouse=True)
 def setup():
-    os.environ["system_file"] = "./tests/testing_data/system.yaml"
-    Utility.load_evironment()
-    connect(**Utility.mongoengine_connection())
+    os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
+    Utility.load_environment()
+    connect(**Utility.mongoengine_connection(Utility.environment['tracker']['url']), alias="history")
+    pytest.bot = '542872407658659274'
 
-
-def user_details(*args, **kwargs):
-    pytest.bot = "integration"
-    return {
-        "email": "integration@demo.com",
-        "password": Utility.get_password_hash("welcome@1"),
-        "first_name": "integration",
-        "last_name": "test",
-        "status": True,
-        "bot": [pytest.bot],
-        "account": 1,
-        "is_integration_user": False,
-    }
-
-
-def bot_details(*args, **kwargs):
-    return {
-        "user": "integration@demo.com",
-        "status": True,
-        "bot": pytest.bot,
-        "account": 1,
-    }
-
-
-@pytest.fixture
-def mock_auth(monkeypatch):
-    monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
-    monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
-
-
-def endpoint_details(*args, **kwargs):
-    return {"tracker_endpoint": {"url": "mongodb://demo", "db": "conversation"}}
-
-
-@pytest.fixture
-def mock_mongo_processor(monkeypatch):
-    monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_details)
 
 @pytest.fixture
 def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
-        return MongoClient(), "conversation", "conversations", None
-    monkeypatch.setattr(ChatHistory, "get_mongo_connection", db_client)
+        return MongoClient(Utility.environment['tracker']['url']), 'connecting to db, '
+
+    monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 
 
 def history_users(*args, **kwargs):
     return [
-        "5b029887-bed2-4bbb-aa25-bd12fda26244",
-        "b868d6ee-f98f-4c1b-b284-ce034aaad01f",
-        "b868d6ee-f98f-4c1b-b284-ce034aaad61f",
-        "b868d6ee-f98f-4c1b-b284-ce4534aaad61f",
-        "49931985-2b51-4db3-89d5-a50767e6d98e",
-        "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
-        "2fed7769-b647-4088-8ed9-a4f4f3653f25",
-    ], None
+               "5b029887-bed2-4bbb-aa25-bd12fda26244",
+               "b868d6ee-f98f-4c1b-b284-ce034aaad01f",
+               "b868d6ee-f98f-4c1b-b284-ce034aaad61f",
+               "b868d6ee-f98f-4c1b-b284-ce4534aaad61f",
+               "49931985-2b51-4db3-89d5-a50767e6d98e",
+               "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
+               "2fed7769-b647-4088-8ed9-a4f4f3653f25",
+           ], 'connecting to db, '
 
 
 def user_history(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversation.json"))
     return (
         json_data['events'],
-        None
+        'connecting to db, '
     )
 
 
 def history_conversations(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversations_history.json"))
-    return json_data, None
+    return json_data, 'connecting to db, '
 
 
 @pytest.fixture
 def mock_chat_history(monkeypatch):
-    monkeypatch.setattr(ChatHistory, "fetch_user_history", user_history)
-    monkeypatch.setattr(ChatHistory, "get_conversations", history_conversations)
-    monkeypatch.setattr(ChatHistory, "fetch_chat_users", history_users)
+    monkeypatch.setattr(HistoryProcessor, "fetch_user_history", user_history)
+    monkeypatch.setattr(HistoryProcessor, "fetch_chat_users", history_users)
 
 
-def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration@demo", "password": "welcome@1"},
-    )
-    token_response = response.json()
-    pytest.access_token = token_response["data"]["access_token"]
-    pytest.token_type = token_response["data"]["token_type"]
-
+def test_chat_history_users(mock_chat_history):
     response = client.get(
-        f"/api/history/{pytest.bot}/users",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"]
-    assert not actual["success"]
-
-
-def test_chat_history_users(mock_auth, mock_chat_history):
-    response = client.get(
-        f"/api/history/{pytest.bot}/users",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/conversations/users",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["users"]) == 7
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_chat_history(mock_auth, mock_chat_history):
+def test_chat_history(mock_chat_history):
     response = client.get(
-        f"/api/history/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["history"]) == 12
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_visitor_hit_fallback(mock_auth, mock_db_client):
+def test_visitor_hit_fallback(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/fallback",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["fallback_count"] == 0
     assert actual["data"]["total_count"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_conversation_steps(mock_auth, mock_db_client):
+def test_conversation_steps(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/steps",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_conversation_time(mock_auth, mock_db_client):
+def test_conversation_time(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_user_with_metrics(mock_auth, mock_db_client):
+def test_user_with_metrics(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["users"] == []
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_engaged_users(mock_auth, mock_db_client):
+def test_engaged_users(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/metrics/users/engaged",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["engaged_users"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_new_users(mock_auth, mock_db_client):
+def test_new_users(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/new",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/metrics/users/new",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["new_users"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_successful_conversation(mock_auth, mock_db_client):
+def test_successful_conversation(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["successful_conversations"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_user_retention(mock_auth, mock_db_client):
+def test_successful_conversation_with_request(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/retention",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/metrics/conversation/success",
+        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["successful_conversations"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_successful_conversation_with_request_and_static_collection(mock_db_client):
+    Utility.environment['tracker']['type'] = 'static'
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/success",
+        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["successful_conversations"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_retention(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users/retention",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["user_retention"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_engaged_user_range(mock_auth, mock_db_client):
+def test_engaged_user_range(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/users/engaged",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['engaged_user_range'] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_new_user_range(mock_auth, mock_db_client):
+def test_new_user_range(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/new",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/users/new",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['new_user_range'] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_successful_conversation_range(mock_auth, mock_db_client):
+def test_successful_conversation_range(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/conversation/success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/conversations/success",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["success_conversation_range"] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_user_retention_range(mock_auth, mock_db_client):
+def test_successful_conversation_range_with_request(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/retention",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/conversations/success",
+        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["success_conversation_range"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_retention_range(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/retention",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["retention_range"] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_engaged_users_with_value(mock_auth, mock_db_client):
+def test_engaged_users_with_value(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged/?month=5&conversation_step_threshold=11",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/metrics/users/engaged",
+        json={'month': 5, 'conversation_step_threshold': 11},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["engaged_users"] == 0
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_engaged_user_range_with_value(mock_auth, mock_db_client):
+def test_engaged_user_range_with_value(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged/?month=5&conversation_step_threshold=11",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/users/engaged",
+        json={'month': 5, 'conversation_step_threshold': 11},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['engaged_user_range'] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_fallback_count_range(mock_auth, mock_db_client):
+def test_fallback_count_range(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/fallback",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/history/{pytest.bot}/trends/fallback",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["fallback_counts"] == {}
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
-def test_flat_conversations(mock_auth, mock_db_client):
+def test_fallback_count_range_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/fallback",
+        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_counts"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_flat_conversations(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/conversations",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["conversation_data"] == []
-    assert actual["message"] is None
+    assert actual["message"]
     assert actual["success"]
 
 
 def mock_flatten_api_with_data(*args, **kwargs):
-    return {"conversation_data": [{"test_key": "test_value"}]}, None
+    return {"conversation_data": [{"test_key": "test_value"}]}, 'connecting to db, '
 
 
 def mock_flatten_api_with_no_data(*args, **kwargs):
@@ -372,20 +372,20 @@ def mock_flatten_api_with_error(*args, **kwargs):
     return {"conversation_data": []}, "error_message"
 
 
-def test_download_conversation_with_data(mock_auth, monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_data)
+def test_download_conversation_with_data(monkeypatch):
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_data)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     assert "test_value" in str(response.content)
 
 
-def test_download_conversation_with_no_data(mock_auth, monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_no_data)
+def test_download_conversation_with_no_data(monkeypatch):
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_no_data)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -393,13 +393,131 @@ def test_download_conversation_with_no_data(mock_auth, monkeypatch):
     assert not actual["success"]
 
 
-def test_download_conversation_with_error(mock_auth, monkeypatch):
-    monkeypatch.setattr(ChatHistory, 'flatten_conversations', mock_flatten_api_with_error)
+def test_download_conversation_with_error(monkeypatch):
+    monkeypatch.setattr(HistoryProcessor, 'flatten_conversations', mock_flatten_api_with_error)
     response = client.get(
         f"/api/history/{pytest.bot}/conversations/download",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == "error_message"
     assert not actual["success"]
+
+
+def test_chat_history_no_token(mock_chat_history):
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
+
+
+def test_chat_history_users_invalid_auth(mock_chat_history):
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users",
+        headers={"Authorization": 'Bearer test_invalid_token'},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
+
+
+def test_no_auth_configured(mock_chat_history):
+    Utility.environment['authentication']['token'] = None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 12
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_no_bot_id():
+    Utility.environment['tracker']['type'] = 'bot'
+    response = client.get(
+        f"/api/history/       /conversations/users/5e564fbcdcf0d5fad89e3acd",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']}
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Bot id is required"
+    assert not actual["success"]
+
+
+def test_no_collection():
+    Utility.environment['tracker']['type'] = 'static'
+    Utility.environment['tracker']['collection'] = None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Collection not configured"
+    assert not actual["success"]
+
+
+def test_top_intents(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/intents/topmost",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["success"]
+
+
+def test_top_actions(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/actions/topmost",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["success"]
+
+
+def test_total_conversation_range(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/total",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_total_conversation_range_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/total",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {}
+    assert actual["message"]
+    assert actual["success"]

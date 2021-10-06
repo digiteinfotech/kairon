@@ -1,5 +1,7 @@
 from enum import Enum
 
+from pydantic import BaseModel
+
 
 class StoryStepType(str, Enum):
     intent = "INTENT"
@@ -38,3 +40,27 @@ class ParameterChoice(str, Enum):
     value = "value"
     slot = "slot"
     sender_id = "sender_id"
+
+
+class User(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    bot: list
+    account: int
+    status: bool
+    alias_user: str = None
+    is_integration_user: bool
+
+    def get_bot(self):
+        return self.bot
+
+    def get_user(self):
+        if self.is_integration_user:
+            return self.alias_user
+        return self.email
+
+    def get_integration_status(self):
+        if self.is_integration_user:
+            return True
+        return False

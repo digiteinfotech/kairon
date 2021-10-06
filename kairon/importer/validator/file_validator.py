@@ -17,8 +17,9 @@ from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES
-from kairon.utils import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
+from kairon.shared.data.utils import DataUtility
 
 
 class TrainingDataValidator(Validator):
@@ -240,7 +241,7 @@ class TrainingDataValidator(Validator):
         self.validator.verify_utterances()
 
         utterance_actions = self.validator._gather_utterance_actions()
-        fallback_action = Utility.parse_fallback_action(self.config)
+        fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES)
         stories_utterances = set()
 
@@ -311,7 +312,7 @@ class TrainingDataValidator(Validator):
             config_errors.append("You didn't define any pipeline")
 
         if config.get('policies'):
-            core_policies = Utility.get_rasa_core_policies()
+            core_policies = DataUtility.get_rasa_core_policies()
             for policy in config['policies']:
                 if policy['name'] not in core_policies:
                     config_errors.append("Invalid policy " + policy['name'])

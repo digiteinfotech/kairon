@@ -8,11 +8,11 @@ from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
 from pydantic import SecretStr
 
-from kairon.api.auth import Authentication
-from kairon.api.data_objects import User
-from kairon.api.processor import AccountProcessor
-from kairon.data_processor.data_objects import Configs, Rules, Responses
-from kairon.utils import Utility
+from kairon.shared.auth import Authentication
+from kairon.shared.account.data_objects import User
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from stress_test.data_objects import Bot
 
@@ -26,8 +26,8 @@ def pytest_configure():
 class TestAccountProcessor:
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        Utility.load_evironment()
-        connect(**Utility.mongoengine_connection())
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
@@ -436,7 +436,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_account", account_response)
 
     def test_get_user_details_bot_inactive(self, mock_bot_inactive, monkeypatch):
-        monkeypatch.setattr(AccountProcessor, 'EMAIL_ENABLED', True)
+        monkeypatch.setitem(Utility.email_conf["email"], 'enable', True)
         with pytest.raises(AppException) as e:
             AccountProcessor.get_user_details("demo@demo.ai")
         assert str(e).__contains__('Please verify your mail')
@@ -604,36 +604,36 @@ class TestAccountProcessor:
             Utility.verify_token(' ')
 
     def test_reset_link_with_mail(self,monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
         assert True
 
     def test_reset_link_with_empty_mail(self,monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link(''))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_reset_link_with_unregistered_mail(self, monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link('sasha.41195@gmail.com'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_overwrite_password_with_invalid_token(self,monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
@@ -664,36 +664,36 @@ class TestAccountProcessor:
             bot=pytest.bot,
             user="testAdmin",
         )
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"]= True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
         assert True
 
     def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('integ1@gmail.com'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_send_confirmation_link_with_invalid_id(self, monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link(''))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_send_confirmation_link_with_unregistered_id(self, monkeypatch):
-        AccountProcessor.EMAIL_ENABLED = True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('sasha.41195@gmail.com'))
-        AccountProcessor.EMAIL_ENABLED = False
+        Utility.email_conf["email"]["enable"] = False
 
     def test_reset_link_with_mail_not_enabled(self,monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
@@ -710,17 +710,19 @@ class TestAccountProcessor:
     def test_create_authentication_token_with_expire_time(self, monkeypatch):
         start_date = datetime.datetime.now()
         token = Authentication.create_access_token(data={"sub": "test"},token_expire=180)
-        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds()/60) == 180
         assert payload.get('sub') == 'test'
 
         start_date = datetime.datetime.now()
         token = Authentication.create_access_token(data={"sub": "test"})
-        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 10080
 
-        monkeypatch.setattr(Authentication, 'ACCESS_TOKEN_EXPIRE_MINUTES', None)
+        monkeypatch.setitem(Utility.environment['security'], 'token_expire', None)
         start_date = datetime.datetime.now()
         token = Authentication.create_access_token(data={"sub": "test"})
-        payload = jwt.decode(token, Authentication.SECRET_KEY, algorithms=[Authentication.ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15

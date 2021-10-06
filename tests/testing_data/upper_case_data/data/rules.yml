@@ -1,0 +1,7 @@
+rules:
+
+- rule: Rule which will not wait for user message once it was applied
+  steps:
+  - intent: GREET
+  - action: utter_GREET
+  wait_for_user_input: false

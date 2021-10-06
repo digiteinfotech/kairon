@@ -2,7 +2,7 @@ import logging
 from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -24,11 +24,11 @@ from pymongo.errors import PyMongoError
 from secure import SecureHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.api.models import Response
-from kairon.api.processor import AccountProcessor
-from kairon.exceptions import AppException
 from kairon.api.app.routers import auth, bot, augment, history, user, account
-from kairon.utils import Utility
+from kairon.api.models import Response
+from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.utils import Utility
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()
@@ -43,7 +43,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_apm_client()
+apm_client = Utility.initiate_fastapi_apm_client()
 if apm_client:
     app.add_middleware(ElasticAPM, client=apm_client)
 
@@ -77,7 +77,7 @@ async def log_requests(request: Request, call_next):
 @app.on_event("startup")
 async def startup():
     """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection()
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
     await AccountProcessor.default_account_setup()
 
@@ -108,18 +108,6 @@ async def http_exception_handler(request, exc):
     logger.debug(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
-    )
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    """ This function logs the HTTP error detected and returns the
-        appropriate message and details of the error """
-    logger.debug(exc)
-    return JSONResponse(
-        Response(
-            success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
     )
 
 
