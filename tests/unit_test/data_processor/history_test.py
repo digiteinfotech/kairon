@@ -307,3 +307,13 @@ class TestHistory:
         top_n, message = HistoryProcessor.top_n_actions("tests")
         assert top_n == []
         assert message
+
+    def test_conversation_step_range_error(self, mock_db_timeout):
+        conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
+        assert conversation_steps["Conversation_step_range"] == {}
+        assert message
+
+    def test_conversation_step_range(self, mock_mongo_client):
+        conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
+        assert conversation_steps["Conversation_step_range"] == {}
+        assert message
