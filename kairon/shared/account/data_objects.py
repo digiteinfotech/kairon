@@ -26,6 +26,7 @@ class User(Document):
     bot = ListField(StringField(), required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    password_changed = DateTimeField(default=None)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):

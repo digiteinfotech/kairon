@@ -451,7 +451,7 @@ class AccountProcessor:
         user = User.objects().get(email=email)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
-        user.timestamp = datetime.utcnow
+        user.password_changed = datetime.utcnow
         user.save()
         subject = Utility.email_conf['email']['templates']['password_changed_subject']
         body = Utility.email_conf['email']['templates']['password_changed_body']
