@@ -47,13 +47,14 @@ class User(BaseModel):
     first_name: str
     last_name: str
     bot: list
+    active_bot: str = None
     account: int
     status: bool
     alias_user: str = None
     is_integration_user: bool
 
     def get_bot(self):
-        return self.bot
+        return self.active_bot
 
     def get_user(self):
         if self.is_integration_user:
