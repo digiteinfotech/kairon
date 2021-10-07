@@ -750,3 +750,22 @@ class TestAccountProcessor:
         assert feedback[1]['scale'] == 5.0
         assert not feedback[1]['feedback']
         assert feedback[1]['timestamp']
+
+    def test_get_ui_config_none(self):
+        assert AccountProcessor.get_ui_config('test') == {}
+
+    def test_add_ui_config(self):
+        config = {'has_stepper': True, 'has_tour': False}
+        assert not AccountProcessor.update_ui_config(config, 'test')
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
+        assert not AccountProcessor.update_ui_config(config, 'test_user')
+
+    def test_add_ui_config_duplicate(self):
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'white'}
+        assert not AccountProcessor.update_ui_config(config, 'test')
+
+    def test_get_saved_ui_config(self):
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'white'}
+        assert AccountProcessor.get_ui_config('test') == config
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
+        assert AccountProcessor.get_ui_config('test_user') == config

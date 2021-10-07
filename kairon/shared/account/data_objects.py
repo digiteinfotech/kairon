@@ -85,3 +85,9 @@ class Feedback(Document):
     feedback = StringField(default=None)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class UiConfig(Document):
+    config = DictField(default={})
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

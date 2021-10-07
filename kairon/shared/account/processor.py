@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -492,3 +492,33 @@ class AccountProcessor:
         @return:
         """
         Feedback(rating=rating, scale=scale, feedback=feedback, user=user).save()
+
+    @staticmethod
+    def update_ui_config(config: dict, user: str):
+        """
+        Adds UI configuration such as themes, layout type, flags for stepper
+        to render UI components based on it.
+        @param config: UI configuration to save.
+        @param user: username
+        """
+        try:
+            ui_config = UiConfig.objects(user=user).get()
+        except DoesNotExist:
+            ui_config = UiConfig(user=user)
+        ui_config.config = config
+        ui_config.save()
+
+    @staticmethod
+    def get_ui_config(user: str):
+        """
+        Retrieves UI configuration such as themes, layout type, flags for stepper
+        to render UI components based on it.
+        @param user: username
+        """
+        try:
+            ui_config = UiConfig.objects(user=user).get()
+            config = ui_config.config
+        except DoesNotExist:
+            config = {}
+            AccountProcessor.update_ui_config(config, user)
+        return config
