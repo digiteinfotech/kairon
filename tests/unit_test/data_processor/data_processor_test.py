@@ -537,7 +537,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "Hi"
-        assert results[0]["message"] == "Training Example already exists!"
+        assert results[0]["message"] == 'Training Example exists in intent: [\'greet\']'
 
     def test_add_training_example_duplicate_case_insensitive(self):
         processor = MongoProcessor()
@@ -546,7 +546,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "hi"
-        assert results[0]["message"] == "Training Example already exists!"
+        assert results[0]["message"] == 'Training Example exists in intent: [\'greet\']'
 
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
@@ -747,7 +747,7 @@ class TestMongoProcessor:
                                                       "Make [TKT456](ticketID) a [high issue](priority)"],
                                                      intent="get_priority",
                                                      bot="tests", user="testUser", is_integration=False))
-        assert actual[0]['message'] == "Training Example already exists!"
+        assert actual[0]['message'] == 'Training Example exists in intent: [\'get_priority\']'
         assert actual[1]['message'] == "Training Example added"
 
     def test_add_entity(self):

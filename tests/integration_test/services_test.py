@@ -676,7 +676,7 @@ def test_add_training_examples_duplicate():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"][0]["message"] == "Training Example already exists!"
+    assert actual["data"][0]["message"] == 'Training Example exists in intent: [\'greet\']'
     assert actual["data"][0]["_id"] is None
 
 

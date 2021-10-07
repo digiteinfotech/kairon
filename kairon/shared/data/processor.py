@@ -1331,16 +1331,13 @@ class MongoProcessor:
                         "Training Example cannot be empty or blank spaces"
                     )
                 text, entities = DataUtility.extract_text_and_entities(example.strip())
-                if Utility.is_exist(
-                        TrainingExamples,
-                        raise_error=False,
-                        text__iexact=text,
-                        bot=bot,
-                        status=True,
-                ):
+                intent_for_example = Utility.retrieve_field_values(TrainingExamples,
+                                                                   field=TrainingExamples.intent.name,
+                                                                   text__iexact=text, bot=bot, status=True)
+                if intent_for_example:
                     yield {
                         "text": example,
-                        "message": "Training Example already exists!",
+                        "message": f'Training Example exists in intent: {intent_for_example}',
                         "_id": None,
                     }
                 else:
@@ -1446,15 +1443,11 @@ class MongoProcessor:
             if Utility.check_empty_string(example):
                 raise AppException("Training Example cannot be empty or blank spaces")
             text, entities = DataUtility.extract_text_and_entities(example.strip())
-            if Utility.is_exist(
-                    TrainingExamples,
-                    raise_error=False,
-                    text__iexact=text,
-                    entities=entities,
-                    bot=bot,
-                    status=True,
-            ):
-                raise AppException("Training Example already exists!")
+            intent_for_example = Utility.retrieve_field_values(TrainingExamples,
+                                                               field=TrainingExamples.intent.name, text__iexact=text,
+                                                               entities=entities, bot=bot, status=True)
+            if intent_for_example:
+                raise AppException(f'Training Example exists in intent: {intent_for_example}')
             training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
                 id=id
             )
