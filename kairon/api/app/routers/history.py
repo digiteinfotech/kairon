@@ -270,3 +270,15 @@ async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), cu
         f'/api/history/{current_user.get_bot()}/trends/conversations/total',
         {'month': month}
     )
+
+
+@router.get("/metrics/trend/conversations/steps", response_model=Response)
+async def conversation_step_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the average conversation steps of the bot for previous months
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/trends/conversations/steps',
+        {'month': month}
+    )
