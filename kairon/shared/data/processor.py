@@ -2332,10 +2332,11 @@ class MongoProcessor:
 
         try:
             # status to be filtered as Invalid Intent should not be fetched
-            intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
+            intent_obj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
             stories_with_intent = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
-            if len(stories_with_intent) > 0:
-                raise AppException("Cannot remove intent linked to story")
+            rules_with_intent = Rules.objects(bot=bot, status=True, events__name__iexact=intent)
+            if len(stories_with_intent) > 0 or len(rules_with_intent) > 0:
+                raise AppException(f'Cannot remove intent linked to flow')
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
@@ -2343,14 +2344,14 @@ class MongoProcessor:
             )
 
         if is_integration:
-            if not intentObj.is_integration:
+            if not intent_obj.is_integration:
                 raise AppException("This intent cannot be deleted by an integration user")
 
         try:
-            intentObj.user = user
-            intentObj.status = False
-            intentObj.timestamp = datetime.utcnow()
-            intentObj.save(validate=False)
+            intent_obj.user = user
+            intent_obj.status = False
+            intent_obj.timestamp = datetime.utcnow()
+            intent_obj.save(validate=False)
 
             if delete_dependencies:
                 Utility.delete_document(

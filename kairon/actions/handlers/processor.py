@@ -78,7 +78,7 @@ class ActionProcessor:
                                                  http_url=http_action_config['http_url'],
                                                  request_body=request_body)
             http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
-                                                               http_url=http_action_config['http_url'],
+                                                               http_url=http_url,
                                                                request_method=request_method,
                                                                request_body=request_body)
             logger.info("http response: " + str(http_response))

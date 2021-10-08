@@ -4654,7 +4654,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match='Cannot remove intent linked to story'):
+        with pytest.raises(AppException, match="Cannot remove intent linked to flow"):
             processor.delete_intent('greet', bot, user, False)
 
     def test_update_story_step_that_is_attached_to_form(self):
