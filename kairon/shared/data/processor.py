@@ -2336,7 +2336,7 @@ class MongoProcessor:
             stories_with_intent = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
             rules_with_intent = Rules.objects(bot=bot, status=True, events__name__iexact=intent)
             if len(stories_with_intent) > 0 or len(rules_with_intent) > 0:
-                raise AppException(f'Cannot remove intent linked to flow')
+                raise AppException('Cannot remove intent linked to flow')
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
