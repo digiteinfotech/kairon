@@ -83,7 +83,7 @@ class Authentication:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Inactive Bot Please contact system admin!",
             )
-        user.bot = bot_id
+        user.active_bot = bot_id
         return user
 
     @staticmethod

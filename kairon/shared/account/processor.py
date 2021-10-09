@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -451,7 +451,7 @@ class AccountProcessor:
         user = User.objects().get(email=email)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
-        user.timestamp = datetime.utcnow
+        user.password_changed = datetime.utcnow
         user.save()
         subject = Utility.email_conf['email']['templates']['password_changed_subject']
         body = Utility.email_conf['email']['templates']['password_changed_body']
@@ -480,3 +480,45 @@ class AccountProcessor:
             return mail, subject, body
         else:
             raise AppException("Error! Email verification is not enabled")
+
+    @staticmethod
+    def add_feedback(rating: float, user: str, scale: float = 5.0, feedback: str = None):
+        """
+        Add user feedback.
+        @param rating: user given rating.
+        @param user: Kairon username.
+        @param scale: Scale on which rating is given. %.0 is the default value.
+        @param feedback: feedback if any.
+        @return:
+        """
+        Feedback(rating=rating, scale=scale, feedback=feedback, user=user).save()
+
+    @staticmethod
+    def update_ui_config(config: dict, user: str):
+        """
+        Adds UI configuration such as themes, layout type, flags for stepper
+        to render UI components based on it.
+        @param config: UI configuration to save.
+        @param user: username
+        """
+        try:
+            ui_config = UiConfig.objects(user=user).get()
+        except DoesNotExist:
+            ui_config = UiConfig(user=user)
+        ui_config.config = config
+        ui_config.save()
+
+    @staticmethod
+    def get_ui_config(user: str):
+        """
+        Retrieves UI configuration such as themes, layout type, flags for stepper
+        to render UI components based on it.
+        @param user: username
+        """
+        try:
+            ui_config = UiConfig.objects(user=user).get()
+            config = ui_config.config
+        except DoesNotExist:
+            config = {}
+            AccountProcessor.update_ui_config(config, user)
+        return config

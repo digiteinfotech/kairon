@@ -139,6 +139,25 @@ class Utility:
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
 
     @staticmethod
+    def retrieve_field_values(
+            document: Document, field: str, *args, **kwargs
+    ):
+        """
+        Retrieve particular fields in document if exists, else returns None.
+        This should only be used when the field is a required field in the document.
+
+        :param document: document type
+        :param field: field to retrieve from documents
+        :param kwargs: filter parameters
+        :return: list of values for a particular field if document exists else None
+        """
+        documents = document.objects(args, **kwargs)
+        values = None
+        if documents.__len__():
+            values = [getattr(doc, field) for doc in documents]
+        return values
+
+    @staticmethod
     def is_exist(
             document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
     ):

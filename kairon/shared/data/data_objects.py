@@ -551,15 +551,6 @@ class TrainingDataGenerator(Document):
     exception = StringField(default=None)
 
 
-class Feedback(Document):
-    rating = FloatField(required=True)
-    scale = FloatField(default=5.0)
-    feedback = StringField(default=None)
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-
-
 class BotSettings(Document):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)

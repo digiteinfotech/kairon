@@ -74,7 +74,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Feedback, Utterances, BotSettings, ChatClientConfig, ResponseText
+    Utterances, BotSettings, ChatClientConfig, ResponseText
 )
 from .utils import DataUtility
 
@@ -1331,16 +1331,13 @@ class MongoProcessor:
                         "Training Example cannot be empty or blank spaces"
                     )
                 text, entities = DataUtility.extract_text_and_entities(example.strip())
-                if Utility.is_exist(
-                        TrainingExamples,
-                        raise_error=False,
-                        text__iexact=text,
-                        bot=bot,
-                        status=True,
-                ):
+                intent_for_example = Utility.retrieve_field_values(TrainingExamples,
+                                                                   field=TrainingExamples.intent.name,
+                                                                   text__iexact=text, bot=bot, status=True)
+                if intent_for_example:
                     yield {
                         "text": example,
-                        "message": "Training Example already exists!",
+                        "message": f'Training Example exists in intent: {intent_for_example}',
                         "_id": None,
                     }
                 else:
@@ -1446,15 +1443,11 @@ class MongoProcessor:
             if Utility.check_empty_string(example):
                 raise AppException("Training Example cannot be empty or blank spaces")
             text, entities = DataUtility.extract_text_and_entities(example.strip())
-            if Utility.is_exist(
-                    TrainingExamples,
-                    raise_error=False,
-                    text__iexact=text,
-                    entities=entities,
-                    bot=bot,
-                    status=True,
-            ):
-                raise AppException("Training Example already exists!")
+            intent_for_example = Utility.retrieve_field_values(TrainingExamples,
+                                                               field=TrainingExamples.intent.name, text__iexact=text,
+                                                               entities=entities, bot=bot, status=True)
+            if intent_for_example:
+                raise AppException(f'Training Example exists in intent: {intent_for_example}')
             training_example = TrainingExamples.objects(bot=bot, intent=intent).get(
                 id=id
             )
@@ -2339,8 +2332,11 @@ class MongoProcessor:
 
         try:
             # status to be filtered as Invalid Intent should not be fetched
-            intentObj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
-
+            intent_obj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
+            stories_with_intent = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
+            rules_with_intent = Rules.objects(bot=bot, status=True, events__name__iexact=intent)
+            if len(stories_with_intent) > 0 or len(rules_with_intent) > 0:
+                raise AppException('Cannot remove intent linked to flow')
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
@@ -2348,14 +2344,14 @@ class MongoProcessor:
             )
 
         if is_integration:
-            if not intentObj.is_integration:
+            if not intent_obj.is_integration:
                 raise AppException("This intent cannot be deleted by an integration user")
 
         try:
-            intentObj.user = user
-            intentObj.status = False
-            intentObj.timestamp = datetime.utcnow()
-            intentObj.save(validate=False)
+            intent_obj.user = user
+            intent_obj.status = False
+            intent_obj.timestamp = datetime.utcnow()
+            intent_obj.save(validate=False)
 
             if delete_dependencies:
                 Utility.delete_document(
@@ -2776,19 +2772,6 @@ class MongoProcessor:
             slot.pop("timestamp")
             slot.pop("status")
             yield slot
-
-    @staticmethod
-    def add_feedback(rating: float, bot: str, user: str, scale: float = 5.0, feedback: str = None):
-        """
-        Add user feedback.
-        @param rating: user given rating.
-        @param bot: bot id.
-        @param user: Kairon username.
-        @param scale: Scale on which rating is given. %.0 is the default value.
-        @param feedback: feedback if any.
-        @return:
-        """
-        Feedback(rating=rating, scale=scale, feedback=feedback, bot=bot, user=user).save()
 
     async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
         DataImporterLogProcessor.is_limit_exceeded(bot)

@@ -676,7 +676,7 @@ def test_add_training_examples_duplicate():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"][0]["message"] == "Training Example already exists!"
+    assert actual["data"][0]["message"] == 'Training Example exists in intent: [\'greet\']'
     assert actual["data"][0]["_id"] is None
 
 
@@ -3690,11 +3690,12 @@ def test_feedback():
         'rating': 5.0, 'scale': 5.0, 'feedback': 'The product is better than rasa.'
     }
     response = client.post(
-        f"/api/bot/{pytest.bot}/feedback",
+        f"/api/account/feedback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json=request
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]
@@ -6009,4 +6010,52 @@ def test_add_http_action_case_insensitivity():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual['data']
+    assert actual["success"]
+
+
+def test_get_ui_config_empty():
+    response = client.get(
+        url=f"/api/account/config/ui",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual['data'] == {}
+    assert actual["success"]
+
+
+def test_add_ui_config():
+    response = client.put(
+        url=f"/api/account/config/ui",
+        json={'data': {'has_stepper': True, 'has_tour': False, 'theme': 'white'}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual['data']
+    assert actual["success"]
+    assert actual["message"] == 'Config saved!'
+
+    response = client.put(
+        url=f"/api/account/config/ui",
+        json={'data': {'has_stepper': True, 'has_tour': False, 'theme': 'black'}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual['data']
+    assert actual["success"]
+    assert actual["message"] == 'Config saved!'
+
+
+def test_get_ui_config():
+    response = client.get(
+        url=f"/api/account/config/ui",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual['data'] == {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
     assert actual["success"]
