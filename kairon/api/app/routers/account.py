@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi import BackgroundTasks
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response, RegisterAccount, TextData, Password
+from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
@@ -99,3 +99,29 @@ async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_c
     """
     AccountProcessor.delete_bot(bot, current_user.get_user())
     return {'message': 'Bot removed'}
+
+
+@router.post("/feedback", response_model=Response)
+async def feedback(request_data: FeedbackRequest, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Receive feedback from user.
+    """
+    AccountProcessor.add_feedback(request_data.rating, current_user.get_user(), request_data.scale, request_data.feedback)
+    return {"message": "Thanks for your feedback!"}
+
+
+@router.put("/config/ui", response_model=Response)
+async def update_ui_config(request_data: DictData, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Add/update ui configuration for user.
+    """
+    AccountProcessor.update_ui_config(request_data.data, current_user.get_user())
+    return {"message": "Config saved!"}
+
+
+@router.get("/config/ui", response_model=Response)
+async def get_ui_config(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Get ui configuration for user.
+    """
+    return {'data': AccountProcessor.get_ui_config(current_user.get_user())}

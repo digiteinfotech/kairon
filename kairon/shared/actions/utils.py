@@ -43,7 +43,6 @@ class ActionUtility:
         :return: JSON/string response
         """
         header = {"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}
-        response = ""
 
         if request_body is None:
             request_body = {}
@@ -52,8 +51,6 @@ class ActionUtility:
             header = {'Authorization': auth_token}
         try:
             if request_method.lower() == 'get':
-                if request_body:
-                    http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
                 response = requests.get(http_url, headers=header)
             elif request_method.lower() in ['post', 'put', 'delete']:
                 response = requests.request(request_method.upper(), http_url, json=request_body, headers=header)
@@ -74,7 +71,7 @@ class ActionUtility:
             logging.error(str(e))
             http_response_as_json = response.text
 
-        return http_response_as_json, http_url
+        return http_response_as_json
 
     @staticmethod
     def prepare_request(tracker: Tracker, http_action_config_params: List[HttpActionRequestBody]):
@@ -101,6 +98,12 @@ class ActionUtility:
             logger.debug("value for key " + param['key'] + ": " + str(value))
 
         return request_body
+
+    @staticmethod
+    def prepare_url(request_method: str, http_url: str, request_body=None):
+        if request_method.lower() == 'get' and request_body:
+            http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
+        return http_url
 
     @staticmethod
     def is_empty(value: str):

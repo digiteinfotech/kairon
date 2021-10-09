@@ -74,10 +74,13 @@ class ActionProcessor:
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
             logger.info("request_body: " + str(request_body))
             request_method = http_action_config['request_method']
-            http_response, http_url = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
-                                                                         http_url=http_action_config['http_url'],
-                                                                         request_method=request_method,
-                                                                         request_body=request_body)
+            http_url = ActionUtility.prepare_url(request_method=request_method,
+                                                 http_url=http_action_config['http_url'],
+                                                 request_body=request_body)
+            http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
+                                                               http_url=http_url,
+                                                               request_method=request_method,
+                                                               request_body=request_body)
             logger.info("http response: " + str(http_response))
             bot_response = ActionUtility.prepare_response(http_action_config['response'], http_response)
             logger.info("response: " + str(bot_response))

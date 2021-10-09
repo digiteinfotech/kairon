@@ -54,8 +54,8 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                           request_method=responses.GET)
+        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+                                                      request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
         assert len(response['test_class']) == 2
@@ -72,8 +72,8 @@ class TestActions:
             status=200
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                           request_method=responses.GET)
+        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                      request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
         assert len(response['test_class']) == 2
@@ -82,7 +82,6 @@ class TestActions:
 
     @responses.activate
     def test_execute_http_request_get_with_params(self):
-        from urllib.parse import urlencode, quote_plus
         http_url = 'http://localhost:8080/mock'
         responses.add(
             method=responses.GET,
@@ -91,14 +90,29 @@ class TestActions:
             status=200
         )
         params = {"test": "val1", "test2": "val2"}
-        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                           request_method=responses.GET, request_body=params)
+        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                      request_method=responses.GET, request_body=params)
         assert response
         assert response['data'] == 'test_data'
-        assert url == http_url + "?" + urlencode(params, quote_via=quote_plus)
         assert len(response['test_class']) == 2
         assert response['test_class'][1]['key2'] == 'value2'
         assert 'Authorization' not in responses.calls[0].request.headers
+
+    def test_prepare_url_with_get(self):
+        from urllib.parse import urlencode, quote_plus
+
+        http_url = 'http://localhost:8080/mock'
+        params = {"test": "val1", "test2": "val2"}
+        updated_url = ActionUtility.prepare_url('GET', http_url, params)
+        assert updated_url == http_url + "?" + urlencode(params, quote_via=quote_plus)
+
+    def test_prepare_url_with_post(self):
+        from urllib.parse import urlencode, quote_plus
+
+        http_url = 'http://localhost:8080/mock'
+        params = {"test": "val1", "test2": "val2"}
+        updated_url = ActionUtility.prepare_url('POST', http_url, params)
+        assert updated_url == http_url
 
     def test_execute_http_request_invalid_method_type(self):
         http_url = 'http://localhost:8080/mock'
@@ -123,8 +137,8 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                           request_method=responses.POST, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+                                                      request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -143,8 +157,8 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                           request_method=responses.POST, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                      request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -165,8 +179,8 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                           request_method=responses.PUT, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+                                                      request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -185,8 +199,8 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                           request_method=responses.PUT, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                      request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
@@ -207,8 +221,8 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                           request_method=responses.DELETE, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+                                                      request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -227,8 +241,8 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
-                                                           request_method=responses.DELETE, request_body=None)
+        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+                                                      request_method=responses.DELETE, request_body=None)
         assert response
         assert response == resp_msg
         assert responses.calls[0].request.headers['Authorization'] == auth_token
@@ -269,8 +283,8 @@ class TestActions:
             ]
         )
 
-        response, url = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
-                                                           request_method=responses.DELETE, request_body=request_params)
+        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+                                                      request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
         assert 'Authorization' not in responses.calls[0].request.headers
