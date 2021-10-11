@@ -117,6 +117,16 @@ async def get_training_examples(
     }
 
 
+@router.get("/training_examples", response_model=Response)
+async def get_all_training_examples_for_bot(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches all training examples against a bot.
+    """
+    return {
+        "data": mongo_processor.get_training_examples_as_dict(current_user.get_bot())
+    }
+
+
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
         intent: constr(to_lower=True, strip_whitespace=True),
