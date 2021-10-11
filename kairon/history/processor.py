@@ -1051,3 +1051,71 @@ class HistoryProcessor:
             except Exception as e:
                 logger.error(e)
                 raise AppException(e)
+
+    @staticmethod
+    def average_conversation_step_range(collection: Text, month: int = 6):
+
+        """
+        Computes the trend for average conversation step count
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of counts of average conversation step for the previous months
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            total = []
+            steps = []
+            try:
+                steps = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                         {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                                     "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                         {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                                     "allevents": {"$push": "$events"}}},
+                                         {"$unwind": "$events"},
+                                         {"$project": {
+                                             "_id": 1,
+                                             "events": 1,
+                                             "following_events": {
+                                                 "$arrayElemAt": [
+                                                     "$allevents",
+                                                     {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                                 ]
+                                             }
+                                         }},
+                                         {"$project": {
+                                             "timestamp": "$events.timestamp",
+                                             "user_event": "$events.event",
+                                             "bot_event": "$following_events.event",
+                                         }},
+                                         {"$match": {"user_event": "user", "bot_event": "bot"}},
+                                         {"$addFields": {
+                                             "month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                                         {"$group": {"_id": "$month", "event": {"$sum": 1}}}
+                                         ], allowDiskUse=True)
+                             )
+
+                total = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
+                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            conv_steps = {d['_id']: d['event'] for d in steps}
+            user_count = {d['_id']: d['count'] for d in total}
+            conv_steps = {k: conv_steps.get(k, 0) for k in user_count.keys()}
+            avg_conv_steps = {k: conv_steps[k] / user_count[k] for k in user_count.keys()}
+            return (
+                {"Conversation_step_range": avg_conv_steps},
+                message
+            )

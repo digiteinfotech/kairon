@@ -37,7 +37,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Responses,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                             TrainingExamplesTrainingDataGenerator, Rules, Feedback, Configs,
+                                             TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms
                                              )
 from kairon.shared.data.model_processor import ModelProcessor
@@ -537,7 +537,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "Hi"
-        assert results[0]["message"] == "Training Example already exists!"
+        assert results[0]["message"] == 'Training Example exists in intent: [\'greet\']'
 
     def test_add_training_example_duplicate_case_insensitive(self):
         processor = MongoProcessor()
@@ -546,7 +546,7 @@ class TestMongoProcessor:
         )
         assert results[0]["_id"] is None
         assert results[0]["text"] == "hi"
-        assert results[0]["message"] == "Training Example already exists!"
+        assert results[0]["message"] == 'Training Example exists in intent: [\'greet\']'
 
     def test_add_training_example_none_text(self):
         processor = MongoProcessor()
@@ -747,7 +747,7 @@ class TestMongoProcessor:
                                                       "Make [TKT456](ticketID) a [high issue](priority)"],
                                                      intent="get_priority",
                                                      bot="tests", user="testUser", is_integration=False))
-        assert actual[0]['message'] == "Training Example already exists!"
+        assert actual[0]['message'] == 'Training Example exists in intent: [\'get_priority\']'
         assert actual[1]['message'] == "Training Example added"
 
     def test_add_entity(self):
@@ -2108,33 +2108,6 @@ class TestMongoProcessor:
     def test_get_existing_slots_bot_not_exists(self):
         slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
         assert len(slots) == 0
-
-    def test_add_feedback(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(4.5, 'test', 'test', feedback='product is good')
-        feedback = Feedback.objects(bot='test', user='test').get()
-        assert feedback['rating'] == 4.5
-        assert feedback['scale'] == 5.0
-        assert feedback['feedback'] == 'product is good'
-        assert feedback['timestamp']
-
-    def test_add_feedback_2(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(5.0, 'test', 'test_user', scale=10, feedback='i love kairon')
-        feedback = Feedback.objects(bot='test', user='test_user').get()
-        assert feedback['rating'] == 5.0
-        assert feedback['scale'] == 10
-        assert feedback['feedback'] == 'i love kairon'
-        assert feedback['timestamp']
-
-    def test_add_feedback_3(self):
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_feedback(5.0, 'test', 'test')
-        feedback = list(Feedback.objects(bot='test', user='test'))
-        assert feedback[1]['rating'] == 5.0
-        assert feedback[1]['scale'] == 5.0
-        assert not feedback[1]['feedback']
-        assert feedback[1]['timestamp']
 
     @pytest.mark.asyncio
     async def test_save_training_data_all(self, get_training_data):
@@ -4676,6 +4649,13 @@ class TestMongoProcessor:
         with pytest.raises(AppException,
                            match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
             processor.add_complex_story(story_dict, bot, user)
+
+    def test_delete_intent_attached_to_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match="Cannot remove intent linked to flow"):
+            processor.delete_intent('greet', bot, user, False)
 
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()

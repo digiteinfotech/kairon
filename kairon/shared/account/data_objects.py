@@ -7,7 +7,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, ListField
+    DictField, ListField, FloatField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -26,6 +26,7 @@ class User(Document):
     bot = ListField(StringField(), required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    password_changed = DateTimeField(default=None)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -76,3 +77,17 @@ class UserEmailConfirmation(Document):
             raise ValidationError("Email cannot be empty or blank spaces")
         elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Invalid email address")
+
+
+class Feedback(Document):
+    rating = FloatField(required=True)
+    scale = FloatField(default=5.0)
+    feedback = StringField(default=None)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class UiConfig(Document):
+    config = DictField(default={})
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

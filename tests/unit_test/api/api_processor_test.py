@@ -9,7 +9,7 @@ import pytest
 from pydantic import SecretStr
 
 from kairon.shared.auth import Authentication
-from kairon.shared.account.data_objects import User
+from kairon.shared.account.data_objects import User, Feedback
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.utils import Utility
@@ -726,3 +726,46 @@ class TestAccountProcessor:
         token = Authentication.create_access_token(data={"sub": "test"})
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
+
+    def test_add_feedback(self):
+        AccountProcessor.add_feedback(4.5, 'test', feedback='product is good')
+        feedback = Feedback.objects(user='test').get()
+        assert feedback['rating'] == 4.5
+        assert feedback['scale'] == 5.0
+        assert feedback['feedback'] == 'product is good'
+        assert feedback['timestamp']
+
+    def test_add_feedback_2(self):
+        AccountProcessor.add_feedback(5.0, 'test_user', scale=10, feedback='i love kairon')
+        feedback = Feedback.objects(user='test_user').get()
+        assert feedback['rating'] == 5.0
+        assert feedback['scale'] == 10
+        assert feedback['feedback'] == 'i love kairon'
+        assert feedback['timestamp']
+
+    def test_add_feedback_3(self):
+        AccountProcessor.add_feedback(5.0, 'test')
+        feedback = list(Feedback.objects(user='test'))
+        assert feedback[1]['rating'] == 5.0
+        assert feedback[1]['scale'] == 5.0
+        assert not feedback[1]['feedback']
+        assert feedback[1]['timestamp']
+
+    def test_get_ui_config_none(self):
+        assert AccountProcessor.get_ui_config('test') == {}
+
+    def test_add_ui_config(self):
+        config = {'has_stepper': True, 'has_tour': False}
+        assert not AccountProcessor.update_ui_config(config, 'test')
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
+        assert not AccountProcessor.update_ui_config(config, 'test_user')
+
+    def test_add_ui_config_duplicate(self):
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'white'}
+        assert not AccountProcessor.update_ui_config(config, 'test')
+
+    def test_get_saved_ui_config(self):
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'white'}
+        assert AccountProcessor.get_ui_config('test') == config
+        config = {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
+        assert AccountProcessor.get_ui_config('test_user') == config

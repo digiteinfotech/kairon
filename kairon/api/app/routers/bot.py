@@ -16,7 +16,7 @@ from kairon.api.models import (
     Endpoint,
     RasaConfig,
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
-    FeedbackRequest, SynonymRequest, RegexRequest,
+    SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
     TextDataLowerCase
 )
@@ -893,16 +893,6 @@ async def edit_slots(
         raise AppException(e)
 
     return {"message": "Slot updated!"}
-
-
-@router.post("/feedback", response_model=Response)
-async def feedback(feedback: FeedbackRequest, current_user: User = Depends(Authentication.get_current_user_and_bot),):
-    """
-    Receive feedback from user.
-    """
-    mongo_processor.add_feedback(feedback.rating, current_user.get_bot(), current_user.get_user(),
-                                  feedback.scale, feedback.feedback)
-    return {"message": "Thanks for your feedback!"}
 
 
 @router.get("/importer/logs", response_model=Response)
