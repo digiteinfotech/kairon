@@ -14,6 +14,7 @@ from elasticmock import elasticmock
 from fastapi import UploadFile
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
+from mongoengine.queryset.base import BaseQuerySet
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -659,6 +660,27 @@ class TestMongoProcessor:
         training_examples, ids = processor.get_all_training_examples("tests")
         assert training_examples
         assert ids
+
+    def test_get_training_examples_as_dict(self, monkeypatch):
+        processor = MongoProcessor()
+        training_examples_expected = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
+
+        def _mongo_aggregation(*args, **kwargs):
+            return [{'training_examples': training_examples_expected}]
+
+        monkeypatch.setattr(BaseQuerySet, 'aggregate', _mongo_aggregation)
+        training_examples = processor.get_training_examples_as_dict("tests")
+        assert training_examples == training_examples_expected
+
+    def test_get_training_examples_as_dict_no_examples_added(self, monkeypatch):
+        processor = MongoProcessor()
+
+        def _mongo_aggregation(*args, **kwargs):
+            return []
+
+        monkeypatch.setattr(BaseQuerySet, 'aggregate', _mongo_aggregation)
+        training_examples = processor.get_training_examples_as_dict("tests_bot")
+        assert training_examples == {}
 
     def test_add_training_example_with_entity(self):
         processor = MongoProcessor()

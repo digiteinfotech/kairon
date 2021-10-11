@@ -10,6 +10,7 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
+from mongoengine.queryset.base import BaseQuerySet
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
@@ -646,6 +647,23 @@ def test_get_training_examples_empty_intent():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
+
+
+def test_get_training_examples_as_dict(monkeypatch):
+    training_examples = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
+
+    def _mongo_aggregation(*args, **kwargs):
+        return [{'training_examples': training_examples}]
+    monkeypatch.setattr(BaseQuerySet, 'aggregate', _mongo_aggregation)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"] == training_examples
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_add_training_examples():

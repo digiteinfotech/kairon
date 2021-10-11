@@ -1565,6 +1565,28 @@ class MongoProcessor:
         else:
             return [], []
 
+    @staticmethod
+    def get_training_examples_as_dict(bot: Text):
+        """
+        fetches training examples and intent as a dict
+
+        :param bot: bot id
+        :return: list of dict<training_example, intent>
+        """
+        training_examples = list(
+            TrainingExamples.objects(bot=bot, status=True).aggregate([
+                {"$replaceRoot": {"newRoot": {"$arrayToObject": [[{'k': "$text", 'v': "$intent"}]]}}},
+                {'$addFields': {'bot': bot}},
+                {'$group': {'_id': '$bot', 'training_examples': {'$mergeObjects': '$$ROOT'}}},
+                {'$unset': 'training_examples.bot'},
+                {'$project': {'_id': 0, 'training_examples': 1}}])
+        )
+        if training_examples:
+            training_examples = training_examples[0].get('training_examples', {})
+        else:
+            training_examples = {}
+        return training_examples
+
     def remove_document(
             self, document: Document, id: Text, bot: Text, user: Text, **kwargs
     ):
