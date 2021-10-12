@@ -55,7 +55,7 @@ services:
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
-      AGENT_URL: "http://kairon-chat/"
+      AGENT_URL: "http://kairon-chat:5000/"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
       KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
 
@@ -115,7 +115,7 @@ services:
     container_name: kairon-chat
     hostname: kairon-chat
     ports:
-      - 83:80
+      - 5000:5000
     networks:
       - chatbotnetwork
     environment:
