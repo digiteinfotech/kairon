@@ -213,7 +213,7 @@ async def flat_conversations(month: int = Query(default=1, ge=1, le=6), current_
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/conversations',
+        f'/api/history/{current_user.get_bot()}/conversations/',
         {'month': month}
     )
 

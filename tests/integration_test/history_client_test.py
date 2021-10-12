@@ -573,14 +573,14 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
 def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/",
         status=200,
         match=[responses.json_params_matcher({'month': 1})],
         json={"data": {'conversation_data': history_conversations()[0]}}
     )
 
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations",
+        f"/api/history/{pytest.bot}/conversations/",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
