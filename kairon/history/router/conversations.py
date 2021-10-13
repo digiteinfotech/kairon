@@ -57,3 +57,13 @@ async def chat_history(sender: Text,
     """Fetches the list of conversation with the agent by particular user."""
     history, message = HistoryProcessor.fetch_chat_history(collection, sender, request.month)
     return {"data": {"history": list(history)}, "message": message}
+
+
+@router.get("/wordcloud", response_model=Response)
+async def word_cloud(request: HistoryQuery = HistoryQuery(),
+                             collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the string required for word cloud formation"""
+    sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
+                                                    request.stopwords, request.month)
+    return {"data": {"conversation_string": sentence}, "message": message}
+

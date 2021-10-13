@@ -1012,3 +1012,16 @@ class Utility:
 
         model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
         return Utility.get_latest_file(model_file, "*.tar.gz")
+
+    @staticmethod
+    def wordListToFreqDict(wordlist):
+        wordfreq = [wordlist.count(p) for p in wordlist]
+        return dict(list(zip(wordlist, wordfreq)))
+
+    @staticmethod
+    def sortFreqDict(freqdict):
+        aux = [(freqdict[key], key) for key in freqdict]
+        aux.sort()
+        aux.reverse()
+        return aux
+

@@ -282,3 +282,21 @@ async def conversation_step_trend(month: int = Query(default=6, ge=2, le=6), cur
         f'/api/history/{current_user.get_bot()}/trends/conversations/steps',
         {'month': month}
     )
+
+
+@router.get("/conversations/wordcloud")
+async def word_cloud(
+        month: int = Query(default=1, ge=1, le=6),
+        l_bound: float = Query(default=0, ge=0, lt=1),
+        u_bound: float = Query(default=1, gt=0, le=1),
+        stopwords: list = Query(default=None),
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Returns the conversation string that is required for word cloud formation
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/conversations/wordcloud',
+        {'u_bound': u_bound, 'l_bound': l_bound, 'stopwords': stopwords, 'month': month}
+    )
