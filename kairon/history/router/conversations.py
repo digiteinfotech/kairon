@@ -62,7 +62,7 @@ async def chat_history(sender: Text,
 @router.get("/wordcloud", response_model=Response)
 async def word_cloud(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
-    """Fetches the string required for word cloud formation"""
+    """Fetches the string required for word cloud formation."""
     sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
                                                     request.stopwords, request.month)
     return {"data": {"conversation_string": sentence}, "message": message}
