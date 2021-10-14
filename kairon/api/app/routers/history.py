@@ -289,7 +289,7 @@ async def word_cloud(
         month: int = Query(default=1, ge=1, le=6),
         l_bound: float = Query(default=0, ge=0, lt=1),
         u_bound: float = Query(default=1, gt=0, le=1),
-        stopwords: list = Query(default=None),
+        stopword_list: list = Query(default=None),
         current_user: User = Depends(Authentication.get_current_user_and_bot),
 ):
     """
@@ -298,5 +298,5 @@ async def word_cloud(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/wordcloud',
-        {'u_bound': u_bound, 'l_bound': l_bound, 'stopwords': stopwords, 'month': month}
+        {'u_bound': u_bound, 'l_bound': l_bound, 'stopword_list': stopword_list, 'month': month}
     )

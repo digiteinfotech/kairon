@@ -1121,7 +1121,7 @@ class HistoryProcessor:
             )
 
     @staticmethod
-    def word_cloud(collection: Text, u_bound=1, l_bound=0, stopwords=None, month=1):
+    def word_cloud(collection: Text, u_bound=1, l_bound=0, stopword_list=None, month=1):
 
         """
         Creates the string that is necessary for the word cloud formation
@@ -1130,13 +1130,13 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param u_bound: The upper bound for the slider to filter the words for the wordcloud
         :param l_bound: The lower bound for the slider to filter the words for the wordcloud
-        :param stopwords: The stopword list that is used to filter extra words
+        :param stopword_list: The stopword list that is used to filter extra words
         :return: the string for word cloud formation
         """
 
-        from wordcloud import STOPWORDS
-        if stopwords is None:
-            stopwords = []
+        from nltk.corpus import stopwords
+        if stopword_list is None:
+            stopword_list = []
         client, message = HistoryProcessor.get_mongo_connection()
         with client as client:
             try:
@@ -1157,8 +1157,9 @@ class HistoryProcessor:
                     unique_string = (" ").join(word_list[0]['input']).lower()
                     unique_string = unique_string.replace('?', '')
                     wordlist = unique_string.split()
-                    STOPWORDS.update(stopwords)
-                    wordlist = [word for word in wordlist if word not in STOPWORDS]
+                    stops = set(stopwords.words('english'))
+                    stops.update(stopword_list)
+                    wordlist = [word for word in wordlist if word not in stops]
                     freq_dict = Utility.wordListToFreqDict(wordlist)
                     sorted_dict = Utility.sortFreqDict(freq_dict)
                     upper_bound, lower_bound = round((1 - u_bound) * len(sorted_dict)), round((1 - l_bound) * len(sorted_dict))

@@ -11,4 +11,4 @@ class HistoryQuery(BaseModel):
     top_n: int = Query(default=10, ge=1)
     l_bound: float = Query(default=0, ge=0, lt=1)
     u_bound: float = Query(default=1, gt=0, le=1)
-    stopwords: list = Query(default=None)
+    stopword_list: list = Query(default=None)
