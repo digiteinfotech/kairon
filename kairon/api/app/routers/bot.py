@@ -1254,3 +1254,11 @@ async def delete_form(request: TextData, current_user: User = Depends(Authentica
     """
     mongo_processor.delete_form(request.data, current_user.get_bot(), current_user.get_user())
     return Response(message='Form deleted')
+
+
+@router.get("/entities", response_model=Response)
+async def list_entities(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetch entities registered in a bot.
+    """
+    return Response(data=mongo_processor.get_entities(current_user.get_bot()))
