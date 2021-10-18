@@ -180,6 +180,17 @@ def test_list_bots():
     assert response['data'][1]['name'] == 'covid-bot'
 
 
+def test_list_entities_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual['data']
+    assert actual["success"]
+
+
 def test_no_default_intents_in_bot():
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -278,6 +289,17 @@ def test_upload_yml():
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_list_entities():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert {e['name'] for e in actual["data"]} == {'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
     assert actual["success"]
 
 
