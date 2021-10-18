@@ -558,7 +558,7 @@ def test_wordcloud(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["conversation_string"] == ""
+    assert actual["data"] == ""
     assert actual["message"]
     assert actual["success"]
 
@@ -572,7 +572,7 @@ def test_wordcloud_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["conversation_string"] == ""
+    assert actual["data"] == ""
     assert actual["message"]
     assert actual["success"]
 

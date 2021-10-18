@@ -1160,8 +1160,8 @@ class HistoryProcessor:
                     stops = set(stopwords.words('english'))
                     stops.update(stopword_list)
                     wordlist = [word for word in wordlist if word not in stops]
-                    freq_dict = Utility.wordListToFreqDict(wordlist)
-                    sorted_dict = Utility.sortFreqDict(freq_dict)
+                    freq_dict = Utility.word_list_to_frequency(wordlist)
+                    sorted_dict = Utility.sort_frequency_dict(freq_dict)
                     upper_bound, lower_bound = round((1 - u_bound) * len(sorted_dict)), round((1 - l_bound) * len(sorted_dict))
                     filtered_words = [word[1] for word in sorted_dict[upper_bound:lower_bound]]
                     word_cloud_string = (" ").join([word for word in wordlist if word in filtered_words])

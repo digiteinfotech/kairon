@@ -65,5 +65,5 @@ async def word_cloud(request: HistoryQuery = HistoryQuery(),
     """Fetches the string required for word cloud formation."""
     sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
                                                     request.stopword_list, request.month)
-    return {"data": {"conversation_string": sentence}, "message": message}
+    return {"data": sentence, "message": message}
 

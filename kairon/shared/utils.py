@@ -1014,12 +1014,12 @@ class Utility:
         return Utility.get_latest_file(model_file, "*.tar.gz")
 
     @staticmethod
-    def wordListToFreqDict(wordlist):
+    def word_list_to_frequency(wordlist):
         wordfreq = [wordlist.count(p) for p in wordlist]
         return dict(list(zip(wordlist, wordfreq)))
 
     @staticmethod
-    def sortFreqDict(freqdict):
+    def sort_frequency_dict(freqdict):
         aux = [(freqdict[key], key) for key in freqdict]
         aux.sort()
         aux.reverse()
