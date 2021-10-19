@@ -317,3 +317,22 @@ class TestHistory:
         conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
         assert conversation_steps["Conversation_step_range"] == {}
         assert message
+
+    def test_wordcloud_error(self, mock_db_timeout):
+        with pytest.raises(Exception):
+            HistoryProcessor.word_cloud("tests")
+
+    def test_wordcloud(self, mock_mongo_client):
+        conversation, message = HistoryProcessor.word_cloud("tests")
+        assert conversation == ""
+        assert message
+
+    def test_wordcloud_data(self, mock_fallback_user_data):
+        conversation, message = HistoryProcessor.word_cloud("conversations")
+        assert conversation
+        assert message
+
+    def test_wordcloud_data_error(self, mock_fallback_user_data):
+        with pytest.raises(Exception):
+            HistoryProcessor.word_cloud("conversations", u_bound=.5, l_bound=.6)
+

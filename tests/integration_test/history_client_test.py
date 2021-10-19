@@ -718,3 +718,24 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
     assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
+
+
+@responses.activate
+def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1, 'l_bound': 0, 'u_bound': 1, 'stopword_list': None})],
+        json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/wordcloud",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
+
+

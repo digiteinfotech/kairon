@@ -1119,3 +1119,57 @@ class HistoryProcessor:
                 {"Conversation_step_range": avg_conv_steps},
                 message
             )
+
+    @staticmethod
+    def word_cloud(collection: Text, u_bound=1, l_bound=0, stopword_list=None, month=1):
+
+        """
+        Creates the string that is necessary for the word cloud formation
+
+        :param month: default is current month and max is last 6 months
+        :param collection: collection to connect to
+        :param u_bound: The upper bound for the slider to filter the words for the wordcloud
+        :param l_bound: The lower bound for the slider to filter the words for the wordcloud
+        :param stopword_list: The stopword list that is used to filter extra words
+        :return: the string for word cloud formation
+        """
+
+        from nltk.corpus import stopwords
+        if stopword_list is None:
+            stopword_list = []
+        client, message = HistoryProcessor.get_mongo_connection()
+        with client as client:
+            try:
+                db = client.get_database()
+                conversations = db.get_collection(collection)
+                word_list = list(conversations.aggregate(
+                    [{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                     {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                     {"$match": {"events.event": 'user'}},
+                     {"$project": {"user_input": "$events.text", "_id": 0}},
+                     {"$group": {"_id": None, "input": {"$push": "$user_input"}}},
+                     {"$project": {"input": 1, "_id": 0}}
+                     ], allowDiskUse=True))
+
+                if word_list:
+                    if u_bound < l_bound:
+                        raise AppException("Upper bound cannot be lesser than lower bound")
+                    unique_string = (" ").join(word_list[0]['input']).lower()
+                    unique_string = unique_string.replace('?', '')
+                    wordlist = unique_string.split()
+                    stops = set(stopwords.words('english'))
+                    stops.update(stopword_list)
+                    wordlist = [word for word in wordlist if word not in stops]
+                    freq_dict = Utility.word_list_to_frequency(wordlist)
+                    sorted_dict = Utility.sort_frequency_dict(freq_dict)
+                    upper_bound, lower_bound = round((1 - u_bound) * len(sorted_dict)), round((1 - l_bound) * len(sorted_dict))
+                    filtered_words = [word[1] for word in sorted_dict[upper_bound:lower_bound]]
+                    word_cloud_string = (" ").join([word for word in wordlist if word in filtered_words])
+                    return word_cloud_string, message
+                else:
+                    return "", message
+
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)
+
