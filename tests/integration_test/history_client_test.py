@@ -1,6 +1,6 @@
 import json
 import os
-
+import datetime
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
@@ -619,7 +619,7 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mong
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert response.content.decode('utf-8')
-    assert "conversation_history_test_" in str(response.headers)
+    assert f"conversation_history_test{datetime.date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
 
 
 @responses.activate
