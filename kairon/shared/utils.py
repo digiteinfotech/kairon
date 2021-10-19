@@ -761,6 +761,8 @@ class Utility:
                 raise AppException(message)
         else:
             df = pd.json_normalize(conversation.get("conversation_data"))
+            if 'timestamp' in df.columns:
+                df['timestamp'] = df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
             temp_path = tempfile.mkdtemp()
             file_path = os.path.join(temp_path, "conversation_history.csv")
             df.to_csv(file_path, index=False)

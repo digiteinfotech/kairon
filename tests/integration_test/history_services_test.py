@@ -3,7 +3,7 @@ import os
 from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
-
+from datetime import datetime
 from kairon.history.main import app
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
@@ -361,7 +361,7 @@ def test_flat_conversations(mock_db_client):
 
 
 def mock_flatten_api_with_data(*args, **kwargs):
-    return {"conversation_data": [{"test_key": "test_value"}]}, 'connecting to db, '
+    return {"conversation_data": [{"test_key": "test_value", "timestamp": datetime(2021, 10, 18, 17, 16, 37, 430000)}]}, 'connecting to db, '
 
 
 def mock_flatten_api_with_no_data(*args, **kwargs):
@@ -379,6 +379,7 @@ def test_download_conversation_with_data(monkeypatch):
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
     assert "test_value" in str(response.content)
+    assert '2021-10-18 17:16:37' in str(response.content)
 
 
 def test_download_conversation_with_no_data(monkeypatch):

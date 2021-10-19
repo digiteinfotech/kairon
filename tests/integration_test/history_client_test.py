@@ -591,8 +591,17 @@ def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
     assert actual["success"]
 
 
+def list_bot_mock(*args, **kwargs):
+    return [{'name': 'test', '_id': pytest.bot}]
+
+
+@pytest.fixture
+def mock_list_bots(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "list_bots", list_bot_mock)
+
+
 @responses.activate
-def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mongo_processor):
+def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mongo_processor, mock_list_bots):
     file = open('./tests/testing_data/history/conversation.json')
     responses.add(
         responses.GET,
@@ -610,10 +619,11 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mong
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert response.content.decode('utf-8')
+    assert "conversation_history_test_" in str(response.headers)
 
 
 @responses.activate
-def test_download_conversation_with_error_with_kairon_client(mock_auth, mock_mongo_processor):
+def test_download_conversation_with_error_with_kairon_client(mock_auth, mock_mongo_processor, mock_list_bots):
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
