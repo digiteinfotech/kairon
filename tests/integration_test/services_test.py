@@ -180,6 +180,34 @@ def test_list_bots():
     assert response['data'][1]['name'] == 'covid-bot'
 
 
+def test_list_entities_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual['data']
+    assert actual["success"]
+
+
+def test_no_default_intents_in_bot():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    intents = set([d['name'] for d in actual["data"]])
+    assert 'nlu_fallback' not in intents
+    assert 'restart' not in intents
+    assert 'back' not in intents
+    assert 'session_start' not in intents
+    assert 'out_of_scope' not in intents
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
@@ -261,6 +289,17 @@ def test_upload_yml():
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_list_entities():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert {e['name'] for e in actual["data"]} == {'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
     assert actual["success"]
 
 
@@ -569,7 +608,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 14
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -582,7 +621,7 @@ def test_get_all_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 14
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -1621,7 +1660,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 20
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
