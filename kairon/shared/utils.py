@@ -653,10 +653,13 @@ class Utility:
         elif "TRAINING" == event_type:
             if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
                 url = Utility.environment['model']['train'].get('event_url')
+        elif "TESTING" == event_type:
+            if Utility.environment.get('model') and Utility.environment['model']['test'].get('event_url'):
+                url = Utility.environment['model']['test'].get('event_url')
         else:
             raise AppException("Invalid event type received")
-        if raise_exc:
-            raise AppException("Could not find event url")
+        if Utility.check_empty_string(url) and raise_exc:
+            raise AppException("Could not find an event url")
         return url
 
     @staticmethod
@@ -1012,6 +1015,16 @@ class Utility:
 
         model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
         return Utility.get_latest_file(model_file, "*.tar.gz")
+
+    @staticmethod
+    def is_model_file_exists(bot: Text, raise_exc: bool = True):
+        try:
+            Utility.get_latest_model(bot)
+            return True
+        except AppException:
+            if raise_exc:
+                raise AppException('No model trained yet. Please train a model to test')
+            return False
 
     @staticmethod
     def word_list_to_frequency(wordlist):

@@ -16,6 +16,7 @@ from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
+from kairon.test.processor import ModelTestingLogProcessor
 
 
 class TestEvents:
@@ -29,6 +30,8 @@ class TestEvents:
         pytest.tmp_dir = tmp_dir
         yield None
         shutil.rmtree(tmp_dir)
+        shutil.rmtree('models/test_events_bot')
+        shutil.rmtree('models/test_events_no_nlu_model')
 
     @pytest.fixture()
     def get_training_data(self):
@@ -792,3 +795,178 @@ class TestEvents:
         assert len(list(mongo_processor.fetch_responses(bot))) == 8
         assert len(mongo_processor.fetch_actions(bot)) == 0
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_run_tests_on_model_no_model_found(self):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        await EventsTrigger.trigger_model_testing(bot, user, True)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0].get('exception').__contains__('Model testing failed: Folder does not exists!')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['run_on_test_stories']
+        assert not logs[0].get('stories')
+        assert not logs[0].get('nlu')
+        assert logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    @pytest.fixture
+    def load_data(self):
+        async def _read_and_get_data(config_path: str, domain_path: str, nlu_path: str, stories_path: str, bot: str, user: str):
+            data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+            os.mkdir(data_path)
+            shutil.copy2(nlu_path, data_path)
+            shutil.copy2(stories_path, data_path)
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+
+            processor = MongoProcessor()
+            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True)
+
+        return _read_and_get_data
+
+    @pytest.fixture
+    def create_model(self):
+        def move_model(path: str, bot: str, remove_nlu_model=False):
+            bot_training_home_dir = os.path.join('models', bot)
+            if not os.path.exists(bot_training_home_dir):
+                os.mkdir(bot_training_home_dir)
+            if remove_nlu_model:
+                tmp = os.path.join(bot_training_home_dir, 'tmp')
+                shutil.unpack_archive(path, tmp)
+                shutil.rmtree(os.path.join(tmp, 'nlu'))
+                shutil.make_archive(tmp, format='gztar', root_dir=bot_training_home_dir)
+                shutil.rmtree(tmp)
+            else:
+                shutil.copy2(path, bot_training_home_dir)
+
+        return move_model
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        config_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/config.yml'
+        domain_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/domain.yml'
+        nlu_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/nlu_success/nlu.yml'
+        stories_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/test_stories_success/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        create_model('/data/PycharmProjects/kairon/tests/testing_data/model/20210512-172208.tar.gz', bot)
+        await EventsTrigger.trigger_model_testing(bot, user, True)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['run_on_test_stories']
+        assert logs[0].get('stories')
+        assert logs[0].get('nlu')
+        assert not logs[0]['stories']['failed_stories']
+        assert not logs[0]['nlu']['intent_evaluation']['errors']
+        assert logs[0]['stories']['successful_stories']
+        assert logs[0]['nlu']['intent_evaluation']['successes']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == 'PASSED'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_run_tests_on_model_failure(self, load_data):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        config_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/config.yml'
+        domain_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/domain.yml'
+        nlu_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/nlu_failures/nlu.yml'
+        stories_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/test_stories_failures/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        await EventsTrigger.trigger_model_testing(bot, user, True)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 3
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['run_on_test_stories']
+        assert logs[0].get('stories')
+        assert logs[0].get('nlu')
+        assert not logs[0]['stories']['failed_stories']
+        assert logs[0]['nlu']['intent_evaluation']['errors']
+        assert logs[0]['stories']['successful_stories']
+        assert logs[0]['nlu']['intent_evaluation']['successes']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == 'FAILURE'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_run_tests_on_model_no_nlu_model_found(self, load_data, create_model):
+        bot = 'test_events_no_nlu_model'
+        user = 'test_user'
+        config_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/config.yml'
+        domain_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/domain.yml'
+        nlu_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/nlu_failures/nlu.yml'
+        stories_path = '/data/PycharmProjects/kairon/tests/testing_data/model_tester/test_stories_failures/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        create_model('/data/PycharmProjects/kairon/tests/testing_data/model/20210512-172208.tar.gz', bot, True)
+        await EventsTrigger.trigger_model_testing(bot, user, True)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0].get('exception').__contains__('Could not find any model. Please train a model before running tests.')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['run_on_test_stories']
+        assert not logs[0].get('stories')
+        assert not logs[0].get('nlu')
+        assert logs[0].get('end_timestamp')
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_connection_error(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['model']['test'], "event_url", event_url)
+        await EventsTrigger.trigger_model_testing(bot, user, True)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 4
+        assert logs[0].get('exception').__contains__('Failed to trigger the event. ')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('stories')
+        assert not logs[0].get('nlu')
+        assert logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['model']['test'], "event_url", event_url)
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!"},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user}])],
+                      )
+        responses.start()
+        await EventsTrigger.trigger_model_testing(bot, user)
+        responses.stop()
+
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 5
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0]['run_on_test_stories']
+        assert not logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))

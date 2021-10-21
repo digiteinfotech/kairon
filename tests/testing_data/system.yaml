@@ -22,6 +22,9 @@ model:
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:2}
     event_url: ${TRAIN_EVENT_URL}
+  test:
+    limit_per_day: ${TESTING_LIMIT_PER_DAY:5}
+    event_url: ${TEST_EVENT_URL}
   data_importer:
     limit_per_day: ${IMPORTING_LIMIT_PER_DAY:10}
     event_url: ${IMPORTER_EVENT_URL}
