@@ -8,6 +8,8 @@ from kairon.shared.data.constant import EVENT_STATUS
 from kairon.importer.data_importer import DataImporter
 from kairon.importer.processor import DataImporterLogProcessor
 from kairon.shared.utils import Utility
+from kairon.test.processor import ModelTestingLogProcessor
+from kairon.test.test_models import ModelTester
 
 
 class EventsTrigger:
@@ -28,8 +30,9 @@ class EventsTrigger:
         """
         validation_status = 'Failure'
         path = None
+        event_url = Utility.get_event_url("DATA_IMPORTER")
         try:
-            if Utility.get_event_url("DATA_IMPORTER"):
+            if not Utility.check_empty_string(event_url):
                 import_flag = '--import-data' if save_data else ''
                 overwrite_flag = '--overwrite' if overwrite else ''
                 env_var = {'BOT': bot, 'USER': user, "IMPORT_DATA": import_flag, "OVERWRITE": overwrite_flag}
@@ -58,7 +61,7 @@ class EventsTrigger:
         except exceptions.ConnectionError as e:
             logger.error(str(e))
             DataImporterLogProcessor.add_log(bot, user,
-                                             exception='Failed to trigger the event.',
+                                             exception=f'Failed to trigger the event. {e}',
                                              status=validation_status,
                                              event_status=EVENT_STATUS.FAIL.value)
 
@@ -70,3 +73,45 @@ class EventsTrigger:
                                              event_status=EVENT_STATUS.FAIL.value)
         if path:
             Utility.delete_directory(path)
+
+    @staticmethod
+    async def trigger_model_testing(bot: Text, user: Text, run_e2e: bool = False):
+        """
+        Triggers model testing event.
+        @param bot: bot id.
+        @param user: kairon username.
+        @param run_e2e: if true, tests are run on test stories. e2e test run in case of rasa is when intent predictions
+        are also done as part of core model testing.
+        @return:
+        """
+        try:
+            event_url = Utility.get_event_url("TESTING")
+            if not Utility.check_empty_string(event_url):
+                env_var = {'BOT': bot, 'USER': user}
+                event_request = Utility.build_event_request(env_var)
+                Utility.http_request("POST",
+                                     event_url,
+                                     None, user, event_request)
+                ModelTestingLogProcessor.add_initiation_log(bot, user,
+                                                            run_e2e=run_e2e,
+                                                            event_status=EVENT_STATUS.TASKSPAWNED.value)
+            else:
+                ModelTestingLogProcessor.update_log_with_test_results(bot, user,
+                                                                      run_e2e=run_e2e,
+                                                                      event_status=EVENT_STATUS.INPROGRESS.value)
+                nlu_results, stories_results = await ModelTester.run_tests_on_model(bot, run_e2e)
+                ModelTestingLogProcessor.update_log_with_test_results(bot, user,
+                                                                      stories=stories_results,
+                                                                      nlu=nlu_results,
+                                                                      event_status=EVENT_STATUS.COMPLETED.value)
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            ModelTestingLogProcessor.update_log_with_test_results(bot, user,
+                                                                  exception=f'Failed to trigger the event. {e}',
+                                                                  event_status=EVENT_STATUS.FAIL.value)
+
+        except Exception as e:
+            logger.error(str(e))
+            ModelTestingLogProcessor.update_log_with_test_results(bot, user,
+                                                                  exception=str(e),
+                                                                  event_status=EVENT_STATUS.FAIL.value)

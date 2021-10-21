@@ -2,7 +2,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from mongoengine import connect
 
-from kairon.cli import importer, training
+from kairon.cli import importer, training, testing
 from kairon.shared.utils import Utility
 
 """
@@ -17,6 +17,9 @@ Usage:
         kairon data-importer <botid> <userid>
         kairon data-importer <botid> <userid> --import-data
         kairon data-importer <botid> <userid> --import-data --overwrite
+        
+    Test model:
+        kairon test <bot-id> <user-id>
 """
 
 
@@ -31,6 +34,7 @@ def create_argument_parser():
     subparsers = parser.add_subparsers(help="Kairon commands")
     training.add_subparser(subparsers, parents=parent_parsers)
     importer.add_subparser(subparsers, parents=parent_parsers)
+    testing.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 

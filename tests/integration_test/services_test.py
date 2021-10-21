@@ -425,6 +425,47 @@ def test_upload_using_event_append(monkeypatch):
     assert actual["message"] == "Upload in progress! Check logs."
 
 
+def test_model_testing_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Daily limit exceeded.'
+    assert not actual["success"]
+
+
+@responses.activate
+def test_model_testing_event(monkeypatch):
+    event_url = 'http://event.url'
+    monkeypatch.setitem(Utility.environment['model']['test'], 'event_url', event_url)
+    responses.add("POST",
+                  event_url,
+                  json={"message": "Event triggered successfully!"},
+                  status=200)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['message'] == 'Testing in progress! Check logs.'
+    assert actual["success"]
+
+
+def test_model_testing_in_progress():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Event already in progress! Check logs.'
+    assert not actual["success"]
+
+
 def test_get_data_importer_logs():
     response = client.get(
         f"/api/bot/{pytest.bot}/importer/logs",
@@ -6116,3 +6157,14 @@ def test_get_ui_config():
     assert actual["error_code"] == 0
     assert actual['data'] == {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
     assert actual["success"]
+
+
+def test_model_testing_no_existing_models():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'No model trained yet. Please train a model to test'
+    assert not actual["success"]
