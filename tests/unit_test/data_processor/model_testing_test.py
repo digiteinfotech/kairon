@@ -5,7 +5,7 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.test.processor import ModelTestingLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.test.test_models import ModelTester
 
 
@@ -38,6 +38,21 @@ class TestModelTesting:
         assert result['precision']
         assert result['f1']
         assert result['accuracy']
+        ModelTestingLogProcessor.update_log_with_test_results('test_bot', 'test_user',
+                                                              stories=result,
+                                                              nlu={},
+                                                              event_status='Completed')
+        logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0]['run_on_test_stories']
+        assert logs[0].get('stories')
+        assert not logs[0].get('nlu')
+        assert logs[0]['stories']['failed_stories']
+        assert logs[0]['stories']['successful_stories']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == 'FAILURE'
+        assert logs[0]['event_status'] == 'Completed'
 
     def test_run_test_on_nlu(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
@@ -64,6 +79,23 @@ class TestModelTesting:
         assert result['entity_evaluation']['DIETClassifier']['precision']
         assert result['entity_evaluation']['DIETClassifier']['f1_score']
         assert result['entity_evaluation']['DIETClassifier']['accuracy']
+        result['response_selection_evaluation'] = {'errors': [{'text': 'this is failure', 'confidence': 0.78}]}
+        ModelTestingLogProcessor.update_log_with_test_results('test_bot', 'test_user',
+                                                              stories={},
+                                                              nlu=result,
+                                                              event_status='Completed')
+        logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0]['run_on_test_stories']
+        assert not logs[0].get('stories')
+        assert logs[0].get('nlu')
+        assert logs[0]['nlu']['intent_evaluation']['errors']
+        assert logs[0]['nlu']['intent_evaluation']['successes']
+        assert logs[0]['nlu']['response_selection_evaluation']['errors']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == 'FAILURE'
+        assert logs[0]['event_status'] == 'Completed'
 
     def test_is_event_in_progress(self):
         assert not ModelTestingLogProcessor.is_event_in_progress('test_bot')

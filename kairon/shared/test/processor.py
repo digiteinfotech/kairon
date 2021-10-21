@@ -5,7 +5,7 @@ from mongoengine import Q, DoesNotExist
 
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS
-from kairon.test.data_objects import ModelTestingLogs
+from kairon.shared.test.data_objects import ModelTestingLogs
 
 
 class ModelTestingLogProcessor:
@@ -54,8 +54,8 @@ class ModelTestingLogProcessor:
             if nlu.get("response_selection_evaluation") and nlu["response_selection_evaluation"].get('errors'):
                 doc.status = 'FAILURE'
             if nlu.get("entity_evaluation"):
-                for extractor_used in nlu["entity_evaluation"]:
-                    if extractor_used.get('error'):
+                for extractor_evaluation in nlu["entity_evaluation"].values():
+                    if extractor_evaluation.get('errors'):
                         doc.status = 'FAILURE'
                         break
         if exception:

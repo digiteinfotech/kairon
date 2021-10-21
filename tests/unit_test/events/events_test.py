@@ -13,10 +13,10 @@ from rasa.shared.importers.rasa import RasaFileImporter
 from kairon import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
-from kairon.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
-from kairon.test.processor import ModelTestingLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 
 
 class TestEvents:

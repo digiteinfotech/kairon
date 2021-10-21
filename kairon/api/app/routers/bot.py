@@ -28,11 +28,11 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
-from kairon.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
-from kairon.test.processor import ModelTestingLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 
 router = APIRouter()
 mongo_processor = MongoProcessor()

@@ -6,9 +6,9 @@ from requests import exceptions
 
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.importer.data_importer import DataImporter
-from kairon.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.utils import Utility
-from kairon.test.processor import ModelTestingLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.test.test_models import ModelTester
 
 

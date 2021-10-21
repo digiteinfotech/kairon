@@ -15,7 +15,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
 from kairon.exceptions import AppException
-from kairon.importer.data_objects import ValidationLogs
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication

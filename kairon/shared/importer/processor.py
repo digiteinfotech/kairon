@@ -6,7 +6,7 @@ from mongoengine import Q, DoesNotExist
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from .data_objects import ValidationLogs, TrainingComponentLog, DomainLog
+from kairon.shared.importer.data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
 
 class DataImporterLogProcessor:
