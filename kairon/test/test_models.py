@@ -10,9 +10,22 @@ from kairon.shared.data.processor import MongoProcessor
 
 
 class ModelTester:
+    """
+    Class to run tests on a trained model.
+
+    """
 
     @staticmethod
     async def run_tests_on_model(bot: str, run_e2e: bool = False):
+        """
+        Runs tests on a trained model.
+
+        Args:
+            bot: bot id for which test is run.
+            run_e2e: if True, test is initiated on test stories and nlu data.
+
+        Returns: dictionary with evaluation results
+        """
         from kairon import Utility
 
         bot_home = os.path.join('testing_data', bot)
@@ -42,6 +55,16 @@ class ModelTester:
 
     @staticmethod
     async def run_test_on_stories(stories_path: str, model_path: str, e2e: bool = False):
+        """
+        Run tests on stories.
+
+        Args:
+            stories_path: path where test stories are present as YAML.
+            model_path: Model path where model on which test has to be run is present.
+            e2e: if True, end to end test is initiated where intent prediction is also done along with action prediction.
+
+        Returns: dictionary with evaluation results
+        """
         from rasa.test import get_evaluation_metrics
         from rasa.core.test import _create_data_generator, _collect_story_predictions
 
@@ -82,6 +105,15 @@ class ModelTester:
 
     @staticmethod
     def run_test_on_nlu(nlu_path: str, model_path: str):
+        """
+        Run tests on stories.
+
+        Args:
+            nlu_path: path where nlu test data is present as YAML.
+            model_path: Model path where model on which test has to be run is present.
+
+        Returns: dictionary with evaluation results
+        """
         from rasa.model import get_model
         import rasa.shared.nlu.training_data.loading
         from rasa.nlu.model import Interpreter
