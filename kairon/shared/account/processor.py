@@ -112,7 +112,7 @@ class AccountProcessor:
         from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
             EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, \
             Slots, TrainingDataGenerator, TrainingExamples
-        from kairon.importer.data_objects import ValidationLogs
+        from kairon.shared.importer.data_objects import ValidationLogs
         from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
 
         try:

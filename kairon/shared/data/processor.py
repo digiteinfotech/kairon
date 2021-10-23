@@ -33,7 +33,7 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api import models
 from kairon.api.models import HttpActionConfigRequest
 from kairon.exceptions import AppException
-from kairon.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidations

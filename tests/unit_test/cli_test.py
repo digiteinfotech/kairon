@@ -3,6 +3,7 @@ import os
 
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
+from kairon.cli.testing import run_tests_on_model
 from kairon.events.events import EventsTrigger
 from kairon.shared.utils import Utility
 from mongoengine import connect
@@ -120,4 +121,54 @@ class TestDataImporterCli:
             return None
 
         monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
+        cli()
+
+
+class TestModelTestingCli:
+
+    @pytest.fixture(autouse=True, scope="session")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=run_tests_on_model))
+    def test_kairon_cli_test_no_arguments(self, monkeypatch):
+
+        def mock_testing(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli"))
+    def test_kairon_cli_test_no_argument_user(self, monkeypatch):
+        def mock_testing(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser"))
+    def test_kairon_cli_test(self, monkeypatch):
+        def mock_testing(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser", token="test"))
+    def test_kairon_cli_test_with_all_arguments(self, monkeypatch):
+        def mock_testing(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
         cli()

@@ -28,10 +28,11 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
-from kairon.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.test.processor import ModelTestingLogProcessor
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -527,6 +528,21 @@ async def download_model(
         return response
     except Exception as e:
         raise AppException(str(e))
+
+
+@router.post("/test", response_model=Response)
+async def test_model(
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Run tests on a trained model.
+    """
+    Utility.is_model_file_exists(current_user.get_bot())
+    ModelTestingLogProcessor.is_event_in_progress(current_user.get_bot())
+    ModelTestingLogProcessor.is_limit_exceeded(current_user.get_bot())
+    background_tasks.add_task(EventsTrigger.trigger_model_testing, current_user.get_bot(), current_user.get_user())
+    return {"message": "Testing in progress! Check logs."}
 
 
 @router.get("/endpoint", response_model=Response)

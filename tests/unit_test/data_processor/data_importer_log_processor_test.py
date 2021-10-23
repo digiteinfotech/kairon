@@ -5,8 +5,8 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
-from kairon.importer.processor import DataImporterLogProcessor
-from kairon.importer.data_objects import ValidationLogs
+from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
 
 
