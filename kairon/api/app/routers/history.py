@@ -1,3 +1,4 @@
+import datetime
 from typing import Text
 
 from fastapi import APIRouter
@@ -8,6 +9,7 @@ from io import BytesIO
 from kairon.api.models import Response
 from kairon.shared.auth import Authentication
 from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 
@@ -231,6 +233,11 @@ async def download_conversations(
         f'/api/history/{current_user.get_bot()}/conversations/download',
         {'month': month}, return_json=False
     )
+
+    bot_name = [bot['name'] for bot in AccountProcessor.list_bots(current_user.account) if bot['_id'] == current_user.get_bot()][0]
+    response.headers[
+        "Content-Disposition"
+    ] = f"attachment; filename=conversation_history_{bot_name}{datetime.date.today().strftime('_%d_%m_%y.csv')}"
     return StreamingResponse(BytesIO(response.content), headers=response.headers)
 
 
