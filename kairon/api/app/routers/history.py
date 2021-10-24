@@ -317,5 +317,5 @@ async def user_input_unique(
     """
     Returns the list of user inputs that are not included as part of training examples
     """
-    queries_not_present = DataUtility.unique_user_input(month, current_user)
+    queries_not_present = DataUtility.unique_user_input(month, current_user.get_bot())
     return Response(data=queries_not_present)
