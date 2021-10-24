@@ -575,3 +575,29 @@ def test_wordcloud_with_request(mock_db_client):
     assert actual["message"]
     assert actual["success"]
 
+
+def test_unique_user_inputs(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/count",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_unique_user_inputs_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/count",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"]
+    assert actual["success"]
