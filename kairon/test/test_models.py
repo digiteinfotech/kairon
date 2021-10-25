@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Text, Optional, Set
 
-from rasa.core.agent import Agent
 from rasa.exceptions import ModelNotFound
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
@@ -67,6 +66,7 @@ class ModelTester:
         """
         from rasa.test import get_evaluation_metrics
         from rasa.core.test import _create_data_generator, _collect_story_predictions
+        from rasa.core.agent import Agent
 
         agent = Agent.load(model_path)
 
