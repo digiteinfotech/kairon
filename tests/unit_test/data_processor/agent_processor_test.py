@@ -7,7 +7,6 @@ from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
-from kairon.chat.utils import ChatUtils
 
 
 class TestAgentProcessor:

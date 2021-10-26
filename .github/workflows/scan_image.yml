@@ -8,19 +8,42 @@ on:
 jobs:
   scan:
     name: Daily Vulnerability Scan
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Pull docker images
         run: |
-          docker pull digite/kairon-augment
           docker pull digite/kairon-api
-      - uses: homoluctus/gitrivy@v2
-        name: Scanning augment image
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image: digite/kairon-augment
-      - uses: homoluctus/gitrivy@v2
+          docker pull digite/kairon-ui
+          docker pull digite/kairon-action-server
+          docker pull digite/kairon-history-server
+          docker pull digite/kairon-chat
+          docker pull digite/kairon-paraphrase
+          docker pull digite/kairon-qg
+      - uses: Azure/container-scan@v0.1
         name: Scanning api image
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image: digite/kairon-api
+          image-name: digite/kairon-api
+      - uses: Azure/container-scan@v0.1
+        name: Scanning ui image
+        with:
+          image-name: digite/kairon-ui
+      - uses: Azure/container-scan@v0.1
+        name: Scanning action image
+        with:
+          image-name: digite/kairon-action-server
+      - uses: Azure/container-scan@v0.1
+        name: Scanning history image
+        with:
+          image-name: digite/kairon-history-server
+      - uses: Azure/container-scan@v0.1
+        name: Scanning chat image
+        with:
+          image-name: digite/kairon-chat
+      - uses: Azure/container-scan@v0.1
+        name: Scanning paraphrase image
+        with:
+          image-name: digite/kairon-paraphrase
+      - uses: Azure/container-scan@v0.1
+        name: Scanning question generation image
+        with:
+          image-name: digite/kairon-qg

@@ -1,3 +1,4 @@
+import datetime
 from typing import Text
 
 from fastapi import APIRouter
@@ -8,6 +9,7 @@ from io import BytesIO
 from kairon.api.models import Response
 from kairon.shared.auth import Authentication
 from kairon.shared.models import User
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 
@@ -231,6 +233,11 @@ async def download_conversations(
         f'/api/history/{current_user.get_bot()}/conversations/download',
         {'month': month}, return_json=False
     )
+
+    bot_name = [bot['name'] for bot in AccountProcessor.list_bots(current_user.account) if bot['_id'] == current_user.get_bot()][0]
+    response.headers[
+        "Content-Disposition"
+    ] = f"attachment; filename=conversation_history_{bot_name}{datetime.date.today().strftime('_%d_%m_%y.csv')}"
     return StreamingResponse(BytesIO(response.content), headers=response.headers)
 
 
@@ -281,4 +288,22 @@ async def conversation_step_trend(month: int = Query(default=6, ge=2, le=6), cur
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/steps',
         {'month': month}
+    )
+
+
+@router.get("/conversations/wordcloud")
+async def word_cloud(
+        month: int = Query(default=1, ge=1, le=6),
+        l_bound: float = Query(default=0, ge=0, lt=1),
+        u_bound: float = Query(default=1, gt=0, le=1),
+        stopword_list: list = Query(default=None),
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Returns the conversation string that is required for word cloud formation
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/conversations/wordcloud',
+        {'u_bound': u_bound, 'l_bound': l_bound, 'stopword_list': stopword_list, 'month': month}
     )

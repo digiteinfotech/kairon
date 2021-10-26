@@ -15,7 +15,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
 from kairon.exceptions import AppException
-from kairon.importer.data_objects import ValidationLogs
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
@@ -180,6 +180,34 @@ def test_list_bots():
     assert response['data'][1]['name'] == 'covid-bot'
 
 
+def test_list_entities_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual['data']
+    assert actual["success"]
+
+
+def test_no_default_intents_in_bot():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    intents = set([d['name'] for d in actual["data"]])
+    assert 'nlu_fallback' not in intents
+    assert 'restart' not in intents
+    assert 'back' not in intents
+    assert 'session_start' not in intents
+    assert 'out_of_scope' not in intents
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
@@ -261,6 +289,17 @@ def test_upload_yml():
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_list_entities():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/entities",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert {e['name'] for e in actual["data"]} == {'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
     assert actual["success"]
 
 
@@ -384,6 +423,47 @@ def test_upload_using_event_append(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Upload in progress! Check logs."
+
+
+def test_model_testing_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Daily limit exceeded.'
+    assert not actual["success"]
+
+
+@responses.activate
+def test_model_testing_event(monkeypatch):
+    event_url = 'http://event.url'
+    monkeypatch.setitem(Utility.environment['model']['test'], 'event_url', event_url)
+    responses.add("POST",
+                  event_url,
+                  json={"message": "Event triggered successfully!"},
+                  status=200)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['message'] == 'Testing in progress! Check logs.'
+    assert actual["success"]
+
+
+def test_model_testing_in_progress():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Event already in progress! Check logs.'
+    assert not actual["success"]
 
 
 def test_get_data_importer_logs():
@@ -569,7 +649,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 14
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -582,7 +662,7 @@ def test_get_all_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 14
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -1621,7 +1701,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 20
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -6077,3 +6157,14 @@ def test_get_ui_config():
     assert actual["error_code"] == 0
     assert actual['data'] == {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
     assert actual["success"]
+
+
+def test_model_testing_no_existing_models():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'No model trained yet. Please train a model to test'
+    assert not actual["success"]

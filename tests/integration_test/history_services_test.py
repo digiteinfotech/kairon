@@ -3,7 +3,6 @@ import os
 from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
-
 from kairon.history.main import app
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
@@ -548,3 +547,31 @@ def test_conversation__step_range_with_request(mock_db_client):
     assert actual["data"]["Conversation_step_range"] == {}
     assert actual["message"]
     assert actual["success"]
+
+
+def test_wordcloud(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/wordcloud",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == ""
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_wordcloud_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/wordcloud",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == ""
+    assert actual["message"]
+    assert actual["success"]
+

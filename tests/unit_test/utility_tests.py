@@ -459,3 +459,20 @@ class TestUtility:
         assert config['host'] == "mongodb://localhost"
         assert "authSource" in config['options']
 
+    def test_get_event_url_training_not_found(self):
+        with pytest.raises(AppException, match='Could not find an event url'):
+            Utility.get_event_url('TRAINING', True)
+
+    def test_get_event_url_training(self, monkeypatch):
+        event_url = 'http://event.url'
+        monkeypatch.setitem(Utility.environment['model']['train'], 'event_url', event_url)
+        assert Utility.get_event_url('TRAINING') == event_url
+
+    def test_get_event_url_invalid_type(self, monkeypatch):
+        with pytest.raises(AppException, match='Invalid event type received'):
+            Utility.get_event_url('MODEL_TRAINING', True)
+
+    def test_is_model_file_exists(self):
+        assert not Utility.is_model_file_exists('invalid_bot', False)
+        with pytest.raises(AppException, match='No model trained yet. Please train a model to test'):
+            Utility.is_model_file_exists('invalid_bot')
