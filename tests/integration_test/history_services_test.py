@@ -575,3 +575,29 @@ def test_wordcloud_with_request(mock_db_client):
     assert actual["message"]
     assert actual["success"]
 
+
+def test_user_dropoff(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Dropoff_list"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_dropoff_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Dropoff_list"] == {}
+    assert actual["message"]
+    assert actual["success"]

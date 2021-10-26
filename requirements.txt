@@ -40,3 +40,4 @@ ElasticMock
 rsa>=4.7 # not directly required, pinned by Snyk to avoid a vulnerability
 pymongo==3.12.0
 cryptography
+pyparsing==2.4.7
