@@ -307,3 +307,15 @@ async def word_cloud(
         f'/api/history/{current_user.get_bot()}/conversations/wordcloud',
         {'u_bound': u_bound, 'l_bound': l_bound, 'stopword_list': stopword_list, 'month': month}
     )
+
+
+@router.get("/metrics/user/intent/dropoff", response_model=Response)
+async def user_intent_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the identified intents and their counts for users before dropping off from the conversations.
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/intents/dropoff',
+        {'month': month}
+    )

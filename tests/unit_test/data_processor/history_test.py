@@ -336,3 +336,12 @@ class TestHistory:
         with pytest.raises(Exception):
             HistoryProcessor.word_cloud("conversations", u_bound=.5, l_bound=.6)
 
+    def test_user_intent_dropoff_error(self, mock_db_timeout):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message
+
+    def test_user_intent_dropoff(self, mock_mongo_client):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message

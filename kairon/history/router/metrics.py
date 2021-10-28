@@ -104,3 +104,13 @@ async def top_actions(request: HistoryQuery = HistoryQuery(),
         collection, request.month, request.top_n
     )
     return {"data": top_action, "message": message}
+
+
+@router.get("/intents/dropoff", response_model=Response)
+async def intents_dropoff(request: HistoryQuery = HistoryQuery(),
+                          collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the identified intents and their counts for users before dropping off from the conversations."""
+    dropoff_intents, message = HistoryProcessor.intents_before_dropoff(
+        collection, request.month
+    )
+    return {"data": dropoff_intents, "message": message}
