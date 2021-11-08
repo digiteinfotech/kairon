@@ -403,3 +403,21 @@ class DataUtility:
         else:
             template_type = 'CUSTOM'
         return template_type
+
+
+class ChatHistoryUtils:
+
+    @staticmethod
+    def unique_user_input(month, current_user_bot):
+        from ...shared.data.processor import MongoProcessor
+        response = Utility.trigger_history_server_request(
+            current_user_bot,
+            f'/api/history/{current_user_bot}/metrics/users/input',
+            {'month': month}
+        )
+
+        user_input = response['data']
+        processor = MongoProcessor()
+        training_examples = processor.get_all_training_examples(bot=current_user_bot)
+        queries_not_present = [query for query in user_input if query['_id'] not in training_examples[0]]
+        return queries_not_present
