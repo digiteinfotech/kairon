@@ -578,7 +578,7 @@ def test_wordcloud_with_request(mock_db_client):
 
 def test_unique_user_inputs(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/count",
+        f"/api/history/{pytest.bot}/metrics/users/input",
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
@@ -591,7 +591,7 @@ def test_unique_user_inputs(mock_db_client):
 
 def test_unique_user_inputs_with_request(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/count",
+        f"/api/history/{pytest.bot}/metrics/users/input",
         json={'month': 4},
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )

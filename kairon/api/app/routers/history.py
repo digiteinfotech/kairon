@@ -11,7 +11,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
-from kairon.shared.data.utils import DataUtility
+from kairon.shared.data.utils import DataUtility, ChatHistoryUtils
 
 router = APIRouter()
 
@@ -317,5 +317,5 @@ async def user_input_unique(
     """
     Returns the list of user inputs that are not included as part of training examples
     """
-    queries_not_present = DataUtility.unique_user_input(month, current_user.get_bot())
+    queries_not_present = ChatHistoryUtils.unique_user_input(month, current_user.get_bot())
     return Response(data=queries_not_present)

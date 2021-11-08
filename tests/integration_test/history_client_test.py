@@ -753,7 +753,7 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
 def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/count",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input",
         status=200,
         match=[responses.json_params_matcher({'month': 1})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}

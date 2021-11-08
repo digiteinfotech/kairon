@@ -106,7 +106,7 @@ async def top_actions(request: HistoryQuery = HistoryQuery(),
     return {"data": top_action, "message": message}
 
 
-@router.get("/conversation/count", response_model=Response)
+@router.get("/users/input", response_model=Response)
 async def user_input_count(request: HistoryQuery = HistoryQuery(),
                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the user inputs along with their frequencies."""

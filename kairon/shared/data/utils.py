@@ -404,12 +404,16 @@ class DataUtility:
             template_type = 'CUSTOM'
         return template_type
 
+
+class ChatHistoryUtils:
+    """Class contains logic for various utilities for chat history"""
+
     @staticmethod
     def unique_user_input(month, current_user_bot):
         from ...shared.data.processor import MongoProcessor
         response = Utility.trigger_history_server_request(
             current_user_bot,
-            f'/api/history/{current_user_bot}/metrics/conversation/count',
+            f'/api/history/{current_user_bot}/metrics/users/input',
             {'month': month}
         )
 
