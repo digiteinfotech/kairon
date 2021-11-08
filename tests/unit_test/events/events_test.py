@@ -869,11 +869,11 @@ class TestEvents:
         assert logs[0].get('stories')
         assert logs[0].get('nlu')
         assert not logs[0]['stories']['failed_stories']
-        assert not logs[0]['nlu']['intent_evaluation']['errors']
+        assert logs[0]['nlu']['intent_evaluation']['errors']
         assert logs[0]['stories']['successful_stories']
         assert logs[0]['nlu']['intent_evaluation']['successes']
         assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'PASSED'
+        assert not Utility.check_empty_string(logs[0].get('status'))
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
