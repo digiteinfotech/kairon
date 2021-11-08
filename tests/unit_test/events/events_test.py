@@ -860,6 +860,10 @@ class TestEvents:
         stories_path = 'tests/testing_data/model_tester/test_stories_success/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
         create_model('tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', bot)
+        responses.add('POST',
+                      Utility.environment["augmentation"]["paraphrase_url"],
+                      json={'data': {'paraphrases': []}})
+        responses.start()
         await EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2
@@ -869,11 +873,11 @@ class TestEvents:
         assert logs[0].get('stories')
         assert logs[0].get('nlu')
         assert not logs[0]['stories']['failed_stories']
-        assert not logs[0]['nlu']['intent_evaluation']['errors']
+        assert logs[0]['nlu']['intent_evaluation']['errors']
         assert logs[0]['stories']['successful_stories']
         assert logs[0]['nlu']['intent_evaluation']['successes']
         assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'PASSED'
+        assert not Utility.check_empty_string(logs[0].get('status'))
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 

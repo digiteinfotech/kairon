@@ -1498,6 +1498,7 @@ class MongoProcessor:
                             "training_examples": {
                                 "$push": {
                                     "text": "$text",
+                                    "entities": {"$ifNull": ["$entities", None]},
                                     "_id": {"$toString": "$_id"}
                                 }
                             }
@@ -1513,11 +1514,9 @@ class MongoProcessor:
                 ]
             )
         )
-        print(intents_and_training_examples)
         for data in intents_and_training_examples:
             intents_and_training_examples_dict[data['intent']] = data['training_examples']
 
-        print(intents_and_training_examples_dict)
         for intent in intents:
             if not intents_and_training_examples_dict.get(intent['name']):
                 intents_and_training_examples_dict[intent['name']] = None
