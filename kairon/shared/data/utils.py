@@ -407,8 +407,6 @@ class DataUtility:
 
 class ChatHistoryUtils:
 
-    """Class contains logic for various utilities for chat history"""
-
     @staticmethod
     def unique_user_input(month, current_user_bot):
         from ...shared.data.processor import MongoProcessor
