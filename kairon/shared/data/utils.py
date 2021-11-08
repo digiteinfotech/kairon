@@ -406,6 +406,7 @@ class DataUtility:
 
 
 class ChatHistoryUtils:
+
     """Class contains logic for various utilities for chat history"""
 
     @staticmethod
