@@ -345,3 +345,13 @@ class TestHistory:
         user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
         assert user_list["Dropoff_list"] == {}
         assert message
+
+    def test_user_input_count_error(self, mock_db_timeout):
+        input_count, message = HistoryProcessor.user_input_count("tests")
+        assert input_count == []
+        assert message
+
+    def test_user_input_count(self, mock_mongo_client):
+        user_input, message = HistoryProcessor.user_input_count("tests")
+        assert user_input == []
+        assert message

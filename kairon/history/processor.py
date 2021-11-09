@@ -1247,3 +1247,36 @@ class HistoryProcessor:
                 {"Dropoff_list": new_session},
                 message
             )
+
+    @staticmethod
+    def user_input_count(collection: Text, month: int = 6):
+
+        """
+        Gets the user inputs along with their frequencies
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of counts of user inputs for the given duration
+        """
+
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            user_input = []
+            try:
+                user_input = list(conversations.aggregate(
+                    [{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                     {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                     {"$match": {"events.event": 'user'}},
+                     {"$project": {"user_input": {"$toLower": "$events.text"}, "_id": 0}},
+                     {"$group": {"_id": "$user_input", "count": {"$sum": 1}}},
+                     {"$sort": {"count": -1}}
+                     ], allowDiskUse=True))
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            return (
+                user_input, message
+            )
