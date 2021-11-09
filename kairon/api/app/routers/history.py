@@ -309,6 +309,18 @@ async def word_cloud(
     )
 
 
+@router.get("/conversations/input/unique")
+async def user_input_unique(
+        month: int = Query(default=1, ge=1, le=6),
+        current_user: User = Depends(Authentication.get_current_user_and_bot),
+):
+    """
+    Returns the list of user inputs that are not included as part of training examples
+    """
+    queries_not_present = ChatHistoryUtils.unique_user_input(month, current_user.get_bot())
+    return Response(data=queries_not_present)
+
+
 @router.get("/metrics/user/fallback/dropoff", response_model=Response)
 async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
@@ -320,15 +332,3 @@ async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_us
         f'/api/history/{current_user.get_bot()}/metrics/fallback/dropoff',
         {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
-
-
-@router.get("/conversations/input/unique")
-async def user_input_unique(
-        month: int = Query(default=1, ge=1, le=6),
-        current_user: User = Depends(Authentication.get_current_user_and_bot),
-):
-    """
-    Returns the list of user inputs that are not included as part of training examples
-    """
-    queries_not_present = ChatHistoryUtils.unique_user_input(month, current_user.get_bot())
-    return Response(data=queries_not_present)
