@@ -1207,6 +1207,76 @@ class HistoryProcessor:
             )
 
     @staticmethod
+    def average_conversation_time_range(collection: Text, month: int = 6):
+
+        """
+        Computes the trend for average conversation time
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of counts of average conversation time for the previous months
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            total = []
+            time = []
+            try:
+                time = list(conversations.aggregate([{"$unwind": "$events"},
+                             {"$match": {"events.event": {"$in": ["user", "bot"]},
+                                         "events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                             {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                         "allevents": {"$push": "$events"}}},
+                             {"$unwind": "$events"},
+                             {"$project": {
+                                 "_id": 1,
+                                 "events": 1,
+                                 "following_events": {
+                                     "$arrayElemAt": [
+                                         "$allevents",
+                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                     ]
+                                 }
+                             }},
+                             {"$project": {
+                                 "timestamp": "$events.timestamp",
+                                 "user_event": "$events.event",
+                                 "bot_event": "$following_events.event",
+                                 "time_diff": {
+                                     "$subtract": ["$following_events.timestamp", "$events.timestamp"]
+                                 }
+                             }},
+                             {"$match": {"user_event": "user", "bot_event": "bot"}},
+                           {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                            {"$group": {"_id": "$month", "time": {"$sum": "$time_diff"}}}
+                             ], allowDiskUse=True)
+                 )
+
+                total = list(
+                    conversations.aggregate([
+                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+
+                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
+                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ]))
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            conv_time = {d['_id']: d['time'] for d in time}
+            user_count = {d['_id']: d['count'] for d in total}
+            conv_time = {k: conv_time.get(k, 0) for k in user_count.keys()}
+            avg_conv_time = {k: conv_time[k] / user_count[k] for k in user_count.keys()}
+            return (
+                {"Conversation_time_range": avg_conv_time},
+                message
+            )
+
+    @staticmethod
     def user_fallback_dropoff(collection: Text, month: int = 6,
                               fallback_action: str = 'action_default_fallback',
                               nlu_fallback_action: str = 'nlu_fallback'):

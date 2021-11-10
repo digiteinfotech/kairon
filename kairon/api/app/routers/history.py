@@ -321,6 +321,18 @@ async def user_input_unique(
     return Response(data=queries_not_present)
 
 
+@router.get("/metrics/trend/conversations/time", response_model=Response)
+async def conversation_time_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the average conversation time of the bot for previous months
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/trends/conversations/time',
+        {'month': month}
+    )
+
+
 @router.get("/metrics/user/fallback/dropoff", response_model=Response)
 async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
