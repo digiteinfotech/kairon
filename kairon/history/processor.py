@@ -545,7 +545,7 @@ class HistoryProcessor:
                 fallbacks_count = fallback_count[0]['count'] if fallback_count[0]['count'] else 0
 
             return (
-                {"successful_conversations": total_count-fallbacks_count},
+                {"successful_conversations": total_count-fallbacks_count, "total": total_count},
                 message
             )
 
