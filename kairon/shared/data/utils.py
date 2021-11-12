@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 from datetime import datetime
+from itertools import chain
 from typing import Text, List, Dict
 
 import requests
@@ -403,6 +404,44 @@ class DataUtility:
         else:
             template_type = 'CUSTOM'
         return template_type
+
+    @staticmethod
+    def augment_sentences(sentences: list, stopwords: list = None, num_variations: int = 5):
+        from nlpaug.augmenter.char import KeyboardAug
+        from nlpaug.augmenter.word import SynonymAug
+        from nlpaug.flow import Sometimes
+        from nlpaug.augmenter.word import SpellingAug
+        from nlpaug.augmenter.word import AntonymAug
+
+        keyboard_aug = KeyboardAug(aug_char_min=1, aug_char_max=10, aug_char_p=0.3, aug_word_p=0.3,
+                                   aug_word_min=1, aug_word_max=10, stopwords=stopwords,
+                                   include_special_char=False, include_numeric=False, include_upper_case=True,
+                                   lang='en',
+                                   min_char=4)
+        synonym_aug = SynonymAug(aug_src='wordnet', aug_min=1, aug_max=4,
+                                 aug_p=0.3, stopwords=stopwords,
+                                 lang='eng')
+        antonym_aug = AntonymAug(aug_min=1, aug_max=10, aug_p=0.3, stopwords=stopwords, lang='eng')
+        spelling_aug = SpellingAug(aug_min=1, aug_max=10, aug_p=0.3, stopwords=stopwords, include_reverse=False)
+
+        aug = Sometimes([keyboard_aug, synonym_aug, spelling_aug, antonym_aug], aug_p=0.25)
+        augmented_text = aug.augment(sentences, n=num_variations)
+        return set(chain.from_iterable(augmented_text))
+
+    @staticmethod
+    def generate_synonym(entity: str, num_variations: int = 3):
+        from nltk.corpus import wordnet
+
+        synonyms = []
+        syn_sets = wordnet.synsets(entity)
+        for syn in syn_sets:
+            for word in syn.lemma_names():
+                if word != entity:
+                    synonyms.append(word)
+                    num_variations -= 1
+                if num_variations <= 0:
+                    return synonyms
+        return synonyms
 
 
 class ChatHistoryUtils:

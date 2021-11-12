@@ -1,11 +1,14 @@
 import os
 from typing import Dict, Text, Optional, Set
 
+import requests
+from loguru import logger
 from rasa.exceptions import ModelNotFound
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.utils import DataUtility
 
 
 class ModelTester:
@@ -30,17 +33,7 @@ class ModelTester:
         bot_home = os.path.join('testing_data', bot)
         try:
             model_path = Utility.get_latest_model(bot)
-            Utility.make_dirs(bot_home)
-            processor = MongoProcessor()
-            nlu = processor.load_nlu(bot)
-            nlu_path = os.path.join(bot_home, "nlu.yml")
-            nlu_as_str = nlu.nlu_as_yaml().encode()
-            Utility.write_to_file(nlu_path, nlu_as_str)
-
-            stories = processor.load_stories(bot)
-            stories_path = os.path.join(bot_home, "stories.yml")
-            YAMLStoryWriter().dump(stories_path, stories.story_steps)
-
+            nlu_path, stories_path = TestDataGenerator.create(bot)
             stories_results = await ModelTester.run_test_on_stories(stories_path, model_path, run_e2e)
             nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path)
             return nlu_results, stories_results
@@ -268,3 +261,102 @@ class ModelTester:
             }
 
         return result
+
+
+class TestDataGenerator:
+
+    @staticmethod
+    def create(bot: str):
+        from kairon import Utility
+        from itertools import chain
+        from rasa.shared.nlu.training_data.training_data import TrainingData
+
+        bot_home = os.path.join('testing_data', bot)
+        Utility.make_dirs(bot_home)
+        processor = MongoProcessor()
+        intents_and_training_examples = processor.get_intents_and_training_examples(bot)
+        aug_training_examples = map(lambda training_data: TestDataGenerator.__prepare_nlu(training_data[0], training_data[1]), intents_and_training_examples.items())
+        messages = list(chain.from_iterable(aug_training_examples))
+        nlu_data = TrainingData(training_examples=messages)
+        stories = processor.load_stories(bot)
+        if stories.is_empty() or nlu_data.is_empty():
+            raise AppException('Not enough training data exists. Please add some training data.')
+
+        nlu_as_str = nlu_data.nlu_as_yaml().encode()
+        nlu_path = os.path.join(bot_home, "nlu.yml")
+        Utility.write_to_file(nlu_path, nlu_as_str)
+
+        stories_path = os.path.join(bot_home, "stories.yml")
+        YAMLStoryWriter().dump(stories_path, stories.story_steps, is_test_story=True)
+        return nlu_path, stories_path
+
+    @staticmethod
+    def augment_sentences(input_text: list):
+        from kairon import Utility
+
+        final_augmented_text = []
+        all_input_text = []
+        all_stop_words = []
+        all_entities = []
+        for text in input_text:
+            stopwords = []
+            entity_names = []
+            if text.get('entities'):
+                stopwords = [entity['value'] for entity in text['entities']]
+                entity_names = [entity['entity'] for entity in text['entities']]
+            final_augmented_text.extend(TestDataGenerator.__augment_text(text['text'], stopwords, entity_names))
+            all_input_text.append(text['text'])
+            all_stop_words.append(stopwords)
+            all_entities.append(entity_names)
+
+        resp = requests.post(Utility.environment["augmentation"]["paraphrase_url"], json=all_input_text)
+        logger.debug(f'Augmentation Request: {Utility.environment["augmentation"]["paraphrase_url"]}')
+        logger.debug(f'Response code: {resp.status_code}')
+        logger.debug(resp.text)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data['data'].get('paraphrases'):
+                final_augmented_text.extend(TestDataGenerator.__augment_entities(data['data']['paraphrases'],
+                                                                                 list(all_stop_words),
+                                                                                 list(all_entities)))
+                final_augmented_text.extend(data['data']['paraphrases'])
+        return final_augmented_text
+
+    @staticmethod
+    def __augment_text(input_text: str, stopwords, entity_names):
+        augmented_text = list(DataUtility.augment_sentences([input_text], stopwords))
+        augmented_text = TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
+        return augmented_text
+
+    @staticmethod
+    def __augment_entities(input_text: list, stopwords: list, entity_names: list):
+        final_augmented_text = []
+
+        if stopwords:
+            for txt in input_text:
+                for i, word in enumerate(stopwords):
+                    if word in txt:
+                        final_augmented_text.append(txt.replace(word, f'[{word}]({entity_names[i]})'))
+                        final_augmented_text.extend(list(
+                            map(
+                                lambda synonym: txt.replace(word, f'[{synonym}]({entity_names[i]})'),
+                                DataUtility.generate_synonym(word))
+                        ))
+        else:
+            final_augmented_text = input_text
+        return final_augmented_text
+
+    @staticmethod
+    def __prepare_nlu(intent: str, training_examples: list):
+        from rasa.shared.nlu.training_data.message import Message
+        from kairon.shared.data.constant import TRAINING_EXAMPLE
+        from rasa.shared.nlu.constants import TEXT
+
+        augmented_examples = TestDataGenerator.augment_sentences(training_examples)
+        for example in augmented_examples:
+            message = Message()
+            plain_text, entities = DataUtility.extract_text_and_entities(example)
+            message.data = {TRAINING_EXAMPLE.INTENT.value: intent, TEXT: plain_text}
+            if entities:
+                message.data[TRAINING_EXAMPLE.ENTITIES.value] = entities
+            yield message
