@@ -57,7 +57,7 @@ class ModelTester:
 
         Returns: dictionary with evaluation results
         """
-        from rasa.test import get_evaluation_metrics
+        from rasa.model_testing import get_evaluation_metrics
         from rasa.core.test import _create_data_generator, _collect_story_predictions
         from rasa.core.agent import Agent
 
@@ -214,7 +214,7 @@ class ModelTester:
 
         Returns: dictionary with evaluation results
         """
-        from rasa.test import get_evaluation_metrics
+        from rasa.model_testing import get_evaluation_metrics
         from rasa.nlu.test import (
             NO_ENTITY,
             align_all_entity_predictions,

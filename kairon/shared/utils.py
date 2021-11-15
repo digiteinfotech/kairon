@@ -38,6 +38,8 @@ from password_strength import PasswordPolicy
 from ..exceptions import AppException
 from passlib.context import CryptContext
 from urllib.parse import urljoin
+import ast
+from collections import namedtuple
 
 
 class Utility:
@@ -710,7 +712,7 @@ class Utility:
             data,
             Utility.environment['security']["secret_key"],
             algorithm=Utility.environment['security']["algorithm"],
-        ).decode("utf-8")
+        )
         return encoded_jwt
 
     @staticmethod
@@ -722,16 +724,15 @@ class Utility:
         :return: mail id
         """
         try:
-
             decoded_jwt = decode(
                 token,
                 Utility.environment['security']["secret_key"],
-                algorithm=Utility.environment['security']["algorithm"],
+                algorithms=Utility.environment['security']["algorithm"],
             )
             mail = decoded_jwt["mail_id"]
             return mail
 
-        except Exception:
+        except Exception as e:
             raise AppException("Invalid token")
 
     @staticmethod
@@ -1038,3 +1039,18 @@ class Utility:
         aux.reverse()
         return aux
 
+    @staticmethod
+    def get_imports(path):
+        with open(path) as fh:
+            root = ast.parse(fh.read(), path)
+
+        for node in ast.iter_child_nodes(root):
+            if isinstance(node, ast.Import):
+                module = []
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module.split('.')
+            else:
+                continue
+
+            for n in node.names:
+                yield n.name.split('.')[0]

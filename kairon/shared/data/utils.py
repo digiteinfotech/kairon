@@ -4,7 +4,7 @@ import tempfile
 from datetime import datetime
 from itertools import chain
 from typing import Text, List, Dict
-
+from re import findall
 import requests
 from fastapi import File
 from fastapi.background import BackgroundTasks
@@ -254,15 +254,7 @@ class DataUtility:
     @staticmethod
     def get_rasa_core_policies():
         from rasa.core.policies import registry
-        file1 = open(registry.__file__, 'r')
-        Lines = file1.readlines()
-        policy = []
-        for line in Lines:
-            if line.startswith("from"):
-                items = line.split("import")[1].split(",")
-                for item in items:
-                    policy.append(item.strip())
-        return policy
+        return list(Utility.get_imports(registry.__file__))
 
     @staticmethod
     def build_http_response_object(http_action_config: HttpActionConfig, user: str, bot: str):

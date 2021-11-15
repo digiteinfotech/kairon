@@ -107,7 +107,7 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 7
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -1418,7 +1418,7 @@ class TestMongoProcessor:
 
     @responses.activate
     def test_start_training_done_using_event_and_token(self, monkeypatch):
-        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"})
         responses.add(
             responses.POST,
             "http://localhost/train",
@@ -1431,7 +1431,7 @@ class TestMongoProcessor:
 
     @responses.activate
     def test_start_training_done_reload_event(self, monkeypatch):
-        token = Authentication.create_access_token(data={"sub": "test@gmail.com"}).decode("utf8")
+        token = Authentication.create_access_token(data={"sub": "test@gmail.com"})
         bot = "tests"
         responses.add(
             responses.GET,

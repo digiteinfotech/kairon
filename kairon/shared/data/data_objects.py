@@ -348,6 +348,7 @@ class Slots(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     influence_conversation = BooleanField(default=False)
+    _has_been_set = BooleanField(default=False)
 
     def clean(self):
         self.name = self.name.strip().lower()

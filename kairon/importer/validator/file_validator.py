@@ -31,7 +31,8 @@ class TrainingDataValidator(Validator):
     def __init__(self, validator: Validator):
         """Initiate class with rasa validator object."""
 
-        super().__init__(validator.domain, validator.intents, validator.story_graph)
+        super().__init__(validator.domain, validator.intents, validator.story_graph, validator
+                         .nlu_config.as_dict())
         self.validator = validator
         self.summary = {}
         self.component_count = {}
@@ -206,9 +207,9 @@ class TrainingDataValidator(Validator):
         @return:
         """
         utterance_mismatch_summary = []
-        actions = self.domain.action_names
-        utterance_templates = set(self.domain.templates)
-        self.component_count['utterances'] = len(self.domain.templates)
+        actions = self.domain.action_names_or_texts
+        utterance_templates = set(self.domain.responses)
+        self.component_count['utterances'] = len(self.domain.responses)
 
         for utterance in utterance_templates:
             if utterance not in actions:
@@ -238,7 +239,7 @@ class TrainingDataValidator(Validator):
         """
         utterance_mismatch_summary = []
         story_utterance_not_found_in_domain = []
-        self.validator.verify_utterances()
+        self.verify_utterances(raise_exception)
 
         utterance_actions = self.validator._gather_utterance_actions()
         fallback_action = DataUtility.parse_fallback_action(self.config)
