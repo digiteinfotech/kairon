@@ -114,3 +114,13 @@ async def user_input_count(request: HistoryQuery = HistoryQuery(),
         collection, request.month
     )
     return {"data": user_inputs, "message": message}
+
+
+@router.get("/fallback/dropoff", response_model=Response)
+async def fallback_dropoff(request: HistoryQuery = HistoryQuery(),
+                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the list of users that dropped off after encountering fallback."""
+    user_list, message = HistoryProcessor.user_fallback_dropoff(
+        collection, request.month, request.action_fallback, request.nlu_fallback
+    )
+    return {"data": user_list, "message": message}
