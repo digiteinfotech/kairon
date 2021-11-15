@@ -750,6 +750,74 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
+def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/input/unique",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time",
+        status=200,
+        match=[responses.json_params_matcher({'month': 6})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/conversations/time",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+                                              'nlu_fallback': 'utter_please_rephrase'})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/fallback/dropoff",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
 def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,

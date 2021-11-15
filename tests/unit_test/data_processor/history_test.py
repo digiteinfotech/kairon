@@ -25,15 +25,6 @@ class TestHistory:
         )
         return json_data[0]['events'], None
 
-    def history_conversations_multiple_users(self, *args, **kwargs):
-        json_data = json.load(
-            open("tests/testing_data/history/conversations_history.json")
-        )
-        for user in json_data[0:10]:
-            for event in user['events']:
-                event['timestamp'] = datetime.utcnow().timestamp()
-        return json_data[0], None
-
     def get_history_conversations(self):
         json_data = json.load(
             open("tests/testing_data/history/conversations_history.json")
@@ -73,18 +64,6 @@ class TestHistory:
             return client, 'Loading host:mongodb://test_kairon:27016, db:conversation, collection:conversations'
 
         monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
-
-    @pytest.fixture
-    def mock_mongo_client_multiple_users(self, monkeypatch):
-        def db_client_users(*args, **kwargs):
-            client = MongoClient(Utility.environment['tracker']['url'])
-            db = client.get_database("conversation")
-            conversations = db.get_collection("conversations")
-            history, _ = self.history_conversations_multiple_users()
-            conversations.insert(history)
-            return client, 'Loading host:mongodb://test_kairon:27016, db:conversation, collection:conversations'
-
-        monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client_users)
 
     def test_fetch_chat_users_db_error(self, mock_db_timeout):
         with pytest.raises(AppException) as e:
@@ -357,6 +336,36 @@ class TestHistory:
         with pytest.raises(Exception):
             HistoryProcessor.word_cloud("conversations", u_bound=.5, l_bound=.6)
 
+    def test_user_input_count_error(self, mock_db_timeout):
+        input_count, message = HistoryProcessor.user_input_count("tests")
+        assert input_count == []
+        assert message
+
+    def test_user_input_count(self, mock_mongo_client):
+        user_input, message = HistoryProcessor.user_input_count("tests")
+        assert user_input == []
+        assert message
+
+    def test_conversation_time_range_error(self, mock_db_timeout):
+        conversation_time, message = HistoryProcessor.average_conversation_time_range("tests")
+        assert conversation_time["Conversation_time_range"] == {}
+        assert message
+
+    def test_conversation_time_range(self, mock_mongo_client):
+        conversation_time, message = HistoryProcessor.average_conversation_time_range("tests")
+        assert conversation_time["Conversation_time_range"] == {}
+        assert message
+
+    def test_user_dropoff_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
+    def test_user_dropoff(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
     def test_user_intent_dropoff_error(self, mock_db_timeout):
         intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
         assert intent_dropoff == {}
@@ -365,14 +374,4 @@ class TestHistory:
     def test_user_intent_dropoff(self, mock_mongo_client):
         intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
         assert intent_dropoff == {}
-        assert message
-
-    # def test_user_intent_dropoff_with_data(self, mock_mongo_client_multiple_users):
-    #     intent_dropoff, message = HistoryProcessor.intents_before_dropoff("conversations", month=1)
-    #     assert intent_dropoff
-    #     assert message
-
-    def test_conversation_steps_data(self, mock_mongo_client_multiple_users):
-        conversation_steps, message = HistoryProcessor.conversation_steps("conversations")
-        assert conversation_steps
         assert message
