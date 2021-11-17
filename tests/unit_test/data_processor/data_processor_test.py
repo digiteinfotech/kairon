@@ -62,6 +62,7 @@ class TestMongoProcessor:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection())
+        Utility.environment['elasticsearch']['enable'] = False
 
     @pytest.fixture()
     def get_training_data(self):
@@ -107,7 +108,7 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 6
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -253,14 +254,14 @@ class TestMongoProcessor:
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
-        assert [slot.name for slot in domain.slots] == ['application_name', 'bot', 'email_id', 'location', 'user']
+        assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id', 'location', 'user'] for slot in domain.slots)
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye', 'utter_default']
         assert domain.entities == ['user', 'location', 'email_id', 'application_name']
-        assert domain.forms == {'ask_user': {'USER': [{'type': 'from_entity', 'entity': 'USER'}],
-                                             'EMAIL_ID': [{'type': 'from_entity', 'entity': 'EMAIL_ID'}]},
-                                'ask_location': {'LOCATION': [{'type': 'from_entity', 'entity': 'LOCATION'}],
+        assert domain.forms == {'ask_user': {'required_slots': {'USER': [{'type': 'from_entity', 'entity': 'USER'}],
+                                             'EMAIL_ID': [{'type': 'from_entity', 'entity': 'EMAIL_ID'}]}},
+                                'ask_location': {'required_slots': {'LOCATION': [{'type': 'from_entity', 'entity': 'LOCATION'}],
                                                  'APPLICATION_NAME': [
-                                                     {'type': 'from_entity', 'entity': 'APPLICATION_NAME'}]}}
+                                                     {'type': 'from_entity', 'entity': 'APPLICATION_NAME'}]}}}
         assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application', 'action_get_microsoft_application']
@@ -316,9 +317,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -328,8 +329,8 @@ class TestMongoProcessor:
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
-        assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
-        assert domain.forms['ticket_file_form'] == {'file': [{'type': 'from_entity', 'entity': 'file'}]}
+        assert domain.forms['ticket_attributes_form'] == {'required_slots': {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}}
+        assert domain.forms['ticket_file_form'] == {'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 45
         assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 13
@@ -340,7 +341,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
@@ -385,13 +386,12 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
-        assert domain.forms['ticket_attributes_form'] == {}
+        assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
-        print(domain.user_actions)
         assert domain.user_actions.__len__() == 40
         assert processor.list_actions('all').__len__() == 13
         assert domain.intents.__len__() == 29
@@ -434,7 +434,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.forms.__len__() == 2
@@ -464,7 +464,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 1
+        assert domain.slots.__len__() == 2
         assert domain.slots[0].name == 'bot'
         assert domain.slots[0].value == 'tests'
         assert domain.templates.keys().__len__() == 11
@@ -1009,10 +1009,8 @@ class TestMongoProcessor:
     def test_train_model(self):
         model = train_model_for_bot("tests")
         assert model
-        folder = "models/tests"
-        file = Utility.get_latest_file(folder, '*.tar.gz')
-        Utility.move_old_models(folder, file)
-        assert len(list(glob.glob(folder + '/*.tar.gz'))) == 1
+        folder = os.path.join("models/tests", '*.tar.gz')
+        assert len(list(glob.glob(folder))) == 1
 
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
@@ -2162,9 +2160,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -2181,7 +2179,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -2219,7 +2217,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 8
         assert domain.form_names.__len__() == 2
@@ -2268,9 +2266,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -2287,7 +2285,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -2325,9 +2323,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -2344,7 +2342,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -2377,9 +2375,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -2396,7 +2394,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -2436,9 +2434,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -2455,7 +2453,7 @@ class TestMongoProcessor:
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
         assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "unfeaturized"
+        assert domain.slots[1].type_name == "float"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -2502,7 +2500,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert domain.intent_properties.__len__() == 30
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 8
@@ -2550,7 +2548,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 0
+        assert domain.slots.__len__() == 1
         assert domain.intent_properties.__len__() == 5
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
@@ -2578,7 +2576,7 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 9
+        assert domain.slots.__len__() == 10
         assert domain.intent_properties.__len__() == 29
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 8
@@ -4907,7 +4905,7 @@ class TestMongoProcessor:
 class TestAgentProcessor:
 
     def test_get_agent(self, monkeypatch):
-        def mongo_store(*arge, **kwargs):
+        def mongo_store(*args, **kwargs):
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)

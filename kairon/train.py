@@ -8,7 +8,8 @@ from loguru import logger as logging
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.model_training import DEFAULT_MODELS_PATH
-from rasa.model_training import _train_async_internal, handle_domain_if_not_exists, train
+from rasa.model_training import _train_async_internal, handle_domain_if_not_exists
+from rasa.api import train
 from rasa.utils.common import TempDirectoryPath
 
 from kairon.shared.data.constant import MODEL_TRAINING_STATUS
@@ -125,7 +126,7 @@ def train_model_for_bot(bot: str):
         output=output,
         core_additional_arguments={"augmentation_factor": 100},
         force_training=True
-    )
+    ).model
     Utility.delete_directory(directory)
     del processor
     del nlu
