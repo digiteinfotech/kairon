@@ -536,7 +536,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json, {
             'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}],
             'responses': [
-                {'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'image': None,
+                {'text': 'that is great!', 'buttons': [], 'response': None, 'elements': [], 'custom': {}, 'template': None, 'image': None,
                  'attachment': None}]})
 
     def test_form_validation_action_invalid_slot_value(self):
@@ -649,7 +649,7 @@ class TestActionServer(AsyncHTTPTestCase):
             'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}],
             'responses': [
                 {'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {},
-                 'template': None, 'image': None,
+                 'template': None, 'image': None, 'response': None,
                  'attachment': None}]})
 
     def test_form_validation_action_no_validation_configured(self):
