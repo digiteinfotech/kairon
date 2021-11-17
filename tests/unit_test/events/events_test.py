@@ -135,7 +135,7 @@ class TestEvents:
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
-        assert logs[0].get('exception').__contains__('Failed to read config.yml')
+        assert logs[0].get('exception').__contains__('Failed to read YAML')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']

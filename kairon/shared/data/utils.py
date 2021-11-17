@@ -333,7 +333,7 @@ class DataUtility:
         )
         token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
         background_tasks.add_task(
-            start_training, bot, user, token.decode('utf8')
+            start_training, bot, user, token
         )
 
     @staticmethod

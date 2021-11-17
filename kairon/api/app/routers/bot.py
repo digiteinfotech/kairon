@@ -484,7 +484,7 @@ async def upload_data_generation_file(
                                                document_path=file_path)
     token = Authentication.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
-        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token.decode('utf8')
+        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
     )
     return {"message": "File uploaded successfully and training data generation has begun"}
 
@@ -1056,7 +1056,7 @@ async def get_chat_client_config_url(current_user: User = Depends(Authentication
         data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']}, is_integration=True
     )
     url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
-    url = urljoin(url, access_token.decode('utf-8'))
+    url = urljoin(url, access_token)
     return Response(data=url)
 
 
