@@ -1655,7 +1655,6 @@ class TestMongoProcessor:
             if slot_type == SLOT_TYPE.FLOAT or slot_type == SLOT_TYPE.CATEGORICAL:
                 continue
             else:
-                print(slot_type)
                 processor.add_slot({"name": "bot", "type": slot_type, "max_value": 0.5, "min_value": 0.1,
                                     "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
                 slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
@@ -5926,7 +5925,6 @@ class TestTrainingDataProcessor:
         status = TrainingDataGenerator.objects(
             bot="tests2",
             user="testUser2").get()
-        print(status.to_mongo().to_dict())
         with pytest.raises(AppException):
             TrainingDataGenerationProcessor.validate_history_id(status["id"])
 
@@ -5980,7 +5978,6 @@ class TestTrainingDataProcessor:
         status = TrainingDataGenerator.objects(
             bot="tests2",
             user="testUser2").get()
-        print(status.to_mongo().to_dict())
         assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
 
     def test_validate_history_id_invalid(self):

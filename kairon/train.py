@@ -167,7 +167,6 @@ def start_training(bot: str, user: str, token: str = None):
                 if token:
                     Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
         except Exception as e:
-            print(e)
             logging.exception(e)
             training_status = MODEL_TRAINING_STATUS.FAIL.value
             exception = str(e)

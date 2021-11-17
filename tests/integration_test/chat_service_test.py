@@ -118,7 +118,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 "Authorization": f"{token_type} {token}"
             },
         )
-        print(response.body)
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert not actual["success"]
@@ -207,7 +206,6 @@ class TestChatServer(AsyncHTTPTestCase):
             },
         )
         actual = json.loads(response.body.decode("utf8"))
-        print(actual)
         assert actual["message"] == "Access denied for this endpoint"
 
     def test_reload(self):

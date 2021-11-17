@@ -114,7 +114,6 @@ class TestHistory:
         hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 0
-        print(message)
         assert message
 
     def test_visitor_hit_fallback(self, mock_fallback_user_data, monkeypatch):

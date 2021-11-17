@@ -492,7 +492,6 @@ def test_get_data_importer_logs():
     assert actual['data'][3]['stories']['count'] == 16
     assert actual['data'][3]['stories']['data']
     assert actual['data'][3]['training_examples'] == {'count': 292, 'data': []}
-    print(actual['data'][3]['domain'])
     assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9, 'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data'][3]['config'] == {'count': 0, 'data': []}
     assert actual['data'][3]['http_actions'] == {'count': 0, 'data': []}
@@ -516,7 +515,6 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    print(actual)
     assert len(actual["data"]) == 8
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -3787,7 +3785,6 @@ def test_feedback():
         json=request
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]
@@ -4624,7 +4621,6 @@ def test_get_client_config_using_uid(monkeypatch):
         json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
     )
     response = client.get(pytest.url)
-    print(pytest.url)
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -5356,7 +5352,6 @@ def test_get_form_with_validations():
     assert actual["success"]
     assert actual["error_code"] == 0
     form = actual["data"]
-    print(form)
     assert len(form['mapping']) == 4
     assert form['slot_mapping'][0]['slot'] == 'name'
     assert form['slot_mapping'][1]['slot'] == 'age'
@@ -5486,7 +5481,6 @@ def test_get_form_after_edit():
     assert actual["success"]
     assert actual["error_code"] == 0
     form = actual["data"]
-    print(form)
     assert len(form['mapping']) == 6
     assert form['slot_mapping'][0]['slot'] == 'name'
     assert form['slot_mapping'][1]['slot'] == 'num_people'
@@ -6112,7 +6106,6 @@ def test_get_ui_config_empty():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual['data'] == {}
     assert actual["success"]
@@ -6148,7 +6141,6 @@ def test_get_ui_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual['data'] == {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
     assert actual["success"]
