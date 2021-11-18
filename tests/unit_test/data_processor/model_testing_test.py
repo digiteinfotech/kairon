@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import pytest
 from mongoengine import connect
@@ -17,11 +18,26 @@ class TestModelTesting:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
+        from rasa import train
+        # model without entities
+        train_result = train(
+            domain='tests/testing_data/model_tester/domain.yml',
+            config='tests/testing_data/model_tester/config.yml',
+            training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
+                            'tests/testing_data/model_tester/training_stories_success/stories.yml'],
+            output='tests/testing_data/model_tester/models',
+            core_additional_arguments={"augmentation_factor": 100},
+            force_training=True
+        )
+        pytest.model_path = train_result.model
+        yield None
+        shutil.rmtree('tests/testing_data/model_tester/models')
+
     @pytest.mark.asyncio
     async def test_run_test_on_stories(self):
         result = await ModelTester.run_test_on_stories(
-            'tests/testing_data/model_tester/test_stories_success/stories.yml',
-            'tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', True)
+            'tests/testing_data/model_tester/test_stories_success/test_stories.yml',
+            pytest.model_path, True)
         assert len(result['successful_stories']) == 5
         assert not result['failed_stories']
         assert result['precision']
@@ -31,8 +47,8 @@ class TestModelTesting:
     @pytest.mark.asyncio
     async def test_run_test_on_stories_failure(self):
         result = await ModelTester.run_test_on_stories(
-            'tests/testing_data/model_tester/test_stories_failures/stories.yml',
-            'tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', True)
+            'tests/testing_data/model_tester/test_stories_failures/test_stories.yml',
+            pytest.model_path, True)
         assert len(result['successful_stories']) == 3
         assert len(result['failed_stories']) == 2
         assert result['precision']
@@ -56,7 +72,7 @@ class TestModelTesting:
 
     def test_run_test_on_nlu(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
-                                             'tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz')
+                                             pytest.model_path)
         assert len(result['intent_evaluation']['predictions']) == 43
         assert len(result['intent_evaluation']['successes']) == 43
         assert len(result['intent_evaluation']['errors']) == 0
@@ -66,7 +82,7 @@ class TestModelTesting:
 
     def test_run_test_on_nlu_failure(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_failures/nlu.yml',
-                                             'tests/testing_data/model_tester/model_with_entities/20211021-141717.tar.gz')
+                                             pytest.model_path)
         assert len(result['intent_evaluation']['predictions']) == 47
         assert len(result['intent_evaluation']['successes']) == 29
         assert len(result['intent_evaluation']['errors']) == 18

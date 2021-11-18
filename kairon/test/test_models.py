@@ -33,7 +33,7 @@ class ModelTester:
         bot_home = os.path.join('testing_data', bot)
         try:
             model_path = Utility.get_latest_model(bot)
-            nlu_path, stories_path = TestDataGenerator.create(bot)
+            nlu_path, stories_path = TestDataGenerator.create(bot, run_e2e)
             stories_results = await ModelTester.run_test_on_stories(stories_path, model_path, run_e2e)
             nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path)
             return nlu_results, stories_results
@@ -61,12 +61,13 @@ class ModelTester:
         from rasa.core.test import _create_data_generator, _collect_story_predictions
         from rasa.core.agent import Agent
 
+        test_report = {}
         agent = Agent.load(model_path)
 
-        generator = await _create_data_generator(stories_path, agent, use_e2e=e2e)
+        generator = await _create_data_generator(stories_path, agent, use_conversation_test_files=e2e)
         completed_trackers = generator.generate_story_trackers()
 
-        story_evaluation, _ = await _collect_story_predictions(
+        story_evaluation, _, _ = await _collect_story_predictions(
             completed_trackers, agent, use_e2e=e2e
         )
         targets, predictions = story_evaluation.evaluation_store.serialise()
@@ -84,7 +85,21 @@ class ModelTester:
             for event in story.events:
                 events_tracker.append(vars(event))
             success_stories_summary.append(events_tracker)
-        return {
+
+        num_failed = len(story_evaluation.failed_stories)
+        num_correct = len(story_evaluation.successful_stories)
+        num_warnings = len(story_evaluation.stories_with_warnings)
+        num_convs = num_failed + num_correct
+        if num_convs and isinstance(report, Dict):
+            conv_accuracy = num_correct / num_convs
+            test_report["conversation_accuracy"] = {
+                "accuracy": conv_accuracy,
+                "correct": num_correct,
+                "with_warnings": num_warnings,
+                "total": num_convs,
+            }
+
+        test_report.update({
             "report": report,
             "precision": precision,
             "f1": f1,
@@ -93,8 +108,9 @@ class ModelTester:
             "in_training_data_fraction": story_evaluation.in_training_data_fraction,
             "is_end_to_end_evaluation": e2e,
             "failed_stories": failed_stories_summary,
-            "successful_stories": success_stories_summary
-        }
+            "successful_stories": success_stories_summary,
+        })
+        return test_report
 
     @staticmethod
     def run_test_on_nlu(nlu_path: str, model_path: str):
@@ -266,7 +282,7 @@ class ModelTester:
 class TestDataGenerator:
 
     @staticmethod
-    def create(bot: str):
+    def create(bot: str, use_test_stories: bool = False):
         from kairon import Utility
         from itertools import chain
         from rasa.shared.nlu.training_data.training_data import TrainingData
@@ -286,8 +302,11 @@ class TestDataGenerator:
         nlu_path = os.path.join(bot_home, "nlu.yml")
         Utility.write_to_file(nlu_path, nlu_as_str)
 
-        stories_path = os.path.join(bot_home, "stories.yml")
-        YAMLStoryWriter().dump(stories_path, stories.story_steps, is_test_story=True)
+        if use_test_stories:
+            stories_path = os.path.join(bot_home, "test_stories.yml")
+        else:
+            stories_path = os.path.join(bot_home, "stories.yml")
+        YAMLStoryWriter().dump(stories_path, stories.story_steps, is_test_story=use_test_stories)
         return nlu_path, stories_path
 
     @staticmethod
@@ -351,6 +370,9 @@ class TestDataGenerator:
         from rasa.shared.nlu.training_data.message import Message
         from kairon.shared.data.constant import TRAINING_EXAMPLE
         from rasa.shared.nlu.constants import TEXT
+
+        if not training_examples:
+            raise AppException(f'No training examples found for intent: {intent}')
 
         augmented_examples = TestDataGenerator.augment_sentences(training_examples)
         for example in augmented_examples:
