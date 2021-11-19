@@ -32,6 +32,9 @@ RUN chmod 777 -R /tmp
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY system.yaml ${IMPORTER_HOME}/
 
+python -m nltk.downloader wordnet
+python -m nltk.downloader averaged_perceptron_tagger
+
 ENV BOT default
 ENV USER default
 

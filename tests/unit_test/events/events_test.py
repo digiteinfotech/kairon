@@ -28,10 +28,24 @@ class TestEvents:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         tmp_dir = tempfile.mkdtemp()
         pytest.tmp_dir = tmp_dir
+
+        from rasa import train
+        # model without entities
+        train_result = train(
+            domain='tests/testing_data/model_tester/domain.yml',
+            config='tests/testing_data/model_tester/config.yml',
+            training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
+                            'tests/testing_data/model_tester/training_stories_success/stories.yml'],
+            output='tests/testing_data/model_tester/models',
+            core_additional_arguments={"augmentation_factor": 100},
+            force_training=True
+        )
+        pytest.model_path = train_result.model
         yield None
         shutil.rmtree(tmp_dir)
         shutil.rmtree('models/test_events_bot')
         shutil.rmtree('models/test_events_no_nlu_model')
+        shutil.rmtree('tests/testing_data/model_tester/models')
 
     @pytest.fixture()
     def get_training_data(self):
@@ -800,12 +814,12 @@ class TestEvents:
     async def test_trigger_model_testing_event_run_tests_on_model_no_model_found(self):
         bot = 'test_events_bot'
         user = 'test_user'
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        await EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0].get('exception').__contains__('Model testing failed: Folder does not exists!')
         assert logs[0]['start_timestamp']
-        assert logs[0]['run_on_test_stories']
+        assert not logs[0]['run_on_test_stories']
         assert not logs[0].get('stories')
         assert not logs[0].get('nlu')
         assert logs[0].get('end_timestamp')
@@ -857,19 +871,19 @@ class TestEvents:
         config_path = 'tests/testing_data/model_tester/config.yml'
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/test_stories_success/stories.yml'
+        stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        create_model('tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', bot)
+        create_model(pytest.model_path, bot)
         responses.add('POST',
                       Utility.environment["augmentation"]["paraphrase_url"],
                       json={'data': {'paraphrases': []}})
         responses.start()
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        await EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
-        assert logs[0]['run_on_test_stories']
+        assert not logs[0]['run_on_test_stories']
         assert logs[0].get('stories')
         assert logs[0].get('nlu')
         assert not logs[0]['stories']['failed_stories']
@@ -888,23 +902,16 @@ class TestEvents:
         config_path = 'tests/testing_data/model_tester/config.yml'
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/test_stories_failures/stories.yml'
+        stories_path = 'tests/testing_data/model_tester/training_stories_failure/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        await EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 3
-        assert not logs[0].get('exception')
+        assert logs[0].get('exception') == 'Model testing failed: No training examples found for intent: mood_unhappy'
         assert logs[0]['start_timestamp']
-        assert logs[0]['run_on_test_stories']
-        assert logs[0].get('stories')
-        assert logs[0].get('nlu')
-        assert not logs[0]['stories']['failed_stories']
-        assert logs[0]['nlu']['intent_evaluation']['errors']
-        assert logs[0]['stories']['successful_stories']
-        assert logs[0]['nlu']['intent_evaluation']['successes']
+        assert not logs[0]['run_on_test_stories']
         assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'FAILURE'
-        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     @pytest.mark.asyncio
@@ -914,9 +921,9 @@ class TestEvents:
         config_path = 'tests/testing_data/model_tester/config.yml'
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/test_stories_failures/stories.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_failures/test_stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        create_model('tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', bot, True)
+        create_model(pytest.model_path, bot, True)
         await EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
