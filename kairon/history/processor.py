@@ -1355,3 +1355,77 @@ class HistoryProcessor:
                 {"Dropoff_list": new_session},
                 message
             )
+
+    @staticmethod
+    def intents_before_dropoff(collection: Text, month: int = 6):
+
+        """
+        Computes the identified intents and their counts for users before dropping off from the conversations
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of intents and their counts for the respective users
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            new_session_dict, single_session_dict = {}, {}
+            try:
+                new_session_list = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                   {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                   {"$match": {"$or": [{"events.event": "user"}, {"events.name": "action_session_start"}]}},
+                                   {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                                      "allevents": {"$push": "$events"}}},
+                                   {"$unwind": "$events"},
+                                      {"$project": {
+                                          "_id": 1,
+                                          "events": 1,
+                                          "following_events": {
+                                              "$arrayElemAt": [
+                                                  "$allevents",
+                                                  {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                              ]
+                                          }
+                                      }},
+                                   {"$match": {"following_events.name": "action_session_start"}},
+                                   {"$project": {"_id": 1, "intent": "$events.parse_data.intent.name"}},
+                                {"$group": {"_id": {"sender_id": "$_id", "intent": "$intent"}, "count": {"$sum": 1}}},
+                                {"$project": {"_id": "$_id.sender_id", "intent": "$_id.intent", "count": 1}}
+                                          ], allowDiskUse=True))
+
+                for record in new_session_list:
+                    if not record["_id"] in new_session_dict:
+                        new_session_dict[record["_id"]] = {record["intent"]: record["count"]}
+                    else:
+                        new_session_dict[record["_id"]][record["intent"]] = record["count"]
+
+                single_session_list = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                           {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                           {"$match": {"$or": [{"events.event": "user"}, {"events.name": "action_session_start"}]}},
+                                           {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}},
+                                           {"$addFields": {"last_event": {"$last": "$events"}}},
+                                           {"$match": {"last_event.event": "user"}},
+                                           {"$project": {"_id": 1, "intent": "$last_event.parse_data.intent.name"}},
+                                           {"$addFields": {"count": 1}}], allowDiskUse=True))
+
+                single_session_dict = {record["_id"]: {record["intent"]: record["count"]} for record in single_session_list}
+
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+
+            for record in single_session_dict:
+                if record in new_session_dict:
+                    if list(single_session_dict[record].keys())[0] in new_session_dict[record]:
+                        new_session_dict[record][list(single_session_dict[record].keys())[0]] = new_session_dict[record][list(single_session_dict[record].keys())[0]] + 1
+                    else:
+                        new_session_dict[record][list(single_session_dict[record].keys())[0]] = single_session_dict[record][list(single_session_dict[record].keys())[0]]
+                else:
+                    new_session_dict[record] = single_session_dict[record]
+
+            return (
+                new_session_dict,
+                message
+            )
