@@ -2045,6 +2045,7 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
+        reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2072,6 +2073,8 @@ class MongoProcessor:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
                         step['type'] = 'HTTP_ACTION'
+                    elif event['name'] in reset_slot_actions:
+                        step['type'] = 'RESET_SLOT'
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
                     else:
