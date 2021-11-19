@@ -40,6 +40,7 @@ class ParameterChoice(str, Enum):
     value = "value"
     slot = "slot"
     sender_id = "sender_id"
+    user_message = "user_message"
 
 
 class User(BaseModel):

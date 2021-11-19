@@ -2927,6 +2927,9 @@ def test_add_http_action_with_sender_id_parameter_type():
             "key": "testParam2",
             "parameter_type": "slot",
             "value": "testValue2"
+        }, {
+            "key": "testParam3",
+            "parameter_type": "user_message",
         }]
     }
 
@@ -2942,10 +2945,30 @@ def test_add_http_action_with_sender_id_parameter_type():
     assert actual["success"]
 
 
+def test_get_http_action():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/test_add_http_action_with_sender_id_parameter_type",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"]['action_name'] == 'test_add_http_action_with_sender_id_parameter_type'
+    assert actual["data"]['response'] == 'string'
+    assert actual["data"]['http_url'] == 'http://www.google.com'
+    assert actual["data"]['request_method'] == 'GET'
+    assert actual["data"]['params_list'] == [
+        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
+        {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
+    assert not actual["message"]
+    assert actual["success"]
+
+
 def test_add_http_action_invalid_parameter_type():
     request_body = {
         "auth_token": "",
-        "action_name": "test_add_http_action_with_sender_id_parameter_type",
+        "action_name": "test_add_http_action_invalid_parameter_type",
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",

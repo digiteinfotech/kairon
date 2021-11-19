@@ -92,6 +92,8 @@ class ActionUtility:
                 value = tracker.sender_id
             elif param['parameter_type'] == ParameterType.slot:
                 value = tracker.get_slot(param['value'])
+            elif param['parameter_type'] == ParameterType.user_message:
+                value = tracker.latest_message.get('text')
             else:
                 value = param['value']
             request_body[param['key']] = value
