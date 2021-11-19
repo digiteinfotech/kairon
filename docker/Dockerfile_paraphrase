@@ -1,23 +1,28 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7-2021-06-09
-SHELL ["/bin/bash", "-c"]
+FROM amazonlinux:latest
 
 ENV RASA_NLU_DOCKER="YES" \
-    RASA_NLU_HOME=/app \
-    RASA_NLU_PYTHON_PACKAGES=/usr/local/lib/python3.7/dist-packages
+    RASA_NLU_HOME=/app
 
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install nltk
-RUN python3 -m pip install transformers==4.0.0
-RUN python3 -m pip install sentencepiece
-RUN python3 -m pip install loguru
-RUN python3 -m pip install numpy
-RUN python3 -m pip install matplotlib
-RUN python3 -m pip install requests
-RUN python3 -m pip install torch==1.6.0
-RUN python3 -m nltk.downloader wordnet
-RUN python3 -m nltk.downloader averaged_perceptron_tagger
-RUN python3 -m pip install openai
-RUN python3 -m pip install elastic-apm
+RUN yum update -y
+RUN yum -y install wget make gcc openssl-devel bzip2-devel
+RUN amazon-linux-extras install python3.8
+RUN rm /usr/bin/python
+RUN ln -s /usr/bin/python3.8 /usr/bin/python
+RUN python -m pip install --upgrade pip
+RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install nltk
+RUN python -m pip install transformers==4.0.0
+RUN python -m pip install sentencepiece
+RUN python -m pip install loguru
+RUN python -m pip install numpy
+RUN python -m pip install matplotlib
+RUN python -m pip install requests
+RUN python -m pip install torch==1.6.0
+RUN python -m nltk.downloader wordnet
+RUN python -m nltk.downloader averaged_perceptron_tagger
+RUN python -m pip install openai
+RUN python -m pip install elastic-apm
+RUN python -m pip install uvicorn>=0.12.3
 
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation
