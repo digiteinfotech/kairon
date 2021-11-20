@@ -375,3 +375,13 @@ class TestHistory:
         intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
         assert intent_dropoff == {}
         assert message
+
+    def test_total_sessions_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.session_count("tests")
+        assert user_list['Total_session'] == {}
+        assert message
+
+    def test_total_sessions(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.session_count("tests")
+        assert user_list['Total_session'] == {}
+        assert message

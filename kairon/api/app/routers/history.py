@@ -356,3 +356,15 @@ async def user_intent_dropoff(month: int = Query(default=1, ge=1, le=6), current
         f'/api/history/{current_user.get_bot()}/metrics/intents/dropoff',
         {'month': month}
     )
+
+
+@router.get("/metrics/user/total/sessions", response_model=Response)
+async def total_sessions(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the total session count for users for the past months.
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/total/sessions',
+        {'month': month}
+    )

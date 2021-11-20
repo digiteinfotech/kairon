@@ -134,3 +134,13 @@ async def intents_dropoff(request: HistoryQuery = HistoryQuery(),
         collection, request.month
     )
     return {"data": dropoff_intents, "message": message}
+
+
+@router.get("/total/sessions", response_model=Response)
+async def total_sessions(request: HistoryQuery = HistoryQuery(),
+                          collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the total session count for users for the past months."""
+    user_list, message = HistoryProcessor.session_count(
+        collection, request.month
+    )
+    return {"data": user_list, "message": message}

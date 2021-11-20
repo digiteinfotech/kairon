@@ -682,3 +682,30 @@ def test_user_intent_dropoff_with_request(mock_db_client):
     assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
+
+
+def test_total_session(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/total/sessions",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Total_session"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_total_sessions_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/total/sessions",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Total_session"] == {}
+    assert actual["message"]
+    assert actual["success"]
