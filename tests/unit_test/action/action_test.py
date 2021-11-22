@@ -1015,6 +1015,10 @@ class TestActions:
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
         assert output == 'I want $51'
 
+    def test_prepare_response_with_prefix(self):
+        output = ActionUtility.prepare_response("I want rupee${price.1.rupee}. Also, want $${price.0.dollars}", {"price": [{"dollars": "51"}, {"rupee": "151"}]})
+        assert output == 'I want rupee151. Also, want $51'
+
     def test_retrieve_value_from_response(self):
         keys = ["a.b.3", 'a.b']
         resp_msg = {

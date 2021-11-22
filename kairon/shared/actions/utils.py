@@ -324,19 +324,17 @@ class ActionUtility:
         """
         value_mapping = {}
         parsed_output = ActionUtility.attach_response(response_template, http_response)
-        keys_with_placeholders = [term for term in parsed_output.split(" ") if term.startswith("${") and term.endswith("}")]
-        #  deepcode ignore C1801: Length check required in case there are no placeholders
-        if keys_with_placeholders is None or len(keys_with_placeholders) == 0:
+        keys_with_placeholders = re.findall(r'\${(.+?)}', parsed_output)
+        if not keys_with_placeholders:
             if ActionUtility.is_empty(response_template):
                 return http_response
             return parsed_output
-        keys_without_placeholders = [plcehlder.lstrip("${").rstrip("}") for plcehlder in keys_with_placeholders]
 
         if type(http_response) not in [dict, list]:
             if keys_with_placeholders is not None:
                 raise ActionFailure("Could not find value for keys in response")
 
-        value_mapping = ActionUtility.retrieve_value_from_response(keys_without_placeholders, http_response)
+        value_mapping = ActionUtility.retrieve_value_from_response(keys_with_placeholders, http_response)
         for key in value_mapping:
             value_for_placeholder = value_mapping[key]
             if isinstance(value_for_placeholder, dict):
