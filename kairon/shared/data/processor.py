@@ -191,6 +191,8 @@ class MongoProcessor:
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
+        if 'http_actions' in what:
+            self.save_http_action(http_actions, bot, user)
         if 'domain' in what:
             self.save_domain(domain, bot, user)
         if 'stories' in what:
@@ -201,8 +203,6 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
-        if 'http_actions' in what:
-            self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """

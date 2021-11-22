@@ -2187,6 +2187,7 @@ class TestMongoProcessor:
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
         assert len(actions['http_actions']) == 5
+        assert len(Actions.objects(type='http_action', bot=bot)) == 5
 
     @pytest.mark.asyncio
     async def test_save_training_data_no_rules_and_http_actions(self, get_training_data):
