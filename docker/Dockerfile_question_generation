@@ -1,23 +1,26 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7-2021-06-09
-SHELL ["/bin/bash", "-c"]
+FROM amazonlinux:latest
 
-ENV RASA_NLU_DOCKER="YES" \
-    RASA_NLU_HOME=/app \
-    RASA_NLU_PYTHON_PACKAGES=/usr/local/lib/python3.7/dist-packages
+WORKDIR /app
+USER root
+RUN yum update -y
+RUN yum -y install wget make gcc openssl-devel bzip2-devel git
+RUN amazon-linux-extras install python3.8
+RUN rm /usr/bin/python
+RUN ln -s /usr/bin/python3.8 /usr/bin/python
+RUN python -m pip install --upgrade pip
+RUN python -m pip install nltk
+RUN python -m pip install transformers==3.0.0
+RUN python -m pip install sentencepiece
+RUN python -m pip install loguru
+RUN python -m pip install nlp==0.2.0
+RUN python -m pip install torch
+RUN python -m pip install git+https://github.com/sfahad1414/question_generation.git
+RUN python -m nltk.downloader punkt
+RUN python -m pip install protobuf
+RUN python -m pip install elastic-apm
+RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install uvicorn>=0.12.3
 
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install nltk
-RUN python3 -m pip install transformers==3.0.0
-RUN python3 -m pip install sentencepiece
-RUN python3 -m pip install loguru
-RUN python3 -m pip install nlp==0.2.0
-RUN python3 -m pip install torch
-RUN python3 -m pip install git+https://github.com/sfahad1414/question_generation.git
-RUN python3 -m nltk.downloader punkt
-RUN python3 -m pip install protobuf
-RUN python3 -m pip install elastic-apm
-
-WORKDIR ${RASA_NLU_HOME}
-COPY augmentation ${RASA_NLU_HOME}/augmentation
+COPY augmentation app/augmentation
 EXPOSE 8000
 CMD ["uvicorn", "augmentation.question_generator.server:app","--host","0.0.0.0"]
