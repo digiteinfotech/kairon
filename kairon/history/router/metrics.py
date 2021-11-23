@@ -143,4 +143,4 @@ async def unsuccessful_sessions(request: HistoryQuery = HistoryQuery(),
     user_list, message = HistoryProcessor.unsuccessful_session(
         collection, request.month, request.action_fallback, request.nlu_fallback
     )
-    return {"data": user_list, "message": message}
+    return Response(data=user_list, message=message)

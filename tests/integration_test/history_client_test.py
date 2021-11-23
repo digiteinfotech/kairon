@@ -847,7 +847,7 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
         status=200,
         match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {'Session_counts': {'user_1': 25, 'user_2': 24}}}
     )
 
     response = client.get(
@@ -857,6 +857,6 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"]["Session_counts"] == {'user_1': 25, 'user_2': 24}
     assert actual["message"] is None
     assert actual["success"]
