@@ -104,6 +104,7 @@ class ComponentConfig(BaseModel):
     ted_epochs: int = None
     nlu_confidence_threshold: int = None
     action_fallback: str = None
+    action_fallback_threshold: int = None
 
     @validator('nlu_epochs', 'response_epochs', 'ted_epochs')
     def validate_epochs(cls, v):
@@ -111,7 +112,7 @@ class ComponentConfig(BaseModel):
             raise ValueError("Choose a positive number as epochs")
         return v
 
-    @validator("nlu_confidence_threshold")
+    @validator("nlu_confidence_threshold", "action_fallback_threshold")
     def validate_confidence_threshold(cls, v):
         if v and (v > 90 or v < 30):
             raise ValueError("Please choose a threshold between 30 and 90")
