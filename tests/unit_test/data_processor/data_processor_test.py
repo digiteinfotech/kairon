@@ -3021,12 +3021,63 @@ class TestMongoProcessor:
 
     def test_get_config_properties(self):
         expected = {'nlu_confidence_threshold': 60,
+                    'action_fallback_threshold': 30,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
                     'response_epochs': 300}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_all')
+        assert config == expected
+
+    def test_save_component_properties_action_fallback_threshold_greater(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400,
+                  "nlu_confidence_threshold": 60,
+                  "action_fallback_threshold": 70,
+                  "action_fallback": "action_default_fallback"}
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action fallback threshold should always be smaller than nlu fallback threshold'):
+            processor.save_component_properties(config, 'test_all', 'test')
+
+    def test_save_component_properties_action_fallback(self):
+        config = {"nlu_epochs": 200,
+                  "response_epochs": 300,
+                  "ted_epochs": 400,
+                  "nlu_confidence_threshold": 60,
+                  "action_fallback_threshold": 60,
+                  "action_fallback": "action_default_fallback"}
+        processor = MongoProcessor()
+        processor.save_component_properties(config, 'test_all', 'test')
+        config = processor.load_config('test_all')
+        nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
+        assert nlu['name'] == 'DIETClassifier'
+        assert nlu['epochs'] == 200
+        response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
+        assert response['name'] == 'ResponseSelector'
+        assert response['epochs'] == 300
+        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
+        assert action_fallback['name'] == 'TEDPolicy'
+        assert action_fallback['epochs'] == 400
+        nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
+        assert nlu_fallback['name'] == 'FallbackClassifier'
+        assert nlu_fallback['threshold'] == 0.6
+        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        assert len(rule_policy) == 3
+        assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
+        assert rule_policy['core_fallback_threshold'] == 0.6
+
+    def test_get_config_properties_action_fallback(self):
+        expected = {'nlu_confidence_threshold': 60,
+                    'action_fallback_threshold': 60,
+                    'action_fallback': 'action_default_fallback',
+                    'ted_epochs': 400,
+                    'nlu_epochs': 200,
+                    'response_epochs': 300}
+        processor = MongoProcessor()
+        config = processor.list_epoch_and_fallback_config('test_all')
+        print(config)
         assert config == expected
 
     def test_save_component_properties_epoch_only(self):
@@ -3076,6 +3127,7 @@ class TestMongoProcessor:
     def test_get_config_properties_epoch_only(self):
         expected = {'nlu_confidence_threshold': 70,
                     'action_fallback': 'action_default_fallback',
+                    'action_fallback_threshold': 30,
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
                     'response_epochs': 300}
@@ -3101,6 +3153,7 @@ class TestMongoProcessor:
 
     def test_get_config_properties_fallback_not_set(self):
         expected = {'nlu_confidence_threshold': 70,
+                    'action_fallback_threshold': 30,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 200,
                     'nlu_epochs': 100,
@@ -3120,6 +3173,7 @@ class TestMongoProcessor:
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
         expected = {"nlu_confidence_threshold": 70,
+                    'action_fallback_threshold': 30,
                     "action_fallback": 'action_default_fallback',
                     "ted_epochs": None,
                     "nlu_epochs": None,

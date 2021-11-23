@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/users", response_model=Response)
-async def chat_history_users(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def chat_history_users(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
 
     """
     Fetches the list of user who has conversation with the agent
@@ -31,7 +31,7 @@ async def chat_history_users(month: int = Query(default=1, ge=2, le=6), current_
 
 @router.get("/users/{sender}", response_model=Response)
 async def chat_history(
-    sender: Text, month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)
+    sender: Text, month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)
 ):
     """
     Fetches the list of conversation with the agent by particular user
@@ -45,7 +45,7 @@ async def chat_history(
 
 @router.get("/metrics/users", response_model=Response)
 async def user_with_metrics(
-        month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+        month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the list of user who has conversation with the agent with steps anf time
     """
@@ -57,7 +57,7 @@ async def user_with_metrics(
 
 
 @router.get("/metrics/fallback", response_model=Response)
-async def visitor_hit_fallback(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def visitor_hit_fallback(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
@@ -70,7 +70,7 @@ async def visitor_hit_fallback(month: int = Query(default=1, ge=2, le=6), curren
 
 
 @router.get("/metrics/conversation/steps", response_model=Response)
-async def conversation_steps(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def conversation_steps(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
      Fetches the number of conversation steps that took place in the chat between the users and the agent
      """
@@ -82,7 +82,7 @@ async def conversation_steps(month: int = Query(default=1, ge=2, le=6), current_
 
 
 @router.get("/metrics/conversation/time", response_model=Response)
-async def conversation_time(month: int = Query(default=1, ge=2, le=6),current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def conversation_time(month: int = Query(default=1, ge=1, le=6),current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the duration of the chat that took place between the users and the agent"""
     return Utility.trigger_history_server_request(
@@ -93,7 +93,7 @@ async def conversation_time(month: int = Query(default=1, ge=2, le=6),current_us
 
 
 @router.get("/metrics/user/engaged", response_model=Response)
-async def count_engaged_users(month: int = Query(default=1, ge=2, le=6), conversation_step_threshold: int = 10,
+async def count_engaged_users(month: int = Query(default=1, ge=1, le=6), conversation_step_threshold: int = 10,
                               current_user: User = Depends(Authentication.get_current_user_and_bot)):
 
     """
@@ -107,7 +107,7 @@ async def count_engaged_users(month: int = Query(default=1, ge=2, le=6), convers
 
 
 @router.get("/metrics/user/new", response_model=Response)
-async def count_new_users(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def count_new_users(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the number of new users of the bot
     """
@@ -119,7 +119,7 @@ async def count_new_users(month: int = Query(default=1, ge=2, le=6), current_use
 
 
 @router.get("/metrics/conversation/success", response_model=Response)
-async def complete_conversations(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def complete_conversations(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the number of successful conversations of the bot, which had no fallback
     """
@@ -132,7 +132,7 @@ async def complete_conversations(month: int = Query(default=1, ge=2, le=6), curr
 
 
 @router.get("/metrics/user/retention", response_model=Response)
-async def calculate_retention(month: int = Query(default=1, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def calculate_retention(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the user retention percentage of the bot
     """
@@ -144,7 +144,7 @@ async def calculate_retention(month: int = Query(default=1, ge=2, le=6), current
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
-async def engaged_users_trend(month: int = Query(default=6, ge=2, le=6),
+async def engaged_users_trend(month: int = Query(default=6, ge=1, le=6),
                               conversation_step_threshold: int = 10,
                               current_user: User = Depends(Authentication.get_current_user_and_bot)):
 
@@ -159,7 +159,7 @@ async def engaged_users_trend(month: int = Query(default=6, ge=2, le=6),
 
 
 @router.get("/metrics/trend/user/new", response_model=Response)
-async def new_users_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def new_users_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of new users of the bot for previous months
     """
@@ -171,7 +171,7 @@ async def new_users_trend(month: int = Query(default=6, ge=2, le=6), current_use
 
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
-async def complete_conversation_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def complete_conversation_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
@@ -184,7 +184,7 @@ async def complete_conversation_trend(month: int = Query(default=6, ge=2, le=6),
 
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
-async def retention_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def retention_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of user retention percentages of the bot for previous months
     """
@@ -196,7 +196,7 @@ async def retention_trend(month: int = Query(default=6, ge=2, le=6), current_use
 
 
 @router.get("/metrics/trend/user/fallback", response_model=Response)
-async def fallback_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def fallback_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the fallback count of the bot for previous months
     """
@@ -268,7 +268,7 @@ async def top_n_actions(month: int = Query(default=1, ge=1, le=6), top_n: int = 
 
 
 @router.get("/metrics/trend/conversations/total", response_model=Response)
-async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def total_conversation_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the counts of conversations of the bot for previous months
     """
@@ -280,7 +280,7 @@ async def total_conversation_trend(month: int = Query(default=6, ge=2, le=6), cu
 
 
 @router.get("/metrics/trend/conversations/steps", response_model=Response)
-async def conversation_step_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def conversation_step_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the average conversation steps of the bot for previous months
     """
@@ -322,12 +322,37 @@ async def user_input_unique(
 
 
 @router.get("/metrics/trend/conversations/time", response_model=Response)
-async def conversation_time_trend(month: int = Query(default=6, ge=2, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def conversation_time_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Fetches the average conversation time of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/time',
+        {'month': month}
+    )
+
+
+@router.get("/metrics/user/fallback/dropoff", response_model=Response)
+async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the list of users that dropped off after encountering fallback
+    """
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/fallback/dropoff',
+        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+    )
+
+
+@router.get("/metrics/user/intent/dropoff", response_model=Response)
+async def user_intent_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the identified intents and their counts for users before dropping off from the conversations.
+    """
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/intents/dropoff',
         {'month': month}
     )

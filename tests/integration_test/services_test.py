@@ -4213,6 +4213,7 @@ def test_get_editable_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual['data'] == {'nlu_confidence_threshold': 70, 'action_fallback': 'action_default_fallback',
+                              'action_fallback_threshold': 30,
                               'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
 
 
@@ -4221,6 +4222,7 @@ def test_set_epoch_and_fallback():
                "response_epochs": 300,
                "ted_epochs": 400,
                "nlu_confidence_threshold": 70,
+               'action_fallback_threshold': 30,
                "action_fallback": "action_default_fallback"}
     response = client.post(
         f"/api/bot/{pytest.bot}/response/utter_default",

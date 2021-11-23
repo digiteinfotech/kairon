@@ -354,3 +354,23 @@ class TestHistory:
         conversation_time, message = HistoryProcessor.average_conversation_time_range("tests")
         assert conversation_time["Conversation_time_range"] == {}
         assert message
+
+    def test_user_dropoff_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
+    def test_user_dropoff(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
+    def test_user_intent_dropoff_error(self, mock_db_timeout):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message
+
+    def test_user_intent_dropoff(self, mock_mongo_client):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message
