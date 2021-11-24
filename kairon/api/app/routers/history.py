@@ -356,3 +356,16 @@ async def user_intent_dropoff(month: int = Query(default=1, ge=1, le=6), current
         f'/api/history/{current_user.get_bot()}/metrics/intents/dropoff',
         {'month': month}
     )
+
+
+@router.get("/metrics/user/unsuccessful/sessions", response_model=Response)
+async def unsuccessful_session_count(month: int = Query(default=1, ge=1, le=6), current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Fetches the count of sessions that encountered a fallback for a particular user.
+    """
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/metrics/unsuccessful/sessions',
+        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+    )
