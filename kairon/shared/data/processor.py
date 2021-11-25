@@ -1902,7 +1902,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION"]:
+            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION"]:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -2074,7 +2074,7 @@ class MongoProcessor:
                     if event['name'] in http_actions:
                         step['type'] = 'HTTP_ACTION'
                     elif event['name'] in reset_slot_actions:
-                        step['type'] = 'RESET_SLOT'
+                        step['type'] = 'SLOT_SET_ACTION'
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
                     else:
