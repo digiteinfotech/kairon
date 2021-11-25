@@ -4775,7 +4775,7 @@ class TestMongoProcessor:
         user = 'test'
         steps = [
             {"name": "greet", "type": "INTENT"},
-            {"name": "action_set_slot", "type": "ACTION"},
+            {"name": "action_set_slot", "type": "SLOT_SET_ACTION"},
         ]
         story_dict = {'name': "story with slot_set_action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         assert processor.add_complex_story(story_dict, bot, user)
@@ -4785,7 +4785,7 @@ class TestMongoProcessor:
         data = list(processor.get_stories("test"))
         slot_set_story = next(item for item in data if item['name'] == 'story with slot_set_action')
         assert slot_set_story['steps'] == [{'name': 'greet', 'type': 'INTENT'},
-                                           {'name': 'action_set_slot', 'type': 'RESET_SLOT'}]
+                                           {'name': 'action_set_slot', 'type': 'SLOT_SET_ACTION'}]
         assert slot_set_story['template_type'] == 'CUSTOM'
         assert slot_set_story['type'] == 'STORY'
 
@@ -4953,9 +4953,12 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
+        Slots(name='age', type='text', bot=bot, user=user).save()
+        action = {'name': 'action_set_age_slot', 'slot': 'age', 'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        processor.add_slot_set_action(action, bot, user)
         steps = [
             {"name": "greet", "type": "INTENT"},
-            {"name": "action_set_age_slot", "type": "ACTION"},
+            {"name": "action_set_age_slot", "type": "SLOT_SET_ACTION"},
         ]
         story_dict = {'name': "story with slot set action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, bot, user)

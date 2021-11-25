@@ -8,6 +8,7 @@ class StoryStepType(str, Enum):
     bot = "BOT"
     http_action = "HTTP_ACTION"
     action = "ACTION"
+    slot_set_action = "SLOT_SET_ACTION"
 
 
 class StoryType(str, Enum):
