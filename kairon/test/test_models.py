@@ -311,8 +311,6 @@ class TestDataGenerator:
 
     @staticmethod
     def augment_sentences(input_text: list):
-        from kairon import Utility
-
         final_augmented_text = []
         all_input_text = []
         all_stop_words = []
@@ -323,26 +321,42 @@ class TestDataGenerator:
             if text.get('entities'):
                 stopwords = [entity['value'] for entity in text['entities']]
                 entity_names = [entity['entity'] for entity in text['entities']]
-            final_augmented_text.extend(TestDataGenerator.__augment_text(text['text'], stopwords, entity_names))
+            final_augmented_text.extend(TestDataGenerator.__augment_sentences_with_mistakes_and_entities(text['text'], stopwords, entity_names))
             all_input_text.append(text['text'])
-            all_stop_words.append(stopwords)
-            all_entities.append(entity_names)
+            if stopwords:
+                all_stop_words.extend(stopwords)
+            if entity_names:
+                all_entities.extend(entity_names)
 
-        resp = requests.post(Utility.environment["augmentation"]["paraphrase_url"], json=all_input_text)
-        logger.debug(f'Augmentation Request: {Utility.environment["augmentation"]["paraphrase_url"]}')
-        logger.debug(f'Response code: {resp.status_code}')
-        logger.debug(resp.text)
-        if resp.status_code == 200:
-            data = resp.json()
-            if data['data'].get('paraphrases'):
-                final_augmented_text.extend(TestDataGenerator.__augment_entities(data['data']['paraphrases'],
-                                                                                 list(all_stop_words),
-                                                                                 list(all_entities)))
-                final_augmented_text.extend(data['data']['paraphrases'])
+        if all_input_text:
+            augmented_text = TestDataGenerator.fetch_augmented_text_in_batches(all_input_text)
+
+            final_augmented_text.extend(TestDataGenerator.__augment_entities(augmented_text,
+                                                                             list(all_stop_words),
+                                                                             list(all_entities)))
+            final_augmented_text.extend(augmented_text)
         return final_augmented_text
 
     @staticmethod
-    def __augment_text(input_text: str, stopwords, entity_names):
+    def fetch_augmented_text_in_batches(text: list):
+        from kairon import Utility
+
+        augmented_text = []
+
+        for i in range(0, len(text), 10):
+            resp = requests.post(Utility.environment["augmentation"]["paraphrase_url"], json=text[i:i + 10])
+            logger.debug(f'Augmentation Request: {Utility.environment["augmentation"]["paraphrase_url"]}')
+            logger.debug(f'Response code: {resp.status_code}')
+            logger.debug(resp.text)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data['data'].get('paraphrases'):
+                    augmented_text.extend(data['data'].get('paraphrases'))
+
+        return augmented_text
+
+    @staticmethod
+    def __augment_sentences_with_mistakes_and_entities(input_text: str, stopwords, entity_names):
         augmented_text = list(DataUtility.augment_sentences([input_text], stopwords))
         augmented_text = TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
         return augmented_text
@@ -351,7 +365,7 @@ class TestDataGenerator:
     def __augment_entities(input_text: list, stopwords: list, entity_names: list):
         final_augmented_text = []
 
-        if stopwords:
+        if input_text and stopwords:
             for txt in input_text:
                 for i, word in enumerate(stopwords):
                     if word in txt:
