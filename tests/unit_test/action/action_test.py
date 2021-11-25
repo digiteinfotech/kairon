@@ -471,6 +471,35 @@ class TestActions:
         assert request_params['param1'] == "value1"
         assert request_params['user_id'] == "kairon_user@digite.com"
 
+    def test_prepare_request_user_message(self):
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        tracker = Tracker(sender_id="kairon_user@digite.com", slots=None, events=None, paused=False,
+                          latest_message={'intent': {'name': 'google_search', 'confidence': 1.0},
+                                          'entities': [],
+                                          'text': 'perform google search',
+                                          'message_id': 'd965c5dd62034dbc9bb76b64b4571434',
+                                          'metadata': {},
+                                          'intent_ranking': [{'name': 'google_search', 'confidence': 1.0}]},
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
+        assert request_params['param1'] == "value1"
+        assert request_params['msg'] == "perform google search"
+
+        tracker = Tracker(sender_id="kairon_user@digite.com", slots=None, events=None, paused=False,
+                          latest_message={'intent': {'name': 'google_search', 'confidence': 1.0},
+                                          'entities': [],
+                                          'text': None,
+                                          'message_id': 'd965c5dd62034dbc9bb76b64b4571434',
+                                          'metadata': {},
+                                          'intent_ranking': [{'name': 'google_search', 'confidence': 1.0}]},
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
+        assert request_params['param1'] == "value1"
+        assert not request_params['msg']
+
     def test_prepare_request_no_request_params(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events: List[Dict] = None
@@ -985,6 +1014,10 @@ class TestActions:
     def test_attach_response_int(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
         assert output == 'I want $51'
+
+    def test_prepare_response_with_prefix(self):
+        output = ActionUtility.prepare_response("I want rupee${price.1.rupee}. Also, want $${price.0.dollars}", {"price": [{"dollars": "51"}, {"rupee": "151"}]})
+        assert output == 'I want rupee151. Also, want $51'
 
     def test_retrieve_value_from_response(self):
         keys = ["a.b.3", 'a.b']

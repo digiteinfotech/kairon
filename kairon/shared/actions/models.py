@@ -11,6 +11,7 @@ class ParameterType(str, Enum):
     http = "http"
     sender_id = "sender_id"
     http_action_config = "http_action_config"
+    user_message = "user_message"
 
 
 class ActionType(str, Enum):

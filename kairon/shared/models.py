@@ -8,6 +8,7 @@ class StoryStepType(str, Enum):
     bot = "BOT"
     http_action = "HTTP_ACTION"
     action = "ACTION"
+    slot_set_action = "SLOT_SET_ACTION"
 
 
 class StoryType(str, Enum):
@@ -40,6 +41,7 @@ class ParameterChoice(str, Enum):
     value = "value"
     slot = "slot"
     sender_id = "sender_id"
+    user_message = "user_message"
 
 
 class User(BaseModel):
