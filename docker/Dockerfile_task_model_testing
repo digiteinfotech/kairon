@@ -28,6 +28,8 @@ RUN python -m pip install torch
 RUN python -m pip install regex
 RUN python -m pip install nltk==3.6.4
 RUN python -m pip install pytest
+RUN python -m nltk.downloader wordnet
+RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install websockets==9.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install transformers==4.5.0
@@ -39,9 +41,6 @@ RUN chmod 777 -R /tmp
 
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY system.yaml ${IMPORTER_HOME}/
-
-RUN python -m nltk.downloader wordnet
-RUN python -m nltk.downloader averaged_perceptron_tagger
 
 ENV BOT default
 ENV USER default

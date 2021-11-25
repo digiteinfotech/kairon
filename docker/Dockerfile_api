@@ -32,6 +32,13 @@ RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install gunicorn>=20.1.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install aiohttp==3.8.0
+RUN python3 -m pip install nlpaug
+RUN python3 -m pip install torch
+RUN python3 -m pip install nltk==3.6
+RUN python3 -m pip install pytest
+RUN python3 -m nltk.downloader wordnet
+RUN python3 -m nltk.downloader averaged_perceptron_tagger
+
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN mkdir training_data
