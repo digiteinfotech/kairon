@@ -259,7 +259,7 @@ def test_successful_conversation_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -273,7 +273,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
 

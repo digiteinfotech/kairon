@@ -465,7 +465,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
         status=200,
         match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'success_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}
     )
 
     response = client.get(
@@ -475,7 +475,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
 
