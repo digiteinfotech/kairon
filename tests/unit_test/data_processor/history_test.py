@@ -242,12 +242,12 @@ class TestHistory:
 
     def test_successful_conversation_range_error(self, mock_db_timeout):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps["success_conversation_range"] == {}
+        assert conversation_steps == {}
         assert message
 
     def test_successful_conversation_range(self, mock_mongo_client):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps["success_conversation_range"] == {}
+        assert conversation_steps == {}
         assert message
 
     def test_user_retention_range_error(self, mock_db_timeout):
