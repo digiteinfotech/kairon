@@ -465,7 +465,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
         status=200,
         match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'success_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}
     )
 
     response = client.get(
@@ -475,7 +475,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -843,20 +843,42 @@ def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor)
 def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/unsuccessful/sessions",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
         status=200,
         match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'Session_counts': {'user_1': 25, 'user_2': 24}}}
+        json={"data": {'user_1': 25, 'user_2': 24}}
     )
 
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/unsuccessful/sessions",
+        f"/api/history/{pytest.bot}/metrics/user/sessions/unsuccessful",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Session_counts"] == {'user_1': 25, 'user_2': 24}
+    assert actual["data"] == {'user_1': 25, 'user_2': 24}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={"data": {"user_1": 250, "user_2": 240}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/sessions/total",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'user_1': 250, 'user_2': 240}
     assert actual["message"] is None
     assert actual["success"]

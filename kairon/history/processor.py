@@ -739,40 +739,91 @@ class HistoryProcessor:
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
-            total = []
-            fallback_count = []
+            new_session_total, single_session_total = [], []
+            unsuccessful_new_session, unsuccessful_single_session = [], []
             try:
-                total = list(
-                    conversations.aggregate([
-                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                new_session_total = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$match": {"events.name": "action_session_start"}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                          ], allowDiskUse=True))
 
-                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
-                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
-                        {"$project": {"_id": 1, "count": 1}}
-                    ]))
+                single_session_total = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$match": {"$or": [{"events.event": "user"},
+                                                              {"events.name": "action_session_start"}]}},
+                                          {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}},
+                                          {"$addFields": {"first_event": {"$first": "$events"}}},
+                                          {"$match": {"first_event.event": "user"}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$first_event.timestamp", 1000]}}}}},
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                          ], allowDiskUse=True))
 
-                fallback_count = list(
-                    conversations.aggregate([
-                        {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                        {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                        {"$match": {'$or': [{"events.name": fallback_action}, {"events.name": nlu_fallback_action}]}},
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                unsuccessful_new_session = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$match": {"events.name": {
+                                              "$in": ["action_session_start", fallback_action,
+                                                      nlu_fallback_action]}}},
+                                          {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                                      "allevents": {"$push": "$events"}}},
+                                          {"$unwind": "$events"},
+                                          {"$project": {
+                                              "_id": 1,
+                                              "events": 1,
+                                              "following_events": {
+                                                  "$arrayElemAt": [
+                                                      "$allevents",
+                                                      {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                                  ]
+                                              }
+                                          }},
+                                          {"$match": {'$or': [{"events.name": fallback_action},
+                                                              {"events.name": nlu_fallback_action}],
+                                                      "following_events.name": "action_session_start"}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$events.timestamp", 1000]}}}}},
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
 
-                        {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
-                        {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
-                        {"$project": {"_id": 1, "count": 1}}
-                    ]))
+                                          ], allowDiskUse=True))
+
+                unsuccessful_single_session = list(
+                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                          {"$match": {"events.name": {
+                                              "$in": ["action_session_start", fallback_action,
+                                                      nlu_fallback_action]}}},
+                                          {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}},
+                                          {"$addFields": {"last_event": {"$last": "$events"}}},
+                                          {"$match": {'$or': [{"last_event.name": fallback_action},
+                                                              {"last_event.name": nlu_fallback_action}]}},
+                                          {"$addFields": {"month": {
+                                              "$month": {"$toDate": {"$multiply": ["$last_event.timestamp", 1000]}}}}},
+                                          {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                                          ], allowDiskUse=True)
+                    )
             except Exception as e:
                 logger.error(e)
                 message = '\n'.join([message, str(e)])
-            total_users = {d['_id']: d['count'] for d in total}
-            final_fallback = {d['_id']: d['count'] for d in fallback_count}
-            final_fallback = {k: final_fallback.get(k, 0) for k in total_users.keys()}
-            success = {k: total_users[k] - final_fallback[k] for k in total_users.keys()}
+            single_session_total = {d['_id']: d['count'] for d in single_session_total}
+            new_session_total = {d['_id']: d['count'] for d in new_session_total}
+            single_session_total = {k: single_session_total.get(k, 0) for k in new_session_total.keys()}
+            total_sessions = {k: single_session_total[k] + new_session_total[k] for k in new_session_total.keys()}
+            unsuccessful_single_session = {d['_id']: d['count'] for d in unsuccessful_single_session}
+            unsuccessful_new_session = {d['_id']: d['count'] for d in unsuccessful_new_session}
+            unsuccessful_single_session = {k: unsuccessful_single_session.get(k, 0) for k in
+                                           unsuccessful_new_session.keys()}
+            total_unsuccessful_sessions = {k: unsuccessful_single_session[k] + unsuccessful_new_session[k] for k in
+                                           unsuccessful_new_session.keys()}
+            successful_sessions = {k: total_sessions[k] - total_unsuccessful_sessions.get(k, 0) for k in
+                                   total_sessions.keys()}
             return (
-                {"success_conversation_range": success},
+                successful_sessions,
                 message
             )
 
@@ -1497,6 +1548,52 @@ class HistoryProcessor:
                 else:
                     new_session[record] = single_session[record]
             return (
-                {"Session_counts": new_session},
+                new_session,
+                message
+            )
+
+    @staticmethod
+    def session_count(collection: Text, month: int = 6):
+
+        """
+        Computes the total session count for users for the past months
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of users and their session counts
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            new_session, single_session = [], []
+            try:
+                new_session = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                   {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                   {"$match": {"events.name": "action_session_start"}},
+                                   {"$group": {"_id": "$sender_id", "count": {"$sum": 1}}}
+                                          ], allowDiskUse=True))
+
+                single_session = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                           {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                           {"$match": {"$or": [{"events.event": "user"}, {"events.name": "action_session_start"}]}},
+                                           {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}},
+                                           {"$addFields": {"first_event": {"$first": "$events"}}},
+                                           {"$match": {"first_event.event": "user"}},
+                                           {"$project": {"_id": 1}},
+                                           {"$addFields": {"count": 1}}], allowDiskUse=True))
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            new_session = {d['_id']: d['count'] for d in new_session}
+            single_session = {d['_id']: d['count'] for d in single_session}
+            for record in single_session:
+                if record in new_session:
+                    new_session[record] = new_session[record] + 1
+                else:
+                    new_session[record] = single_session[record]
+            return (
+                new_session,
                 message
             )
