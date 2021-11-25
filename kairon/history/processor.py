@@ -1497,7 +1497,7 @@ class HistoryProcessor:
                 else:
                     new_session[record] = single_session[record]
             return (
-                {"Session_counts": new_session},
+                new_session,
                 message
             )
 
@@ -1543,6 +1543,6 @@ class HistoryProcessor:
                 else:
                     new_session[record] = single_session[record]
             return (
-                {"Total_session": new_session},
+                new_session,
                 message
             )

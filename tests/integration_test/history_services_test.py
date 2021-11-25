@@ -686,53 +686,53 @@ def test_user_intent_dropoff_with_request(mock_db_client):
 
 def test_unsuccessful_sessions(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/unsuccessful/sessions",
+        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Session_counts"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
 
 
 def test_unsuccessful_sessions_with_request(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/unsuccessful/sessions",
+        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
         json={'month': 4},
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Session_counts"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
 
 
 def test_total_session(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/total/sessions",
+        f"/api/history/{pytest.bot}/metrics/sessions/total",
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Total_session"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
 
 
 def test_total_sessions_with_request(mock_db_client):
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/total/sessions",
+        f"/api/history/{pytest.bot}/metrics/sessions/total",
         json={'month': 4},
         headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Total_session"] == {}
+    assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
