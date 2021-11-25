@@ -1548,6 +1548,52 @@ class HistoryProcessor:
                 else:
                     new_session[record] = single_session[record]
             return (
-                {"Session_counts": new_session},
+                new_session,
+                message
+            )
+
+    @staticmethod
+    def session_count(collection: Text, month: int = 6):
+
+        """
+        Computes the total session count for users for the past months
+
+        :param collection: collection to connect to
+        :param month: default is 6 months
+        :return: dictionary of users and their session counts
+        """
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f', collection: {collection}'])
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            new_session, single_session = [], []
+            try:
+                new_session = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                   {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                   {"$match": {"events.name": "action_session_start"}},
+                                   {"$group": {"_id": "$sender_id", "count": {"$sum": 1}}}
+                                          ], allowDiskUse=True))
+
+                single_session = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                                           {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                                           {"$match": {"$or": [{"events.event": "user"}, {"events.name": "action_session_start"}]}},
+                                           {"$group": {"_id": "$sender_id", "events": {"$push": "$events"}}},
+                                           {"$addFields": {"first_event": {"$first": "$events"}}},
+                                           {"$match": {"first_event.event": "user"}},
+                                           {"$project": {"_id": 1}},
+                                           {"$addFields": {"count": 1}}], allowDiskUse=True))
+            except Exception as e:
+                logger.error(e)
+                message = '\n'.join([message, str(e)])
+            new_session = {d['_id']: d['count'] for d in new_session}
+            single_session = {d['_id']: d['count'] for d in single_session}
+            for record in single_session:
+                if record in new_session:
+                    new_session[record] = new_session[record] + 1
+                else:
+                    new_session[record] = single_session[record]
+            return (
+                new_session,
                 message
             )
