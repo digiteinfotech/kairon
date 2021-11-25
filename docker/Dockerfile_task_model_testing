@@ -23,7 +23,12 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install uvicorn>=0.12.3
-
+RUN python3 -m pip install nlpaug
+RUN python3 -m pip install torch
+RUN python3 -m pip install nltk==3.6
+RUN python3 -m pip install pytest
+RUN python3 -m nltk.downloader wordnet
+RUN python3 -m nltk.downloader averaged_perceptron_tagger
 RUN mkdir ssl
 RUN mkdir testing_data
 RUN mkdir models
@@ -31,9 +36,6 @@ RUN chmod 777 -R /tmp
 
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY system.yaml ${IMPORTER_HOME}/
-
-RUN python -m nltk.downloader wordnet
-RUN python -m nltk.downloader averaged_perceptron_tagger
 
 ENV BOT default
 ENV USER default

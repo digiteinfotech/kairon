@@ -31,6 +31,10 @@ RUN python -m pip install websockets==9.1
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install gunicorn>20.1.0
+RUN python3 -m pip install nlpaug
+RUN python3 -m pip install torch
+RUN python3 -m pip install nltk==3.6
+RUN python3 -m pip install pytest
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN mkdir training_data
@@ -41,6 +45,9 @@ COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
+
+python -m nltk.downloader wordnet
+python -m nltk.downloader averaged_perceptron_tagger
 
 ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80
