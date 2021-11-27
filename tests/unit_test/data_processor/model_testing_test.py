@@ -12,7 +12,7 @@ from kairon.test.test_models import ModelTester
 
 class TestModelTesting:
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()

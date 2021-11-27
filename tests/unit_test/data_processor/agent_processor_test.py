@@ -13,13 +13,23 @@ class TestAgentProcessor:
 
     @pytest.fixture(autouse=True)
     def init_connection(self):
+        from rasa import train
+
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         bot = 'agent_testing_user'
         pytest.bot = bot
         model_path = os.path.join('models', bot)
         os.mkdir(model_path)
-        shutil.copy('tests/testing_data/model/20210512-172208.tar.gz', model_path)
+        train(
+            domain='tests/testing_data/model_tester/domain.yml',
+            config='tests/testing_data/model_tester/config.yml',
+            training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
+                            'tests/testing_data/model_tester/training_stories_success/stories.yml'],
+            output=model_path,
+            core_additional_arguments={"augmentation_factor": 100},
+            force_training=True
+        )
         yield None
         shutil.rmtree(model_path)
 

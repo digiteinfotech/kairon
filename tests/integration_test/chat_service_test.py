@@ -42,9 +42,6 @@ start_training(bot2, "test@chat.com")
 
 class TestChatServer(AsyncHTTPTestCase):
 
-    def setUp(self) -> None:
-        super(TestChatServer, self).setUp()
-
     def get_app(self):
         return make_app()
 
@@ -65,6 +62,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode('utf-8'),
                 headers={"Authorization": token_type + " " + token},
+                connect_timeout=0,
+                request_timeout=0
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -150,6 +149,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode("utf8"),
                 headers={"Authorization": token_type + " " + token},
+                connect_timeout=0,
+                request_timeout=0
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
