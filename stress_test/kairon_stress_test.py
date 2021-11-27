@@ -85,6 +85,8 @@ class ExecuteTask(SequentialTaskSet):
                     else:
                         self.user.auth_token = response_data["data"]["token_type"] + " " + response_data["data"][
                             "access_token"]
+                        with self.client.get("/api/account/bot", headers={"Authorization": self.user.auth_token}, catch_response=True) as bot_list:
+                            self.user.bot_id = bot_list.json()['data'][0]['_id']
             self.interrupt()
 
     @task
@@ -110,7 +112,7 @@ class ExecuteTask(SequentialTaskSet):
                 }]
             }
 
-            with self.client.post("/api/bot/action/httpaction",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/action/httpaction",
                                   json=request_body,
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -126,7 +128,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_http_action(self):
-            with self.client.get("/api/bot/action/httpaction/action_" + self.user.username,
+            with self.client.get(f"/api/bot/{self.user.bot_id}/action/httpaction/action_" + self.user.username,
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -155,7 +157,7 @@ class ExecuteTask(SequentialTaskSet):
                 }]
             }
 
-            with self.client.put("/api/bot/action/httpaction",
+            with self.client.put(f"/api/bot/{self.user.bot_id}/action/httpaction",
                                  json=request_body,
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
@@ -171,7 +173,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def delete_http_action(self):
-            with self.client.delete("/api/bot/action/httpaction/action_" + self.user.username,
+            with self.client.delete(f"/api/bot/{self.user.bot_id}/action/httpaction/action_" + self.user.username,
                                     headers={"Authorization": self.user.auth_token},
                                     catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -194,7 +196,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def add_intents(self):
-            with self.client.post("/api/bot/intents",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/intents",
                                   json={"data": "happier"},
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -210,7 +212,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_intents(self):
-            with self.client.get("/api/bot/intents",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/intents",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -225,7 +227,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def delete_intent(self):
-            with self.client.delete("/api/bot/intents/happier/True",
+            with self.client.delete(f"/api/bot/{self.user.bot_id}/intents/happier/True",
                                     headers={"Authorization": self.user.auth_token},
                                     catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -248,7 +250,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def add_training_example(self):
-            with self.client.post("/api/bot/training_examples/greet",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/training_examples/greet",
                                   json={"data": ["How do you do?"]},
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -264,7 +266,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_training_example(self):
-            with self.client.get("/api/bot/training_examples/greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/training_examples/greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -279,7 +281,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def update_training_example(self):
-            with self.client.get("/api/bot/training_examples/greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/training_examples/greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as training_examples:
                 if training_examples.text is None or not training_examples.text.strip():
@@ -293,7 +295,7 @@ class ExecuteTask(SequentialTaskSet):
                         training_examples.failure(inspect.stack()[0][3] + " Failed: " + response_data['message'])
                         return
 
-            with self.client.put("/api/bot/training_examples/greet/" + response_data["data"][0]["_id"],
+            with self.client.put(f"/api/bot/{self.user.bot_id}/training_examples/greet/" + response_data["data"][0]["_id"],
                                  json={"data": "hey, there"},
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
@@ -309,7 +311,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def delete_training_example(self):
-            with self.client.get("/api/bot/training_examples/greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/training_examples/greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as training_examples:
                 if training_examples.text is None or not training_examples.text.strip():
@@ -323,7 +325,7 @@ class ExecuteTask(SequentialTaskSet):
                         training_examples.failure(inspect.stack()[0][3] + " Failed: " + response_data['message'])
                         return
 
-            with self.client.delete("/api/bot/training_examples",
+            with self.client.delete(f"/api/bot/{self.user.bot_id}/training_examples",
                                     json={"data": response_data["data"][0]["_id"]},
                                     headers={"Authorization": self.user.auth_token},
                                     catch_response=True) as response:
@@ -347,7 +349,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def add_response(self):
-            with self.client.post("/api/bot/response/utter_greet",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/response/utter_greet",
                                   json={"data": "Wow! How are you?"},
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -363,7 +365,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_response(self):
-            with self.client.get("/api/bot/response/utter_greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/response/utter_greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -378,7 +380,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def update_response(self):
-            with self.client.get("/api/bot/response/utter_greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/response/utter_greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as training_examples:
                 if training_examples.text is None or not training_examples.text.strip():
@@ -391,7 +393,7 @@ class ExecuteTask(SequentialTaskSet):
                         logging.error(inspect.stack()[0][3] + " Failed: " + response_data['message'])
                         training_examples.failure(inspect.stack()[0][3] + " Failed: " + response_data['message'])
 
-            with self.client.put("/api/bot/response/utter_greet/" + response_data["data"][0]["_id"],
+            with self.client.put(f"/api/bot/{self.user.bot_id}/response/utter_greet/" + response_data["data"][0]["_id"],
                                  json={"data": "Hello, How are you!"},
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
@@ -407,7 +409,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def delete_response(self):
-            with self.client.get("/api/bot/response/utter_greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/response/utter_greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as training_examples:
                 if training_examples.text is None or not training_examples.text.strip():
@@ -420,7 +422,7 @@ class ExecuteTask(SequentialTaskSet):
                         logging.error(inspect.stack()[0][3] + " Failed: " + response_data['message'])
                         training_examples.failure(inspect.stack()[0][3] + " Failed: " + response_data['message'])
 
-            with self.client.delete("/api/bot/response",
+            with self.client.delete(f"/api/bot/{self.user.bot_id}/response",
                                     json={"data": response_data["data"][0]["_id"]},
                                     headers={"Authorization": self.user.auth_token},
                                     catch_response=True) as response:
@@ -446,12 +448,14 @@ class ExecuteTask(SequentialTaskSet):
         def add_story(self):
             request = {
                 "name": "test_path",
-                "events": [
-                    {"name": "greet", "type": "user"},
-                    {"name": "utter_greet", "type": "action"},
+                "steps": [
+                    {"name": "greet", "type": "INTENT"},
+                    {"name": "utter_greet", "type": "BOT"},
                 ],
+                "type": "STORY",
+                "template_type": "CUSTOM"
             }
-            with self.client.post("/api/bot/stories",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/stories",
                                   json=request,
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -467,7 +471,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_story(self):
-            with self.client.get("/api/bot/stories",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/stories",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -482,7 +486,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_utterance_from_intent(self):
-            with self.client.get("/api/bot/utterance_from_intent/greet",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/utterance_from_intent/greet",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -505,7 +509,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def set_endpoint(self):
-            with self.client.put("/api/bot/endpoint",
+            with self.client.put(f"/api/bot/{self.user.bot_id}/endpoint",
                                  json={"bot_endpoint": {"url": "http://localhost:5005/"},
                                        "action_endpoint": {"url": "http://localhost:5000/"},
                                        "tracker_endpoint": {"url": "mongodb://localhost:27017", "db": "rasa"}},
@@ -523,7 +527,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_endpoint(self):
-            with self.client.get("/api/bot/endpoint",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/endpoint",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -546,7 +550,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def set_config(self):
-            with self.client.put("/api/bot/config",
+            with self.client.put(f"/api/bot/{self.user.bot_id}/config",
                                  json=read_config_file('./template/config/default.yml'),
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
@@ -562,7 +566,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_config(self):
-            with self.client.get("/api/bot/config",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/config",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -585,7 +589,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def set_templates(self):
-            with self.client.post("/api/bot/templates/use-case",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/templates/use-case",
                                   json={"data": "Hi-Hello"},
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -601,7 +605,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_templates(self):
-            with self.client.get("/api/bot/templates/use-case",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/templates/use-case",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
@@ -616,7 +620,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def set_config_templates(self):
-            with self.client.post("/api/bot/templates/config",
+            with self.client.post(f"/api/bot/{self.user.bot_id}/templates/config",
                                   json={"data": "default"},
                                   headers={"Authorization": self.user.auth_token},
                                   catch_response=True) as response:
@@ -632,7 +636,7 @@ class ExecuteTask(SequentialTaskSet):
 
         @task
         def get_config_templates(self):
-            with self.client.get("/api/bot/templates/config",
+            with self.client.get(f"/api/bot/{self.user.bot_id}/templates/config",
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():
