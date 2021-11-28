@@ -242,12 +242,12 @@ class TestHistory:
 
     def test_successful_conversation_range_error(self, mock_db_timeout):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps == {}
+        assert conversation_steps['successful_sessions'] == {}
         assert message
 
     def test_successful_conversation_range(self, mock_mongo_client):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps == {}
+        assert conversation_steps['successful_sessions'] == {}
         assert message
 
     def test_user_retention_range_error(self, mock_db_timeout):
@@ -262,12 +262,12 @@ class TestHistory:
 
     def test_fallback_range_error(self, mock_db_timeout):
         f_count, message = HistoryProcessor.fallback_count_range("tests")
-        assert f_count["fallback_counts"] == {}
+        assert f_count["fallback_count_rate"] == {}
         assert message
 
     def test_fallback_range(self, mock_mongo_client):
         f_count, message = HistoryProcessor.fallback_count_range("tests")
-        assert f_count["fallback_counts"] == {}
+        assert f_count["fallback_count_rate"] == {}
         assert message
 
     def test_flatten_conversation_error(self, mock_db_timeout):
@@ -310,12 +310,12 @@ class TestHistory:
 
     def test_conversation_step_range_error(self, mock_db_timeout):
         conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
-        assert conversation_steps["Conversation_step_range"] == {}
+        assert conversation_steps["average_conversation_steps"] == {}
         assert message
 
     def test_conversation_step_range(self, mock_mongo_client):
         conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
-        assert conversation_steps["Conversation_step_range"] == {}
+        assert conversation_steps["average_conversation_steps"] == {}
         assert message
 
     def test_wordcloud_error(self, mock_db_timeout):

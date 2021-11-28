@@ -259,7 +259,7 @@ def test_successful_conversation_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == {}
+    assert actual["data"]['successful_sessions'] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -273,7 +273,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"] == {}
+    assert actual["data"]['successful_sessions'] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -327,7 +327,7 @@ def test_fallback_count_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_counts"] == {}
+    assert actual["data"]["fallback_count_rate"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -341,7 +341,7 @@ def test_fallback_count_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_counts"] == {}
+    assert actual["data"]["fallback_count_rate"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -530,7 +530,7 @@ def test_conversation__step_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Conversation_step_range"] == {}
+    assert actual["data"]["average_conversation_steps"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -544,7 +544,7 @@ def test_conversation__step_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Conversation_step_range"] == {}
+    assert actual["data"]["average_conversation_steps"] == {}
     assert actual["message"]
     assert actual["success"]
 
