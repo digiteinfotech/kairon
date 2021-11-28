@@ -463,12 +463,10 @@ class HistoryProcessor:
             conversations = db.get_collection(collection)
             values = []
             try:
-                values = list(
-                     conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                values = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                                               {"$match": {"events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
-                                              {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
-                                                          "latest_event_time": {"$first": "$latest_event_time"}}},
-                                              {"$match": {"count": {"$lte": 1}}},
+                                              {"$group": {"_id": '$sender_id',
+                                                          "latest_event_time": {"$first": "$events.timestamp"}}},
                                               {"$match": {"latest_event_time": {
                                                               "$gte": Utility.get_timestamp_previous_month(month)}}},
                                               {"$group": {"_id": None, "count": {"$sum": 1}}},
@@ -695,13 +693,11 @@ class HistoryProcessor:
             conversations = db.get_collection(collection)
             values = []
             try:
-                values = list(
-                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                values = list(conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                                           {"$match": {
                                               "events.name": {"$regex": ".*session_start*.", "$options": "$i"}}},
-                                          {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
-                                                      "latest_event_time": {"$first": "$latest_event_time"}}},
-                                          {"$match": {"count": {"$lte": 1}}},
+                                          {"$group": {"_id": '$sender_id',
+                                                      "latest_event_time": {"$first": "$events.timestamp"}}},
                                           {"$match": {"latest_event_time": {
                                               "$gte": Utility.get_timestamp_previous_month(month)}}},
                                           {"$addFields": {"month": {
@@ -823,7 +819,7 @@ class HistoryProcessor:
             successful_sessions = {k: total_sessions[k] - total_unsuccessful_sessions.get(k, 0) for k in
                                    total_sessions.keys()}
             return (
-                successful_sessions,
+                {"successful_sessions": successful_sessions, "total_sessions": total_sessions},
                 message
             )
 
@@ -933,7 +929,7 @@ class HistoryProcessor:
             fallback_count = {d['_id']: d['count'] for d in fallback_counts}
             final_trend = {k: 100*(fallback_count.get(k)/action_count.get(k)) for k in list(fallback_count.keys())}
             return (
-                {"fallback_counts": final_trend},
+                {"fallback_count_rate": final_trend, "total_fallback_count": fallback_count},
                 message
             )
 
@@ -1168,7 +1164,7 @@ class HistoryProcessor:
             conv_steps = {k: conv_steps.get(k, 0) for k in user_count.keys()}
             avg_conv_steps = {k: conv_steps[k] / user_count[k] for k in user_count.keys()}
             return (
-                {"Conversation_step_range": avg_conv_steps},
+                {"average_conversation_steps": avg_conv_steps, "total_conversation_steps": conv_steps},
                 message
             )
 
