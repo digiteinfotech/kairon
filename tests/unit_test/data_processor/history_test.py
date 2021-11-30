@@ -242,12 +242,12 @@ class TestHistory:
 
     def test_successful_conversation_range_error(self, mock_db_timeout):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps["success_conversation_range"] == {}
+        assert conversation_steps['successful_sessions'] == {}
         assert message
 
     def test_successful_conversation_range(self, mock_mongo_client):
         conversation_steps, message = HistoryProcessor.successful_conversation_range("tests")
-        assert conversation_steps["success_conversation_range"] == {}
+        assert conversation_steps['successful_sessions'] == {}
         assert message
 
     def test_user_retention_range_error(self, mock_db_timeout):
@@ -262,12 +262,12 @@ class TestHistory:
 
     def test_fallback_range_error(self, mock_db_timeout):
         f_count, message = HistoryProcessor.fallback_count_range("tests")
-        assert f_count["fallback_counts"] == {}
+        assert f_count["fallback_count_rate"] == {}
         assert message
 
     def test_fallback_range(self, mock_mongo_client):
         f_count, message = HistoryProcessor.fallback_count_range("tests")
-        assert f_count["fallback_counts"] == {}
+        assert f_count["fallback_count_rate"] == {}
         assert message
 
     def test_flatten_conversation_error(self, mock_db_timeout):
@@ -310,12 +310,12 @@ class TestHistory:
 
     def test_conversation_step_range_error(self, mock_db_timeout):
         conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
-        assert conversation_steps["Conversation_step_range"] == {}
+        assert conversation_steps["average_conversation_steps"] == {}
         assert message
 
     def test_conversation_step_range(self, mock_mongo_client):
         conversation_steps, message = HistoryProcessor.average_conversation_step_range("tests")
-        assert conversation_steps["Conversation_step_range"] == {}
+        assert conversation_steps["average_conversation_steps"] == {}
         assert message
 
     def test_wordcloud_error(self, mock_db_timeout):
@@ -336,3 +336,62 @@ class TestHistory:
         with pytest.raises(Exception):
             HistoryProcessor.word_cloud("conversations", u_bound=.5, l_bound=.6)
 
+    def test_user_input_count_error(self, mock_db_timeout):
+        input_count, message = HistoryProcessor.user_input_count("tests")
+        assert input_count == []
+        assert message
+
+    def test_user_input_count(self, mock_mongo_client):
+        user_input, message = HistoryProcessor.user_input_count("tests")
+        assert user_input == []
+        assert message
+
+    def test_conversation_time_range_error(self, mock_db_timeout):
+        conversation_time, message = HistoryProcessor.average_conversation_time_range("tests")
+        assert conversation_time["Conversation_time_range"] == {}
+        assert message
+
+    def test_conversation_time_range(self, mock_mongo_client):
+        conversation_time, message = HistoryProcessor.average_conversation_time_range("tests")
+        assert conversation_time["Conversation_time_range"] == {}
+        assert message
+
+    def test_user_dropoff_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
+    def test_user_dropoff(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.user_fallback_dropoff("tests")
+        assert user_list["Dropoff_list"] == {}
+        assert message
+
+    def test_user_intent_dropoff_error(self, mock_db_timeout):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message
+
+    def test_user_intent_dropoff(self, mock_mongo_client):
+        intent_dropoff, message = HistoryProcessor.intents_before_dropoff("tests")
+        assert intent_dropoff == {}
+        assert message
+
+    def test_unsuccessful_session_count_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.unsuccessful_session("tests")
+        assert user_list == {}
+        assert message
+
+    def test_unsuccessful_session_count(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.unsuccessful_session("tests")
+        assert user_list == {}
+        assert message
+
+    def test_total_sessions_error(self, mock_db_timeout):
+        user_list, message = HistoryProcessor.session_count("tests")
+        assert user_list == {}
+        assert message
+
+    def test_total_sessions(self, mock_mongo_client):
+        user_list, message = HistoryProcessor.session_count("tests")
+        assert user_list == {}
+        assert message

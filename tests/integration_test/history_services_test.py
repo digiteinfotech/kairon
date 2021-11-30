@@ -259,7 +259,7 @@ def test_successful_conversation_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {}
+    assert actual["data"]['successful_sessions'] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -273,7 +273,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {}
+    assert actual["data"]['successful_sessions'] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -327,7 +327,7 @@ def test_fallback_count_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_counts"] == {}
+    assert actual["data"]["fallback_count_rate"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -341,7 +341,7 @@ def test_fallback_count_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_counts"] == {}
+    assert actual["data"]["fallback_count_rate"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -530,7 +530,7 @@ def test_conversation__step_range(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Conversation_step_range"] == {}
+    assert actual["data"]["average_conversation_steps"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -544,7 +544,7 @@ def test_conversation__step_range_with_request(mock_db_client):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["Conversation_step_range"] == {}
+    assert actual["data"]["average_conversation_steps"] == {}
     assert actual["message"]
     assert actual["success"]
 
@@ -575,3 +575,164 @@ def test_wordcloud_with_request(mock_db_client):
     assert actual["message"]
     assert actual["success"]
 
+
+def test_unique_user_inputs(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users/input",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_unique_user_inputs_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users/input",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_conversation__time_range(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/time",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Conversation_time_range"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_conversation__time_range_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/time",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Conversation_time_range"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_dropoff(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Dropoff_list"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_dropoff_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["Dropoff_list"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_intent_dropoff(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/intents/dropoff",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_user_intent_dropoff_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/intents/dropoff",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_unsuccessful_sessions(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_unsuccessful_sessions_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_total_session(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total",
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_total_sessions_with_request(mock_db_client):
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"]
+    assert actual["success"]

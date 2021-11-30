@@ -104,3 +104,53 @@ async def top_actions(request: HistoryQuery = HistoryQuery(),
         collection, request.month, request.top_n
     )
     return {"data": top_action, "message": message}
+
+
+@router.get("/users/input", response_model=Response)
+async def user_input_count(request: HistoryQuery = HistoryQuery(),
+                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the user inputs along with their frequencies."""
+    user_inputs, message = HistoryProcessor.user_input_count(
+        collection, request.month
+    )
+    return {"data": user_inputs, "message": message}
+
+
+@router.get("/fallback/dropoff", response_model=Response)
+async def fallback_dropoff(request: HistoryQuery = HistoryQuery(),
+                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the list of users that dropped off after encountering fallback."""
+    user_list, message = HistoryProcessor.user_fallback_dropoff(
+        collection, request.month, request.action_fallback, request.nlu_fallback
+    )
+    return {"data": user_list, "message": message}
+
+
+@router.get("/intents/dropoff", response_model=Response)
+async def intents_dropoff(request: HistoryQuery = HistoryQuery(),
+                          collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the identified intents and their counts for users before dropping off from the conversations."""
+    dropoff_intents, message = HistoryProcessor.intents_before_dropoff(
+        collection, request.month
+    )
+    return {"data": dropoff_intents, "message": message}
+
+
+@router.get("/sessions/unsuccessful", response_model=Response)
+async def unsuccessful_sessions(request: HistoryQuery = HistoryQuery(),
+                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the count of sessions that encountered a fallback for a particular user."""
+    user_list, message = HistoryProcessor.unsuccessful_session(
+        collection, request.month, request.action_fallback, request.nlu_fallback
+    )
+    return Response(data=user_list, message=message)
+
+
+@router.get("/sessions/total", response_model=Response)
+async def total_sessions(request: HistoryQuery = HistoryQuery(),
+                          collection: str = Depends(Authentication.authenticate_and_get_collection)):
+    """Fetches the total session count for users for the past months."""
+    user_list, message = HistoryProcessor.session_count(
+        collection, request.month
+    )
+    return Response(data=user_list, message=message)

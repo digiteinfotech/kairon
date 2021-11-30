@@ -465,7 +465,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
         status=200,
         match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'success_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {"successful_sessions": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
     response = client.get(
@@ -475,7 +475,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["success_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"]['successful_sessions'] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -554,7 +554,7 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
         status=200,
         match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {'fallback_count_rate': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
     response = client.get(
@@ -564,7 +564,7 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["fallback_counts"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"]["fallback_count_rate"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -715,7 +715,7 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/steps",
         status=200,
         match=[responses.json_params_matcher({'month': 6})],
-        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+        json={"data": {'average_conversation_steps': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
     response = client.get(
@@ -725,7 +725,7 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["data"]["average_conversation_steps"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -749,3 +749,136 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
     assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
 
 
+@responses.activate
+def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/input/unique",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time",
+        status=200,
+        match=[responses.json_params_matcher({'month': 6})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/conversations/time",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+                                              'nlu_fallback': 'utter_please_rephrase'})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/fallback/dropoff",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/dropoff",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/intent/dropoff",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+                                              'nlu_fallback': 'utter_please_rephrase'})],
+        json={"data": {'user_1': 25, 'user_2': 24}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/sessions/unsuccessful",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'user_1': 25, 'user_2': 24}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={"data": {"user_1": 250, "user_2": 240}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/sessions/total",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'user_1': 250, 'user_2': 240}
+    assert actual["message"] is None
+    assert actual["success"]

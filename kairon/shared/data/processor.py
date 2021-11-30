@@ -191,6 +191,8 @@ class MongoProcessor:
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
+        if 'http_actions' in what:
+            self.save_http_action(http_actions, bot, user)
         if 'domain' in what:
             self.save_domain(domain, bot, user)
         if 'stories' in what:
@@ -201,8 +203,6 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
-        if 'http_actions' in what:
-            self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -1103,6 +1103,7 @@ class MongoProcessor:
         :return: config unique id
         """
         nlu_confidence_threshold = configs.get("nlu_confidence_threshold")
+        action_fallback_threshold = configs.get("action_fallback_threshold")
         action_fallback = configs.get("action_fallback")
         nlu_epochs = configs.get("nlu_epochs")
         response_epochs = configs.get("response_epochs")
@@ -1129,6 +1130,7 @@ class MongoProcessor:
                 present_config['policies'].append(rule_policy)
 
         if action_fallback:
+            action_fallback_threshold = action_fallback_threshold / 100 if action_fallback_threshold else 0.3
             if action_fallback == 'action_default_fallback':
                 utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
                                                     name__iexact='utter_default')
@@ -1146,7 +1148,13 @@ class MongoProcessor:
                 fallback['name'] = 'RulePolicy'
                 present_config['policies'].append(fallback)
             fallback['core_fallback_action_name'] = action_fallback
-            fallback['core_fallback_threshold'] = 0.3
+            fallback['core_fallback_threshold'] = action_fallback_threshold
+
+        nlu_fallback = next((comp for comp in present_config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
+        action_fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+        if nlu_fallback.get('threshold') and action_fallback.get('core_fallback_threshold'):
+            if nlu_fallback['threshold'] < action_fallback['core_fallback_threshold']:
+                raise AppException('Action fallback threshold should always be smaller than nlu fallback threshold')
 
         Utility.add_or_update_epoch(present_config, configs)
         self.save_config(present_config, bot, user)
@@ -1159,9 +1167,9 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') * 100 if nlu_fallback.get(
-            'threshold') else None
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') * 100 if nlu_fallback.get('threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
+        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') * 100 if action_fallback.get('core_fallback_threshold') else None
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
         selected_config['response_epochs'] = response_selector.get('epochs')
@@ -1498,6 +1506,7 @@ class MongoProcessor:
                             "training_examples": {
                                 "$push": {
                                     "text": "$text",
+                                    "entities": {"$ifNull": ["$entities", None]},
                                     "_id": {"$toString": "$_id"}
                                 }
                             }
@@ -1513,11 +1522,9 @@ class MongoProcessor:
                 ]
             )
         )
-        print(intents_and_training_examples)
         for data in intents_and_training_examples:
             intents_and_training_examples_dict[data['intent']] = data['training_examples']
 
-        print(intents_and_training_examples_dict)
         for intent in intents:
             if not intents_and_training_examples_dict.get(intent['name']):
                 intents_and_training_examples_dict[intent['name']] = None
@@ -1895,7 +1902,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION"]:
+            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION"]:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -2038,6 +2045,7 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
+        reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2065,6 +2073,8 @@ class MongoProcessor:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
                         step['type'] = 'HTTP_ACTION'
+                    elif event['name'] in reset_slot_actions:
+                        step['type'] = 'SLOT_SET_ACTION'
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
                     else:
