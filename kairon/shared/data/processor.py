@@ -191,6 +191,8 @@ class MongoProcessor:
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
+        if 'http_actions' in what:
+            self.save_http_action(http_actions, bot, user)
         if 'domain' in what:
             self.save_domain(domain, bot, user)
         if 'stories' in what:
@@ -201,8 +203,6 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
-        if 'http_actions' in what:
-            self.save_http_action(http_actions, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -1905,7 +1905,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION"]:
+            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION"]:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -2048,6 +2048,7 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
+        reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2075,6 +2076,8 @@ class MongoProcessor:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
                         step['type'] = 'HTTP_ACTION'
+                    elif event['name'] in reset_slot_actions:
+                        step['type'] = 'SLOT_SET_ACTION'
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
                     else:
