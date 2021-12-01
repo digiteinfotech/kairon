@@ -1627,32 +1627,46 @@ class MongoProcessor:
             doc_dict = document.to_mongo().to_dict()
             yield {"_id": doc_dict["_id"].__str__(), field: doc_dict[field]}
 
-    def add_entity(self, name: Text, bot: Text, user: Text):
+    def add_entity(self, name: Text, bot: Text, user: Text, raise_exc_if_exists: bool = True):
         """
         adds an entity
 
         :param name: entity name
         :param bot: bot id
         :param user: user id
+        :param raise_exc_if_exists: raise exception if entity exists
         :return: entity id
         """
         if Utility.check_empty_string(name):
             raise AppException("Entity Name cannot be empty or blank spaces")
-        Utility.is_exist(
+        if not Utility.is_exist(
             Entities,
+            raise_error=raise_exc_if_exists,
             exp_message="Entity already exists!",
             name__iexact=name.strip(),
             bot=bot,
             status=True,
-        )
-        entity = (
-            Entities(name=name, bot=bot, user=user).save().to_mongo().to_dict()
-        )
-        if not Utility.is_exist(
-                Slots, raise_error=False, name__iexact=name, bot=bot, status=True
         ):
-            Slots(name=name, type="text", bot=bot, user=user).save()
-        return entity["_id"].__str__()
+            entity = Entities(name=name, bot=bot, user=user).save().to_mongo().to_dict()
+            return entity["_id"].__str__()
+
+    def delete_entity(self, name: Text, bot: Text, user: Text, raise_exc_if_not_exists: bool = True):
+        """
+        Deletes an entity.
+
+        :param name: entity name
+        :param bot: bot id
+        :param user: user
+        :param raise_exc_if_not_exists: raise exception if entity does not exists
+        """
+        try:
+            entity = Entities.objects(name=name, bot=bot, status=True).get()
+            entity.status = False
+            entity.user = user
+            entity.save()
+        except DoesNotExist:
+            if raise_exc_if_not_exists:
+                raise AppException('Entity not found')
 
     def get_entities(self, bot: Text):
         """
@@ -2598,6 +2612,7 @@ class MongoProcessor:
         slot.user = user
         slot.bot = bot
         slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        self.add_entity(slot_value.get('name'), bot, user, False)
         return slot_id
 
     def delete_slot(
@@ -2614,7 +2629,9 @@ class MongoProcessor:
         try:
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             slot.status = False
+            slot.user = user
             slot.save()
+            self.delete_entity(slot_name, bot, user, False)
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(

@@ -255,7 +255,7 @@ class TestMongoProcessor:
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert [slot.name for slot in domain.slots] == ['application_name', 'bot', 'email_id', 'location', 'user']
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye', 'utter_default']
-        assert domain.entities == ['user', 'location', 'email_id', 'application_name']
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot']
         assert domain.forms == {'ask_user': {'USER': [{'type': 'from_entity', 'entity': 'USER'}],
                                              'EMAIL_ID': [{'type': 'from_entity', 'entity': 'EMAIL_ID'}]},
                                 'ask_location': {'LOCATION': [{'type': 'from_entity', 'entity': 'LOCATION'}],
@@ -325,7 +325,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'priority': [{'type': 'from_entity', 'entity': 'priority'}]}
@@ -387,7 +387,7 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {}
         assert isinstance(domain.forms, dict)
@@ -436,7 +436,7 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
@@ -468,7 +468,7 @@ class TestMongoProcessor:
         assert domain.slots[0].name == 'bot'
         assert domain.slots[0].value == 'tests'
         assert domain.templates.keys().__len__() == 11
-        assert domain.entities.__len__() == 0
+        assert domain.entities.__len__() == 1
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -775,17 +775,12 @@ class TestMongoProcessor:
     def test_add_entity(self):
         processor = MongoProcessor()
         assert processor.add_entity("file_text", "tests", "testUser")
-        slots = Slots.objects(bot="tests")
-        new_slot = slots.get(name="file_text")
-        enitity = Entities.objects(bot="tests").get(name="file_text")
-        assert slots.__len__() == 4
-        assert new_slot.name == "file_text"
-        assert new_slot.type == "text"
+        enitity = Entities.objects(bot="tests", status=True).get(name="file_text")
         assert enitity.name == "file_text"
 
     def test_get_entities(self):
         processor = MongoProcessor()
-        expected = ["priority", "file_text", "ticketid"]
+        expected = ["bot", "priority", "file_text", "ticketid"]
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -1606,6 +1601,7 @@ class TestMongoProcessor:
         assert slot['type'] == 'unfeaturized'
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
+        assert Entities.objects(name='bot', bot=bot, user=user, status=True).get()
 
         processor.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot,
                            user, raise_exception_if_exists=False)
@@ -1614,6 +1610,7 @@ class TestMongoProcessor:
         assert slot['type'] == 'any'
         assert slot['initial_value'] == bot
         assert not slot['influence_conversation']
+        assert Entities.objects(name='bot', bot=bot, user=user, status=True).get()
 
     def test_add_duplicate_slot(self):
         processor = MongoProcessor()
@@ -1625,6 +1622,7 @@ class TestMongoProcessor:
                 {"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
                 raise_exception_if_exists=True)
             assert msg == 'Slot already exists!'
+            assert Entities.objects(name='bot', bot=bot, user=user, status=True).get()
 
     def test_add_empty_slot(self):
         processor = MongoProcessor()
@@ -1728,6 +1726,7 @@ class TestMongoProcessor:
         processor.delete_slot(slot_name='bot', bot=bot, user=user)
 
         slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert not Entities.objects(name='bot', bot=bot, user=user, status=True)
         assert slot.status is False
 
     def test_delete_inexistent_slot(self):
@@ -2171,7 +2170,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
@@ -2222,7 +2221,7 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 9
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
@@ -2278,7 +2277,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
@@ -2335,7 +2334,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -2387,7 +2386,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -2446,7 +2445,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -2506,7 +2505,7 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 9
         assert domain.intent_properties.__len__() == 30
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -2582,7 +2581,7 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 9
         assert domain.intent_properties.__len__() == 29
         assert domain.templates.keys().__len__() == 25
-        assert domain.entities.__len__() == 8
+        assert domain.entities.__len__() == 9
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
