@@ -8,6 +8,7 @@ ENV RASA_NLU_DOCKER="YES" \
 WORKDIR ${RASA_NLU_HOME}
 RUN yum update -y
 RUN yum -y install wget make gcc openssl-devel bzip2-devel
+RUN amazon-linux-extras install python3.8
 RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
