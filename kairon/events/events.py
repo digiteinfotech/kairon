@@ -75,7 +75,7 @@ class EventsTrigger:
             Utility.delete_directory(path)
 
     @staticmethod
-    async def trigger_model_testing(bot: Text, user: Text, run_e2e: bool = False):
+    def trigger_model_testing(bot: Text, user: Text, run_e2e: bool = False):
         """
         Triggers model testing event.
         @param bot: bot id.
@@ -92,26 +92,19 @@ class EventsTrigger:
                 Utility.http_request("POST",
                                      event_url,
                                      None, user, event_request)
-                ModelTestingLogProcessor.add_initiation_log(bot, user,
-                                                            run_e2e=run_e2e,
-                                                            event_status=EVENT_STATUS.TASKSPAWNED.value)
+                ModelTestingLogProcessor.log_test_result(bot, user,
+                                                         event_status=EVENT_STATUS.TASKSPAWNED.value)
             else:
-                ModelTestingLogProcessor.update_log_with_test_results(bot, user,
-                                                                      run_e2e=run_e2e,
-                                                                      event_status=EVENT_STATUS.INPROGRESS.value)
-                nlu_results, stories_results = await ModelTester.run_tests_on_model(bot, run_e2e)
-                ModelTestingLogProcessor.update_log_with_test_results(bot, user,
-                                                                      stories=stories_results,
-                                                                      nlu=nlu_results,
-                                                                      event_status=EVENT_STATUS.COMPLETED.value)
+                ModelTestingLogProcessor.log_test_result(bot, user, event_status=EVENT_STATUS.INPROGRESS.value)
+                nlu_results, stories_results = ModelTester.run_tests_on_model(bot, run_e2e)
+                ModelTestingLogProcessor.log_test_result(bot, user, stories_result=stories_results,
+                                                         nlu_result=nlu_results,
+                                                         event_status=EVENT_STATUS.COMPLETED.value)
         except exceptions.ConnectionError as e:
             logger.error(str(e))
-            ModelTestingLogProcessor.update_log_with_test_results(bot, user,
-                                                                  exception=f'Failed to trigger the event. {e}',
-                                                                  event_status=EVENT_STATUS.FAIL.value)
+            ModelTestingLogProcessor.log_test_result(bot, user, exception=f'Failed to trigger the event. {e}',
+                                                     event_status=EVENT_STATUS.FAIL.value)
 
         except Exception as e:
             logger.error(str(e))
-            ModelTestingLogProcessor.update_log_with_test_results(bot, user,
-                                                                  exception=str(e),
-                                                                  event_status=EVENT_STATUS.FAIL.value)
+            ModelTestingLogProcessor.log_test_result(bot, user, exception=str(e), event_status=EVENT_STATUS.FAIL.value)
