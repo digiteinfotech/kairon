@@ -800,7 +800,7 @@ class TestEvents:
     async def test_trigger_model_testing_event_run_tests_on_model_no_model_found(self):
         bot = 'test_events_bot'
         user = 'test_user'
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0].get('exception').__contains__('Model testing failed: Folder does not exists!')
@@ -864,7 +864,7 @@ class TestEvents:
                       Utility.environment["augmentation"]["paraphrase_url"],
                       json={'data': {'paraphrases': []}})
         responses.start()
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('exception')
@@ -874,8 +874,6 @@ class TestEvents:
         assert logs[0].get('nlu')
         assert not logs[0]['stories']['failed_stories']
         assert logs[0]['nlu']['intent_evaluation']['errors']
-        assert logs[0]['stories']['successful_stories']
-        assert logs[0]['nlu']['intent_evaluation']['successes']
         assert logs[0].get('end_timestamp')
         assert not Utility.check_empty_string(logs[0].get('status'))
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
@@ -890,7 +888,7 @@ class TestEvents:
         nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/test_stories_failures/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 3
         assert not logs[0].get('exception')
@@ -900,8 +898,6 @@ class TestEvents:
         assert logs[0].get('nlu')
         assert not logs[0]['stories']['failed_stories']
         assert logs[0]['nlu']['intent_evaluation']['errors']
-        assert logs[0]['stories']['successful_stories']
-        assert logs[0]['nlu']['intent_evaluation']['successes']
         assert logs[0].get('end_timestamp')
         assert logs[0].get('status') == 'FAILURE'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
@@ -917,7 +913,7 @@ class TestEvents:
         stories_path = 'tests/testing_data/model_tester/test_stories_failures/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
         create_model('tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', bot, True)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0].get('exception').__contains__('Could not find any model. Please train a model before running tests.')
@@ -935,7 +931,7 @@ class TestEvents:
         user = 'test_user'
         event_url = "http://url.event"
         monkeypatch.setitem(Utility.environment['model']['test'], "event_url", event_url)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 4
         assert logs[0].get('exception').__contains__('Failed to trigger the event. ')
@@ -962,7 +958,7 @@ class TestEvents:
                               [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user}])],
                       )
         responses.start()
-        await EventsTrigger.trigger_model_testing(bot, user)
+        EventsTrigger.trigger_model_testing(bot, user)
         responses.stop()
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))

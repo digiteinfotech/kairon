@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Dict, Text, Optional, Set
 
 import requests
@@ -18,7 +19,7 @@ class ModelTester:
     """
 
     @staticmethod
-    async def run_tests_on_model(bot: str, run_e2e: bool = False):
+    def run_tests_on_model(bot: str, run_e2e: bool = False):
         """
         Runs tests on a trained model.
 
@@ -29,12 +30,13 @@ class ModelTester:
         Returns: dictionary with evaluation results
         """
         from kairon import Utility
+        from rasa.utils.common import run_in_loop
 
         bot_home = os.path.join('testing_data', bot)
         try:
             model_path = Utility.get_latest_model(bot)
             nlu_path, stories_path = TestDataGenerator.create(bot)
-            stories_results = await ModelTester.run_test_on_stories(stories_path, model_path, run_e2e)
+            stories_results = run_in_loop(ModelTester.run_test_on_stories(stories_path, model_path, run_e2e))
             nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path)
             return nlu_results, stories_results
         except ModelNotFound:
@@ -85,15 +87,15 @@ class ModelTester:
                 events_tracker.append(vars(event))
             success_stories_summary.append(events_tracker)
         return {
-            "report": report,
+            # "report": report,
             "precision": precision,
             "f1": f1,
             "accuracy": accuracy,
-            "actions": story_evaluation.action_list,
-            "in_training_data_fraction": story_evaluation.in_training_data_fraction,
-            "is_end_to_end_evaluation": e2e,
+            # "actions": story_evaluation.action_list,
+            # "in_training_data_fraction": story_evaluation.in_training_data_fraction,
+            # "is_end_to_end_evaluation": e2e,
             "failed_stories": failed_stories_summary,
-            "successful_stories": success_stories_summary
+            # "successful_stories": success_stories_summary
         }
 
     @staticmethod
@@ -140,16 +142,20 @@ class ModelTester:
             successes = []
             errors = []
             result["intent_evaluation"] = evaluate_intents(intent_results, None, False, False, True)
+            if result["intent_evaluation"].get('predictions'):
+                del result["intent_evaluation"]['predictions']
+                del result["intent_evaluation"]['report']
             for r in intent_results:
                 if r.intent_target == r.intent_prediction:
-                    successes.append({
-                        "text": r.message,
-                        "intent": r.intent_target,
-                        "intent_prediction": {
-                            'name': r.intent_prediction,
-                            "confidence": r.confidence,
-                        },
-                    })
+                    pass
+                    # successes.append({
+                    #     "text": r.message,
+                    #     "intent": r.intent_target,
+                    #     "intent_prediction": {
+                    #         'name': r.intent_prediction,
+                    #         "confidence": r.confidence,
+                    #     },
+                    # })
                 else:
                     errors.append({
                         "text": r.message,
@@ -172,16 +178,20 @@ class ModelTester:
                 False,
                 True
             )
+            if result["response_selection_evaluation"].get('predictions'):
+                del result["response_selection_evaluation"]['predictions']
+                del result["response_selection_evaluation"]['report']
             for r in response_selection_results:
                 if r.intent_response_key_prediction == r.intent_response_key_target:
-                    successes.append({
-                        "text": r.message,
-                        "intent_response_key_target": r.intent_response_key_target,
-                        "intent_response_key_prediction": {
-                            "name": r.intent_response_key_prediction,
-                            "confidence": r.confidence,
-                        },
-                    })
+                    pass
+                    # successes.append({
+                    #     "text": r.message,
+                    #     "intent_response_key_target": r.intent_response_key_target,
+                    #     "intent_response_key_prediction": {
+                    #         "name": r.intent_response_key_prediction,
+                    #         "confidence": r.confidence,
+                    #     },
+                    # })
                 else:
                     errors.append(
                         {
@@ -244,19 +254,18 @@ class ModelTester:
                     exclude_label=NO_ENTITY,
                 )
 
-            successes = collect_successful_entity_predictions(
-                entity_results, merged_predictions, merged_targets
-            )
+            # successes = collect_successful_entity_predictions(
+            #     entity_results, merged_predictions, merged_targets
+            # )
             errors = collect_incorrect_entity_predictions(
                 entity_results, merged_predictions, merged_targets
             )
 
             result[extractor] = {
-                "report": report,
                 "precision": precision,
                 "f1_score": f1,
                 "accuracy": accuracy,
-                'successes': successes,
+                # 'successes': successes,
                 'errors': errors
             }
 
@@ -296,7 +305,7 @@ class TestDataGenerator:
         all_input_text = []
         all_stop_words = []
         all_entities = []
-        for text in input_text:
+        for text in input_text or []:
             stopwords = []
             entity_names = []
             if text.get('entities'):
@@ -328,7 +337,6 @@ class TestDataGenerator:
             resp = requests.post(Utility.environment["augmentation"]["paraphrase_url"], json=text[i:i + 10])
             logger.debug(f'Augmentation Request: {Utility.environment["augmentation"]["paraphrase_url"]}')
             logger.debug(f'Response code: {resp.status_code}')
-            logger.debug(resp.text)
             if resp.status_code == 200:
                 data = resp.json()
                 if data['data'].get('paraphrases'):
@@ -365,6 +373,18 @@ class TestDataGenerator:
         from rasa.shared.nlu.training_data.message import Message
         from kairon.shared.data.constant import TRAINING_EXAMPLE
         from rasa.shared.nlu.constants import TEXT
+        from kairon import Utility
+
+        if training_examples:
+            test_data_threshold = Utility.environment['model']['test'].get('dataset_threshold') or 10
+
+            if len(training_examples) >= 100:
+                test_data_threshold = Utility.environment['model']['test'].get('dataset_percentage') or 10
+                test_data_threshold = test_data_threshold/100
+                num_samples = int(len(training_examples) * test_data_threshold)
+                training_examples = random.sample(training_examples, num_samples)
+            elif len(training_examples) > test_data_threshold:
+                training_examples = random.sample(training_examples, test_data_threshold)
 
         augmented_examples = TestDataGenerator.augment_sentences(training_examples)
         for example in augmented_examples:
@@ -374,3 +394,6 @@ class TestDataGenerator:
             if entities:
                 message.data[TRAINING_EXAMPLE.ENTITIES.value] = entities
             yield message
+
+        if not augmented_examples:
+            return []

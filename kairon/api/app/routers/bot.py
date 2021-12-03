@@ -545,6 +545,14 @@ async def test_model(
     return {"message": "Testing in progress! Check logs."}
 
 
+@router.get("/logs/test", response_model=Response)
+async def model_testing_logs(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    List model testing logs.
+    """
+    return Response(data=ModelTestingLogProcessor.get_logs(current_user.get_bot()))
+
+
 @router.get("/endpoint", response_model=Response)
 async def get_endpoint(current_user: User = Depends(Authentication.get_current_user_and_bot),):
     """
