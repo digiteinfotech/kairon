@@ -11,7 +11,7 @@ from kairon.events.events import EventsTrigger
 def run_tests_on_model(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    asyncio.run(EventsTrigger.trigger_model_testing(args.bot, args.user))
+    EventsTrigger.trigger_model_testing(args.bot, args.user)
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
