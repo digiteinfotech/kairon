@@ -1744,6 +1744,11 @@ class TestMongoProcessor:
             processor.delete_slot(slot_name='', bot=bot, user=user)
         assert str(e).__contains__('Slot does not exist.')
 
+    def test_delete_entity_not_exists(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Entity not found'):
+            processor.delete_entity('entity_not_exists', 'test_bot', 'test_user')
+
     def test_fetch_rule_block_names(self):
         processor = MongoProcessor()
         Rules(
