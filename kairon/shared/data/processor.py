@@ -5,7 +5,7 @@ from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
 from fastapi import File
 from loguru import logger as logging
@@ -863,6 +863,9 @@ class MongoProcessor:
         set to false by rasa.
         """
         slots_name_list = self.__fetch_slot_names(bot)
+        slots_name_list.extend([REQUESTED_SLOT.lower(),
+                                DEFAULT_KNOWLEDGE_BASE_ACTION.lower(),
+                                SESSION_START_METADATA_SLOT.lower()])
         for slot in slots:
             items = vars(slot)
             if items["name"].strip().lower() not in slots_name_list:
@@ -871,7 +874,7 @@ class MongoProcessor:
                 items.pop("_value_reset_delay")
                 items["bot"] = bot
                 items["user"] = user
-                items.pop("value")
+                items.pop("_value")
                 new_slot = Slots._from_son(items)
                 new_slot.clean()
                 yield new_slot
@@ -3145,7 +3148,7 @@ class MongoProcessor:
             client_config.config['headers']['X-USER'] = bot_info['user']
         token = Authentication.generate_integration_token(bot, bot_info['account'], expiry=1440,
                                                           access_limit=['/api/bot/.+/chat'])
-        client_config.config['headers']['authorization'] = 'Bearer ' + token.decode("utf-8")
+        client_config.config['headers']['authorization'] = 'Bearer ' + token
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):

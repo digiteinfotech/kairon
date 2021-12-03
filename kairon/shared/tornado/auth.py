@@ -1,6 +1,6 @@
 import re
 
-from jwt import PyJWTError, decode
+from jwt import PyJWTError
 from tornado.httputil import HTTPServerRequest
 
 from kairon.shared.account.processor import AccountProcessor
@@ -34,11 +34,9 @@ class TornadoAuthenticate:
         credentials_exception = Exception({"status_code": 401,
                                            "detail": "Could not validate credentials",
                                            "headers": {"WWW-Authenticate": "Bearer"}})
-        secret_key = Utility.environment['security']["secret_key"]
-        algorithm = Utility.environment['security']["algorithm"]
         try:
             token = TornadoAuthenticate.get_token(request)
-            payload = decode(token, secret_key, algorithms=[algorithm])
+            payload = Utility.decode_limited_access_token(token)
             username: str = payload.get("sub")
             TornadoAuthenticate.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:

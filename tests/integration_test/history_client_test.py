@@ -765,7 +765,6 @@ def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["data"] == [{'_id': 'nlu_fallback', 'count': 32}]
     assert actual["message"] is None

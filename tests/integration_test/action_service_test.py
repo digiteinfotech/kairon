@@ -533,11 +533,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {
-            'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}],
-            'responses': [
-                {'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'image': None,
-                 'attachment': None}]})
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+)
 
     def test_form_validation_action_invalid_slot_value(self):
         action_name = "validate_form_with_3_validations"
@@ -645,12 +642,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {
-            'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}],
-            'responses': [
-                {'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {},
-                 'template': None, 'image': None,
-                 'attachment': None}]})
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}], 'responses': [{'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+)
 
     def test_form_validation_action_no_validation_configured(self):
         action_name = "validate_user_details"

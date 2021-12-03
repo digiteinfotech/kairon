@@ -1,9 +1,7 @@
-import os
 from typing import Text
 
 from loguru import logger as logging
 from rasa.core.agent import Agent
-from rasa.train import DEFAULT_MODELS_PATH
 
 from kairon.chat.cache import AgentCache
 from kairon.exceptions import AppException

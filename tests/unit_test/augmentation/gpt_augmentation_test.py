@@ -112,17 +112,19 @@ def test_generate_questions_empty_data(monkeypatch):
     resp = gpt3_generator.paraphrases()
     assert resp == {'Response text from gpt3'}
 
+
 @responses.activate
 def test_generate_questions_invalid_api_key():
-    responses.add(url="https://api.openai.com/v1/engines/davinci/completions", method="POST", body="Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com.")
+    from openai import APIError
+
+    responses.add(url="https://api.openai.com/v1/engines/davinci/completions",
+                  method="POST",
+                  status=500,
+                  body="Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com.")
     request_data = GPTRequest(api_key="InvalidKey",
                               data=["Are there any more test questions?"], num_responses=2)
 
     gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
-    try:
+    with pytest.raises(APIError, match=r'.*Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com..*'):
         gpt3_generator.paraphrases()
-    except Exception as e:
-        assert str(e) == "Invalid response body from API: Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com. (HTTP response code was 200)"
 
-    with pytest.raises(Exception):
-        gpt3_generator.paraphrases()

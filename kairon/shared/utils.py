@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import re
@@ -13,14 +14,18 @@ from secrets import choice
 from smtplib import SMTP
 from typing import Text, List, Dict
 from urllib.parse import unquote_plus
-from password_strength.tests import Special, Uppercase, Numbers, Length
+from urllib.parse import urljoin
+
 import requests
 import yaml
-from jwt import encode, decode
+from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.visitor import QCombination
+from passlib.context import CryptContext
+from password_strength import PasswordPolicy
+from password_strength.tests import Special, Uppercase, Numbers, Length
 from pymongo.common import _CaseInsensitiveDictionary
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import (
@@ -34,10 +39,8 @@ from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
-from password_strength import PasswordPolicy
+
 from ..exceptions import AppException
-from passlib.context import CryptContext
-from urllib.parse import urljoin
 
 
 class Utility:
@@ -523,7 +526,7 @@ class Utility:
         return config
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str=None, json: Dict = None):
+    def http_request(method: str, url: str, token: str, user: str = None, json_dict: Dict = None):
         logger.info("agent event started " + url)
         headers = {'content-type': 'application/json'}
         if user:
@@ -531,9 +534,9 @@ class Utility:
         if token:
             headers['Authorization'] = 'Bearer ' + token
         if method.lower() == 'get':
-            response = requests.request(method, url, headers=headers, params=json)
+            response = requests.request(method, url, headers=headers, params=json_dict)
         else:
-            response = requests.request(method, url, headers=headers, json=json)
+            response = requests.request(method, url, headers=headers, json=json_dict)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
 
@@ -710,7 +713,7 @@ class Utility:
             data,
             Utility.environment['security']["secret_key"],
             algorithm=Utility.environment['security']["algorithm"],
-        ).decode("utf-8")
+        )
         return encoded_jwt
 
     @staticmethod
@@ -722,16 +725,11 @@ class Utility:
         :return: mail id
         """
         try:
-
-            decoded_jwt = decode(
-                token,
-                Utility.environment['security']["secret_key"],
-                algorithm=Utility.environment['security']["algorithm"],
-            )
+            decoded_jwt = Utility.decode_limited_access_token(token)
             mail = decoded_jwt["mail_id"]
             return mail
 
-        except Exception:
+        except Exception as e:
             raise AppException("Invalid token")
 
     @staticmethod
@@ -740,11 +738,11 @@ class Utility:
             decoded_jwt = decode(
                 token,
                 Utility.environment['security']["secret_key"],
-                algorithm=Utility.environment['security']["algorithm"],
+                algorithms=[Utility.environment['security']["algorithm"]],
             )
             return decoded_jwt
-        except Exception:
-            raise AppException("Invalid token")
+        except PyJWTError:
+            raise PyJWTError("Invalid token")
 
     @staticmethod
     def load_json_file(path: Text, raise_exc: bool = True):
@@ -910,8 +908,8 @@ class Utility:
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
             token = Authentication.create_access_token(data={"sub": email})
-            response = Utility.http_request('post', urljoin(agent_url, f"/api/bot/{bot}/chat"), token.decode('utf8'),
-                                            user, json={'data': data})
+            response = Utility.http_request('post', urljoin(agent_url, f"/api/bot/{bot}/chat"), token,
+                                            user, json_dict={'data': data})
             return json.loads(response)
         else:
             raise AppException("Agent config not found!")
@@ -922,7 +920,7 @@ class Utility:
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
             token = Authentication.create_access_token(data={"sub": email})
-            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token.decode('utf8'))
+            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token)
             return json.loads(response)
         else:
             raise AppException("Agent config not found!")
@@ -1038,3 +1036,18 @@ class Utility:
         aux.reverse()
         return aux
 
+    @staticmethod
+    def get_imports(path):
+        with open(path) as fh:
+            root = ast.parse(fh.read(), path)
+
+        for node in ast.iter_child_nodes(root):
+            if isinstance(node, ast.Import):
+                module = []
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module.split('.')
+            else:
+                continue
+
+            for n in node.names:
+                yield n.name.split('.')[0]

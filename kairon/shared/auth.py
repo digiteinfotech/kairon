@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
-from jwt import PyJWTError, decode, encode
+from jwt import PyJWTError, encode
 from starlette.status import HTTP_401_UNAUTHORIZED
 
-from kairon.shared.utils import Utility
 from kairon.api.models import TokenData
-from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
 
 Utility.load_environment()
 
@@ -36,10 +36,8 @@ class Authentication:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        secret_key = Utility.environment['security']["secret_key"]
-        algorithm = Utility.environment['security']["algorithm"]
         try:
-            payload = decode(token, secret_key, algorithms=[algorithm])
+            payload = Utility.decode_limited_access_token(token)
             username: str = payload.get("sub")
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:

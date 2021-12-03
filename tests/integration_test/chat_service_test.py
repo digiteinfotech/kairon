@@ -28,7 +28,7 @@ loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email
                                                                           "account": "ChatTesting"}).dict(),
                                                        "sysadmin"))
 
-token = Authentication.authenticate("test@chat.com", "testChat@12").decode("utf8")
+token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bot'][0]
@@ -41,9 +41,6 @@ start_training(bot2, "test@chat.com")
 
 
 class TestChatServer(AsyncHTTPTestCase):
-
-    def setUp(self) -> None:
-        super(TestChatServer, self).setUp()
 
     def get_app(self):
         return make_app()
@@ -65,6 +62,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode('utf-8'),
                 headers={"Authorization": token_type + " " + token},
+                connect_timeout=0,
+                request_timeout=0
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -118,7 +117,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 "Authorization": f"{token_type} {token}"
             },
         )
-        print(response.body)
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert not actual["success"]
@@ -151,6 +149,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode("utf8"),
                 headers={"Authorization": token_type + " " + token},
+                connect_timeout=0,
+                request_timeout=0
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -163,7 +163,7 @@ class TestChatServer(AsyncHTTPTestCase):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
             is_integration=True
-        ).decode("utf8")
+        )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
             method="POST",
@@ -180,7 +180,7 @@ class TestChatServer(AsyncHTTPTestCase):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
             is_integration=False
-        ).decode("utf8")
+        )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
             method="POST",
@@ -197,7 +197,7 @@ class TestChatServer(AsyncHTTPTestCase):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/intent']},
             is_integration=True
-        ).decode("utf8")
+        )
         response = self.fetch(
             f"/api/bot/{bot}/chat",
             method="POST",
@@ -207,7 +207,6 @@ class TestChatServer(AsyncHTTPTestCase):
             },
         )
         actual = json.loads(response.body.decode("utf8"))
-        print(actual)
         assert actual["message"] == "Access denied for this endpoint"
 
     def test_reload(self):

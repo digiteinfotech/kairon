@@ -1,22 +1,28 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7-2021-06-09
+FROM amazonlinux:latest
 
 SHELL ["/bin/bash", "-c"]
 
 ENV IMPORTER_HOME=/app
 
 WORKDIR ${IMPORTER_HOME}
-
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install pyyaml
-RUN python3 -m pip install rasa[full]==2.1.2
-RUN python3 -m pip install mongoengine==0.23.1
-RUN python3 -m pip install validators
-RUN python3 -m pip install loguru
-RUN python3 -m pip install smart-config==0.1.3
-RUN python3 -m pip install passlib[bcrypt]
-RUN python3 -m pip install password-strength
-RUN python3 -m pip install elastic-apm
-RUN python3 -m pip install pymongo==3.12.0
+RUN yum update -y
+RUN yum -y install wget make gcc openssl-devel bzip2-devel
+RUN amazon-linux-extras install python3.8
+RUN rm /usr/bin/python
+RUN ln -s /usr/bin/python3.8 /usr/bin/python
+RUN python -m pip install --upgrade pip
+RUN python -m pip install pyyaml
+RUN python -m pip install rasa[full]==2.8.13
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install validators
+RUN python -m pip install loguru
+RUN python -m pip install smart-config==0.1.3
+RUN python -m pip install passlib[bcrypt]
+RUN python -m pip install password-strength
+RUN python -m pip install elastic-apm
+RUN python -m pip install pymongo==3.12.0
+RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install uvicorn>=0.12.3
 
 RUN mkdir ssl
 RUN mkdir testing_data
@@ -25,6 +31,9 @@ RUN chmod 777 -R /tmp
 
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY system.yaml ${IMPORTER_HOME}/
+
+python -m nltk.downloader wordnet
+python -m nltk.downloader averaged_perceptron_tagger
 
 ENV BOT default
 ENV USER default

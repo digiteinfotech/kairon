@@ -29,6 +29,7 @@ from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
+from jwt import PyJWTError
 
 logging.basicConfig(level="DEBUG")
 secure_headers = SecureHeaders()
@@ -204,6 +205,16 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
 @app.exception_handler(InvalidQueryError)
 async def mongoengine_invalid_query_exception_handler(request, exc):
     """ logs the InvalidQueryError detected and returns the
+            appropriate message and details of the error """
+    logger.debug(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(PyJWTError)
+async def app_exception_handler(request, exc):
+    """ logs the AppException error detected and returns the
             appropriate message and details of the error """
     logger.debug(exc)
     return JSONResponse(
