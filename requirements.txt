@@ -33,7 +33,7 @@ openai
 mock
 elastic-apm
 ElasticMock
-pymongo==3.12.0
+pymongo==4.0
 cryptography
 pyparsing==2.4.7
 nlpaug
