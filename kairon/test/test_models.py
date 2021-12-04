@@ -39,8 +39,6 @@ class ModelTester:
             stories_results = run_in_loop(ModelTester.run_test_on_stories(stories_path, model_path, run_e2e))
             nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path)
             return nlu_results, stories_results
-        except ModelNotFound:
-            raise AppException("Could not find any model. Please train a model before running tests.")
         except Exception as e:
             raise AppException(f'Model testing failed: {e}')
         finally:
