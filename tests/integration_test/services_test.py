@@ -6191,3 +6191,6 @@ def test_model_testing_no_existing_models():
     assert actual["error_code"] == 422
     assert actual['message'] == 'No model trained yet. Please train a model to test'
     assert not actual["success"]
+
+
+def test_model():
