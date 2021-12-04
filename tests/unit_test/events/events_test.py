@@ -861,6 +861,43 @@ class TestEvents:
 
         return move_model
 
+    @pytest.mark.asyncio
+    async def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model, monkeypatch):
+        import rasa.utils.common
+
+        bot = 'test_events_bot'
+        user = 'test_user'
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        create_model(pytest.model_path, bot)
+
+        def _mock_stories_output(*args, **kwargs):
+            return {
+                "precision": 0.91,
+                "f1": 0.98,
+                "accuracy": 0.99,
+                "failed_stories": [],
+            }
+
+        monkeypatch.setattr(rasa.utils.common, 'run_in_loop', _mock_stories_output)
+        responses.add('POST',
+                      Utility.environment["augmentation"]["paraphrase_url"],
+                      json={'data': {'paraphrases': ['common training example']}})
+        responses.start()
+        EventsTrigger.trigger_model_testing(bot, user, False)
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('data')
+        assert logs[0].get('end_timestamp')
+        assert not Utility.check_empty_string(logs[0].get('status'))
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
     def test_trigger_model_testing_event_connection_error(self, monkeypatch):
         bot = 'test_events_bot'
         user = 'test_user'
@@ -868,7 +905,7 @@ class TestEvents:
         monkeypatch.setitem(Utility.environment['model']['test'], "event_url", event_url)
         EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 2
+        assert len(logs) == 3
         assert logs[0].get('exception').__contains__('Failed to trigger the event. ')
         assert logs[0]['start_timestamp']
         assert not logs[0].get('data')
@@ -902,12 +939,12 @@ class TestEvents:
         config_path = 'tests/testing_data/model_tester/config.yml'
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/test_stories_success/stories.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        create_model('tests/testing_data/model_tester/model_without_entities/20211020-135106.tar.gz', bot)
+        create_model(pytest.model_path, bot)
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 3
+        assert len(logs) == 4
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0].get('end_timestamp')
@@ -934,7 +971,7 @@ class TestEvents:
         responses.stop()
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 4
+        assert len(logs) == 5
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
