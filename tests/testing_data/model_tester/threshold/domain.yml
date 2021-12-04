@@ -1,0 +1,14 @@
+intents:
+  - affirm
+  - thank
+
+responses:
+  utter_happy:
+  - text: "Great, carry on!"
+
+  utter_goodbye:
+  - text: "Bye"
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 
 class TestAgentProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         from rasa import train
 

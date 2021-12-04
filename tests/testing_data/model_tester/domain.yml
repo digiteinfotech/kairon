@@ -18,6 +18,7 @@ responses:
 
   utter_did_that_help:
   - text: "Did that help you?"
+  - text: "was i helpful?"
 
   utter_happy:
   - text: "Great, carry on!"

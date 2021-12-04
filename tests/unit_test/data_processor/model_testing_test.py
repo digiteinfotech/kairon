@@ -1,13 +1,18 @@
 import os
 import shutil
+import tempfile
+import uuid
 
 import pytest
+import responses
 from mongoengine import connect
+from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.test.test_models import ModelTester
+from kairon.test.test_models import ModelTester, TestDataGenerator
 
 
 class TestModelTesting:
@@ -17,6 +22,8 @@ class TestModelTesting:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        tmp_dir = tempfile.mkdtemp()
+        pytest.tmp_dir = tmp_dir
 
         from rasa import train
         # model without entities
@@ -30,7 +37,13 @@ class TestModelTesting:
             force_training=True
         )
         pytest.model_path = train_result.model
+        responses.add('POST',
+                      Utility.environment["augmentation"]["paraphrase_url"],
+                      json={'data': {'paraphrases': ['common training example']}})
+        responses.start()
         yield None
+        responses.stop()
+        shutil.rmtree(pytest.tmp_dir)
         shutil.rmtree('tests/testing_data/model_tester/models')
 
     @pytest.mark.asyncio
@@ -125,3 +138,77 @@ class TestModelTesting:
         bot = 'test_events_no_nlu_model'
         with pytest.raises(AppException, match="Model testing failed: Folder does not exists!"):
             ModelTester.run_tests_on_model(bot)
+
+    @pytest.fixture
+    def load_data(self):
+        async def _read_and_get_data(config_path: str, domain_path: str, nlu_path: str, stories_path: str, bot: str,
+                                     user: str):
+            data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+            os.mkdir(data_path)
+            shutil.copy2(nlu_path, data_path)
+            shutil.copy2(stories_path, data_path)
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+
+            processor = MongoProcessor()
+            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True)
+
+        return _read_and_get_data
+
+    @pytest.mark.asyncio
+    async def test_data_generator(self, load_data):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)
+
+    @pytest.mark.asyncio
+    async def test_data_generator_no_training_example_for_intent(self, load_data, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+
+        def _mock_test_data(*args, **kwargs):
+            return {'affirm': [{'text': 'yes', 'entities': None, '_id': '61b08b91d0807d6fb24270ae'},
+                               {'text': 'indeed', 'entities': None, '_id': '61b08b91d0807d6fb24270af'},
+                               {'text': 'of course', 'entities': None, '_id': '61b08b91d0807d6fb24270b0'},
+                               {'text': 'that sounds good', 'entities': None, '_id': '61b08b91d0807d6fb24270b1'},
+                               {'text': 'correct', 'entities': None, '_id': '61b08b91d0807d6fb24270b2'}],
+                    'mood_unhappy': []}
+
+        monkeypatch.setattr(MongoProcessor, 'get_intents_and_training_examples', _mock_test_data)
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        with pytest.raises(AppException, match='No training examples found for intent: [\'mood_unhappy\']'):
+            TestDataGenerator.create(bot, True)
+
+    def test_data_generator_no_training_data(self):
+        bot = 'no_data_bot'
+        with pytest.raises(AppException, match='Not enough training data exists. Please add some training data.'):
+            TestDataGenerator.create(bot, True)
+
+    @pytest.mark.asyncio
+    async def test_data_generator_samples_threshold(self, load_data):
+        bot = 'test_threshold'
+        user = 'test_user'
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/threshold/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/threshold/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/threshold/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)
