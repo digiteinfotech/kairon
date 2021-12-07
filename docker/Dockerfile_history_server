@@ -9,7 +9,7 @@ RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install pyyaml
 RUN python -m pip install mongoengine==0.23.1
-RUN python -m pip install rasa[full]==2.8.13
+RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install cython
 RUN python -m pip install pandas
 RUN python -m pip install pyjwt
