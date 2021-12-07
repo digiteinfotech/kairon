@@ -1,5 +1,6 @@
 FROM amazonlinux:latest
 
+WORKDIR /app
 RUN yum update -y
 RUN yum -y install wget make gcc openssl-devel bzip2-devel
 RUN amazon-linux-extras install python3.8

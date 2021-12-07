@@ -44,4 +44,4 @@ COPY email.yaml ${RASA_NLU_HOME}/
 ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "kairon.api.app.main:app"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "kairon.api.app.main:app", "--bind", "0.0.0.0:80"]
