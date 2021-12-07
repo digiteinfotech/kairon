@@ -23,6 +23,9 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install nlpaug
+RUN python -m pip install torch
+RUN python -m pip install nltk==3.6
 
 RUN mkdir ssl
 RUN mkdir testing_data
