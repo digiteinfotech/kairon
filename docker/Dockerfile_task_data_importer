@@ -23,6 +23,9 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install websockets==9.1
+RUN python -m pip install aiohttp==3.8.0
+RUN python -m pip install transformers==4.5.0
 RUN mkdir ssl
 RUN mkdir training_data
 RUN chmod 777 -R /tmp

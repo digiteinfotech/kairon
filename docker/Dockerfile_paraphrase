@@ -11,7 +11,7 @@ RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install nltk
-RUN python -m pip install transformers==4.0.0
+RUN python -m pip install transformers==4.5.0
 RUN python -m pip install sentencepiece
 RUN python -m pip install loguru
 RUN python -m pip install numpy
@@ -23,6 +23,8 @@ RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install openai
 RUN python -m pip install elastic-apm
 RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install cryptography~=3.4.8
+RUN python -m pip install websockets==9.1
 
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation
