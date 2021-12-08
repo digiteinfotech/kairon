@@ -2972,7 +2972,7 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
+                  "nlu_confidence_threshold": 0.6,
                   "action_fallback": "action_default_fallback"}
         Responses(name='utter_default', bot='test_all', user='test',
                   text=ResponseText(text='Sorry I didnt get that. Can you rephrase?')).save()
@@ -3025,8 +3025,8 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties(self):
-        expected = {'nlu_confidence_threshold': 60,
-                    'action_fallback_threshold': 30,
+        expected = {'nlu_confidence_threshold': 0.6,
+                    'action_fallback_threshold': 0.3,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -3039,8 +3039,8 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
-                  "action_fallback_threshold": 70,
+                  "nlu_confidence_threshold": 0.6,
+                  "action_fallback_threshold": 0.7,
                   "action_fallback": "action_default_fallback"}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action fallback threshold should always be smaller than nlu fallback threshold'):
@@ -3050,8 +3050,8 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
-                  "action_fallback_threshold": 60,
+                  "nlu_confidence_threshold": 0.6,
+                  "action_fallback_threshold": 0.6,
                   "action_fallback": "action_default_fallback"}
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_all', 'test')
@@ -3074,8 +3074,8 @@ class TestMongoProcessor:
         assert rule_policy['core_fallback_threshold'] == 0.6
 
     def test_get_config_properties_action_fallback(self):
-        expected = {'nlu_confidence_threshold': 60,
-                    'action_fallback_threshold': 60,
+        expected = {'nlu_confidence_threshold': 0.6,
+                    'action_fallback_threshold': 0.6,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -3130,9 +3130,9 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 70,
+        expected = {'nlu_confidence_threshold': 0.7,
                     'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 30,
+                    'action_fallback_threshold': 0.3,
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
                     'response_epochs': 300}
@@ -3157,8 +3157,8 @@ class TestMongoProcessor:
         assert ted['epochs'] == 200
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 70,
-                    'action_fallback_threshold': 30,
+        expected = {'nlu_confidence_threshold': 0.7,
+                    'action_fallback_threshold': 0.3,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 200,
                     'nlu_epochs': 100,
@@ -3177,8 +3177,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
-        expected = {"nlu_confidence_threshold": 70,
-                    'action_fallback_threshold': 30,
+        expected = {"nlu_confidence_threshold": 0.7,
+                    'action_fallback_threshold': 0.3,
                     "action_fallback": 'action_default_fallback',
                     "ted_epochs": None,
                     "nlu_epochs": None,
@@ -3223,7 +3223,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_fallback_not_configured', 'test')
 
-        config = {'nlu_confidence_threshold': 80,
+        config = {'nlu_confidence_threshold': 0.8,
                   'action_fallback': 'action_say_bye'}
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
@@ -3257,7 +3257,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_save_component_properties_nlu_fallback_only(self):
-        nlu_fallback = {"nlu_confidence_threshold": 60}
+        nlu_fallback = {"nlu_confidence_threshold": 0.6}
         processor = MongoProcessor()
         processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
         config = processor.load_config('test_nlu_fallback_only')
@@ -3295,7 +3295,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
-        nlu_fallback = {"nlu_confidence_threshold": 70}
+        nlu_fallback = {"nlu_confidence_threshold": 0.7}
         processor = MongoProcessor()
         processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
         config = processor.load_config('test_nlu_fallback_only')
