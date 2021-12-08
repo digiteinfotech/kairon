@@ -1,8 +1,6 @@
 import os
-from datetime import datetime
 from typing import List
 from urllib.parse import urljoin
-
 from fastapi import APIRouter, BackgroundTasks, Path
 from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
@@ -948,7 +946,7 @@ async def validate_training_data(
     """
     DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
     DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
-    Utility.make_dirs(os.path.join("training_data", current_user.get_bot(), str(datetime.utcnow())))
+    Utility.make_dirs(os.path.join("training_data", current_user.get_bot(), str(uuid.uuid4())))
     DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(), is_data_uploaded=False)
     background_tasks.add_task(EventsTrigger.trigger_data_importer,
                               current_user.get_bot(), current_user.get_user(),

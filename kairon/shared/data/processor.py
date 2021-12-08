@@ -1,6 +1,7 @@
 import itertools
 import json
 import os
+import uuid
 from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
@@ -2907,7 +2908,7 @@ class MongoProcessor:
         @return:
         """
         if not bot_data_home_dir:
-            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+            bot_data_home_dir = os.path.join('training_data', bot, str(uuid.uuid4()))
         data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
         Utility.make_dirs(data_path)
 

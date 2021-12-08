@@ -1,10 +1,9 @@
 import os
 import shutil
 import tempfile
-from datetime import datetime
 from itertools import chain
 from typing import Text, List, Dict
-from re import findall
+import uuid
 import requests
 from fastapi import File
 from fastapi.background import BackgroundTasks
@@ -58,7 +57,7 @@ class DataUtility:
         if training_files[0].filename.endswith('.zip'):
             bot_data_home_dir = await DataUtility.save_training_files_as_zip(bot, training_files[0])
         else:
-            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+            bot_data_home_dir = os.path.join('training_data', bot, str(uuid.uuid4()))
             data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
             Utility.make_dirs(data_path)
 
@@ -79,7 +78,7 @@ class DataUtility:
         try:
             zipped_file = os.path.join(tmp_dir, training_file.filename)
             Utility.write_to_file(zipped_file, await training_file.read())
-            unzip_path = os.path.join('training_data', bot, str(datetime.utcnow()))
+            unzip_path = os.path.join('training_data', bot, str(uuid.uuid4()))
             shutil.unpack_archive(zipped_file, unzip_path, 'zip')
             return unzip_path
         except Exception as e:

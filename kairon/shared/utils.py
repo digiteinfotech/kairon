@@ -15,7 +15,6 @@ from smtplib import SMTP
 from typing import Text, List, Dict
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
-
 import requests
 import yaml
 from jwt import encode, decode, PyJWTError
@@ -662,6 +661,7 @@ class Utility:
     @staticmethod
     def replace_file_name(msg: str, root_dir: str):
         regex = '((\'*\"*{0}).*(/{1}\'*\"*))'
+        root_dir = root_dir.replace("\\", "/")
         files = ['nlu.yml', 'domain.yml', 'config.yml', 'stories.yml', 'nlu.yaml', 'domain.yaml', 'config.yaml',
                  'stories.yaml', 'nlu.md', 'stories.md']
         for file in files:
