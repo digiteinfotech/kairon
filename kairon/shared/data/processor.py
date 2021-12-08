@@ -1118,7 +1118,7 @@ class MongoProcessor:
 
         present_config = self.load_config(bot)
         if nlu_confidence_threshold:
-            nlu_confidence_threshold = nlu_confidence_threshold / 100
+            nlu_confidence_threshold = nlu_confidence_threshold
             fallback_classifier_idx = next(
                 (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"),
                 None)
@@ -1134,7 +1134,7 @@ class MongoProcessor:
                 present_config['policies'].append(rule_policy)
 
         if action_fallback:
-            action_fallback_threshold = action_fallback_threshold / 100 if action_fallback_threshold else 0.3
+            action_fallback_threshold = action_fallback_threshold if action_fallback_threshold else 0.3
             if action_fallback == 'action_default_fallback':
                 utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
                                                     name__iexact='utter_default')
@@ -1171,9 +1171,9 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') * 100 if nlu_fallback.get('threshold') else None
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')  if nlu_fallback.get('threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
-        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') * 100 if action_fallback.get('core_fallback_threshold') else None
+        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') if action_fallback.get('core_fallback_threshold') else None
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
         selected_config['response_epochs'] = response_selector.get('epochs')
