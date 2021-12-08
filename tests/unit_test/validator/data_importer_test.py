@@ -1,8 +1,7 @@
 import os
 import shutil
 import tempfile
-from datetime import datetime
-
+import uuid
 import pytest
 from mongoengine import connect
 
@@ -57,7 +56,7 @@ class TestDataImporter:
         http_actions = 'tests/testing_data/error/http_action.yml'
         bot = 'test_data_import'
         user = 'test'
-        bot_home = os.path.join(pytest.tmp_dir, bot, str(datetime.utcnow()))
+        bot_home = os.path.join(pytest.tmp_dir, bot, str(uuid.uuid4()))
         shutil.copytree(path, bot_home)
         shutil.copy2(http_actions, bot_home)
         importer = DataImporter(bot_home, bot, user, REQUIREMENTS.copy(), False, False)
@@ -104,7 +103,7 @@ class TestDataImporter:
         path = 'tests/testing_data/validator/valid'
         bot = 'test_data_import'
         user = 'test'
-        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, True)
         await importer.validate()
@@ -124,7 +123,7 @@ class TestDataImporter:
         path = 'tests/testing_data/validator/append'
         bot = 'test_data_import'
         user = 'test'
-        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, False)
         await importer.validate()
@@ -147,7 +146,7 @@ class TestDataImporter:
         bot = 'test_data_import'
         bot_2 = 'test_data_import_bot'
         user = 'test'
-        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, set(), False)
         await importer.validate()
@@ -177,7 +176,7 @@ class TestDataImporter:
         path = 'tests/testing_data/validator/common_training_examples'
         bot = 'test_data_import_bot'
         user = 'test'
-        test_data_path = os.path.join(pytest.tmp_dir, str(datetime.utcnow()))
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS.copy(), True)
         summary, component_count = await importer.validate()
