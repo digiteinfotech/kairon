@@ -31,7 +31,6 @@ class TestActionServer(AsyncHTTPTestCase):
     def test_http_action_execution(self):
         action_name = "test_run_with_get"
         action = HttpActionConfig(
-            auth_token="",
             action_name=action_name,
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8081/mock",
@@ -107,7 +106,6 @@ class TestActionServer(AsyncHTTPTestCase):
     def test_http_action_failed_execution(self):
         action_name = "test_run_with_get"
         action = HttpActionConfig(
-            auth_token="",
             action_name=action_name,
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8082/mock",

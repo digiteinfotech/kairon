@@ -376,8 +376,19 @@ class TrainingDataValidator(Validator):
                             if not param.get('key'):
                                 data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
                                 continue
-                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
+                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id', 'user_message'}:
                                 data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
+                                continue
+                            if param.get('parameter_type') == 'slot' and not param.get('value'):
+                                param['value'] = param.get('key')
+
+                    if http_obj.get('header'):
+                        for param in http_obj.get('header'):
+                            if not param.get('key'):
+                                data_error.append('Invalid header for http action: ' + http_obj['action_name'])
+                                continue
+                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id', 'user_message'}:
+                                data_error.append('Invalid header for http action: ' + http_obj['action_name'])
                                 continue
                             if param.get('parameter_type') == 'slot' and not param.get('value'):
                                 param['value'] = param.get('key')
