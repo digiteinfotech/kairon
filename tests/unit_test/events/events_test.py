@@ -17,11 +17,12 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.test.test_models import ModelTester
 
 
 class TestEvents:
 
-    @pytest.fixture(scope='session', autouse=True)
+    @pytest.fixture(scope='class', autouse=True)
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -44,8 +45,6 @@ class TestEvents:
         yield None
         shutil.rmtree(tmp_dir)
         shutil.rmtree('models/test_events_bot')
-        shutil.rmtree('models/test_events_no_nlu_model')
-        shutil.rmtree('tests/testing_data/model_tester/models')
 
     @pytest.fixture()
     def get_training_data(self):
@@ -810,16 +809,14 @@ class TestEvents:
         assert len(mongo_processor.fetch_actions(bot)) == 0
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
-    @pytest.mark.asyncio
-    async def test_trigger_model_testing_event_run_tests_on_model_no_model_found(self):
+    def test_trigger_model_testing_event_run_tests_on_model_no_model_found(self):
         bot = 'test_events_bot'
         user = 'test_user'
-        await EventsTrigger.trigger_model_testing(bot, user, False)
+        EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0].get('exception').__contains__('Model testing failed: Folder does not exists!')
         assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
         assert not logs[0].get('stories')
         assert not logs[0].get('nlu')
         assert logs[0].get('end_timestamp')
@@ -865,7 +862,9 @@ class TestEvents:
         return move_model
 
     @pytest.mark.asyncio
-    async def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model):
+    async def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model, monkeypatch):
+        import rasa.utils.common
+
         bot = 'test_events_bot'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -874,88 +873,87 @@ class TestEvents:
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
         create_model(pytest.model_path, bot)
+
+        def _mock_stories_output(*args, **kwargs):
+            return {
+                "precision": 0.91,
+                "f1": 0.98,
+                "accuracy": 0.99,
+                "failed_stories": [],
+            }
+
+        monkeypatch.setattr(rasa.utils.common, 'run_in_loop', _mock_stories_output)
         responses.add('POST',
                       Utility.environment["augmentation"]["paraphrase_url"],
-                      json={'data': {'paraphrases': []}})
+                      json={'data': {'paraphrases': ['common training example']}})
         responses.start()
-        await EventsTrigger.trigger_model_testing(bot, user, False)
+        EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
-        assert logs[0].get('stories')
-        assert logs[0].get('nlu')
-        assert not logs[0]['stories']['failed_stories']
-        assert logs[0]['nlu']['intent_evaluation']['errors']
-        assert logs[0]['stories']['successful_stories']
-        assert logs[0]['nlu']['intent_evaluation']['successes']
+        assert logs[0].get('data')
         assert logs[0].get('end_timestamp')
         assert not Utility.check_empty_string(logs[0].get('status'))
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
-    @pytest.mark.asyncio
-    async def test_trigger_model_testing_event_run_tests_on_model_failure(self, load_data):
-        bot = 'test_events_bot'
-        user = 'test_user'
-        config_path = 'tests/testing_data/model_tester/config.yml'
-        domain_path = 'tests/testing_data/model_tester/domain.yml'
-        nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/training_stories_failure/stories.yml'
-        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        await EventsTrigger.trigger_model_testing(bot, user, False)
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 3
-        assert logs[0].get('exception') == 'Model testing failed: No training examples found for intent: mood_unhappy'
-        assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
-        assert logs[0].get('end_timestamp')
-        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
-        assert not os.path.exists(os.path.join('./testing_data', bot))
-
-    @pytest.mark.asyncio
-    async def test_trigger_model_testing_event_run_tests_on_model_no_nlu_model_found(self, load_data, create_model):
-        bot = 'test_events_no_nlu_model'
-        user = 'test_user'
-        config_path = 'tests/testing_data/model_tester/config.yml'
-        domain_path = 'tests/testing_data/model_tester/domain.yml'
-        nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
-        stories_path = 'tests/testing_data/model_tester/test_stories_failures/test_stories.yml'
-        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        create_model(pytest.model_path, bot, True)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 1
-        assert logs[0].get('exception').__contains__('Could not find any model. Please train a model before running tests.')
-        assert logs[0]['start_timestamp']
-        assert logs[0]['run_on_test_stories']
-        assert not logs[0].get('stories')
-        assert not logs[0].get('nlu')
-        assert logs[0].get('end_timestamp')
-        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
-        assert not os.path.exists(os.path.join('./testing_data', bot))
-
-    @pytest.mark.asyncio
-    async def test_trigger_model_testing_event_connection_error(self, monkeypatch):
+    def test_trigger_model_testing_event_connection_error(self, monkeypatch):
         bot = 'test_events_bot'
         user = 'test_user'
         event_url = "http://url.event"
         monkeypatch.setitem(Utility.environment['model']['test'], "event_url", event_url)
-        await EventsTrigger.trigger_model_testing(bot, user, True)
+        EventsTrigger.trigger_model_testing(bot, user, True)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 4
+        assert len(logs) == 3
         assert logs[0].get('exception').__contains__('Failed to trigger the event. ')
         assert logs[0]['start_timestamp']
-        assert not logs[0].get('stories')
-        assert not logs[0].get('nlu')
+        assert not logs[0].get('data')
         assert logs[0].get('end_timestamp')
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     @pytest.mark.asyncio
-    async def test_trigger_model_testing_event(self, monkeypatch):
+    async def test_trigger_model_testing(self, load_data, create_model, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+
+        def _mock_test_result(*args, **kwargs):
+            stories = {
+                "precision": 0.91,
+                "f1": 0.98,
+                "accuracy": 0.99,
+                "failed_stories": [],
+            }
+            nlu = {
+                "precision": 0.91,
+                "f1": 0.98,
+                "accuracy": 0.99,
+                "response_selection_evaluation": [],
+                "intent_evaluation": [],
+            }
+            return nlu, stories
+        monkeypatch.setattr(ModelTester, "run_tests_on_model", _mock_test_result)
+        EventsTrigger.trigger_model_testing(bot, user)
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        create_model(pytest.model_path, bot)
+
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 4
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status')
+        assert logs[0].get('data')
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    def test_trigger_model_testing_event(self, monkeypatch):
         bot = 'test_events_bot'
         user = 'test_user'
         event_url = "http://url.event"
@@ -969,14 +967,13 @@ class TestEvents:
                               [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user}])],
                       )
         responses.start()
-        await EventsTrigger.trigger_model_testing(bot, user)
+        EventsTrigger.trigger_model_testing(bot, user)
         responses.stop()
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 5
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
         assert not logs[0].get('end_timestamp')
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value

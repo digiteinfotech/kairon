@@ -1,13 +1,18 @@
 import os
 import shutil
+import tempfile
+import uuid
 
 import pytest
+import responses
 from mongoengine import connect
+from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.test.test_models import ModelTester
+from kairon.test.test_models import ModelTester, TestDataGenerator
 
 
 class TestModelTesting:
@@ -17,6 +22,8 @@ class TestModelTesting:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        tmp_dir = tempfile.mkdtemp()
+        pytest.tmp_dir = tmp_dir
 
         from rasa import train
         # model without entities
@@ -30,7 +37,13 @@ class TestModelTesting:
             force_training=True
         )
         pytest.model_path = train_result.model
+        responses.add('POST',
+                      Utility.environment["augmentation"]["paraphrase_url"],
+                      json={'data': {'paraphrases': ['common training example']}})
+        responses.start()
         yield None
+        responses.stop()
+        shutil.rmtree(pytest.tmp_dir)
         shutil.rmtree('tests/testing_data/model_tester/models')
 
     @pytest.mark.asyncio
@@ -38,7 +51,6 @@ class TestModelTesting:
         result = await ModelTester.run_test_on_stories(
             'tests/testing_data/model_tester/test_stories_success/test_stories.yml',
             pytest.model_path, True)
-        assert len(result['successful_stories']) == 5
         assert not result['failed_stories']
         assert result['precision']
         assert result['f1']
@@ -49,23 +61,20 @@ class TestModelTesting:
         result = await ModelTester.run_test_on_stories(
             'tests/testing_data/model_tester/test_stories_failures/test_stories.yml',
             pytest.model_path, True)
-        assert len(result['successful_stories']) == 3
         assert len(result['failed_stories']) == 2
         assert result['precision']
         assert result['f1']
         assert result['accuracy']
-        ModelTestingLogProcessor.update_log_with_test_results('test_bot', 'test_user',
-                                                              stories=result,
-                                                              nlu={},
-                                                              event_status='Completed')
+        ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
+                                                 stories_result=result,
+                                                 nlu_result={},
+                                                 event_status='Completed')
         logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
-        assert logs[0].get('stories')
+        assert logs[0].get('data')
         assert not logs[0].get('nlu')
-        assert logs[0]['stories']['failed_stories']
-        assert logs[0]['stories']['successful_stories']
+        assert next(data['failed_stories'] for data in logs[0].get('data') if data['type'] == 'stories')
         assert logs[0].get('end_timestamp')
         assert logs[0].get('status') == 'FAILURE'
         assert logs[0]['event_status'] == 'Completed'
@@ -73,8 +82,6 @@ class TestModelTesting:
     def test_run_test_on_nlu(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
                                              pytest.model_path)
-        assert len(result['intent_evaluation']['predictions']) == 43
-        assert len(result['intent_evaluation']['successes']) == 43
         assert len(result['intent_evaluation']['errors']) == 0
         assert result['intent_evaluation']['precision']
         assert result['intent_evaluation']['f1_score']
@@ -83,32 +90,25 @@ class TestModelTesting:
     def test_run_test_on_nlu_failure(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_failures/nlu.yml',
                                              pytest.model_path)
-        assert len(result['intent_evaluation']['predictions']) == 47
-        assert len(result['intent_evaluation']['successes']) == 29
         assert len(result['intent_evaluation']['errors']) == 18
         assert result['intent_evaluation']['precision']
         assert result['intent_evaluation']['f1_score']
         assert result['intent_evaluation']['accuracy']
 
-        assert len(result['entity_evaluation']['DIETClassifier']['successes']) == 2
         assert len(result['entity_evaluation']['DIETClassifier']['errors']) == 2
         assert result['entity_evaluation']['DIETClassifier']['precision']
         assert result['entity_evaluation']['DIETClassifier']['f1_score']
         assert result['entity_evaluation']['DIETClassifier']['accuracy']
         result['response_selection_evaluation'] = {'errors': [{'text': 'this is failure', 'confidence': 0.78}]}
-        ModelTestingLogProcessor.update_log_with_test_results('test_bot', 'test_user',
-                                                              stories={},
-                                                              nlu=result,
-                                                              event_status='Completed')
+        ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
+                                                 stories_result={},
+                                                 nlu_result=result,
+                                                 event_status='Completed')
         logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
-        assert not logs[0]['run_on_test_stories']
         assert not logs[0].get('stories')
-        assert logs[0].get('nlu')
-        assert logs[0]['nlu']['intent_evaluation']['errors']
-        assert logs[0]['nlu']['intent_evaluation']['successes']
-        assert logs[0]['nlu']['response_selection_evaluation']['errors']
+        assert next(data for data in logs[0].get('data') if data['type'] == 'nlu')
         assert logs[0].get('end_timestamp')
         assert logs[0].get('status') == 'FAILURE'
         assert logs[0]['event_status'] == 'Completed'
@@ -117,7 +117,7 @@ class TestModelTesting:
         assert not ModelTestingLogProcessor.is_event_in_progress('test_bot')
 
     def test_is_event_in_progress_failure(self):
-        ModelTestingLogProcessor.add_initiation_log('test_bot', 'test_user', False)
+        ModelTestingLogProcessor.log_test_result('test_bot', 'test_user')
         assert ModelTestingLogProcessor.is_event_in_progress('test_bot', False)
 
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):
@@ -133,3 +133,82 @@ class TestModelTesting:
 
         with pytest.raises(AppException, match='Daily limit exceeded.'):
             ModelTestingLogProcessor.is_limit_exceeded('test_bot')
+
+    def test_trigger_model_testing_model_no_model_found(self):
+        bot = 'test_events_no_nlu_model'
+        with pytest.raises(AppException, match="Model testing failed: Folder does not exists!"):
+            ModelTester.run_tests_on_model(bot)
+
+    @pytest.fixture
+    def load_data(self):
+        async def _read_and_get_data(config_path: str, domain_path: str, nlu_path: str, stories_path: str, bot: str,
+                                     user: str):
+            data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+            os.mkdir(data_path)
+            shutil.copy2(nlu_path, data_path)
+            shutil.copy2(stories_path, data_path)
+            importer = RasaFileImporter.load_from_config(config_path=config_path,
+                                                         domain_path=domain_path,
+                                                         training_data_paths=data_path)
+            domain = await importer.get_domain()
+            story_graph = await importer.get_stories()
+            config = await importer.get_config()
+            nlu = await importer.get_nlu_data(config.get('language'))
+
+            processor = MongoProcessor()
+            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True)
+
+        return _read_and_get_data
+
+    @pytest.mark.asyncio
+    async def test_data_generator(self, load_data):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)
+
+    @pytest.mark.asyncio
+    async def test_data_generator_no_training_example_for_intent(self, load_data, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+
+        def _mock_test_data(*args, **kwargs):
+            return {'affirm': [{'text': 'yes', 'entities': None, '_id': '61b08b91d0807d6fb24270ae'},
+                               {'text': 'indeed', 'entities': None, '_id': '61b08b91d0807d6fb24270af'},
+                               {'text': 'of course', 'entities': None, '_id': '61b08b91d0807d6fb24270b0'},
+                               {'text': 'that sounds good', 'entities': None, '_id': '61b08b91d0807d6fb24270b1'},
+                               {'text': 'correct', 'entities': None, '_id': '61b08b91d0807d6fb24270b2'}],
+                    'mood_unhappy': []}
+
+        monkeypatch.setattr(MongoProcessor, 'get_intents_and_training_examples', _mock_test_data)
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        with pytest.raises(AppException, match='No training examples found for intent: [\'mood_unhappy\']'):
+            TestDataGenerator.create(bot, True)
+
+    def test_data_generator_no_training_data(self):
+        bot = 'no_data_bot'
+        with pytest.raises(AppException, match='Not enough training data exists. Please add some training data.'):
+            TestDataGenerator.create(bot, True)
+
+    @pytest.mark.asyncio
+    async def test_data_generator_samples_threshold(self, load_data):
+        bot = 'test_threshold'
+        user = 'test_user'
+        config_path = 'tests/testing_data/model_tester/config.yml'
+        domain_path = 'tests/testing_data/model_tester/threshold/domain.yml'
+        nlu_path = 'tests/testing_data/model_tester/threshold/nlu.yml'
+        stories_path = 'tests/testing_data/model_tester/threshold/stories.yml'
+        await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)

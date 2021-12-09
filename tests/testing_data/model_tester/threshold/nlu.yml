@@ -1,0 +1,141 @@
+version: "2.0"
+nlu:
+  - intent: thank
+    examples: |
+      - Thanks
+      - thanks
+      - Thanks....Your welcome :)
+      - Thank you
+      - thanks a bunch for everything
+      - thank u
+      - thanks for the help
+      - cool thank you
+      - cool thanks
+      - Thanks bot
+      - Thanks for that
+      - thanks for forum link, I'll check it out
+      - Thank you so much
+      - cheers
+      - perfect thank you
+      - Thanks!
+      - thanks!
+      - great thanks
+      - You are a blessing
+      - thnx....Your welcome :)
+      - ok thanks!
+      - cool, thanks
+      - Cool. Thanks
+      - cheers bro
+      - Thanks, that was great help !!
+      - thanks this is great news
+      - Thanks that was helpful !!!
+      - thanks a lot
+      - amazing, thanks
+      - That was indeed helpful
+      - thank you
+  - intent: affirm
+    examples: |
+      - affirmative right thank you
+      - ok i accept
+      - ja
+      - yes sounds good thank you
+      - correct plz
+      - correct sounds good thank you
+      - yeah
+      - accept
+      - yes sir right thank you
+      - yes sir good agreed
+      - yep i want that agreed
+      - yes sir agreed thank you
+      - im ok with that that is good yep
+      - jo
+      - coolio
+      - agreed yep
+      - affirmative plz
+      - sounds good right
+      - affirmative that is what i want
+      - Yes
+      - I accept
+      - confirm
+      - hm, i'd like that
+      - Sweet
+      - how nice!
+      - fine
+      - yes right thank you
+      - im ok with that yes thank you
+      - yes sir agreed
+      - right pls
+      - yep, will do thank you
+      - oki doki
+      - yes
+      - yes sir
+      - affirmative that is good yep
+      - im ok with that pls
+      - indeed
+      - ok
+      - go for it
+      - I'm sure I will!
+      - i will!
+      - affirmative that is fine yes
+      - yep that is correct im ok with that
+      - im ok with that that is what i want
+      - sounds good that is good yep
+      - of course
+      - cool
+      - correct yes sir thank you
+      - agreed correct
+      - correct right thank you
+      - alright
+      - ok, I behave now
+      - yay
+      - yes accept please
+      - great
+      - yep that is good right
+      - yep yes thank you
+      - agreed yep thank you
+      - affirmative
+      - correct
+      - yop
+      - definitely yes without a doubt
+      - sure thing
+      - Oh, ok
+      - Sure
+      - amazing!
+      - yes sir pls
+      - right plz
+      - im ok with that
+      - correct pls
+      - yes sir please
+      - yes please
+      - yes please!
+      - absolutely
+      - right
+      - im ok with that i want that correct
+      - agreed
+      - amayzing
+      - yup
+      - perfect
+      - that is good yep
+      - im ok with that yes sir thank you
+      - yes sir im ok with that thank you
+      - I changed my mind. I want to accept it
+      - nice
+      - cool!
+      - yes sir you understood me im ok with that
+      - yes im ok with that thank you
+      - that sounds good
+      - oh awesome!
+      - i accept
+      - ok cool
+      - yep if i have to
+      - yas
+      - affirmative that is correct agreed
+      - i want that correct
+      - sure
+      - yes i accept
+      - yep
+      - sounds good right thank you
+      - affirmative right
+      - agreed sounds good
+      - sure!
+      - oh cool

@@ -187,7 +187,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert not actual['data']
+    assert len(actual['data']) == 1
     assert actual["success"]
 
 
@@ -299,7 +299,7 @@ def test_list_entities():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert {e['name'] for e in actual["data"]} == {'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
+    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
     assert actual["success"]
 
 
@@ -464,6 +464,17 @@ def test_model_testing_in_progress():
     assert actual["error_code"] == 422
     assert actual['message'] == 'Event already in progress! Check logs.'
     assert not actual["success"]
+
+
+def test_get_model_testing_logs():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]
 
 
 def test_get_data_importer_logs():

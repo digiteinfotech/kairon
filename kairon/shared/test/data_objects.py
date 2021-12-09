@@ -1,16 +1,14 @@
-from datetime import datetime
-
-from mongoengine import Document, StringField, BooleanField, DateTimeField, DictField
+from mongoengine import Document, StringField, DateTimeField, DictField
 
 
 class ModelTestingLogs(Document):
-    stories = DictField(default=None)
-    nlu = DictField(default=None)
+    reference_id = StringField(default=None)
+    data = DictField(default=None)
+    type = StringField(required=True, choices=['nlu', 'stories', 'common'])
     exception = StringField(default=None)
-    run_on_test_stories = BooleanField(default=False)
     bot = StringField(required=True)
     user = StringField(required=True)
-    start_timestamp = DateTimeField(default=datetime.utcnow())
+    start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
-    event_status = StringField(default="Completed")
+    event_status = StringField(default=None)
