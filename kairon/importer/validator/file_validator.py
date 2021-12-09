@@ -382,6 +382,17 @@ class TrainingDataValidator(Validator):
                             if param.get('parameter_type') == 'slot' and not param.get('value'):
                                 param['value'] = param.get('key')
 
+                    if http_obj.get('header'):
+                        for param in http_obj.get('header'):
+                            if not param.get('key'):
+                                data_error.append('Invalid header for http action: ' + http_obj['action_name'])
+                                continue
+                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id'}:
+                                data_error.append('Invalid header for http action: ' + http_obj['action_name'])
+                                continue
+                            if param.get('parameter_type') == 'slot' and not param.get('value'):
+                                param['value'] = param.get('key')
+
                     action_names.append(http_obj['action_name'])
                 else:
                     data_error.append("Duplicate http action found: " + http_obj['action_name'])

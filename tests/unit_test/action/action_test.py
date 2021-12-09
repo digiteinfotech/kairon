@@ -54,7 +54,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
@@ -72,7 +72,7 @@ class TestActions:
             status=200
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={}, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
@@ -90,7 +90,7 @@ class TestActions:
             status=200
         )
         params = {"test": "val1", "test2": "val2"}
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={}, http_url=http_url,
                                                       request_method=responses.GET, request_body=params)
         assert response
         assert response['data'] == 'test_data'
@@ -118,7 +118,7 @@ class TestActions:
         http_url = 'http://localhost:8080/mock'
         params = {"test": "val1", "test2": "val2"}
         with pytest.raises(ActionFailure, match="Invalid request method!"):
-            ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+            ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                request_method='OPTIONS', request_body=params)
 
     @responses.activate
@@ -137,7 +137,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -157,7 +157,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -179,7 +179,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -199,7 +199,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -221,7 +221,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -241,7 +241,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=None)
         assert response
         assert response == resp_msg
@@ -264,7 +264,7 @@ class TestActions:
         )
 
         with pytest.raises(ActionFailure, match="Got non-200 status code"):
-            ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+            ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                request_method=responses.DELETE, request_body=request_params)
 
     @responses.activate
@@ -283,7 +283,7 @@ class TestActions:
             ]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -293,7 +293,6 @@ class TestActions:
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         expected = HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action",
             response="json",
             http_url="http://test.com",
@@ -305,7 +304,6 @@ class TestActions:
 
         actual = ActionUtility.get_http_action_config("bot", "http_action")
         assert actual is not None
-        assert expected['auth_token'] == actual['auth_token']
         assert expected['action_name'] == actual['action_name']
         assert expected['response'] == actual['response']
         assert expected['http_url'] == actual['http_url']
@@ -323,7 +321,6 @@ class TestActions:
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
-            auth_token="",
             action_name="test_get_http_action_config_deleted_action",
             response="${RESPONSE}",
             http_url="http://www.digite.com",
@@ -334,7 +331,6 @@ class TestActions:
             status=False
         ).save().to_mongo().to_dict()
         expected = HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="test_get_http_action_config_deleted_action",
             response="json",
             http_url="http://test.com",
@@ -346,7 +342,6 @@ class TestActions:
 
         actual = ActionUtility.get_http_action_config("bot", "test_get_http_action_config_deleted_action")
         assert actual is not None
-        assert expected['auth_token'] == actual['auth_token']
         assert expected['action_name'] == actual['action_name']
         assert expected['response'] == actual['response']
         assert expected['http_url'] == actual['http_url']
@@ -378,7 +373,6 @@ class TestActions:
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action",
             response="json",
             http_url="http://test.com",
@@ -398,7 +392,6 @@ class TestActions:
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action",
             response="json",
             http_url="http://test.com",
@@ -417,7 +410,6 @@ class TestActions:
     def test_get_http_action_no_request_body(self):
         http_params = []
         HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action",
             response="json",
             http_url="http://test.com",
@@ -432,6 +424,14 @@ class TestActions:
             assert False
         except ActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
+
+    def test_prepare_header_no_header(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        actual = ActionUtility.prepare_request(tracker, None)
+        assert actual == {}
 
     def test_prepare_request(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
@@ -628,7 +628,6 @@ class TestActions:
         latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
         actions_name = "test_run_invalid_http_action1"
         HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name=actions_name,
             response="json",
             http_url="http://www.google.com",
@@ -681,7 +680,6 @@ class TestActions:
         http_url = "http://www.google.com"
         http_response = "This should be response"
         action = HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action",
             response=http_response,
             http_url=http_url,
@@ -735,7 +733,6 @@ class TestActions:
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="http_action_with_params",
             response=http_response,
             http_url=http_url,
@@ -786,7 +783,6 @@ class TestActions:
     @pytest.mark.asyncio
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
-            auth_token="",
             action_name="test_run_with_post",
             response="Data added successfully, id:${RESPONSE}",
             http_url="http://localhost:8080/mock",
@@ -829,7 +825,6 @@ class TestActions:
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
-            auth_token="",
             action_name="test_run_with_post",
             response="Data added successfully, id:${RESPONSE}",
             http_url="http://localhost:8080/mock",
@@ -882,7 +877,6 @@ class TestActions:
     @pytest.mark.asyncio
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
-            auth_token="",
             action_name="test_run_with_get",
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8081/mock",
@@ -933,7 +927,6 @@ class TestActions:
     async def test_run_no_connection(self, monkeypatch):
         action_name = "test_run_with_post"
         action = HttpActionConfig(
-            auth_token="",
             action_name=action_name,
             response="This should be response",
             http_url="http://localhost:8085/mock",
@@ -964,7 +957,6 @@ class TestActions:
     async def test_run_with_get_placeholder_vs_string_response(self, monkeypatch):
         action_name = "test_run_with_get_string_http_response_placeholder_required"
         action = HttpActionConfig(
-            auth_token="",
             action_name=action_name,
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8080/mock",
@@ -1061,7 +1053,6 @@ class TestActions:
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
-            auth_token="",
             action_name="test_run_get_with_parameters",
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8081/mock",
@@ -1121,7 +1112,6 @@ class TestActions:
     @pytest.mark.asyncio
     async def test_run_get_with_parameters(self, monkeypatch):
         action = HttpActionConfig(
-            auth_token="",
             action_name="test_run_get_with_parameters",
             response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
             http_url="http://localhost:8081/mock",
@@ -1271,7 +1261,6 @@ class TestActions:
         user = 'test'
         Actions(name='action_hit_endpoint', type=ActionType.http_action.value, bot=bot, user=user).save()
         HttpActionConfig(
-            auth_token="bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs",
             action_name="action_hit_endpoint",
             response="json",
             http_url="http://test.com",
@@ -1282,7 +1271,6 @@ class TestActions:
 
         config, action_type = ActionUtility.get_action_config(bot, 'action_hit_endpoint')
         assert config['action_name'] == 'action_hit_endpoint'
-        assert config['auth_token'] == 'bearer kjflksjflksajfljsdflinlsufisnflisjbjsdalibvs'
         assert config['response'] == 'json'
         assert config['http_url'] == "http://test.com"
         assert config['request_method'] == 'GET'
