@@ -2815,12 +2815,11 @@ def test_add_http_action_malformed_url():
 
 def test_add_http_action_missing_parameters():
     request_body = {
-        "auth_token": "",
         "action_name": "new_http_action2",
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "put",
-        "http_params_list": [{
+        "params_list": [{
             "key": "",
             "parameter_type": "",
             "value": ""
@@ -2922,7 +2921,19 @@ def test_add_http_action_with_sender_id_parameter_type():
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
+            "key": "testParam1",
+            "parameter_type": "sender_id",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue2"
+        }, {
+            "key": "testParam3",
+            "parameter_type": "user_message",
+        }],
+        "headers": [{
             "key": "testParam1",
             "parameter_type": "sender_id",
             "value": "testValue1"
@@ -2964,6 +2975,10 @@ def test_get_http_action():
         {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
         {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
         {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
+    assert actual["data"]['headers'] == [
+        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
+        {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
     assert not actual["message"]
     assert actual["success"]
 
@@ -2975,7 +2990,7 @@ def test_add_http_action_invalid_parameter_type():
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "val",
             "value": "testValue1"
@@ -2996,15 +3011,14 @@ def test_add_http_action_invalid_parameter_type():
 
 def test_add_http_action_with_token():
     request_body = {
-        "auth_token": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs",
         "action_name": "test_add_http_action_with_token_and_story",
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
-            "key": "testParam1",
+        "headers": [{
+            "key": "Authorization",
             "parameter_type": "value",
-            "value": "testValue1"
+            "value": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
         }, {
             "key": "testParam1",
             "parameter_type": "value",
@@ -3034,10 +3048,10 @@ def test_add_http_action_with_token():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual['data']["response"] == "string"
-    assert actual['data']["auth_token"] == "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
+    assert actual['data']["headers"] == request_body['headers']
     assert actual['data']["http_url"] == "http://www.google.com"
     assert actual['data']["request_method"] == "GET"
-    assert len(actual['data']["params_list"]) == 3
+    assert len(actual['data']["headers"]) == 3
     assert actual["success"]
 
 
@@ -3048,7 +3062,7 @@ def test_add_http_action_no_params():
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": []
+        "params_list": []
     }
 
     response = client.post(
@@ -3070,7 +3084,7 @@ def test_add_http_action_existing():
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"
@@ -3110,12 +3124,11 @@ def test_get_http_action_non_exisitng():
 
 def test_update_http_action():
     request_body = {
-        "auth_token": "",
         "action_name": "test_update_http_action",
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"
@@ -3131,12 +3144,11 @@ def test_update_http_action():
     assert actual["error_code"] == 0
 
     request_body = {
-        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action",
         "response": "json",
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"
@@ -3144,6 +3156,11 @@ def test_update_http_action():
             "key": "testParam2",
             "parameter_type": "slot",
             "value": "testValue1"
+        }],
+        "headers": [{
+            "key": "Authorization",
+            "parameter_type": "value",
+            "value": "bearer token"
         }]
     }
     response = client.put(
@@ -3161,13 +3178,13 @@ def test_update_http_action():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual['data']["response"] == "json"
-    assert actual['data']["auth_token"] == "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf"
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
     assert actual['data']["params_list"][0]['key'] == 'testParam1'
     assert actual['data']["params_list"][0]['parameter_type'] == 'value'
     assert actual['data']["params_list"][0]['value'] == 'testValue1'
+    assert actual['data']["headers"] == request_body['headers']
     assert actual["success"]
 
 
@@ -3178,7 +3195,7 @@ def test_update_http_action_wrong_parameter():
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"
@@ -3199,7 +3216,7 @@ def test_update_http_action_wrong_parameter():
         "response": "json",
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "val",
             "value": "testValue1"
@@ -3227,7 +3244,7 @@ def test_update_http_action_non_existing():
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": []
+        "params_list": []
     }
 
     response = client.post(
@@ -3242,7 +3259,7 @@ def test_update_http_action_non_existing():
         "response": "json",
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
-        "http_params_list": [{
+        "params_list": [{
             "key": "param1",
             "value": "value1",
             "parameter_type": "value"},
@@ -3269,7 +3286,7 @@ def test_delete_http_action():
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": []
+        "params_list": []
     }
 
     response = client.post(
@@ -3295,7 +3312,7 @@ def test_delete_http_action_non_existing():
         "response": "",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": []
+        "params_list": []
     }
 
     client.post(
@@ -6100,7 +6117,7 @@ def test_add_http_action_case_insensitivity():
         "response": "string",
         "http_url": "http://www.google.com",
         "request_method": "GET",
-        "http_params_list": [{
+        "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"

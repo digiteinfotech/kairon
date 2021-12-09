@@ -43,14 +43,6 @@ class TestBotModels:
             request_method="GET",
             http_params_list=[]
         )
-        HttpActionConfigRequest(
-            auth_token=None,
-            action_name="test_action",
-            response="response",
-            http_url="http://www.google.com",
-            request_method="GET",
-            http_params_list=None
-        )
 
     def test_http_action_config_request_invalid(self):
         with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):

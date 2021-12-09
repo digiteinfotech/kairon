@@ -19,7 +19,7 @@ from kairon.shared.constants import SLOT_SET_TYPE
 class HttpActionRequestBody(EmbeddedDocument):
     key = StringField(required=True)
     value = StringField(default="")
-    parameter_type = StringField(default="value", choices=["value", "slot", "sender_id"])
+    parameter_type = StringField(default="value", choices=["value", "slot", "sender_id", "user_message"])
 
     def validate(self, clean=True):
         from .utils import ActionUtility
@@ -31,12 +31,12 @@ class HttpActionRequestBody(EmbeddedDocument):
 
 
 class HttpActionConfig(Document):
-    auth_token = StringField(default="")
     action_name = StringField(required=True)
     response = StringField(required=True)
     http_url = StringField(required=True)
     request_method = StringField(required=True)
     params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -67,6 +67,7 @@ class ActionServerLogs(Document):
     intent = StringField()
     action = StringField()
     sender = StringField()
+    headers = DictField()
     url = StringField()
     request_params = DictField()
     api_response = StringField()

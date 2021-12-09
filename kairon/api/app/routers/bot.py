@@ -698,10 +698,8 @@ async def get_http_action(action: str = Path(default=None, description="action n
     """
     Returns configuration set for the HTTP action
     """
-    http_action_config = mongo_processor.get_http_action_config(action_name=action,
-                                                                           bot=current_user.get_bot())
-    action_config = DataUtility.build_http_response_object(http_action_config, current_user.get_user(), current_user.get_bot())
-    return Response(data=action_config)
+    http_action_config = mongo_processor.get_http_action_config(action_name=action, bot=current_user.get_bot())
+    return Response(data=http_action_config)
 
 
 @router.get("/action/httpaction", response_model=Response)
