@@ -21,9 +21,7 @@ from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     REQUIREMENTS
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
-from ...api.models import HttpActionParametersResponse, HttpActionConfigResponse
 from ...exceptions import AppException
-from ...shared.actions.data_objects import HttpActionConfig
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
 
@@ -255,31 +253,6 @@ class DataUtility:
     def get_rasa_core_policies():
         from rasa.core.policies import registry
         return list(Utility.get_imports(registry.__file__))
-
-    @staticmethod
-    def build_http_response_object(http_action_config: HttpActionConfig, user: str, bot: str):
-        """
-        Builds a new HttpActionConfigResponse object from HttpActionConfig object.
-        :param http_action_config: HttpActionConfig object containing configuration for the Http action
-        :param user: user id
-        :param bot: bot id
-        :return: HttpActionConfigResponse containing configuration for Http action
-        """
-        http_params = [
-            HttpActionParametersResponse(key=param.key, value=param.value, parameter_type=param.parameter_type)
-            for param in
-            http_action_config.params_list]
-        response = HttpActionConfigResponse(
-            auth_token=http_action_config.auth_token,
-            action_name=http_action_config.action_name,
-            response=http_action_config.response,
-            http_url=http_action_config.http_url,
-            request_method=http_action_config.request_method,
-            params_list=http_params,
-            user=user,
-            bot=bot
-        )
-        return response
 
     @staticmethod
     def trigger_data_generation_event(bot: str, user: str, token: str):
