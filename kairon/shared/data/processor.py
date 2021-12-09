@@ -2460,8 +2460,11 @@ class MongoProcessor:
 
         http_params = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
                        for param in request_data.http_params_list]
+        header = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
+                       for param in request_data.header]
         http_action.request_method = request_data.request_method
         http_action.params_list = http_params
+        http_action.header = header
         http_action.http_url = request_data.http_url
         http_action.response = request_data.response
         http_action.auth_token = request_data.auth_token
@@ -2488,7 +2491,13 @@ class MongoProcessor:
                 key=param['key'],
                 value=param['value'],
                 parameter_type=param['parameter_type'])
-            for param in http_action_config.get("http_params_list")]
+            for param in http_action_config.get("http_params_list") or []]
+        header = [
+            HttpActionRequestBody(
+                key=param['key'],
+                value=param['value'],
+                parameter_type=param['parameter_type'])
+            for param in http_action_config.get("header") or []]
 
         doc_id = HttpActionConfig(
             auth_token=http_action_config.get("auth_token"),
@@ -2497,6 +2506,7 @@ class MongoProcessor:
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
             params_list=http_action_params,
+            header=header,
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
@@ -2530,8 +2540,7 @@ class MongoProcessor:
         :return: HttpActionConfig object containing configuration for the Http action.
         """
         try:
-            http_config_dict = HttpActionConfig.objects().get(bot=bot,
-                                                              action_name=action_name, status=True)
+            http_config_dict = HttpActionConfig.objects().get(bot=bot, action_name=action_name, status=True)
         except DoesNotExist as ex:
             logging.exception(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)

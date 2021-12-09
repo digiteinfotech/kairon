@@ -70,14 +70,17 @@ class ActionProcessor:
         status = "SUCCESS"
         http_url = None
         request_method = None
+        header = None
         try:
+            header = ActionUtility.prepare_header(tracker, http_action_config.get('auth_token'),
+                                                  http_action_config.get('header'))
             request_body = ActionUtility.prepare_request(tracker, http_action_config['params_list'])
             logger.info("request_body: " + str(request_body))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(request_method=request_method,
                                                  http_url=http_action_config['http_url'],
                                                  request_body=request_body)
-            http_response = ActionUtility.execute_http_request(auth_token=http_action_config['auth_token'],
+            http_response = ActionUtility.execute_http_request(header=header,
                                                                http_url=http_url,
                                                                request_method=request_method,
                                                                request_body=request_body)
@@ -100,6 +103,7 @@ class ActionProcessor:
                 intent=tracker.get_intent_of_latest_message(),
                 action=http_action_config['action_name'],
                 sender=tracker.sender_id,
+                header=header,
                 url=http_url,
                 request_params=None if request_method and request_method.lower() == "get" else request_body,
                 api_response=str(http_response) if http_response else None,

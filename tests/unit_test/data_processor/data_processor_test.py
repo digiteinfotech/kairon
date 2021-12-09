@@ -5206,13 +5206,17 @@ class TestModelProcessor:
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            http_params_list=http_params_list,
+            header=header
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
@@ -5230,6 +5234,12 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param2"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert actual_http_action['header'][0]['key'] == "param3"
+        assert actual_http_action['header'][0]['value'] == "param1"
+        assert actual_http_action['header'][0]['parameter_type'] == "slot"
+        assert actual_http_action['header'][1]['key'] == "param4"
+        assert actual_http_action['header'][1]['value'] == "value2"
+        assert actual_http_action['header'][1]['parameter_type'] == "value"
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
@@ -5489,13 +5499,17 @@ class TestModelProcessor:
         http_params_list = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        header = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            http_params_list=http_params_list,
+            header=header
         )
         processor.update_http_config(http_action_config, user, bot)
 
@@ -5514,6 +5528,12 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param4"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert actual_http_action['header'][0]['key'] == "param1"
+        assert actual_http_action['header'][0]['value'] == "param1"
+        assert actual_http_action['header'][0]['parameter_type'] == "slot"
+        assert actual_http_action['header'][1]['key'] == "param2"
+        assert actual_http_action['header'][1]['value'] == "value2"
+        assert actual_http_action['header'][1]['parameter_type'] == "value"
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()

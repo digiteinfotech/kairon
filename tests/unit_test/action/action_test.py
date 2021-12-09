@@ -54,7 +54,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
@@ -72,7 +72,7 @@ class TestActions:
             status=200
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={}, http_url=http_url,
                                                       request_method=responses.GET)
         assert response
         assert response['data'] == 'test_data'
@@ -90,7 +90,7 @@ class TestActions:
             status=200
         )
         params = {"test": "val1", "test2": "val2"}
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={}, http_url=http_url,
                                                       request_method=responses.GET, request_body=params)
         assert response
         assert response['data'] == 'test_data'
@@ -118,7 +118,7 @@ class TestActions:
         http_url = 'http://localhost:8080/mock'
         params = {"test": "val1", "test2": "val2"}
         with pytest.raises(ActionFailure, match="Invalid request method!"):
-            ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+            ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                request_method='OPTIONS', request_body=params)
 
     @responses.activate
@@ -137,7 +137,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -157,7 +157,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.POST, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -179,7 +179,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -199,7 +199,7 @@ class TestActions:
             match=[responses.json_params_matcher(request_params)]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.PUT, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -221,7 +221,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -241,7 +241,7 @@ class TestActions:
             headers={"Authorization": auth_token}
         )
 
-        response = ActionUtility.execute_http_request(auth_token=auth_token, http_url=http_url,
+        response = ActionUtility.execute_http_request(header={'Authorization': auth_token}, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=None)
         assert response
         assert response == resp_msg
@@ -264,7 +264,7 @@ class TestActions:
         )
 
         with pytest.raises(ActionFailure, match="Got non-200 status code"):
-            ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+            ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                request_method=responses.DELETE, request_body=request_params)
 
     @responses.activate
@@ -283,7 +283,7 @@ class TestActions:
             ]
         )
 
-        response = ActionUtility.execute_http_request(auth_token=None, http_url=http_url,
+        response = ActionUtility.execute_http_request(header=None, http_url=http_url,
                                                       request_method=responses.DELETE, request_body=request_params)
         assert response
         assert response == resp_msg
@@ -432,6 +432,42 @@ class TestActions:
             assert False
         except ActionFailure as ex:
             assert str(ex).__contains__("No HTTP action found for bot")
+
+    def test_prepare_header(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        header = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot")]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        actual = ActionUtility.prepare_header(tracker, 'Bearer hfushbfiksfsis', header)
+        assert actual == {'param1': 'value1', 'param2': 'param2value', 'Authorization': 'Bearer hfushbfiksfsis'}
+
+    def test_prepare_header_no_auth(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        header = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot")]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        actual = ActionUtility.prepare_header(tracker, None, header)
+        assert actual == {'param1': 'value1', 'param2': 'param2value'}
+
+    def test_prepare_header_no_header_body_with_auth(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        actual = ActionUtility.prepare_header(tracker, 'Bearer hfushbfiksfsis', None)
+        assert actual == {'Authorization': 'Bearer hfushbfiksfsis'}
+
+    def test_prepare_header_no_header(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        actual = ActionUtility.prepare_header(tracker, None, None)
+        assert actual == {}
 
     def test_prepare_request(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}

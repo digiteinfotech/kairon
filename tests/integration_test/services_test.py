@@ -2922,6 +2922,18 @@ def test_add_http_action_with_sender_id_parameter_type():
         }, {
             "key": "testParam3",
             "parameter_type": "user_message",
+        }],
+        "header": [{
+            "key": "testParam1",
+            "parameter_type": "sender_id",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue2"
+        }, {
+            "key": "testParam3",
+            "parameter_type": "user_message",
         }]
     }
 
@@ -2949,7 +2961,11 @@ def test_get_http_action():
     assert actual["data"]['response'] == 'string'
     assert actual["data"]['http_url'] == 'http://www.google.com'
     assert actual["data"]['request_method'] == 'GET'
-    assert actual["data"]['params_list'] == [
+    assert actual["data"]['http_params_list'] == [
+        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
+        {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
+    assert actual["data"]['header'] == [
         {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
         {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
         {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
@@ -3026,7 +3042,7 @@ def test_add_http_action_with_token():
     assert actual['data']["auth_token"] == "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
     assert actual['data']["http_url"] == "http://www.google.com"
     assert actual['data']["request_method"] == "GET"
-    assert len(actual['data']["params_list"]) == 3
+    assert len(actual['data']["http_params_list"]) == 3
     assert actual["success"]
 
 
@@ -3153,10 +3169,10 @@ def test_update_http_action():
     assert actual['data']["auth_token"] == "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf"
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
-    assert len(actual['data']["params_list"]) == 2
-    assert actual['data']["params_list"][0]['key'] == 'testParam1'
-    assert actual['data']["params_list"][0]['parameter_type'] == 'value'
-    assert actual['data']["params_list"][0]['value'] == 'testValue1'
+    assert len(actual['data']["http_params_list"]) == 2
+    assert actual['data']["http_params_list"][0]['key'] == 'testParam1'
+    assert actual['data']["http_params_list"][0]['parameter_type'] == 'value'
+    assert actual['data']["http_params_list"][0]['value'] == 'testValue1'
     assert actual["success"]
 
 

@@ -167,7 +167,8 @@ class HttpActionConfigRequest(BaseModel):
     response: str
     http_url: str
     request_method: str
-    http_params_list: List[HttpActionParameters] = None
+    http_params_list: List[HttpActionParameters] = []
+    header: List[HttpActionParameters] = []
 
     def get_http_params(self):
         return [param.dict() for param in self.http_params_list]
@@ -205,7 +206,8 @@ class HttpActionConfigResponse(BaseModel):
     response: str
     http_url: str
     request_method: str
-    params_list: List[HttpActionParametersResponse]
+    http_params_list: List[HttpActionParametersResponse]
+    header: List[HttpActionParametersResponse]
     bot: str
     user: str
 

@@ -269,13 +269,18 @@ class DataUtility:
             HttpActionParametersResponse(key=param.key, value=param.value, parameter_type=param.parameter_type)
             for param in
             http_action_config.params_list]
+        header = [
+            HttpActionParametersResponse(key=param.key, value=param.value, parameter_type=param.parameter_type)
+            for param in
+            http_action_config.header]
         response = HttpActionConfigResponse(
             auth_token=http_action_config.auth_token,
             action_name=http_action_config.action_name,
             response=http_action_config.response,
             http_url=http_action_config.http_url,
             request_method=http_action_config.request_method,
-            params_list=http_params,
+            http_params_list=http_params,
+            header=header,
             user=user,
             bot=bot
         )
