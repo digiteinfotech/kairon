@@ -275,12 +275,11 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_upload_case_insensitivity")
         assert actions == {'http_actions': [
             {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
-             'request_method': 'GET', 'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
+             'request_method': 'GET',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
                              {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]},
             {'action_name': 'action_get_microsoft_application', 'response': 'json',
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
-             'auth_token': 'bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
                              {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
@@ -5203,20 +5202,22 @@ class TestModelProcessor:
         http_url = 'http://www.google.com'
         action = 'test_action'
         # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list,
+            headers=header
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
@@ -5224,7 +5225,6 @@ class TestModelProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['auth_token'] == auth_token
         assert actual_http_action['response'] == response
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] is not None
@@ -5234,6 +5234,12 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param2"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert actual_http_action['headers'][0]['key'] == "param3"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param4"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
@@ -5256,7 +5262,7 @@ class TestModelProcessor:
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list
         )
         http_dict = http_action_config.dict()
         http_dict['action_name'] = ''
@@ -5274,11 +5280,11 @@ class TestModelProcessor:
         with pytest.raises(ValidationError, match="Invalid HTTP method"):
             processor.add_http_action_config(http_dict, user, bot)
         http_dict['request_method'] = "GET"
-        http_dict['http_params_list'][0]['key'] = None
+        http_dict['params_list'][0]['key'] = None
         with pytest.raises(ValidationError, match="key in http action parameters cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
-        http_dict['http_params_list'][0]['value'] = None
-        http_dict['http_params_list'][0]['key'] = "param1"
+        http_dict['params_list'][0]['value'] = None
+        http_dict['params_list'][0]['key'] = "param1"
         with pytest.raises(ValidationError, match="Provide name of the slot as value"):
             processor.add_http_action_config(http_dict, user, bot)
 
@@ -5306,14 +5312,12 @@ class TestModelProcessor:
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_add_http_action_config_existing'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
         params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
 
         HttpActionConfig(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
@@ -5323,12 +5327,11 @@ class TestModelProcessor:
         ).save().to_mongo().to_dict()["_id"].__str__()
 
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=params
+            params_list=params
         )
         try:
             processor.add_http_action_config(http_action_config.dict(), user, bot)
@@ -5341,12 +5344,10 @@ class TestModelProcessor:
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_delete_http_action_config'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
         HttpActionConfig(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
@@ -5368,11 +5369,9 @@ class TestModelProcessor:
         action = 'test_delete_http_action_config_non_existing'
         user = 'test_user'
         http_url = 'http://www.google.com'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         response = "json"
         request_method = 'GET'
         HttpActionConfig(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
@@ -5393,12 +5392,10 @@ class TestModelProcessor:
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_get_http_action_config1'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
         HttpActionConfig(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
@@ -5409,7 +5406,6 @@ class TestModelProcessor:
 
         actual_test_user1 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user1 is not None
-        assert actual_test_user1['auth_token'] == auth_token
         assert actual_test_user1['action_name'] == action
         assert actual_test_user1['response'] == response
         assert actual_test_user1['http_url'] == http_url
@@ -5417,12 +5413,10 @@ class TestModelProcessor:
 
         http_url1 = 'http://www.google.com'
         action1 = 'test_get_http_action_config'
-        auth_token1 = "bearer ndgxffffgfhfgkjfjfjfcjjjjjjjj"
         user1 = 'test_user1'
         response1 = ""
         request_method1 = 'POST'
         HttpActionConfig(
-            auth_token=auth_token1,
             action_name=action1,
             response=response1,
             http_url=http_url1,
@@ -5433,7 +5427,6 @@ class TestModelProcessor:
 
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
-        assert actual_test_user2['auth_token'] == auth_token
         assert actual_test_user2['action_name'] == action
         assert actual_test_user2['response'] == response
         assert actual_test_user2['http_url'] == http_url
@@ -5444,12 +5437,10 @@ class TestModelProcessor:
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_action'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
         HttpActionConfig(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
@@ -5469,7 +5460,6 @@ class TestModelProcessor:
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_update_http_config'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
@@ -5477,29 +5467,30 @@ class TestModelProcessor:
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list
         )
         http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
         assert http_config_id is not None
         http_url = 'http://www.alphabet.com'
-        auth_token = ""
         response = "string"
         request_method = 'POST'
         http_params_list = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        header = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list,
+            headers=header
         )
         processor.update_http_config(http_action_config, user, bot)
 
@@ -5508,7 +5499,6 @@ class TestModelProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['auth_token'] == auth_token
         assert actual_http_action['response'] == response
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] is not None
@@ -5518,13 +5508,18 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param4"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert actual_http_action['headers'][0]['key'] == "param1"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param2"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         http_url = 'http://www.google.com'
         action = 'test_update_http_config_invalid_action'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "json"
         request_method = 'GET'
@@ -5532,19 +5527,17 @@ class TestModelProcessor:
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list
         )
         http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
         assert http_config_id is not None
         bot = 'test_bot'
         http_url = 'http://www.alphabet.com'
         action = 'test_update_http_config_invalid'
-        auth_token = "bearer dhdshghfhzxfgadfhdhdhshdshsdfhsdhsdhnxngfgxngf"
         user = 'test_user'
         response = "string"
         request_method = 'POST'
@@ -5552,12 +5545,11 @@ class TestModelProcessor:
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
-            auth_token=auth_token,
             action_name=action,
             response=response,
             http_url=http_url,
             request_method=request_method,
-            http_params_list=http_params_list
+            params_list=http_params_list
         )
         try:
             processor.update_http_config(http_action_config, user, bot)
@@ -5934,7 +5926,6 @@ class TestModelProcessor:
             events=story_event
         ).save(validate=False).to_mongo()
         HttpActionConfig(
-            auth_token="",
             action_name=action,
             response="",
             http_url="http://www.google.com",
