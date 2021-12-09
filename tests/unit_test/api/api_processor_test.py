@@ -28,6 +28,7 @@ class TestAccountProcessor:
     def init_connection(self):
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        AccountProcessor.load_system_properties()
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
@@ -517,15 +518,16 @@ class TestAccountProcessor:
             "password": SecretStr("Welcome@1"),
         }
         loop = asyncio.new_event_loop()
-        actual, mail, subject, body = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        actual, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
         assert actual["role"] == "admin"
         assert actual["_id"]
         assert actual["account"]
         assert actual["bot"]
+        assert actual["first_name"]
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
-        actual, mail, subject, body = loop.run_until_complete(AccountProcessor.default_account_setup())
+        actual, mail, link = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual
 
     async def mock_smtp(self, *args, **kwargs):
@@ -660,7 +662,7 @@ class TestAccountProcessor:
             bot=pytest.bot,
             user="testAdmin",
         )
-        Utility.email_conf["email"]["enable"]= True
+        Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))

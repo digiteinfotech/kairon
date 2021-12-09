@@ -7,7 +7,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, ListField, FloatField
+    DictField, ListField, FloatField, EmbeddedDocumentField, EmbeddedDocument
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -91,3 +91,14 @@ class UiConfig(Document):
     config = DictField(default={})
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+
+class MailTemplates(EmbeddedDocument):
+    verification = StringField()
+    verification_confirmation = StringField()
+    password_reset = StringField()
+    password_reset_confirmation = StringField()
+
+
+class SystemProperties(Document):
+    mail_templates = EmbeddedDocumentField(MailTemplates)
