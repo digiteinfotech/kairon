@@ -563,6 +563,29 @@ class Utility:
                     shutil.move(cleanUp, new_path)
 
     @staticmethod
+    async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None):
+        if mail_type == 'password_reset':
+            body = Utility.email_conf['email']['templates']['password_reset']
+            subject = Utility.email_conf['email']['templates']['password_reset_subject']
+        elif mail_type == 'password_reset_confirmation':
+            body = Utility.email_conf['email']['templates']['password_reset_confirmation']
+            subject = Utility.email_conf['email']['templates']['password_changed_subject']
+        elif mail_type == 'verification':
+            body = Utility.email_conf['email']['templates']['verification']
+            subject = Utility.email_conf['email']['templates']['confirmation_subject']
+        elif mail_type == 'verification_confirmation':
+            body = Utility.email_conf['email']['templates']['verification_confirmation']
+            subject = Utility.email_conf['email']['templates']['confirmed_subject']
+        else:
+            logger.debug('Skipping sending mail as no template found for the mail type')
+            return
+        body = body.replace('FIRST_NAME', first_name)
+        body = body.replace('USER_EMAIL', email)
+        if url:
+            body = body.replace('VERIFICATION_LINK', url)
+        await Utility.validate_and_send_mail(email, subject, body)
+
+    @staticmethod
     async def validate_and_send_mail(email: str, subject: str, body: str):
         """
         Used to validate the parameters of the mail to be sent

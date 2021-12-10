@@ -8,7 +8,8 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig
+from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
+    MailTemplates, SystemProperties
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -307,10 +308,9 @@ class AccountProcessor:
 
         account = None
         bot = None
-        body = None
-        subject = None
         mail_to = None
         email_enabled = Utility.email_conf["email"]["enable"]
+        link = None
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
             bot = AccountProcessor.add_bot('Hi-Hello', account["_id"], user, True)
@@ -330,8 +330,6 @@ class AccountProcessor:
             if email_enabled:
                 token = Utility.generate_token(account_setup.get("email"))
                 link = Utility.email_conf["app"]["url"] + '/verify/' + token
-                body = Utility.email_conf['email']['templates']['confirmation_body'] + link
-                subject = Utility.email_conf['email']['templates']['confirmation_subject']
                 mail_to = account_setup.get("email")
 
         except Exception as e:
@@ -341,7 +339,7 @@ class AccountProcessor:
                 Bot.objects().get(id=bot["_id"]).delete()
             raise e
 
-        return user_details, mail_to, subject, body
+        return user_details, mail_to, link
 
     @staticmethod
     async def default_account_setup():
@@ -360,10 +358,27 @@ class AccountProcessor:
             "password": SecretStr("Changeit@123"),
         }
         try:
-            user, mail, subject, body = await AccountProcessor.account_setup(account, user="sysadmin")
-            return user, mail, subject, body
+            user, mail, link = await AccountProcessor.account_setup(account, user="sysadmin")
+            return user, mail, link
         except Exception as e:
             logging.info(str(e))
+
+    @staticmethod
+    def load_system_properties():
+        try:
+            system_properties = SystemProperties.objects().get().to_mongo().to_dict()
+        except DoesNotExist:
+            mail_templates = MailTemplates(
+                password_reset=open('template/emails/passwordReset.html', 'r').read(),
+                password_reset_confirmation=open('template/emails/passwordResetConfirmation.html', 'r').read(),
+                verification=open('template/emails/verification.html', 'r').read(),
+                verification_confirmation=open('template/emails/verificationConfirmation.html', 'r').read()
+            )
+            system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
+        Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
+        Utility.email_conf['email']['templates']['verification_confirmation'] = system_properties['mail_templates']['verification_confirmation']
+        Utility.email_conf['email']['templates']['password_reset'] = system_properties['mail_templates']['password_reset']
+        Utility.email_conf['email']['templates']['password_reset_confirmation'] = system_properties['mail_templates']['password_reset_confirmation']
 
     @staticmethod
     async def confirm_email(token: str):
@@ -382,9 +397,8 @@ class AccountProcessor:
         confirm = UserEmailConfirmation()
         confirm.email = email_confirm
         confirm.save()
-        subject = Utility.email_conf['email']['templates']['confirmed_subject']
-        body = Utility.email_conf['email']['templates']['confirmed_body']
-        return email_confirm, subject, body
+        user = AccountProcessor.get_user(email_confirm)
+        return email_confirm, user['first_name']
 
 
     @staticmethod
@@ -429,10 +443,9 @@ class AccountProcessor:
             if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
                 raise AppException("Error! The following user's mail is not verified")
             token = Utility.generate_token(mail)
+            user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
-            body = Utility.email_conf['email']['templates']['password_reset_body'] + link
-            subject = Utility.email_conf['email']['templates']['password_reset_subject']
-            return mail, subject, body
+            return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
 
@@ -453,9 +466,7 @@ class AccountProcessor:
         user.user = email
         user.password_changed = datetime.utcnow
         user.save()
-        subject = Utility.email_conf['email']['templates']['password_changed_subject']
-        body = Utility.email_conf['email']['templates']['password_changed_body']
-        return email, subject, body
+        return email, user.first_name
 
     @staticmethod
     async def send_confirmation_link(mail: str):
@@ -473,11 +484,10 @@ class AccountProcessor:
             Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
             if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
                 raise AppException("Error! There is no user with the following mail id")
+            user = AccountProcessor.get_user(mail)
             token = Utility.generate_token(mail)
             link = Utility.email_conf["app"]["url"] + '/verify/' + token
-            body = Utility.email_conf['email']['templates']['confirmation_body'] + link
-            subject = Utility.email_conf['email']['templates']['confirmation_subject']
-            return mail, subject, body
+            return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
 
