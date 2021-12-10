@@ -296,6 +296,54 @@ class TestTrainingDataValidator:
         errors = TrainingDataValidator.validate_http_actions(test_dict)
         assert 'Invalid params_list for http action: rain_today' in errors
 
+    def test_validate_http_action_empty_headers(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert not TrainingDataValidator.validate_http_actions(test_dict)
+
+    def test_validate_http_action_header_with_empty_key(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [{"key": '', "parameter_type": '', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        errors = TrainingDataValidator.validate_http_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors
+
+    def test_validate_http_action_header_with_no_parameter_type(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [{"key": 'location', "parameter_type": '', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        errors = TrainingDataValidator.validate_http_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors
+
+    def test_validate_http_action_header_with_empty_slot_value(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [
+                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                           {"key": 'username', "parameter_type": 'slot', "value": ''}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        TrainingDataValidator.validate_http_actions(test_dict)
+        assert test_dict['http_actions'][0]['headers'][1]['value'] == 'username'
+
+    def test_validate_http_action_header(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [
+                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                           {"key": 'paid_user', "parameter_type": 'slot', "value": ''},
+                                           {"key": 'username', "parameter_type": 'sender_id'},
+                                           {"key": 'user_msg', "parameter_type": 'user_message'}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        assert test_dict['http_actions'][0]['headers'][1]['value'] == 'paid_user'
+
+    def test_validate_http_action_header_invalid_parameter_type(self):
+        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                       "headers": [
+                                           {"key": 'location', "parameter_type": 'text', "value": 'Mumbai'}],
+                                       "request_method": "GET", "response": "${RESPONSE}"}]}
+        errors = TrainingDataValidator.validate_http_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors
+
     def test_validate_http_action_empty_params_list_2(self):
         test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
                                        "params_list": [{"key": 'location', "parameter_type": '', "value": ''}],
@@ -303,13 +351,15 @@ class TestTrainingDataValidator:
         errors = TrainingDataValidator.validate_http_actions(test_dict)
         assert 'Invalid params_list for http action: rain_today' in errors
 
-    def test_validate_http_action_empty_params_list_3(self):
+    def test_validate_http_action_empty_slot_type(self):
         test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
                                        "params_list": [
                                            {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                           {"key": 'username', "parameter_type": 'slot', "value": ''}],
+                                           {"key": 'username', "parameter_type": 'slot', "value": ''},
+                                           {"key": 'username', "parameter_type": 'user_message', "value": ''},
+                                           {"key": 'username', "parameter_type": 'sender_id', "value": ''}],
                                        "request_method": "GET", "response": "${RESPONSE}"}]}
-        TrainingDataValidator.validate_http_actions(test_dict)
+        assert not TrainingDataValidator.validate_http_actions(test_dict)
         assert test_dict['http_actions'][0]['params_list'][1]['value'] == 'username'
 
     def test_validate_http_action_params_list_4(self):

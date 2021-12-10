@@ -33,27 +33,27 @@ class ActionUtility:
     """
 
     @staticmethod
-    def execute_http_request(http_url: str, request_method: str, request_body=None, auth_token=None):
+    def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None):
         """Executes http urls provided.
 
         :param http_url: HTTP url to be executed
         :param request_method: One of GET, PUT, POST, DELETE
         :param request_body: Request body to be sent with the request
-        :param auth_token: auth token to be sent with request in case of token based authentication
+        :param headers: header for the HTTP request
         :return: JSON/string response
         """
-        header = {"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}
+        if not headers:
+            headers = {}
+        headers.update({"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"})
 
         if request_body is None:
             request_body = {}
 
-        if not ActionUtility.is_empty(auth_token):
-            header = {'Authorization': auth_token}
         try:
             if request_method.lower() == 'get':
-                response = requests.get(http_url, headers=header)
+                response = requests.get(http_url, headers=headers)
             elif request_method.lower() in ['post', 'put', 'delete']:
-                response = requests.request(request_method.upper(), http_url, json=request_body, headers=header)
+                response = requests.request(request_method.upper(), http_url, json=request_body, headers=headers)
             else:
                 raise ActionFailure("Invalid request method!")
             logger.debug("raw response: " + str(response.text))
@@ -79,15 +79,15 @@ class ActionUtility:
         Prepares request body:
         1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
         2. Adds value of parameter directly if parameter_type is value
+        3. Adds value of parameter as the sender_id.
+        4. Adds value of parameter as user_message.
         :param tracker: Tracker for the Http Action
         :param http_action_config_params: User defined request body parameters <key, value, parameter_type>
         :return: Request body for the HTTP request
         """
         request_body = {}
-        if not http_action_config_params:
-            return request_body
 
-        for param in http_action_config_params:
+        for param in http_action_config_params or []:
             if param['parameter_type'] == ParameterType.sender_id:
                 value = tracker.sender_id
             elif param['parameter_type'] == ParameterType.slot:
