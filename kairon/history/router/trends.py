@@ -61,7 +61,7 @@ async def fallback(request: HistoryQuery = HistoryQuery(month=6),
 
 @router.get("/conversations/total", response_model=Response)
 async def total_conversations(request: HistoryQuery = HistoryQuery(month=6),
-                                collection: str = Depends(Authentication.authenticate_and_get_collection)):
+                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the counts of conversations of the bot for previous months."""
     range_value, message = HistoryProcessor.total_conversation_range(
         collection, request.month
@@ -71,7 +71,7 @@ async def total_conversations(request: HistoryQuery = HistoryQuery(month=6),
 
 @router.get("/conversations/steps", response_model=Response)
 async def conversation_steps(request: HistoryQuery = HistoryQuery(month=6),
-                                collection: str = Depends(Authentication.authenticate_and_get_collection)):
+                             collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the average conversation steps of the bot for previous months."""
     range_value, message = HistoryProcessor.average_conversation_step_range(
         collection, request.month
@@ -81,7 +81,7 @@ async def conversation_steps(request: HistoryQuery = HistoryQuery(month=6),
 
 @router.get("/conversations/time", response_model=Response)
 async def conversation_time(request: HistoryQuery = HistoryQuery(month=6),
-                                collection: str = Depends(Authentication.authenticate_and_get_collection)):
+                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the average conversation time of the bot for previous months."""
     range_value, message = HistoryProcessor.average_conversation_time_range(
         collection, request.month

@@ -1118,7 +1118,6 @@ class MongoProcessor:
 
         present_config = self.load_config(bot)
         if nlu_confidence_threshold:
-            nlu_confidence_threshold = nlu_confidence_threshold
             fallback_classifier_idx = next(
                 (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"),
                 None)
@@ -2583,7 +2582,7 @@ class MongoProcessor:
                 }
         }
         ]))
-        all_actions = {all_actions[i]["_id"]: all_actions[i]["actions"] for i in all_actions}
+        all_actions = {action["_id"]: action["actions"] for action in all_actions}
         all_actions["utterances"] = list(Utterances.objects(bot=bot, status=True).values_list('name'))
         action_types = ["actions", "slot_set_action", "http_action"]
         for a_type in action_types:
@@ -2591,7 +2590,7 @@ class MongoProcessor:
                 all_actions[a_type] = []
         if all_actions.get("actions"):
             actions = all_actions["actions"]
-            actions = [action for action in actions if not str(action).startswith("utter_") and action not in all_actions.get("http_action")]
+            actions = [action for action in actions if not str(action).startswith("utter_")]
             all_actions["actions"] = actions
         return all_actions
 
