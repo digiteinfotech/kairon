@@ -162,15 +162,12 @@ class HttpActionParameters(BaseModel):
 
 
 class HttpActionConfigRequest(BaseModel):
-    auth_token: str = None
     action_name: constr(to_lower=True, strip_whitespace=True)
     response: str
     http_url: str
     request_method: str
-    http_params_list: List[HttpActionParameters] = None
-
-    def get_http_params(self):
-        return [param.dict() for param in self.http_params_list]
+    params_list: List[HttpActionParameters] = []
+    headers: List[HttpActionParameters] = []
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):
@@ -191,23 +188,6 @@ class HttpActionConfigRequest(BaseModel):
         if v.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValueError("Invalid HTTP method")
         return v.upper()
-
-
-class HttpActionParametersResponse(BaseModel):
-    key: str
-    value: str
-    parameter_type: str
-
-
-class HttpActionConfigResponse(BaseModel):
-    auth_token: str
-    action_name: str
-    response: str
-    http_url: str
-    request_method: str
-    params_list: List[HttpActionParametersResponse]
-    bot: str
-    user: str
 
 
 class TrainingData(BaseModel):

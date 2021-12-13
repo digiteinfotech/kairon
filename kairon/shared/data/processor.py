@@ -2462,23 +2462,20 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for updated Http action config
         """
-        http_action = None
         try:
-            http_action: HttpActionConfig = self.get_http_action_config(
-                action_name=request_data.action_name, bot=bot)
-            if http_action is None:
-                raise AppException("No HTTP action found for bot " + bot + " and action " + request_data.action_name)
-        except AppException as e:
-            if str(e).__contains__("No HTTP action found for bot"):
-                raise e
+            http_action = HttpActionConfig.objects(bot=bot, action_name=request_data.action_name, status=True).get()
+        except DoesNotExist:
+            raise AppException("No HTTP action found for bot " + bot + " and action " + request_data.action_name)
 
         http_params = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
-                       for param in request_data.http_params_list]
+                       for param in request_data.params_list or []]
+        headers = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
+                   for param in request_data.headers or []]
         http_action.request_method = request_data.request_method
         http_action.params_list = http_params
+        http_action.headers = headers
         http_action.http_url = request_data.http_url
         http_action.response = request_data.response
-        http_action.auth_token = request_data.auth_token
         http_action.user = user
         http_action.status = True
         http_action.bot = bot
@@ -2502,15 +2499,21 @@ class MongoProcessor:
                 key=param['key'],
                 value=param['value'],
                 parameter_type=param['parameter_type'])
-            for param in http_action_config.get("http_params_list")]
+            for param in http_action_config.get("params_list") or []]
+        headers = [
+            HttpActionRequestBody(
+                key=param['key'],
+                value=param['value'],
+                parameter_type=param['parameter_type'])
+            for param in http_action_config.get("headers") or []]
 
         doc_id = HttpActionConfig(
-            auth_token=http_action_config.get("auth_token"),
             action_name=http_action_config['action_name'],
             response=http_action_config['response'],
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
             params_list=http_action_params,
+            headers=headers,
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
@@ -2544,15 +2547,15 @@ class MongoProcessor:
         :return: HttpActionConfig object containing configuration for the Http action.
         """
         try:
-            http_config_dict = HttpActionConfig.objects().get(bot=bot,
-                                                              action_name=action_name, status=True)
+            http_config_dict = HttpActionConfig.objects().get(bot=bot, action_name=action_name, status=True).to_mongo().to_dict()
+            del http_config_dict['_id']
+            return http_config_dict
         except DoesNotExist as ex:
             logging.exception(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
-        return http_config_dict
 
     def list_http_actions(self, bot: str):
         """
@@ -2786,8 +2789,15 @@ class MongoProcessor:
                         request_body.parameter_type = parameters.get('parameter_type')
                         request_body_list.append(request_body)
                     http_obj.params_list = request_body_list
-                if actions.get('auth_token'):
-                    http_obj.auth_token = actions['auth_token']
+                if actions.get('headers'):
+                    request_body_list = []
+                    for parameters in actions['headers']:
+                        request_body = HttpActionRequestBody()
+                        request_body.key = parameters.get('key')
+                        request_body.value = parameters.get('value')
+                        request_body.parameter_type = parameters.get('parameter_type')
+                        request_body_list.append(request_body)
+                    http_obj.header = request_body_list
                 http_obj.save()
                 self.add_action(action_name, bot, user, action_type=ActionType.http_action.value, raise_exception=False)
 
@@ -2802,8 +2812,8 @@ class MongoProcessor:
             item = obj.to_mongo().to_dict()
             http_dict = {"action_name": item["action_name"], "response": item["response"], "http_url": item["http_url"],
                          "request_method": item["request_method"]}
-            if item.get('auth_token'):
-                http_dict['auth_token'] = item['auth_token']
+            if item.get('headers'):
+                http_dict['headers'] = item['headers']
             if item.get('params_list'):
                 http_dict['params_list'] = item['params_list']
             action_list.append(http_dict)

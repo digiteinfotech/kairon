@@ -14,9 +14,9 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     """
     Registers a new account
     """
-    user, mail, subject, body = await AccountProcessor.account_setup(register_account.dict(), "sysadmin")
+    user, mail, url = await AccountProcessor.account_setup(register_account.dict(), "sysadmin")
     if Utility.email_conf["email"]["enable"]:
-        background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
     else:
         return {"message": "Account Registered!"}
@@ -28,8 +28,8 @@ async def verify(token: TextData, background_tasks: BackgroundTasks):
     Used to verify an account after the user has clicked the verification link in their mail
     """
     token_data = token.data
-    mail, subject, body = await AccountProcessor.confirm_email(token_data)
-    background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
+    mail, first_name = await AccountProcessor.confirm_email(token_data)
+    background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification_confirmation', email=mail, first_name=first_name)
     return {"message": "Account Verified!"}
 
 
@@ -39,8 +39,8 @@ async def password_link_generate(mail: TextData, background_tasks: BackgroundTas
     Used to send a password reset link when the user clicks on the "Forgot Password" link and enters his/her mail id
     """
     email = mail.data
-    mail, subject, body = await AccountProcessor.send_reset_link(email.strip())
-    background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
+    mail, first_name, url = await AccountProcessor.send_reset_link(email.strip())
+    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset', email=mail, first_name=first_name, url=url)
     return {"message": "Success! A password reset link has been sent to your mail id"}
 
 
@@ -49,8 +49,8 @@ async def password_change(data: Password, background_tasks: BackgroundTasks):
     """
     Used to overwrite the account's password after the user has changed his/her password with a new one
     """
-    mail, subject, body = await AccountProcessor.overwrite_password(data.data,data.password.get_secret_value())
-    background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
+    mail, first_name = await AccountProcessor.overwrite_password(data.data, data.password.get_secret_value())
+    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail, first_name=first_name)
     return {"message": "Success! Your password has been changed"}
 
 
@@ -60,8 +60,8 @@ async def send_confirm_link(email: TextData, background_tasks: BackgroundTasks):
     Used to send the account verification link to the mail id of the user
     """
     email = email.data
-    mail, subject, body = await AccountProcessor.send_confirmation_link(email)
-    background_tasks.add_task(Utility.validate_and_send_mail, email=mail, subject=subject, body=body)
+    mail, first_name, url = await AccountProcessor.send_confirmation_link(email)
+    background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=first_name, url=url)
     return {"message": "Success! Confirmation link sent"}
 
 
