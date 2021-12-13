@@ -35,7 +35,7 @@ elastic-apm
 ElasticMock
 pymongo==3.12.0
 cryptography
-pyparsing==2.4.7
+pyparsing==3.0.6
 nlpaug
 tornado
 websockets==9.1
