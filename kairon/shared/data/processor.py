@@ -2569,13 +2569,31 @@ class MongoProcessor:
         return list(self.__prepare_document_list(actions, "action_name"))
 
     def list_actions(self, bot: Text):
-        actions = list(Actions.objects(bot=bot, status=True).values_list('name'))
-
-        if actions:
-            http_actions = self.list_http_action_names(bot)
-            return [action for action in actions if not str(action).startswith("utter_") and action not in http_actions]
-        else:
-            return actions
+        all_actions = list(Actions.objects(bot=bot, status=True).aggregate([
+        {
+                '$group': {
+                    '_id': {
+                        '$ifNull': [
+                            '$type', 'actions'
+                        ]
+                    },
+                    'actions': {
+                        '$addToSet': '$name'
+                    }
+                }
+        }
+        ]))
+        all_actions = {all_actions[i]["_id"]: all_actions[i]["actions"] for i in all_actions}
+        all_actions["utterances"] = list(Utterances.objects(bot=bot, status=True).values_list('name'))
+        action_types = ["actions", "slot_set_action", "http_action"]
+        for a_type in action_types:
+            if a_type not in all_actions.keys():
+                all_actions[a_type] = []
+        if all_actions.get("actions"):
+            actions = all_actions["actions"]
+            actions = [action for action in actions if not str(action).startswith("utter_") and action not in all_actions.get("http_action")]
+            all_actions["actions"] = actions
+        return all_actions
 
     def list_http_action_names(self, bot: Text):
         actions = list(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name'))

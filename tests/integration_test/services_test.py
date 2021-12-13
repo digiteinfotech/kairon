@@ -3359,7 +3359,28 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == ["action_greet"]
+    assert actual['data'] == {
+        'actions': ['action_greet'],
+        'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_sender_id_parameter_type',
+                        'test_add_http_action_with_token_and_story',
+                        'test_add_http_action_no_params',
+                        'test_add_http_action_existing',
+                        'test_update_http_action',
+                        'test_update_http_action_6',
+                        'test_update_http_action_non_existing',
+                        'new_http_action4'],
+        'slot_set_action': [],
+        'utterances': ['utter_greet',
+                       'utter_cheer_up',
+                       'utter_did_that_help',
+                       'utter_happy',
+                       'utter_goodbye',
+                       'utter_iamabot',
+                       'utter_default',
+                       'utter_please_rephrase']
+    }
+
     assert actual["success"]
 
 
