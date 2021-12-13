@@ -332,7 +332,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 45
-        assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 13
+        assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -392,7 +392,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
-        assert processor.list_actions('all').__len__() == 13
+        assert processor.list_actions('all')["actions"].__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -440,7 +440,7 @@ class TestMongoProcessor:
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
-        assert processor.list_actions('all').__len__() == 13
+        assert processor.list_actions('all')["actions"].__len__() == 13
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -5570,7 +5570,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == []
+        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': []}
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -5587,7 +5587,12 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
-        assert actions == ["action_check"]
+        assert actions == {
+            'actions': ['action_check'],
+            'http_action': [],
+            'slot_set_action': [],
+            'utterances': []}
+
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -5604,7 +5609,23 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == []
+        assert actions ==  {'actions': [],
+                            'http_action': [],
+                            'slot_set_action': [],
+                            'utterances': ['utter_greet',
+                                           'utter_cheer_up',
+                                           'utter_did_that_help',
+                                           'utter_happy',
+                                           'utter_goodbye',
+                                           'utter_iamabot',
+                                           'utter_feedback',
+                                           'utter_good_feedback',
+                                           'utter_bad_feedback',
+                                           'utter_default',
+                                           'utter_please_rephrase']}
+
+
+
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -5868,7 +5889,13 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == ['reset_slot']
+        assert actions ==  {'actions': ['reset_slot'],
+                            'http_action': ['action_performanceuser1000@digite.com'],
+                            'slot_set_action': [],
+                            'utterances': ['utter_offer_help',
+                                           'utter_default',
+                                           'utter_please_rephrase']}
+
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -6134,7 +6161,22 @@ class TestTrainingDataProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
-        assert actions == []
+        assert actions ==  {
+            'actions': [],
+            'http_action': [],
+            'slot_set_action': [],
+            'utterances': ['utter_greet',
+                           'utter_cheer_up',
+                           'utter_did_that_help',
+                           'utter_happy',
+                           'utter_goodbye',
+                           'utter_iamabot',
+                           'utter_feedback',
+                           'utter_good_feedback',
+                           'utter_bad_feedback',
+                           'utter_default',
+                           'utter_please_rephrase'] }
+
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()
