@@ -332,7 +332,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 45
-        assert processor.list_actions('test_load_from_path_yml_training_files').__len__() == 13
+        assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -392,7 +392,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
-        assert processor.list_actions('all').__len__() == 13
+        assert processor.list_actions('all')["actions"].__len__() == 13
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -440,7 +440,7 @@ class TestMongoProcessor:
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
-        assert processor.list_actions('all').__len__() == 13
+        assert processor.list_actions('all')["actions"].__len__() == 13
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
         )
@@ -2971,7 +2971,7 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
+                  "nlu_confidence_threshold": 0.6,
                   "action_fallback": "action_default_fallback"}
         Responses(name='utter_default', bot='test_all', user='test',
                   text=ResponseText(text='Sorry I didnt get that. Can you rephrase?')).save()
@@ -3024,8 +3024,8 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties(self):
-        expected = {'nlu_confidence_threshold': 60,
-                    'action_fallback_threshold': 30,
+        expected = {'nlu_confidence_threshold': 0.6,
+                    'action_fallback_threshold': 0.3,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -3038,8 +3038,8 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
-                  "action_fallback_threshold": 70,
+                  "nlu_confidence_threshold": 0.6,
+                  "action_fallback_threshold": 0.7,
                   "action_fallback": "action_default_fallback"}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action fallback threshold should always be smaller than nlu fallback threshold'):
@@ -3049,8 +3049,8 @@ class TestMongoProcessor:
         config = {"nlu_epochs": 200,
                   "response_epochs": 300,
                   "ted_epochs": 400,
-                  "nlu_confidence_threshold": 60,
-                  "action_fallback_threshold": 60,
+                  "nlu_confidence_threshold": 0.6,
+                  "action_fallback_threshold": 0.6,
                   "action_fallback": "action_default_fallback"}
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_all', 'test')
@@ -3073,8 +3073,8 @@ class TestMongoProcessor:
         assert rule_policy['core_fallback_threshold'] == 0.6
 
     def test_get_config_properties_action_fallback(self):
-        expected = {'nlu_confidence_threshold': 60,
-                    'action_fallback_threshold': 60,
+        expected = {'nlu_confidence_threshold': 0.6,
+                    'action_fallback_threshold': 0.6,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
@@ -3129,9 +3129,9 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 70,
+        expected = {'nlu_confidence_threshold': 0.7,
                     'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 30,
+                    'action_fallback_threshold': 0.3,
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
                     'response_epochs': 300}
@@ -3156,8 +3156,8 @@ class TestMongoProcessor:
         assert ted['epochs'] == 200
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 70,
-                    'action_fallback_threshold': 30,
+        expected = {'nlu_confidence_threshold': 0.7,
+                    'action_fallback_threshold': 0.3,
                     'action_fallback': 'action_default_fallback',
                     'ted_epochs': 200,
                     'nlu_epochs': 100,
@@ -3176,8 +3176,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
-        expected = {"nlu_confidence_threshold": 70,
-                    'action_fallback_threshold': 30,
+        expected = {"nlu_confidence_threshold": 0.7,
+                    'action_fallback_threshold': 0.3,
                     "action_fallback": 'action_default_fallback',
                     "ted_epochs": None,
                     "nlu_epochs": None,
@@ -3222,7 +3222,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_fallback_not_configured', 'test')
 
-        config = {'nlu_confidence_threshold': 80,
+        config = {'nlu_confidence_threshold': 0.8,
                   'action_fallback': 'action_say_bye'}
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
@@ -3256,7 +3256,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_save_component_properties_nlu_fallback_only(self):
-        nlu_fallback = {"nlu_confidence_threshold": 60}
+        nlu_fallback = {"nlu_confidence_threshold": 0.6}
         processor = MongoProcessor()
         processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
         config = processor.load_config('test_nlu_fallback_only')
@@ -3294,7 +3294,7 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
-        nlu_fallback = {"nlu_confidence_threshold": 70}
+        nlu_fallback = {"nlu_confidence_threshold": 0.7}
         processor = MongoProcessor()
         processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
         config = processor.load_config('test_nlu_fallback_only')
@@ -5570,7 +5570,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == []
+        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': []}
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -5587,7 +5587,12 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
-        assert actions == ["action_check"]
+        assert actions == {
+            'actions': ['action_check'],
+            'http_action': [],
+            'slot_set_action': [],
+            'utterances': []}
+
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -5604,7 +5609,23 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == []
+        assert actions ==  {'actions': [],
+                            'http_action': [],
+                            'slot_set_action': [],
+                            'utterances': ['utter_greet',
+                                           'utter_cheer_up',
+                                           'utter_did_that_help',
+                                           'utter_happy',
+                                           'utter_goodbye',
+                                           'utter_iamabot',
+                                           'utter_feedback',
+                                           'utter_good_feedback',
+                                           'utter_bad_feedback',
+                                           'utter_default',
+                                           'utter_please_rephrase']}
+
+
+
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -5868,7 +5889,13 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == ['reset_slot']
+        assert actions ==  {'actions': ['reset_slot'],
+                            'http_action': ['action_performanceuser1000@digite.com'],
+                            'slot_set_action': [],
+                            'utterances': ['utter_offer_help',
+                                           'utter_default',
+                                           'utter_please_rephrase']}
+
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -6134,7 +6161,22 @@ class TestTrainingDataProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
-        assert actions == []
+        assert actions ==  {
+            'actions': [],
+            'http_action': [],
+            'slot_set_action': [],
+            'utterances': ['utter_greet',
+                           'utter_cheer_up',
+                           'utter_did_that_help',
+                           'utter_happy',
+                           'utter_goodbye',
+                           'utter_iamabot',
+                           'utter_feedback',
+                           'utter_good_feedback',
+                           'utter_bad_feedback',
+                           'utter_default',
+                           'utter_please_rephrase'] }
+
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()

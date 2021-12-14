@@ -1,6 +1,7 @@
 import itertools
 import json
 import os
+import uuid
 from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
@@ -1117,7 +1118,6 @@ class MongoProcessor:
 
         present_config = self.load_config(bot)
         if nlu_confidence_threshold:
-            nlu_confidence_threshold = nlu_confidence_threshold / 100
             fallback_classifier_idx = next(
                 (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "FallbackClassifier"),
                 None)
@@ -1133,7 +1133,7 @@ class MongoProcessor:
                 present_config['policies'].append(rule_policy)
 
         if action_fallback:
-            action_fallback_threshold = action_fallback_threshold / 100 if action_fallback_threshold else 0.3
+            action_fallback_threshold = action_fallback_threshold if action_fallback_threshold else 0.3
             if action_fallback == 'action_default_fallback':
                 utterance_exists = Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
                                                     name__iexact='utter_default')
@@ -1170,9 +1170,9 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') * 100 if nlu_fallback.get('threshold') else None
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')  if nlu_fallback.get('threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
-        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') * 100 if action_fallback.get('core_fallback_threshold') else None
+        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') if action_fallback.get('core_fallback_threshold') else None
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
         selected_config['response_epochs'] = response_selector.get('epochs')
@@ -2568,13 +2568,31 @@ class MongoProcessor:
         return list(self.__prepare_document_list(actions, "action_name"))
 
     def list_actions(self, bot: Text):
-        actions = list(Actions.objects(bot=bot, status=True).values_list('name'))
-
-        if actions:
-            http_actions = self.list_http_action_names(bot)
-            return [action for action in actions if not str(action).startswith("utter_") and action not in http_actions]
-        else:
-            return actions
+        all_actions = list(Actions.objects(bot=bot, status=True).aggregate([
+        {
+                '$group': {
+                    '_id': {
+                        '$ifNull': [
+                            '$type', 'actions'
+                        ]
+                    },
+                    'actions': {
+                        '$addToSet': '$name'
+                    }
+                }
+        }
+        ]))
+        all_actions = {action["_id"]: action["actions"] for action in all_actions}
+        all_actions["utterances"] = list(Utterances.objects(bot=bot, status=True).values_list('name'))
+        action_types = ["actions", "slot_set_action", "http_action"]
+        for a_type in action_types:
+            if a_type not in all_actions.keys():
+                all_actions[a_type] = []
+        if all_actions.get("actions"):
+            actions = all_actions["actions"]
+            actions = [action for action in actions if not str(action).startswith("utter_")]
+            all_actions["actions"] = actions
+        return all_actions
 
     def list_http_action_names(self, bot: Text):
         actions = list(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name'))
@@ -2917,7 +2935,7 @@ class MongoProcessor:
         @return:
         """
         if not bot_data_home_dir:
-            bot_data_home_dir = os.path.join('training_data', bot, str(datetime.utcnow()))
+            bot_data_home_dir = os.path.join('training_data', bot, str(uuid.uuid4()))
         data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
         Utility.make_dirs(data_path)
 

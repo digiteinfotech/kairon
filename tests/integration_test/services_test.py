@@ -3359,7 +3359,28 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == ["action_greet"]
+    assert actual['data'] == {
+        'actions': ['action_greet'],
+        'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_sender_id_parameter_type',
+                        'test_add_http_action_with_token_and_story',
+                        'test_add_http_action_no_params',
+                        'test_add_http_action_existing',
+                        'test_update_http_action',
+                        'test_update_http_action_6',
+                        'test_update_http_action_non_existing',
+                        'new_http_action4'],
+        'slot_set_action': [],
+        'utterances': ['utter_greet',
+                       'utter_cheer_up',
+                       'utter_did_that_help',
+                       'utter_happy',
+                       'utter_goodbye',
+                       'utter_iamabot',
+                       'utter_default',
+                       'utter_please_rephrase']
+    }
+
     assert actual["success"]
 
 
@@ -4264,8 +4285,8 @@ def test_get_editable_config():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'] == {'nlu_confidence_threshold': 70, 'action_fallback': 'action_default_fallback',
-                              'action_fallback_threshold': 30,
+    assert actual['data'] == {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                              'action_fallback_threshold': 0.3,
                               'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
 
 
@@ -4273,8 +4294,8 @@ def test_set_epoch_and_fallback():
     request = {"nlu_epochs": 200,
                "response_epochs": 300,
                "ted_epochs": 400,
-               "nlu_confidence_threshold": 70,
-               'action_fallback_threshold': 30,
+               "nlu_confidence_threshold": 0.7,
+               'action_fallback_threshold': 0.3,
                "action_fallback": "action_default_fallback"}
     response = client.post(
         f"/api/bot/{pytest.bot}/response/utter_default",
@@ -4306,7 +4327,7 @@ def test_get_config_all():
 
 
 def test_set_epoch_and_fallback_modify_action_only():
-    request = {"nlu_confidence_threshold": 30,
+    request = {"nlu_confidence_threshold": 0.3,
                "action_fallback": "utter_default"}
     response = client.put(f"/api/bot/{pytest.bot}/config/properties",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4326,7 +4347,7 @@ def test_set_epoch_and_fallback_empty_pipeline_and_policies():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'nlu_confidence_threshold'], 'msg': 'Please choose a threshold between 30 and 90',
+        {'loc': ['body', 'nlu_confidence_threshold'], 'msg': 'Please choose a threshold between 0.3 and 0.9',
          'type': 'value_error'}]
 
 
