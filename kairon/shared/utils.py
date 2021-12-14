@@ -6,6 +6,8 @@ import shutil
 import string
 import tempfile
 from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from glob import glob, iglob
 from html import escape
 from io import BytesIO
@@ -607,13 +609,14 @@ class Utility:
         await Utility.trigger_smtp(email, subject, body)
 
     @staticmethod
-    async def trigger_smtp(email: str, subject: str, body: str):
+    async def trigger_smtp(email: str, subject: str, body: str, content_type='html'):
         """
         Sends an email to the mail id of the recipient
 
         :param email: the mail id of the recipient
         :param subject: the subject of the mail
         :param body: the body of the mail
+        :param content_type: "plain" or "html" content
         :return: None
         """
         smtp = SMTP(Utility.email_conf["email"]["sender"]["service"],
@@ -627,9 +630,13 @@ class Utility:
                    Utility.email_conf["email"]["sender"]["email"],
                    Utility.email_conf["email"]["sender"]["password"])
         from_addr = Utility.email_conf["email"]["sender"]["email"]
-        msg = "From: %s\nTo: %s\nSubject: %s\n\n\n%s" % (from_addr, email, subject, body)
-        msg = msg.encode('utf-8')
-        smtp.sendmail(from_addr, email, msg)
+        body = MIMEText(body, content_type)
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = from_addr
+        msg['To'] = email
+        msg.attach(body)
+        smtp.sendmail(from_addr, email, msg.as_string())
         smtp.quit()
 
     @staticmethod
