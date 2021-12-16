@@ -1,6 +1,3 @@
-import torch 
-import transformers
-
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
 class QuestionGenerator:

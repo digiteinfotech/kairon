@@ -1,8 +1,5 @@
-import re
 import nltk
-import pandas as pd
 import trafilatura
-from trafilatura import fetch_url, bare_extraction,extract
 from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
 from lxml import html
