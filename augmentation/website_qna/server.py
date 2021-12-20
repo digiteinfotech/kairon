@@ -14,6 +14,7 @@ import uvicorn
 
 
 class Response(BaseModel):
+
     """This class defines the variables (and their types) that will be defined in the response message when a HTTP error is detected."""
 
     success: bool = True
@@ -43,7 +44,6 @@ app.add_middleware(
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     """This function logs the Starlette HTTP error detected and returns the appropriate message and details of the error."""
-
     logging.exception(exc)
 
     return JSONResponse(
@@ -55,7 +55,7 @@ async def startlette_exception_handler(request, exc):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
-    """This function logs the HTTP error detected and returns the appropriate message and details of the error."""
+    """Function logs the HTTP error detected and returns the appropriate message and details of the error."""
     logging.exception(exc)
     return JSONResponse(
         Response(
@@ -65,20 +65,20 @@ async def http_exception_handler(request, exc):
 
 @app.post("/get_qna/")
 async def create_website_qna_item(item: websiteQnAData):
-    """This function is used for generating QnA from website link."""
+    """Functionis used for generating QnA from website link."""
     response = WebsiteQnAGenerator.get_qa_data(item.url,item.max_pages)
     return {"data": {"QnA": response}}
 
 @app.post("/questions/")
 async def create_questions_item(item: TextData):
-    """This function is used for generating Questions from given string."""
+    """Function is used for generating Questions from given string."""
     response = QuestionGenerator.generate(item.data)
     return {"data": {"questions": response}}
 
 
 @app.post("/scrape/")
 async def create_scrape_item(item: websiteQnAData):
-    """This function is used for scraping given website."""
+    """Function is used for scraping given website."""
     response = WebScraper.scrape_pages(item.url,item.max_pages)
     return {"data": {"pages": response}}
 
