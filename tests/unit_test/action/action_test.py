@@ -14,7 +14,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidations
+    Actions, FormValidationAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -1316,8 +1316,8 @@ class TestActions:
         bot = 'test_actions'
         user = 'test'
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
-        expected_output = FormValidations(name='validate_form', slot='name', validation_semantic=validation_semantic,
-                                          bot=bot, user=user).save().to_mongo().to_dict()
+        expected_output = FormValidationAction(name='validate_form', slot='name', validation_semantic=validation_semantic,
+                                               bot=bot, user=user).save().to_mongo().to_dict()
         config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
         config.pop('timestamp')
         expected_output.pop('timestamp')
@@ -1329,9 +1329,9 @@ class TestActions:
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
         expected_outputs = []
         for slot in ['name', 'user', 'location']:
-            expected_output = FormValidations(name='validate_form_1', slot=slot,
-                                              validation_semantic=validation_semantic,
-                                              bot=bot, user=user).save().to_mongo().to_dict()
+            expected_output = FormValidationAction(name='validate_form_1', slot=slot,
+                                                   validation_semantic=validation_semantic,
+                                                   bot=bot, user=user).save().to_mongo().to_dict()
             expected_output.pop('_id')
             expected_output.pop('timestamp')
             expected_outputs.append(expected_output)
