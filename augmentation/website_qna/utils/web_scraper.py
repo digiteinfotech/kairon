@@ -15,7 +15,7 @@ class WebScraper():
     def clean_headers(s: str):
 
         """
-        This Function remove non ascii characters and extra white spaces from the text
+        This Function remove non ascii characters and extra white spaces from the text.
 
         :param s: input text
         :return: cleaned text
@@ -91,7 +91,7 @@ class WebScraper():
 
     @staticmethod
     def fix_incomplete_text_and_add_left_out_p_tags(text: str,soup):
-        
+
         """
         This function fixes incomplete sentences and also add ptags data from soup
         that are not yet added in text
