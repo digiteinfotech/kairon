@@ -3,11 +3,14 @@ from .generator import QuestionGenerator
 from .web_scraper import WebScraper
 class WebsiteQnAGenerator:
 
-    """This class is used to generate QnA for a website."""
+    """
+    Class is used to generate QnA for a website.
+    """
 
     @staticmethod
     def get_qa_data(url: str,max_pages: int):
-        """Scrape website and generate questions
+        """
+        Scrape website and generate questions.
 
         :param url: url of website
         :param max_pages: maximum number of pages to extract
