@@ -7,6 +7,7 @@ from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -17,7 +18,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase
+    TextDataLowerCase, SlotMappingRequest
 )
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE
@@ -1231,6 +1232,42 @@ async def delete_lookup_value(
     }
 
 
+@router.post("/slots/mapping", response_model=Response)
+async def add_slot_mapping(request: SlotMappingRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Adds slot mapping.
+    """
+    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Slot mapping added')
+
+
+@router.put("/slots/mapping", response_model=Response)
+async def update_slot_mapping(request: SlotMappingRequest, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Updates slot mapping.
+    """
+    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Slot mapping updated')
+
+
+@router.get("/slots/mapping", response_model=Response)
+async def get_slot_mapping(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Retrieves slot mapping.
+    """
+    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot())))
+
+
+@router.delete("/slots/mapping/{name}", response_model=Response)
+async def delete_slot_mapping(name: str = Path(default=None, description="Name of the mapping"),
+                              current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Deletes a slot mapping.
+    """
+    mongo_processor.delete_slot_mapping(name, current_user.get_bot(), current_user.get_user())
+    return Response(message='Slot mapping deleted')
+
+
 @router.post("/forms", response_model=Response)
 async def add_form(request: Forms, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
@@ -1275,6 +1312,14 @@ async def delete_form(request: TextData, current_user: User = Depends(Authentica
     """
     mongo_processor.delete_form(request.data, current_user.get_bot(), current_user.get_user())
     return Response(message='Form deleted')
+
+
+@router.get("/forms/validations/list", response_model=Response)
+async def get_supported_form_validations(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Get list of all supported form validations according to slot types.
+    """
+    return Response(data=ExpressionEvaluator.list_slot_validation_operators())
 
 
 @router.get("/entities", response_model=Response)

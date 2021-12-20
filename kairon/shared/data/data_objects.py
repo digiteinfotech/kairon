@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS
+from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS, SLOT_MAPPING_TYPE
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -215,11 +215,56 @@ class Entities(Document):
 
 class Forms(Document):
     name = StringField(required=True)
-    mapping = DictField(default={})
+    ignored_intents = ListField(StringField(), default=None)
+    required_slots = ListField(StringField(), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Form name cannot be empty or blank spaces")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        for i in range(0, self.required_slots.__len__()):
+            self.required_slots[i] = self.required_slots[i].lower()
+
+
+class SlotMapping(Document):
+    slot = StringField(required=True)
+    mapping = ListField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def clean(self):
+        self.slot = self.slot.strip().lower()
+        mapping = []
+        for slot_mapping in self.mapping:
+            mapping_info = {'type': slot_mapping['type']}
+            if slot_mapping['type'] == SLOT_MAPPING_TYPE.FROM_ENTITY.value:
+                mapping_info['entity'] = slot_mapping.get('entity') or self.slot
+                mapping_info['entity'] = mapping_info['entity'].lower()
+            if slot_mapping.get('value') is not None:
+                mapping_info['value'] = slot_mapping['value']
+            if slot_mapping.get('intent'):
+                on_intents = []
+                for intent in slot_mapping['intent']:
+                    on_intents.append(intent.lower())
+                mapping_info['intent'] = on_intents
+            if slot_mapping.get('not_intent'):
+                not_intents = []
+                for intent in slot_mapping['not_intent']:
+                    not_intents.append(intent.lower())
+                mapping_info['not_intent'] = not_intents
+            mapping.append(mapping_info)
+        self.mapping = mapping
 
     def validate(self, clean=True):
         from rasa.shared.core.domain import _validate_slot_mappings
@@ -227,15 +272,13 @@ class Forms(Document):
         if clean:
             self.clean()
 
-        if Utility.check_empty_string(self.name):
-            raise ValidationError("Form name cannot be empty or blank spaces")
+        if Utility.check_empty_string(self.slot):
+            raise ValueError("Slot name and type cannot be empty or blank spaces")
+
         try:
-            _validate_slot_mappings({self.name: self.mapping})
+            _validate_slot_mappings({'form_name': {self.slot: self.mapping}})
         except Exception as e:
             raise ValidationError(e)
-
-    def clean(self):
-        self.name = self.name.strip().lower()
 
 
 class Utterances(Document):
