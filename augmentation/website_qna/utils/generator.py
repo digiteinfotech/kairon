@@ -2,6 +2,7 @@ from loguru import logger
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
 class QuestionGenerator:
+
     """Class loads pipeline for generating questions from text"""
 
     model = T5ForConditionalGeneration.from_pretrained("ThomasSimonini/t5-end2end-question-generation")
@@ -13,6 +14,7 @@ class QuestionGenerator:
     def generate(text: str):
 
         """
+
         Generate questions.
 
         This function generate questions given an input string.
