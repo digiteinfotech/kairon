@@ -7,6 +7,7 @@ from fastapi import Depends, File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -1275,6 +1276,14 @@ async def delete_form(request: TextData, current_user: User = Depends(Authentica
     """
     mongo_processor.delete_form(request.data, current_user.get_bot(), current_user.get_user())
     return Response(message='Form deleted')
+
+
+@router.get("/forms/validations/list", response_model=Response)
+async def get_supported_form_validations(current_user: User = Depends(Authentication.get_current_user_and_bot)):
+    """
+    Get list of all supported form validations according to slot types.
+    """
+    return Response(data=ExpressionEvaluator.list_slot_validation_operators())
 
 
 @router.get("/entities", response_model=Response)
