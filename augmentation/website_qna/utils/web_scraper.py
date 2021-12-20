@@ -3,17 +3,19 @@ from loguru import logger
 import nltk
 import trafilatura
 from bs4 import BeautifulSoup
-from urllib.request import Request, urlopen
+import requests
 
 class WebScraper():
-    """Class is used to crawl and extract text from webpages"""
-    
+    """Class is used to crawl and extract text from webpages."""
+
     max_pages_allowed = 20
 
     @staticmethod
     def clean_headers(s: str):
         
         """
+        To clean text
+
         This function remove non ascii characters and extra white spaces from the text
         
         :param s: input text
@@ -56,7 +58,7 @@ class WebScraper():
 
         :param text: list of meaningful text extracted from website
         :param soup: soup of extracted HTML
-        :return: a list of list of strings of text from the website 
+        :return: a list of list of strings of text from the website
         """
         all_header_text = set() #a set to store all headers
         htags = ['h1','h2','h3','h4','h5','h6','h7','h8','h9','h10']
@@ -158,13 +160,11 @@ class WebScraper():
                "text" : None}
             agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36\
             (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+            
+            request = requests.get(url,headers={'User-Agent': agent})
 
-            request = Request(url, headers={'User-Agent': agent})
-
-            HTML = urlopen(request).read().decode() #get html of current page
-
-            soup = BeautifulSoup(HTML, 'html.parser') #creates a soup of current page
-            text = trafilatura.extract(HTML,include_comments=False,include_tables=False,include_links=False,target_language='en') #extract relevant text from current page
+            soup = BeautifulSoup(request.text, 'html.parser') #creates a soup of current page
+            text = trafilatura.extract(request.text,include_comments=False,include_tables=False,include_links=False,target_language='en') #extract relevant text from current page
             text = text.replace("READ MORE","")
             text = text.replace("LEARN MORE","")
             text = text.split("\n")
