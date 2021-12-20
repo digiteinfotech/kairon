@@ -8,12 +8,13 @@ from fastapi import UploadFile
 from mongoengine import connect
 
 from kairon.exceptions import AppException
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 
 
 class TestUtility:
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -136,7 +137,7 @@ class TestUtility:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
         http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
         assert os.path.exists(training_file_loc['stories'])
@@ -155,7 +156,7 @@ class TestUtility:
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        training_file_loc = await Utility.save_training_files(nlu, domain, config, stories, None)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, None)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
         assert os.path.exists(training_file_loc['stories'])
@@ -243,31 +244,22 @@ class TestUtility:
 
     def test_prepare_nlu_text_with_entities(self):
         expected = "n=[8](n), p=1[8](n), k=2[8](n) ec=[14](ec), ph=[3](p)"
-        text, entities = Utility.extract_text_and_entities(expected)
-        actual = Utility.prepare_nlu_text(text, entities)
+        text, entities = DataUtility.extract_text_and_entities(expected)
+        actual = DataUtility.prepare_nlu_text(text, entities)
         assert expected == actual
 
     def test_prepare_nlu_text(self):
         expected = "India is beautiful"
-        text, entities = Utility.extract_text_and_entities(expected)
-        actual = Utility.prepare_nlu_text(text, entities)
+        text, entities = DataUtility.extract_text_and_entities(expected)
+        actual = DataUtility.prepare_nlu_text(text, entities)
         assert expected == actual
 
-    def test_get_action_url(self, monkeypatch):
-        actual = Utility.get_action_url({})
-        assert actual.url == "http://localhost:5055/webhook"
-        actual = Utility.get_action_url({"action_endpoint": {"url": "http://action-server:5055/webhook"}})
-        assert actual.url == "http://action-server:5055/webhook"
-        monkeypatch.setitem(Utility.environment['action'], "url", None)
-        actual = Utility.get_action_url({})
-        assert actual is None
-
     def test_get_interpreter_with_no_model(self):
-        actual = Utility.get_interpreter("test.tar.gz")
+        actual = DataUtility.get_interpreter("test.tar.gz")
         assert actual is None
 
     def test_validate_files(self, resource_validate_files):
-        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir)
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir)
         assert not requirements
 
     def test_initiate_apm_client_disabled(self):
@@ -302,64 +294,61 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
 
         client = Utility.initiate_apm_client_config()
-        config = client.config._config
-        assert config.server_url == "http://localhost:8082"
-        assert config.service_name == "kairon"
-        assert config.environment == "development"
-        assert config.secret_token is None
+        assert client == {"SERVER_URL": "http://localhost:8082",
+                          "SERVICE_NAME": "kairon",
+                          'ENVIRONMENT': "development"}
 
         monkeypatch.setitem(Utility.environment["elasticsearch"], 'secret_token', "12345")
 
         client = Utility.initiate_apm_client_config()
-        config = client.config._config
-        assert config.server_url == "http://localhost:8082"
-        assert config.service_name == "kairon"
-        assert config.environment == "development"
-        assert config.secret_token == "12345"
+        assert client == {"SERVER_URL": "http://localhost:8082",
+                          "SERVICE_NAME": "kairon",
+                          'ENVIRONMENT': "development",
+                          "SECRET_TOKEN": "12345"}
 
     def test_validate_path_not_found(self):
         with pytest.raises(AppException):
-            Utility.validate_and_get_requirements('/tests/path_not_found')
+            DataUtility.validate_and_get_requirements('/tests/path_not_found')
 
     def test_validate_no_files(self, resource_validate_no_training_files):
         with pytest.raises(AppException):
-            Utility.validate_and_get_requirements(pytest.bot_data_home_dir)
+            DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir)
         assert os.path.exists(pytest.bot_data_home_dir)
 
     def test_validate_no_files_delete_dir(self, resource_validate_no_training_files_delete_dir):
         with pytest.raises(AppException):
-            Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+            DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert not os.path.exists(pytest.bot_data_home_dir)
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
-        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert {'http_actions', 'config', 'domain'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
-        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert {'rules', 'domain', 'config', 'stories', 'nlu'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
-        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert {'rules', 'http_actions', 'config', 'stories', 'nlu', 'http_actions'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
-        requirements = Utility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert {'rules', 'http_actions', 'domain', 'stories', 'nlu', 'http_actions'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):
-        unzip_path = await Utility.save_training_files_as_zip(pytest.bot, pytest.zip)
+        unzip_path = await DataUtility.save_training_files_as_zip(pytest.bot, pytest.zip)
         assert os.path.exists(unzip_path)
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate_exception(self, resource_unzip_and_validate_exception):
-        unzip_path = await Utility.save_training_files_as_zip(pytest.bot, pytest.zip)
+        unzip_path = await DataUtility.save_training_files_as_zip(pytest.bot, pytest.zip)
         assert os.path.exists(unzip_path)
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_zip(self, resource_unzip_and_validate):
-        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, [pytest.zip])
+        bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, [pytest.zip])
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
@@ -369,23 +358,23 @@ class TestUtility:
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_no_files_received(self):
         with pytest.raises(AppException) as e:
-            await Utility.save_uploaded_data(pytest.bot, [])
+            await DataUtility.save_uploaded_data(pytest.bot, [])
         assert str(e).__contains__("No files received!")
 
         with pytest.raises(AppException) as e:
-            await Utility.save_uploaded_data(pytest.bot, None)
+            await DataUtility.save_uploaded_data(pytest.bot, None)
         assert str(e).__contains__("No files received!")
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_2_files_only(self, resource_save_and_validate_training_files):
-        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, [pytest.domain, pytest.nlu])
+        bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, [pytest.domain, pytest.nlu])
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
 
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.rules, pytest.http_actions]
-        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, training_files)
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
@@ -396,7 +385,7 @@ class TestUtility:
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_no_rules_and_http_actions(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.nlu, pytest.stories]
-        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, training_files)
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
@@ -405,7 +394,7 @@ class TestUtility:
     @pytest.mark.asyncio
     async def test_save_and_validate_training_files_invalid(self, resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.non_nlu, pytest.stories]
-        bot_data_home_dir = await Utility.save_uploaded_data(pytest.bot, training_files)
+        bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, training_files)
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'non_nlu.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'non_nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -418,8 +407,8 @@ class TestUtility:
         assert isinstance(request_body, list)
         assert request_body[0]['name'] == 'BOT'
         assert request_body[0]['value'] == 'mood_bot'
-        assert request_body[0]['name'] == 'USER'
-        assert request_body[0]['value'] == 'bot_user'
+        assert request_body[1]['name'] == 'USER'
+        assert request_body[1]['value'] == 'bot_user'
         assert len(request_body) == 2
 
     def test_build_event_request_empty(self):
@@ -430,7 +419,7 @@ class TestUtility:
     def test_download_csv(self):
         file_path, temp_path = Utility.download_csv({"conversation_data": [{"test": "test_val"}]}, None)
         assert file_path.endswith(".csv")
-        assert "temp" in str(temp_path).lower()
+        assert "tmp" in str(temp_path).lower()
 
     def test_download_csv_no_data(self):
         with pytest.raises(AppException) as e:

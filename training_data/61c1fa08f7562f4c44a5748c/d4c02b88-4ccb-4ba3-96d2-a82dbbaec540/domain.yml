@@ -1,0 +1,258 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- affirm:
+    use_entities: true
+- affirm_attachment:
+    use_entities: true
+- back:
+    use_entities: true
+- deny:
+    use_entities: true
+- get_procurement_tickets:
+    use_entities: true
+- get_ticket_status:
+    use_entities: true
+- goodbye:
+    use_entities: true
+- greet:
+    use_entities: true
+- log_ticket:
+    use_entities: true
+- nlu_fallback
+- out_of_scope
+- performance_feedback:
+    use_entities: true
+- restart
+- session_start
+- small_talk:
+    use_entities: false
+- thank:
+    use_entities: false
+- user_pos_feedback:
+    use_entities: true
+- user_neg_feedback:
+    use_entities: true
+- greet_again:
+    use_entities: true
+entities:
+- priority
+- requested_slot
+- category
+- ticketID
+- file_text
+- file
+- file_error
+- fdResponse
+slots:
+  category:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  file:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  file_error:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  file_text:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: false
+  name:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+  priority:
+    type: rasa.shared.core.slots.CategoricalSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+    values:
+    - low
+    - medium
+    - high
+  requested_slot:
+    type: rasa.shared.core.slots.UnfeaturizedSlot
+    initial_value: null
+    auto_fill: true
+  ticketID:
+    type: rasa.shared.core.slots.FloatSlot
+    initial_value: 1.0
+    auto_fill: true
+    influence_conversation: true
+    max_value: 1
+    min_value: 0
+  bot:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: 6f7f0d6f9f6f09fff08fflkf896
+    auto_fill: false
+    influence_conversation: false
+responses:
+  utter_attachment_upload:
+  - text: Do you wish to upload any relevant document?
+  utter_bad_feedback:
+  - text: Thanks you for your feedback. We will train better till next time.
+  utter_good_feedback:
+  - text: Thanks you for loving us. Keep using.
+  utter_welcome_message:
+  - text: Let me know if you need any other assistance.
+  utter_procurement_approved:
+  - text: Ticket has been approved!!
+  utter_feedback:
+  - text: We would love to hear what you have to say.
+  utter_ticket_attributes:
+  - text: Shall I go ahead and log a {priority} priority ticket for you
+  utter_offer_help:
+  - custom:
+      blocks:
+      - type: section
+        text:
+          type: mrkdwn
+          text: Hi,
+      - type: section
+        text:
+          type: mrkdwn
+          text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures that the network runs smoothly. We also address all hardware/software requests."
+      - type: section
+        text:
+          type: mrkdwn
+          text: 'I can assist you with :bulb:'
+      - type: section
+        text:
+          type: mrkdwn
+          text: "• Log a new ticket\n• Upload document against a ticket\n• Get status of your ticket\n• Get list of all your open tickets"
+  utter_goodbye:
+  - text: Bye
+  utter_procurement_rejected:
+  - text: Ticket has been rejected!!
+  utter_procurement:
+  - custom:
+      blocks:
+      - type: section
+        text:
+          type: mrkdwn
+          text: 'TKT123: Increase laptop RAM from 8GB to 16GB'
+      - type: actions
+        elements:
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: View
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Approve
+          style: primary
+          value: yes
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Reject
+          style: danger
+          value: no
+      - type: section
+        text:
+          type: mrkdwn
+          text: 'TKT456: MSOffice license renewal for 1 year'
+      - type: actions
+        elements:
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: View
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Approve
+          style: primary
+          value: yes
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Reject
+          style: danger
+          value: no
+      - type: section
+        text:
+          type: mrkdwn
+          text: 'TKT450: Cloud hosting of demo setup for 1 month'
+      - type: actions
+        elements:
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: View
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Approve
+          style: primary
+          value: yes
+        - type: button
+          text:
+            type: plain_text
+            emoji: true
+            text: Reject
+          style: danger
+          value: no
+  utter_greet:
+  - text: Hey! How are you?
+  utter_please_rephrase:
+    - text: Sorry, I did not get you!
+  utter_default:
+    - text: Can you rephrase!
+actions:
+- utter_greet
+- utter_goodbye
+- utter_offer_help
+- action_identify_ticket_attributes
+- action_log_ticket
+- action_get_ticket_status
+- utter_ticket_attributes
+- action_reset_slots
+- action_clear_memory
+- utter_attachment_upload
+- utter_welcome_message
+- action_validate_ticket_for_fileUpload
+- action_validate_ticket_for_status
+- action_clear_file
+- action_clear_priority
+- action_log_message
+- action_small_talk
+- utter_procurement
+- utter_procurement_approved
+- utter_procurement_rejected
+- utter_feedback
+- utter_good_feedback
+- utter_bad_feedback
+- ticket_attributes_form
+- ticket_file_form
+forms:
+  ticket_attributes_form:
+    priority:
+      - type: from_entity
+        entity: priority
+  ticket_file_form:
+    file:
+      - type: from_entity
+        entity: file
+e2e_actions: []

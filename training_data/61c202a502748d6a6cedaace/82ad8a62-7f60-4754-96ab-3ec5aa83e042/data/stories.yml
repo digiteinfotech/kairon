@@ -1,0 +1,123 @@
+version: "2.0"
+stories:
+- story: greet
+  steps:
+  - intent: greet
+  - action: utter_offer_help
+  - action: action_restart
+- story: say goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+  - action: action_restart
+- story: thank from user
+  steps:
+  - intent: thank
+  - action: utter_welcome_message
+  - action: action_restart
+- story: 'Case 1.1: Log ticket with attachment required'
+  steps:
+  - intent: log_ticket
+  - action: action_identify_ticket_attributes
+  - action: utter_ticket_attributes
+  - intent: affirm
+  - action: utter_attachment_upload
+  - or:
+    - intent: affirm
+    - intent: affirm_attachment
+  - action: action_clear_file
+  - action: ticket_file_form
+  - slot_was_set:
+    - priority: High
+  - active_loop: ticket_file_form
+  - active_loop: null
+  - action: action_log_ticket
+  - action: action_restart
+- story: 'Case 1.2: Log ticket with attachment not required'
+  steps:
+  - intent: log_ticket
+  - action: action_identify_ticket_attributes
+  - action: utter_ticket_attributes
+  - intent: affirm
+  - action: utter_attachment_upload
+  - intent: deny
+  - action: action_log_ticket
+  - action: action_restart
+- story: 'Case 1.3: Log ticket with attachment and Priority Change'
+  steps:
+  - intent: log_ticket
+  - action: action_identify_ticket_attributes
+  - action: utter_ticket_attributes
+  - intent: deny
+  - action: action_clear_priority
+  - action: ticket_attributes_form
+  - active_loop: ticket_attributes_form
+  - active_loop: null
+  - action: utter_attachment_upload
+  - intent: affirm
+  - action: action_clear_file
+  - action: ticket_file_form
+  - active_loop: ticket_file_form
+  - active_loop: null
+  - action: action_log_ticket
+  - action: action_restart
+- story: 'Case 1.4: Log ticket without attachment and Priority Change'
+  steps:
+  - intent: log_ticket
+  - action: action_identify_ticket_attributes
+  - action: utter_ticket_attributes
+  - intent: deny
+  - action: action_clear_priority
+  - action: ticket_attributes_form
+  - active_loop: ticket_attributes_form
+  - active_loop: null
+  - action: utter_attachment_upload
+  - intent: deny
+  - action: action_log_ticket
+  - action: action_restart
+- story: 'Case 3.1: Get ticket status - #Ticketid valid'
+  steps:
+  - intent: get_ticket_status
+  - action: action_validate_ticket_for_status
+  - action: action_get_ticket_status
+  - action: action_restart
+- story: 'Case 4.0: Get procurement list'
+  steps:
+  - intent: get_procurement_tickets
+  - action: utter_procurement
+  - intent: affirm
+  - action: utter_procurement_approved
+  - action: action_restart
+- story: 'Case 4.1: Get procurement list'
+  steps:
+  - intent: get_procurement_tickets
+  - action: utter_procurement
+  - intent: deny
+  - action: utter_procurement_rejected
+  - action: action_restart
+- story: small talk
+  steps:
+  - intent: small_talk
+  - action: action_small_talk
+  - action: action_restart
+- story: greet again
+  steps:
+  - intent: greet_again
+  - action: utter_greet
+  - action: action_restart
+- story: feedback good
+  steps:
+  - intent: performance_feedback
+  - action: utter_feedback
+  - intent: user_feedback
+    entities:
+    - fdResponse: "like"
+  - action: utter_good_feedback
+- story: feedback bad
+  steps:
+  - intent: performance_feedback
+  - action: utter_feedback
+  - intent: user_feedback
+    entities:
+    - fdResponse: "hate"
+  - action: utter_bad_feedback
