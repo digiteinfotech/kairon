@@ -6,7 +6,9 @@ from ..utils.website_qna_generator import WebsiteQnAGenerator
 
 # file deepcode ignore W0703: Any Exception should be updated as status for Training Data processor
 def parse_website_and_generate_training_data(kairon_url: str, user: str, token: str):
-    """Function to parse website and generate QnA data. This function is called from the main file in augmentation folder.
+    """Parse and generate QnA
+    
+    Function to parse website and generate QnA data. This function is called from the main file in augmentation folder.
     :param kairon_url: http url to access kairon APIs
     :param user: user id
     :param token: token for user authentication

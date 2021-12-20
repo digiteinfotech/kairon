@@ -6,15 +6,14 @@ from bs4 import BeautifulSoup
 import requests
 
 class WebScraper():
-
-    """Class is used to crawl and extract text from webpages."""
+    "Class is used crawling and scraping websites."
 
     max_pages_allowed = 20
 
     @staticmethod
     def clean_headers(s: str):
         """
-        To clean text
+        Clean text
 
         This function remove non ascii characters and extra white spaces from the text
 
@@ -27,7 +26,7 @@ class WebScraper():
         s = s.split()
         s = " ".join(s)
         return s
-    
+
     @staticmethod
     def join_bulletins(text: list):
 

@@ -2,9 +2,7 @@ from loguru import logger
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
 class QuestionGenerator:
-    """
-    Class loads model for question generation.
-    """
+    """Class loads pipeline for generating questions from text"""
 
     model = T5ForConditionalGeneration.from_pretrained("ThomasSimonini/t5-end2end-question-generation")
     tokenizer = T5TokenizerFast.from_pretrained("t5-base")
