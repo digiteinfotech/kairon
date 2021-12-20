@@ -341,6 +341,9 @@ actions:
 - ticket_file_form
 forms:
   ticket_attributes_form:
+    date_time:
+      - type: from_entity
+        entity: date_time
     priority:
       - type: from_entity
         entity: priority
