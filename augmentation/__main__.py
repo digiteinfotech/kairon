@@ -31,10 +31,5 @@ def main():
     else:
         logger.debug("ERROR: wrong choice as input")
 
-            
-
-
-
-
 if __name__ == "__main__":
     main()
