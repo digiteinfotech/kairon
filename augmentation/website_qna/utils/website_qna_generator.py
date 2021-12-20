@@ -7,8 +7,7 @@ class WebsiteQnAGenerator:
 
     @staticmethod
     def get_qa_data(url: str,max_pages: int):
-        """
-        Scrape website and generate questions.
+        """Scrape website and generate questions.
 
         :param url: url of website
         :param max_pages: maximum number of pages to extract
