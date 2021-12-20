@@ -17,11 +17,11 @@ class WebScraper():
         To clean text
 
         This function remove non ascii characters and extra white spaces from the text
-        
+
         :param s: input text
         :return: cleaned text
         """
-        
+
         s = "".join(i for i in s if ord(i) < 128)
         s = s.replace("\n"," ")
         s = s.split()
