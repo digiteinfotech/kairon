@@ -14,9 +14,7 @@ import uvicorn
 
 
 class Response(BaseModel):
-
-    """
-    This class defines the variables (and their types)
+    """This class defines the variables (and their types)
     that will be defined in the response message when a HTTP error is detected.
     """
 
@@ -47,7 +45,7 @@ app.add_middleware(
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     """
-    Function logs the Starlette HTTP error detected 
+    Function logs the Starlette HTTP error detected
     and returns the appropriate message and details of the error.
     """
     logging.exception(exc)

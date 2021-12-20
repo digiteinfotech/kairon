@@ -3,9 +3,7 @@ from .generator import QuestionGenerator
 from .web_scraper import WebScraper
 class WebsiteQnAGenerator:
 
-    """
-    Class is used to generate QnA for a website.
-    """
+    "Class is used to generate QnA for a website."
 
     @staticmethod
     def get_qa_data(url: str,max_pages: int):
