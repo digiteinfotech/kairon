@@ -8,7 +8,7 @@ from ..utils.website_qna_generator import WebsiteQnAGenerator
 def parse_website_and_generate_training_data(kairon_url: str, user: str, token: str):
 
     """
-    This function to parse website and generate QnA data. This function is called from the main file in augmentation folder.
+    This function to parse website and generate QnA data.
 
     :param kairon_url: http url to access kairon APIs
     :param user: user id
