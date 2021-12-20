@@ -13,11 +13,9 @@ class WebScraper():
 
     @staticmethod
     def clean_headers(s: str):
+
         """
-
-        Clean text
-
-        This function remove non ascii characters and extra white spaces from the text
+        This Function remove non ascii characters and extra white spaces from the text
 
         :param s: input text
         :return: cleaned text
@@ -38,7 +36,6 @@ class WebScraper():
         :param text: list of strings of meaningful text extracted from website
         :return: a list of strings of text from the website
         """
-
         better_text = [text[0]]
         for i in range(1,len(text)):
             if text[i][0] == '-': #bulletins have '-' as the first character in the string. They are appended in the last added string in list better_text
@@ -47,10 +44,10 @@ class WebScraper():
                 better_text.append(WebScraper.clean_headers(text[i]))
 
         return better_text
-    
+
     @staticmethod
     def remove_headers_and_seprate_headers_joined_with_regular_text(text: str,soup):
-        
+
         """
         This function removes strings which are headers in the web page from the extracted text.
         Also it groups all the children(which are not headers) of the headers together as a list of strings.
@@ -91,7 +88,7 @@ class WebScraper():
             else:
                 better_text[-1].append(i)
         return [i for i in better_text if len(i)!=0] # remove empty lists
-        
+
     @staticmethod
     def fix_incomplete_text_and_add_left_out_p_tags(text: str,soup):
         
