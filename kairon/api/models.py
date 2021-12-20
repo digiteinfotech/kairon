@@ -288,6 +288,14 @@ class ParaphrasesRequest(BaseModel):
         return v
 
 
+class SlotMapping(BaseModel):
+    entity: str = None
+    type: SLOT_MAPPING_TYPE
+    value: Any = None
+    intent: List[str] = None
+    not_intent: List[str] = None
+
+
 class SlotRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     type: SLOT_TYPE
@@ -297,6 +305,7 @@ class SlotRequest(BaseModel):
     max_value: float = None
     min_value: float = None
     influence_conversation: bool = False
+    mapping: List[SlotMapping] = None
 
 
 class SynonymRequest(BaseModel):
@@ -371,14 +380,6 @@ class LookupTablesRequest(BaseModel):
         return v
 
 
-class SlotMapping(BaseModel):
-    entity: str = None
-    type: SLOT_MAPPING_TYPE
-    value: Any = None
-    intent: List[str] = None
-    not_intent: List[str] = None
-
-
 class Validation(BaseModel):
     operator: SlotValidationOperators
     value: Any
@@ -397,10 +398,26 @@ class SlotValidation(BaseModel):
 class FormPath(BaseModel):
     responses: List[str]
     slot: str
-    mapping: List[SlotMapping]
     validation: SlotValidation = None
     utter_msg_on_valid: str = None
     utter_msg_on_invalid: str = None
+
+    @validator("responses")
+    def validate_responses(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        for response in v:
+            if Utility.check_empty_string(response):
+                raise ValueError("response cannot be empty or contain spaces")
+        return v
+
+    @validator("slot")
+    def validate_slot(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("slot is required")
+        return v
 
 
 class Forms(BaseModel):

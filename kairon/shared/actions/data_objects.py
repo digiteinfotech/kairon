@@ -122,7 +122,7 @@ class SlotSetAction(Document):
         self.slot = self.slot.strip().lower()
 
 
-class FormValidations(Document):
+class FormValidationAction(Document):
     name = StringField(required=True)
     slot = StringField(required=True)
     validation_semantic = DictField(default={})
