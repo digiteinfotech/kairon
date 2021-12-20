@@ -14,9 +14,6 @@ class QuestionGenerator:
     def generate(text: str):
 
         """
-
-        Generate questions.
-
         This function generate questions given an input string.
 
         :param text: sentence or text
