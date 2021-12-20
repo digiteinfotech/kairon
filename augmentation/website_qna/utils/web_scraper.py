@@ -6,13 +6,13 @@ from bs4 import BeautifulSoup
 import requests
 
 class WebScraper():
+
     """Class is used to crawl and extract text from webpages."""
 
     max_pages_allowed = 20
 
     @staticmethod
     def clean_headers(s: str):
-        
         """
         To clean text
 
