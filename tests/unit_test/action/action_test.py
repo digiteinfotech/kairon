@@ -14,7 +14,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidations
+    Actions, FormValidationAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -1316,8 +1316,8 @@ class TestActions:
         bot = 'test_actions'
         user = 'test'
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
-        expected_output = FormValidations(name='validate_form', slot='name', validation_semantic=validation_semantic,
-                                          bot=bot, user=user).save().to_mongo().to_dict()
+        expected_output = FormValidationAction(name='validate_form', slot='name', validation_semantic=validation_semantic,
+                                               bot=bot, user=user).save().to_mongo().to_dict()
         config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
         config.pop('timestamp')
         expected_output.pop('timestamp')
@@ -1329,9 +1329,9 @@ class TestActions:
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
         expected_outputs = []
         for slot in ['name', 'user', 'location']:
-            expected_output = FormValidations(name='validate_form_1', slot=slot,
-                                              validation_semantic=validation_semantic,
-                                              bot=bot, user=user).save().to_mongo().to_dict()
+            expected_output = FormValidationAction(name='validate_form_1', slot=slot,
+                                                   validation_semantic=validation_semantic,
+                                                   bot=bot, user=user).save().to_mongo().to_dict()
             expected_output.pop('_id')
             expected_output.pop('timestamp')
             expected_outputs.append(expected_output)
@@ -1579,65 +1579,65 @@ class TestActions:
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 == 5)}'
+        assert final_expr == '{(5.0 == 5)}'
 
         semantic_expression = {'and': [{'operator': '==', 'value': 6}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 == 6)}'
+        assert final_expr == '{(5.0 == 6)}'
 
         semantic_expression = {'and': [{'operator': '>', 'value': 5}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 > 5)}'
+        assert final_expr == '{(5.0 > 5)}'
         semantic_expression = {'and': [{'operator': '>', 'value': 4}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 > 4)}'
+        assert final_expr == '{(5.0 > 4)}'
 
         semantic_expression = {'and': [{'operator': '<', 'value': 5}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 < 5)}'
+        assert final_expr == '{(5.0 < 5)}'
         semantic_expression = {'and': [{'operator': '<', 'value': 6}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 < 6)}'
+        assert final_expr == '{(5.0 < 6)}'
 
         semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 in [1, 2, 5, 6])}'
+        assert final_expr == '{(5.0 in [1, 2, 5, 6])}'
         semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 in [1, 2, 3, 4])}'
+        assert final_expr == '{(5.0 in [1, 2, 3, 4])}'
 
         semantic_expression = {'and': [{'operator': '==', 'value': 5.0}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 == 5.0)}'
+        assert final_expr == '{(5.0 == 5.0)}'
         semantic_expression = {'and': [{'operator': '<', 'value': 6.12}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6.10, semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(6 < 6.12)}'
+        assert final_expr == '{(6.1 < 6.12)}'
 
         semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 7, semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(7 not in [1, 2, 5, 6])}'
+        assert final_expr == '{(7.0 not in [1, 2, 5, 6])}'
         semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(6 not in [1, 2, 5, 6])}'
+        assert final_expr == '{(6.0 not in [1, 2, 5, 6])}'
 
         with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "has_length" for slot type "float"'):
             semantic_expression = {'and': [{'operator': 'has_length', 'value': 6}]}
