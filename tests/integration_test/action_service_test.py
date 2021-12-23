@@ -1,6 +1,6 @@
 from tornado.test.testing_test import AsyncHTTPTestCase
 from kairon.actions.server import make_app
-from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidations
+from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.data_objects import Slots
@@ -441,8 +441,8 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'operator': 'has_no_whitespace'},
                                                {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidations(name=action_name, slot=slot, validation_semantic=semantic_expression,
-                        bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
+                             bot=bot, user=user).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -493,11 +493,11 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'operator': 'has_no_whitespace'},
                                                ]}]}
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidations(name=action_name, slot='location', validation_semantic=semantic_expression,
-                        bot=bot, user=user).save()
-        FormValidations(name=action_name, slot=slot, validation_semantic=semantic_expression,
-                        bot=bot, user=user,
-                        utter_msg_on_valid='that is great!').save()
+        FormValidationAction(name=action_name, slot='location', validation_semantic=semantic_expression,
+                             bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
+                             bot=bot, user=user,
+                             utter_msg_on_valid='that is great!').save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -547,12 +547,12 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'operator': 'has_no_whitespace'},
                                                {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidations(name=action_name, slot='name', validation_semantic=semantic_expression,
-                        bot=bot, user=user).save().to_mongo().to_dict()
-        FormValidations(name=action_name, slot='user_id', validation_semantic=semantic_expression,
-                        bot=bot, user=user, utter_msg_on_valid='that is great!').save().to_mongo().to_dict()
-        FormValidations(name=action_name, slot=slot, validation_semantic=semantic_expression,
-                        bot=bot, user=user).save().to_mongo().to_dict()
+        FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
+                             bot=bot, user=user).save().to_mongo().to_dict()
+        FormValidationAction(name=action_name, slot='user_id', validation_semantic=semantic_expression,
+                             bot=bot, user=user, utter_msg_on_valid='that is great!').save().to_mongo().to_dict()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
+                             bot=bot, user=user).save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -602,11 +602,11 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'operator': 'has_no_whitespace'},
                                                ]}]}
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidations(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
-                        bot=bot, user=user).save().to_mongo().to_dict()
-        FormValidations(name=action_name, slot=slot, validation_semantic=semantic_expression,
-                        bot=bot, user=user, utter_msg_on_valid='that is great!',
-                        utter_msg_on_invalid='Invalid value. Please type again!').save().to_mongo().to_dict()
+        FormValidationAction(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
+                             bot=bot, user=user).save().to_mongo().to_dict()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
+                             bot=bot, user=user, utter_msg_on_valid='that is great!',
+                             utter_msg_on_invalid='Invalid value. Please type again!').save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -690,10 +690,10 @@ class TestActionServer(AsyncHTTPTestCase):
                                        {'or': [{'operator': 'has_length_greater_than', 'value': 4},
                                                {'operator': 'has_no_whitespace'},
                                                ]}]}
-        FormValidations(name=action_name, slot='name', validation_semantic=semantic_expression,
-                        bot=bot, user=user, utter_msg_on_valid='that is great!').save()
-        FormValidations(name=action_name, slot='occupation', validation_semantic=semantic_expression,
-                        bot=bot, user=user, utter_msg_on_valid='that is great!').save()
+        FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
+                             bot=bot, user=user, utter_msg_on_valid='that is great!').save()
+        FormValidationAction(name=action_name, slot='occupation', validation_semantic=semantic_expression,
+                             bot=bot, user=user, utter_msg_on_valid='that is great!').save()
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
@@ -707,9 +707,9 @@ class TestActionServer(AsyncHTTPTestCase):
         user = 'test_user'
         slot = 'reservation_id'
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidations(name=action_name, slot=slot, validation_semantic={},
-                        bot=bot, user=user, utter_msg_on_valid='that is great!',
-                        utter_msg_on_invalid='Invalid value. Please type again!').save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic={},
+                             bot=bot, user=user, utter_msg_on_valid='that is great!',
+                             utter_msg_on_invalid='Invalid value. Please type again!').save()
         request_object = {
             "next_action": action_name,
             "tracker": {
