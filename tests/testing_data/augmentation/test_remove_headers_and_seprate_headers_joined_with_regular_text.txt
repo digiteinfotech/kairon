@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+	
+
+	<meta name="medium" content="blog" />
+	<meta name="generator" content="WordPress 5.5.7" />
+	<link href="https://fonts.googleapis.com/css?family=Inter:400,500,700" rel="stylesheet">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+	<link rel="stylesheet" href="https://zerodha.com/varsity/wp-content/themes/varsity/skeleton.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="https://zerodha.com/varsity/wp-content/themes/varsity/style.css" type="text/css" media="screen" />
+	<link rel="icon" href="https://zerodha.com/varsity/wp-content/themes/varsity/images/favicon.png" type="images/x-icon" />
+  
+	<!-- This site is optimized with the Yoast SEO plugin v15.8 - https://yoast.com/wordpress/plugins/seo/ -->
+	<title>Varsity by Zerodha &ndash; Markets, Trading, and Investing Simplified.</title>
+	<meta name="description" content="Markets, Trading, and Investing Simplified." />
+	<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+	<link rel="canonical" href="https://zerodha.com/varsity/" />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content="Varsity by Zerodha" />
+	<meta property="og:description" content="Varsity by Zerodha - Markets, Trading, and Investing Simplified." />
+	<meta property="og:url" content="https://zerodha.com/varsity/" />
+	<meta property="og:site_name" content="Varsity by Zerodha" />
+	<meta property="og:image" content="https://zerodha.com/varsity/wp-content/uploads/2021/02/varsity_og.png" />
+	<meta property="og:image:width" content="600" />
+	<meta property="og:image:height" content="350" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:site" content="@ZerodhaVarsity" />
+	<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://zerodha.com/varsity/#website","url":"https://zerodha.com/varsity/","name":"Varsity by Zerodha","description":"Markets, Trading, and Investing Simplified.","potentialAction":[{"@type":"SearchAction","target":"https://zerodha.com/varsity/?s={search_term_string}","query-input":"required name=search_term_string"}],"inLanguage":"en-US"},{"@type":"CollectionPage","@id":"https://zerodha.com/varsity/#webpage","url":"https://zerodha.com/varsity/","name":"Varsity by Zerodha &ndash; Markets, Trading, and Investing Simplified.","isPartOf":{"@id":"https://zerodha.com/varsity/#website"},"description":"Markets, Trading, and Investing Simplified.","breadcrumb":{"@id":"https://zerodha.com/varsity/#breadcrumb"},"inLanguage":"en-US","potentialAction":[{"@type":"ReadAction","target":["https://zerodha.com/varsity/"]}]},{"@type":"BreadcrumbList","@id":"https://zerodha.com/varsity/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"WebPage","@id":"https://zerodha.com/varsity/","url":"https://zerodha.com/varsity/","name":"Home"}}]}]}</script>
+	<!-- / Yoast SEO plugin. -->
+
+
+<link rel='dns-prefetch' href='//s.w.org' />
+<link rel="alternate" type="application/rss+xml" title="Varsity by Zerodha &raquo; Feed" href="https://zerodha.com/varsity/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Varsity by Zerodha &raquo; Comments Feed" href="https://zerodha.com/varsity/comments/feed/" />
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/13.0.0\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/13.0.0\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/zerodha.com\/varsity\/wp-includes\/js\/wp-emoji-release.min.js?ver=5.5.7"}};
+			!function(e,a,t){var n,r,o,i=a.createElement("canvas"),p=i.getContext&&i.getContext("2d");function s(e,t){var a=String.fromCharCode;p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,e),0,0);e=i.toDataURL();return p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,t),0,0),e===i.toDataURL()}function c(e){var t=a.createElement("script");t.src=e,t.defer=t.type="text/javascript",a.getElementsByTagName("head")[0].appendChild(t)}for(o=Array("flag","emoji"),t.supports={everything:!0,everythingExceptFlag:!0},r=0;r<o.length;r++)t.supports[o[r]]=function(e){if(!p||!p.fillText)return!1;switch(p.textBaseline="top",p.font="600 32px Arial",e){case"flag":return s([127987,65039,8205,9895,65039],[127987,65039,8203,9895,65039])?!1:!s([55356,56826,55356,56819],[55356,56826,8203,55356,56819])&&!s([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]);case"emoji":return!s([55357,56424,8205,55356,57212],[55357,56424,8203,55356,57212])}return!1}(o[r]),t.supports.everything=t.supports.everything&&t.supports[o[r]],"flag"!==o[r]&&(t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&t.supports[o[r]]);t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&!t.supports.flag,t.DOMReady=!1,t.readyCallback=function(){t.DOMReady=!0},t.supports.everything||(n=function(){t.readyCallback()},a.addEventListener?(a.addEventListener("DOMContentLoaded",n,!1),e.addEventListener("load",n,!1)):(e.attachEvent("onload",n),a.attachEvent("onreadystatechange",function(){"complete"===a.readyState&&t.readyCallback()})),(n=t.source||{}).concatemoji?c(n.concatemoji):n.wpemoji&&n.twemoji&&(c(n.twemoji),c(n.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script>
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+	<link rel='stylesheet' id='wp-block-library-css'  href='https://zerodha.com/varsity/wp-includes/css/dist/block-library/style.min.css?ver=5.5.7' type='text/css' media='all' />
+<link rel="https://api.w.org/" href="https://zerodha.com/varsity/wp-json/" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://zerodha.com/varsity/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://zerodha.com/varsity/wp-includes/wlwmanifest.xml" /> 
+<meta name="generator" content="WordPress 5.5.7" />
+</head>
+
+<body>
+<header id="header">
+	<div class="container">
+		<div class="row">
+			<div class="six columns">
+				<a class="logo-full" href="https://zerodha.com/varsity">
+					<img src="https://zerodha.com/varsity/wp-content/themes/varsity/images/logo.png" alt="Varsity by Zerodha" title="Varsity by Zerodha" />
+				</a>
+				<a class="logo-small" href="https://zerodha.com/varsity">
+					<img src="https://zerodha.com/varsity/wp-content/themes/varsity/images/logo-small.png" alt="Varsity by Zerodha" title="Varsity by Zerodha" />
+				</a>
+			</div><!-- logo //-->
+
+			<div class="five columns">
+				<form method="get" class="searchform" action="/varsity/index.php">
+					<div>
+						<input class="q" type="text" name="s" />
+						<input type="submit" class="button button-primary submit" value="search" />
+					</div>
+				</form>
+			</div>
+		</div>
+		<nav class="one column">
+			<div class="menu">
+				<a href="#" class="burger" id="show-module-nav">≡</a>
+			</div>
+		</nav>
+	</div>
+</header><!-- header //-->
+
+<div class="container">
+	<div id="wrap">
+		<div id="main"><div id="homepage">
+	<section class="row intro">
+		<div class="seven columns">
+			<h1 class="large">Free and open stock market and financial education</h1>
+			<p class="subtitle">Varsity is an extensive and in-depth collection of stock market and financial lessons
+			created by Karthik Rangappa at <a href="https://zerodha.com">Zerodha</a>. It is openly accessible to everyone and is one
+			of the largest financial education resources on the web.</p>
+
+			<div class="buttons">
+				<a href="https://play.google.com/store/apps/details?id=com.zerodha.varsity">
+					<img src="https://zerodha.com/varsity/wp-content/themes/varsity//images/playstore.png" alt="Download on Play store">
+				</a>
+				<a href="https://apps.apple.com/in/app/varsity-by-zerodha/id1474610753">
+					<img src="https://zerodha.com/varsity/wp-content/themes/varsity//images/appstore.png" alt="Download on App store">
+				</a>
+			</div>
+		</div>
+		<div class="five columns">
+			<img src="https://zerodha.com/varsity/wp-content/themes/varsity//images/landing.png" height="300" />
+
+			<div class="row bio">
+				<div class="avatar"><a href="https://in.linkedin.com/in/karthik-rangappa-a505a68"><img src="https://zerodha.com/varsity/wp-content/themes/varsity/images/karthik.jpg" /></a></div>
+				<p class="text text-tiny">
+					<strong>Karthik Rangappa</strong> heads educational initiatives at Zerodha and 
+					has more than a decade of research experience in 
+					financial markets. He travels widely conducting educational programmes.
+				</p>
+			</div>
+		</div>
+	</section>
+
+
+	<section class="modules">
+	<h2>Modules</h2>
+	<ul class="noul row">
+				<li class="module" style="border-color: #69c969">
+			<h4 class="title">
+				<span class="number">1</span>.
+				<a href="https://zerodha.com/varsity/module/introduction-to-stock-markets/">Introduction to Stock Markets</a>
+			</h4>
+			<span class="chapters text-tiny">15 chapters</span>
+			<div class="description text-tiny">
+				Investing ensures financial security, and the Stock market plays a pivotal role in this domain, it is a place where people buy/sell shares of publicly listed companies. In this module, you will learn about the fundamentals of the stock market, how to get started, how it functions and the various intermediaries that appertain it.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%b6%e0%a5%87%e0%a4%af%e0%a4%b0-%e0%a4%ac%e0%a4%be%e0%a4%9c%e0%a4%be%e0%a4%b0-%e0%a4%b8%e0%a5%87-%e0%a4%aa%e0%a4%b0%e0%a4%bf%e0%a4%9a%e0%a4%af/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #64B2FF">
+			<h4 class="title">
+				<span class="number">2</span>.
+				<a href="https://zerodha.com/varsity/module/technical-analysis/">Technical Analysis</a>
+			</h4>
+			<span class="chapters text-tiny">22 chapters</span>
+			<div class="description text-tiny">
+				<span style="font-weight: 400;">Technical Analysis (TA) plays an important role in developing a point of view. Like every other research, TA also has its own attributes. In this module, we will discover all those complex attributes of TA, study various patterns, indicators and theories that will help you as a trader to find upright trading opportunities in the market. </span>			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%9f%e0%a5%87%e0%a4%95%e0%a5%8d%e0%a4%a8%e0%a4%bf%e0%a4%95%e0%a4%b2-%e0%a4%8f%e0%a4%a8%e0%a4%be%e0%a4%b2%e0%a4%bf%e0%a4%b8%e0%a4%bf%e0%a4%b8/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #EACF32">
+			<h4 class="title">
+				<span class="number">3</span>.
+				<a href="https://zerodha.com/varsity/module/fundamental-analysis/">Fundamental Analysis</a>
+			</h4>
+			<span class="chapters text-tiny">16 chapters</span>
+			<div class="description text-tiny">
+				<span style="font-weight: 400;">Fundamental Analysis (FA) is a holistic approach to study a business. If you are an investor that is looking for long term investments this module will help you understand Equity research, help you in reading the financial statements, annual reports, calculation of Financial Ratio, Analysis and most importantly help you in evaluating the intrinsic value of a stock to find long-term investing opportunities.</span>			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%ab%e0%a4%82%e0%a4%a1%e0%a4%be%e0%a4%ae%e0%a5%87%e0%a4%82%e0%a4%9f%e0%a4%b2-%e0%a4%8f%e0%a4%a8%e0%a4%be%e0%a4%b2%e0%a4%bf%e0%a4%b8%e0%a4%bf%e0%a4%b8/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #FFA9BA">
+			<h4 class="title">
+				<span class="number">4</span>.
+				<a href="https://zerodha.com/varsity/module/futures-trading/">Futures Trading</a>
+			</h4>
+			<span class="chapters text-tiny">13 chapters</span>
+			<div class="description text-tiny">
+				Futures Trading involves trading in contracts in the derivatives markets. This module covers the various intricacies involved in undergoing a futures trade including margins, leverages, pricing, etc			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%ab%e0%a5%8d%e0%a4%af%e0%a5%82%e0%a4%9a%e0%a4%b0%e0%a5%8d%e0%a4%b8-%e0%a4%9f%e0%a5%8d%e0%a4%b0%e0%a5%87%e0%a4%a1%e0%a4%bf%e0%a4%82%e0%a4%97/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #FFB05A">
+			<h4 class="title">
+				<span class="number">5</span>.
+				<a href="https://zerodha.com/varsity/module/option-theory/">Options Theory for Professional Trading</a>
+			</h4>
+			<span class="chapters text-tiny">25 chapters</span>
+			<div class="description text-tiny">
+				An option is a contract where the price of the options is based on an underlying. Options contracts grant the buyer the right to buy the underlying without a compulsory obligation.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%9f%e0%a5%8d%e0%a4%b0%e0%a5%87%e0%a4%a1%e0%a4%bf%e0%a4%82%e0%a4%97-%e0%a4%95%e0%a5%87-%e0%a4%b2%e0%a4%bf%e0%a4%8f-%e0%a4%91%e0%a4%aa%e0%a5%8d%e0%a4%b6%e0%a4%a8-%e0%a4%a5%e0%a5%8d%e0%a4%af/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #B5B2EA">
+			<h4 class="title">
+				<span class="number">6</span>.
+				<a href="https://zerodha.com/varsity/module/option-strategies/">Option Strategies</a>
+			</h4>
+			<span class="chapters text-tiny">14 chapters</span>
+			<div class="description text-tiny">
+				The module covers various options strategies that can be built with a multi-dimensional approach based on Market trend involving Option Greeks, Risk-Return, etc.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%91%e0%a4%aa%e0%a5%8d%e0%a4%b6%e0%a4%a8-%e0%a4%b8%e0%a5%8d%e0%a4%9f%e0%a5%8d%e0%a4%b0%e0%a5%88%e0%a4%9f%e0%a5%87%e0%a4%9c%e0%a5%80/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #78DDB9">
+			<h4 class="title">
+				<span class="number">7</span>.
+				<a href="https://zerodha.com/varsity/module/markets-and-taxation/">Markets and Taxation</a>
+			</h4>
+			<span class="chapters text-tiny">7 chapters</span>
+			<div class="description text-tiny">
+				As a trader in India, you should be informed of all the taxes that are levied on your investments and account. This module overlays the taxation countenance of Investing/Trading in the Markets. It also outlines the various essential topics like calculation of your turnover, how to prepare a balance sheet and the P&amp;L statement, and further about how you can file your Income Tax Returns.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%ac%e0%a4%be%e0%a4%9c%e0%a4%be%e0%a4%b0-%e0%a4%94%e0%a4%b0-%e0%a4%9f%e0%a5%88%e0%a4%95%e0%a5%8d%e0%a4%b8%e0%a5%87%e0%a4%b6%e0%a4%a8/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #D1C36F">
+			<h4 class="title">
+				<span class="number">8</span>.
+				<a href="https://zerodha.com/varsity/module/commodities-currency-government-securities/">Currency, Commodity, and Government Securities</a>
+			</h4>
+			<span class="chapters text-tiny">19 chapters</span>
+			<div class="description text-tiny">
+				This module covers the Currency,  MCX Commodity contract, and the Government Securities (GSec) traded in the Indian Markets.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%95%e0%a4%b0%e0%a5%87%e0%a4%82%e0%a4%b8%e0%a5%80-%e0%a4%95%e0%a4%ae%e0%a5%8b%e0%a4%a1%e0%a4%bf%e0%a4%9f%e0%a5%80-%e0%a4%94%e0%a4%b0-%e0%a4%b8%e0%a4%b0%e0%a4%95%e0%a4%be%e0%a4%b0%e0%a5%80/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #4EDFEA">
+			<h4 class="title">
+				<span class="number">9</span>.
+				<a href="https://zerodha.com/varsity/module/risk-management/">Risk Management &amp; Trading Psychology</a>
+			</h4>
+			<span class="chapters text-tiny">16 chapters</span>
+			<div class="description text-tiny">
+				The module covers the risk management aspect along with the psychology required for being consistent and profitable while trading			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%b0%e0%a4%bf%e0%a4%b8%e0%a5%8d%e0%a4%95-%e0%a4%ae%e0%a5%88%e0%a4%a8%e0%a5%87%e0%a4%9c%e0%a4%ae%e0%a5%87%e0%a4%82%e0%a4%9f-%e0%a4%94%e0%a4%b0-%e0%a4%9f%e0%a5%8d%e0%a4%b0%e0%a5%87%e0%a4%a1/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #FF8773">
+			<h4 class="title">
+				<span class="number">10</span>.
+				<a href="https://zerodha.com/varsity/module/trading-systems/">Trading Systems</a>
+			</h4>
+			<span class="chapters text-tiny">16 chapters</span>
+			<div class="description text-tiny">
+				Have you considered building your own Trading System? Well, then this module is for you. The major components of building a good trading system are input parameters and interpreting output alongside decision-making. In this module, we will learn about all the components and much more including the techniques and different types of Trading Systems.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%9f%e0%a5%8d%e0%a4%b0%e0%a5%87%e0%a4%a1%e0%a4%bf%e0%a4%82%e0%a4%97-%e0%a4%b8%e0%a4%bf%e0%a4%b8%e0%a5%8d%e0%a4%9f%e0%a4%ae%e0%a5%8d%e0%a4%b8/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #48CBFF">
+			<h4 class="title">
+				<span class="number">11</span>.
+				<a href="https://zerodha.com/varsity/module/personalfinance/">Personal Finance (Part 1)</a>
+			</h4>
+			<span class="chapters text-tiny">30 chapters</span>
+			<div class="description text-tiny">
+				Personal finance is an essential aspect of your financial life as it helps you achieve your short term and long term financial goals. This module encompasses the various aspects of personal finance such as retirement planning, Mutual funds, ETFs, Bonds, and goal-oriented investments.			</div>
+			<p class="languages">
+									<a href="https://zerodha.com/varsity/module/%e0%a4%aa%e0%a4%b0%e0%a5%8d%e0%a4%b8%e0%a4%a8%e0%a4%b2-%e0%a4%ab%e0%a4%be%e0%a4%87%e0%a4%a8%e0%a5%87%e0%a4%82%e0%a4%b8/">
+						हिंदी					</a>
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #ecc3a7">
+			<h4 class="title">
+				<span class="number">12</span>.
+				<a href="https://zerodha.com/varsity/module/innerworth/">Innerworth — Mind over markets</a>
+			</h4>
+			<span class="chapters text-tiny">603 chapters</span>
+			<div class="description text-tiny">
+				A series of articles on the psychology of trading, that will guide you mend your thought and prepare you psychologically to become a novice trader.			</div>
+			<p class="languages">
+							</p>
+		</li>
+
+				<li class="module" style="border-color: #99b4ff">
+			<h4 class="title">
+				<span class="number">13</span>.
+				<a href="https://zerodha.com/varsity/module/financial-modelling/">Integrated Financial Modelling</a>
+			</h4>
+			<span class="chapters text-tiny">9 chapters</span>
+			<div class="description text-tiny">
+							</div>
+			<p class="languages">
+							</p>
+		</li>
+
+					</ul>
+</section>
+	<section class="rupeetales">
+		<div class="row">
+			<div class="five columns text-center">
+				<a href="https://rupeetales.com?c=varsity"><img src="https://zerodha.com/varsity/wp-content/themes/varsity/images/rupeetales.png" alt="Rupeetales book" /></a>
+			</div>
+			<div class="six columns text">
+				<h2>Finance made easy for kids</h2>
+				<p>A box set of 5 books introducing 5 financial concepts
+				to children. Brought to you by Varsity @ Zerodha.</p>
+				<br />
+				<p class="text-small">
+					 Where does money come from and where does it go? The innocent inquisitiveness
+					 of children is what makes them most endearing. Help your little ones understand 
+					 the financial world through simple stories that make learning fun. 
+				</p>
+				<br />
+				<p class="order">
+					<a href="http://rupeetales.com?c=varsity" class="button button-primary">Order now</a>
+				</p>
+			</div>
+		</div>
+
+		<div class="press">
+			<div class="row">
+				<div class="twelve columns">
+					<a href="http://businessworld.in/article/-Rupee-Tales-Start-Them-Young/20-01-2017-111763/" target="_blank">
+						<img src="https://rupeetales.com/images/business_world.png" alt="" />
+					</a>
+					<a href="http://www.thehindubusinessline.com/portfolio/your-money/book-review/article9481496.ece" target="_blank">
+						<img src="https://rupeetales.com/images/businessline.png" alt="" />
+					</a>
+					<a href="http://timesofindia.indiatimes.com/city/goa/making-money-matters-fun-for-kids/articleshow/57009656.cms" target="_blank">
+						<img src="https://rupeetales.com/images/toi.png" alt="" />
+					</a>
+					<a href="http://economictimes.indiatimes.com/wealth/personal-finance-news/how-to-teach-your-children-about-money/articleshow/57216378.cms" target="_blank">
+						<img src="https://rupeetales.com/images/et.png" alt="" />
+					</a>
+					<a href="http://www.newindianexpress.com/cities/hyderabad/2017/feb/22/financial-concepts-for-seven-year-olds-1573639.html" target="_blank">
+						<img src="https://rupeetales.com/images/newindianexpress.png" alt="" />
+					</a>
+					<a href="http://telanganatoday.news/zerodha-launches-rupee-tales-books" target="_blank">
+						<img src="https://rupeetales.com/images/telanganatoday.png" alt="" />
+					</a>
+				</div>
+			</div>
+		</div>
+	</section>
+
+
+	<section class="recent row">
+		<div class="six columns">
+			<h2>Chapter updates</h2>
+<hr />
+
+<ul class="noul recent-updates">
+	<li style="border-color: #FFB05A">
+		<span class="date text-tiny">
+			5.
+			Options Theory for Professional Trading on November 29, 2021		</span>
+		<h4 class="title">
+			<a href="https://zerodha.com/varsity/chapter/options-m2m-and-pl/">Ch 25				&ndash; Options M2M and P&#038;L calculation</a>
+		</h4>
+		<div class="text-small"><p>25.1 – Back to Futures After many years, I&#8217;m updating this module with a new chapter, and it still feels as if I wrote this module on options just yesterday. Thousands of queries have poured i .. </p></div>
+	</li>
+	<li style="border-color: #99b4ff">
+		<span class="date text-tiny">
+			13.
+			Integrated Financial Modelling on November 19, 2021		</span>
+		<h4 class="title">
+			<a href="https://zerodha.com/varsity/chapter/debt-schedule/">Ch 9				&ndash; Debt Schedule</a>
+		</h4>
+		<div class="text-small"><p>9.1 – Dealing with debt We dealt with fixed assets in the previous chapter. The fixed assets, as you realize, is the most oversized line item on the asset side of the balance sheet. In this chapter, .. </p></div>
+	</li>
+	<li style="border-color: #48CBFF">
+		<span class="date text-tiny">
+			11.
+			Personal Finance (Part 1) on February 25, 2021		</span>
+		<h4 class="title">
+			<a href="https://zerodha.com/varsity/chapter/basics-of-macro-economics/">Ch 30				&ndash; Basics of Macro Economics</a>
+		</h4>
+		<div class="text-small"><p>30.1 – Why macroeconomics? The module on Personal Finance has come a long way with over 30 chapters. I can easily think of another 10 or 15 chapters to add, but I won&#8217;t do that 🙂 I think we .. </p></div>
+	</li>
+	<li style="border-color: #48CBFF">
+		<span class="date text-tiny">
+			11.
+			Personal Finance (Part 1) on December 24, 2020		</span>
+		<h4 class="title">
+			<a href="https://zerodha.com/varsity/chapter/the-mutual-fund-portfolio/">Ch 26				&ndash; The Mutual Fund Portfolio</a>
+		</h4>
+		<div class="text-small"><p>26.1 – Assumptions We have reached a stage where we have discussed almost everything related to Mutual funds, leaving us with the last crucial bit, i.e. the mutual fund portfolio construction. I’v .. </p></div>
+	</li>
+	<li style="border-color: #48CBFF">
+		<span class="date text-tiny">
+			11.
+			Personal Finance (Part 1) on November 23, 2020		</span>
+		<h4 class="title">
+			<a href="https://zerodha.com/varsity/chapter/how-to-analyze-a-debt-mutual-fund/">Ch 25				&ndash; How to analyze a debt mutual fund?</a>
+		</h4>
+		<div class="text-small"><p>25.1 – Confused Portfolio In the previous chapter, we picked up an equity fund (Kotak Standard Multi cap Fund) and looked at the steps to analyze and Equity fund. The idea was to highlight the steps .. </p></div>
+	</li>
+</ul>		</div>
+		<div class="one column">&zwnj;</div>
+		<div class="five columns">
+			<h2>Recent comments</h2>
+<hr />
+
+<ul class="noul recent-comments">
+	<li class="comment">
+		<div class="row">
+			<div class="two columns">
+				<span class="avatar"><img alt='' src='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=38&#038;d=identicon&#038;r=g' srcset='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=76&#038;d=identicon&#038;r=g 2x' class='avatar avatar-38 photo' height='38' width='38' loading='lazy'/></span>
+			</div>
+			<div class="ten columns">
+				<span class="comment-count float-right">
+					<a href="https://zerodha.com/varsity?p=6360&comments=all#comment-316249">
+						<span class="num">139</span>
+					</a>
+				</span>
+
+				<span class="author">Kulsum Khan</span>
+				on
+				<a href="https://zerodha.com/varsity?p=6360&comments=all#comment-316249" class="post-title text-small">कॉल ऑप्शन की भूमिका</a>
+
+			</div>
+		</div>
+		<p class="description text-small">
+			आपका धन्यवाद। ...
+		</p>
+
+		<div class="text-tiny text-right">
+			17 Dec 2021		</div>
+	</li>
+	<li class="comment">
+		<div class="row">
+			<div class="two columns">
+				<span class="avatar"><img alt='' src='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=38&#038;d=identicon&#038;r=g' srcset='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=76&#038;d=identicon&#038;r=g 2x' class='avatar avatar-38 photo' height='38' width='38' loading='lazy'/></span>
+			</div>
+			<div class="ten columns">
+				<span class="comment-count float-right">
+					<a href="https://zerodha.com/varsity?p=5652&comments=all#comment-316248">
+						<span class="num">74</span>
+					</a>
+				</span>
+
+				<span class="author">Kulsum Khan</span>
+				on
+				<a href="https://zerodha.com/varsity?p=5652&comments=all#comment-316248" class="post-title text-small">आईपीओ (IPO) बाज़ार- भाग 1</a>
+
+			</div>
+		</div>
+		<p class="description text-small">
+			शेयर प्राइस का बदलना पूरा मार्किट मूवमेंट पर निर्भर करता है। ...
+		</p>
+
+		<div class="text-tiny text-right">
+			17 Dec 2021		</div>
+	</li>
+	<li class="comment">
+		<div class="row">
+			<div class="two columns">
+				<span class="avatar"><img alt='' src='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=38&#038;d=identicon&#038;r=g' srcset='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=76&#038;d=identicon&#038;r=g 2x' class='avatar avatar-38 photo' height='38' width='38' loading='lazy'/></span>
+			</div>
+			<div class="ten columns">
+				<span class="comment-count float-right">
+					<a href="https://zerodha.com/varsity?p=5652&comments=all#comment-316247">
+						<span class="num">74</span>
+					</a>
+				</span>
+
+				<span class="author">Kulsum Khan</span>
+				on
+				<a href="https://zerodha.com/varsity?p=5652&comments=all#comment-316247" class="post-title text-small">आईपीओ (IPO) बाज़ार- भाग 1</a>
+
+			</div>
+		</div>
+		<p class="description text-small">
+			हमने इसका कैलकुलेशन इसी अध्याय में समझाया है कृपया इसको पूरा पढ़ें। ...
+		</p>
+
+		<div class="text-tiny text-right">
+			17 Dec 2021		</div>
+	</li>
+	<li class="comment">
+		<div class="row">
+			<div class="two columns">
+				<span class="avatar"><img alt='' src='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=38&#038;d=identicon&#038;r=g' srcset='https://secure.gravatar.com/avatar/be5de1b57c0a4cfdd8c128e3b984d149?s=76&#038;d=identicon&#038;r=g 2x' class='avatar avatar-38 photo' height='38' width='38' loading='lazy'/></span>
+			</div>
+			<div class="ten columns">
+				<span class="comment-count float-right">
+					<a href="https://zerodha.com/varsity?p=8568&comments=all#comment-316244">
+						<span class="num">16</span>
+					</a>
+				</span>
+
+				<span class="author">Kulsum Khan</span>
+				on
+				<a href="https://zerodha.com/varsity?p=8568&comments=all#comment-316244" class="post-title text-small">आयरन कॉन्डॉर</a>
+
+			</div>
+		</div>
+		<p class="description text-small">
+			आपका धन्यवाद। ...
+		</p>
+
+		<div class="text-tiny text-right">
+			17 Dec 2021		</div>
+	</li>
+	<li class="comment">
+		<div class="row">
+			<div class="two columns">
+				<span class="avatar"><img alt='' src='https://secure.gravatar.com/avatar/f77c3f8361982099ed9ac6d852b2e2b1?s=38&#038;d=identicon&#038;r=g' srcset='https://secure.gravatar.com/avatar/f77c3f8361982099ed9ac6d852b2e2b1?s=76&#038;d=identicon&#038;r=g 2x' class='avatar avatar-38 photo' height='38' width='38' loading='lazy'/></span>
+			</div>
+			<div class="ten columns">
+				<span class="comment-count float-right">
+					<a href="https://zerodha.com/varsity?p=3606&comments=all#comment-316242">
+						<span class="num">895</span>
+					</a>
+				</span>
+
+				<span class="author">Karthik Rangappa</span>
+				on
+				<a href="https://zerodha.com/varsity?p=3606&comments=all#comment-316242" class="post-title text-small">Max Pain & PCR Ratio</a>
+
+			</div>
+		</div>
+		<p class="description text-small">
+			Good luck, Yashwanth. ...
+		</p>
+
+		<div class="text-tiny text-right">
+			17 Dec 2021		</div>
+	</li>
+</ul>		</div>
+	</section>
+
+	<section class="row promo">
+			<h3>Don't have a Zerodha account?</h3>
+			<p>Excellent platforms / Free equity investments / Flat ₹20 intraday and F&amp;O trades</p>
+			<a href="https://zerodha.com?ref=varsity" class="button button-primary">Open an account</a>
+	</section>
+
+</div>
+
+			<div class="clear"> </div>
+			
+		</div><!-- main //-->
+	</div><!-- wrap //-->
+
+	<footer id="footer">
+		<div class="row">
+			<div class="six columns">
+				<p class="text-small">
+					Varsity by Zerodha &copy; 2015 &ndash; 2021.
+					All rights reserved.
+					Reproduction of the Varsity materials, text and images,
+					is not permitted. For media queries, contact <a href="/cdn-cgi/l/email-protection#027270677171427867706d666a632c616d6f"><span class="__cf_email__" data-cfemail="5f2f2d3a2c2c1f253a2d303b373e713c3032">[email&#160;protected]</span></a>  
+				</p>
+			</div>
+			<div class="six columns">
+				<div class="buttons">
+					<a href="https://play.google.com/store/apps/details?id=com.zerodha.varsity">
+						<img src="https://zerodha.com/varsity/wp-content/themes/varsity//images/playstore.png" alt="Download on Play store">
+					</a>
+					<a href="https://apps.apple.com/in/app/varsity-by-zerodha/id1474610753">
+						<img src="https://zerodha.com/varsity/wp-content/themes/varsity//images/appstore.png" alt="Download on App store">
+					</a>
+				</div>
+			</div>
+		</div>
+		
+		<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type='text/javascript' src='https://zerodha.com/varsity/wp-includes/js/wp-embed.min.js?ver=5.5.7' id='wp-embed-js'></script>
+	</footer><!-- footer //-->
+</div><!-- container //-->
+
+<div id="module-nav">
+	<div class="module-nav-content">
+	<nav class="user-nav">
+		<a href="https://twitter.com/ZerodhaVarsity">@ZerodhaVarsity</a>
+			</nav>
+		
+		<div class="modules-list">
+			<a href="#" class="button button-primary close">Close</a>
+			<h2>Modules</h2>
+			<ul class="noul row">
+								<li class="module" style="border-color: #69c969">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/introduction-to-stock-markets/">1. Introduction to Stock Markets</a></h4>
+					<span class="chapters text-tiny">15 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #64B2FF">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/technical-analysis/">2. Technical Analysis</a></h4>
+					<span class="chapters text-tiny">22 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #EACF32">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/fundamental-analysis/">3. Fundamental Analysis</a></h4>
+					<span class="chapters text-tiny">16 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #FFA9BA">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/futures-trading/">4. Futures Trading</a></h4>
+					<span class="chapters text-tiny">13 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #FFB05A">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/option-theory/">5. Options Theory for Professional Trading</a></h4>
+					<span class="chapters text-tiny">25 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #B5B2EA">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/option-strategies/">6. Option Strategies</a></h4>
+					<span class="chapters text-tiny">14 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #78DDB9">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/markets-and-taxation/">7. Markets and Taxation</a></h4>
+					<span class="chapters text-tiny">7 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #D1C36F">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/commodities-currency-government-securities/">8. Currency, Commodity, and Government Securities</a></h4>
+					<span class="chapters text-tiny">19 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #4EDFEA">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/risk-management/">9. Risk Management &amp; Trading Psychology</a></h4>
+					<span class="chapters text-tiny">16 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #FF8773">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/trading-systems/">10. Trading Systems</a></h4>
+					<span class="chapters text-tiny">16 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #48CBFF">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/personalfinance/">11. Personal Finance (Part 1)</a></h4>
+					<span class="chapters text-tiny">30 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #ecc3a7">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/innerworth/">12. Innerworth — Mind over markets</a></h4>
+					<span class="chapters text-tiny">603 chapters</span>
+				</li>
+
+								<li class="module" style="border-color: #99b4ff">
+					<h4 class="title"><a href="https://zerodha.com/varsity/module/financial-modelling/">13. Integrated Financial Modelling</a></h4>
+					<span class="chapters text-tiny">9 chapters</span>
+				</li>
+
+							</ul>
+		</div>
+	</div>
+</div>
+
+<script>
+	(function() {
+		document.querySelector("#show-module-nav").onclick = function() {
+			var d = document.querySelector("#module-nav").style.display = 'block';
+			return false;
+		};
+
+		document.querySelector("#module-nav .close").onclick = function() {
+			var d = document.querySelector("#module-nav").style.display = 'none';
+			return false;
+		};
+	})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-56398608-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+</body>
+</html>
+<!-- Dynamic page generated in 0.196 seconds. -->
+<!-- Cached page generated by WP-Super-Cache on 2021-12-17 11:56:04 -->
+
+<!-- super cache -->
