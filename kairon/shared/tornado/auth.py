@@ -56,6 +56,25 @@ class TornadoAuthenticate:
         return user_model
 
     @staticmethod
+    def get_current_user_and_bot(
+            request: HTTPServerRequest, **kwargs
+    ):
+        user = TornadoAuthenticate.get_current_user(request)
+        bot_id = kwargs.get('bot')
+        if Utility.check_empty_string(bot_id):
+            raise Exception({"status_code": 422,
+                             "detail": "Bot is required",
+                             "headers": {"WWW-Authenticate": "Bearer"}})
+        AccountProcessor.fetch_role_for_user(user.email, bot_id)
+        bot = AccountProcessor.get_bot(bot_id)
+        if not bot["status"]:
+            raise Exception({"status_code": 422,
+                             "detail": "Inactive Bot Please contact system admin!",
+                             "headers": {"WWW-Authenticate": "Bearer"}})
+        user.active_bot = bot_id
+        return user
+
+    @staticmethod
     def validate_limited_access_token(request: HTTPServerRequest, access_limit: list):
         if not access_limit:
             return

@@ -24,7 +24,7 @@ import requests
 
 class TestActions:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()

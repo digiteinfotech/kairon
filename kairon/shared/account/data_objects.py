@@ -7,12 +7,24 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, ListField, FloatField, EmbeddedDocumentField, EmbeddedDocument
+    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
 
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
+
+
+class BotAccess(Document):
+    accessor_email = StringField(required=True)
+    role = StringField(required=True, choices=[role.value for role in ACCESS_ROLES])
+    bot = StringField(required=True)
+    bot_account = LongField(required=True)
+    user = StringField(required=True)
+    accept_timestamp = DateTimeField()
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = StringField(required=True, choices=[status.value for status in ACTIVITY_STATUS])
 
 
 class User(Document):
@@ -20,10 +32,8 @@ class User(Document):
     first_name = StringField(required=True)
     last_name = StringField(required=True)
     password = StringField(required=True)
-    role = StringField(required=True, default="trainer")
     is_integration_user = BooleanField(default=False)
     account = LongField(required=True)
-    bot = ListField(StringField(), required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     password_changed = DateTimeField(default=None)
@@ -98,6 +108,8 @@ class MailTemplates(EmbeddedDocument):
     verification_confirmation = StringField()
     password_reset = StringField()
     password_reset_confirmation = StringField()
+    add_member_invitation = StringField()
+    add_member_confirmation = StringField()
 
 
 class SystemProperties(Document):
