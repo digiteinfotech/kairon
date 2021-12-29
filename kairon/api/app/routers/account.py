@@ -79,12 +79,12 @@ async def list_bots(current_user: User = Depends(Authentication.get_current_user
     """
     List bots for account.
     """
-    bots = list(AccountProcessor.list_bots(current_user.account))
+    bots = AccountProcessor.get_accessible_bot_details(current_user.account, current_user.email)
     return Response(data=bots)
 
 
 @router.put("/bot/{bot}", response_model=Response)
-async def update_bot(bot: str, request: TextData, current_user: User = Depends(Authentication.get_current_user)):
+async def update_bot(bot: str, request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Update name of the bot.
     """
@@ -93,7 +93,7 @@ async def update_bot(bot: str, request: TextData, current_user: User = Depends(A
 
 
 @router.delete("/bot/{bot}", response_model=Response)
-async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_current_user)):
+async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_current_user_and_bot)):
     """
     Deletes bot.
     """

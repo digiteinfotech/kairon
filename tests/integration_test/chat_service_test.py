@@ -31,13 +31,14 @@ loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email
 token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
-bot = user['bot'][0]
+bot = user['bots']['account_owned'][0]['_id']
 start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(
     "template/use-cases/Hi-Hello", bot2, user="test@chat.com"
 ))
 start_training(bot2, "test@chat.com")
+bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
 
 
 class TestChatServer(AsyncHTTPTestCase):
@@ -110,7 +111,7 @@ class TestChatServer(AsyncHTTPTestCase):
 
     def test_chat_model_not_trained(self):
         response = self.fetch(
-            f"/api/bot/test/chat",
+            f"/api/bot/{bot3}/chat",
             method="POST",
             body=json.dumps({"data": "Hi"}).encode("utf8"),
             headers={
@@ -124,7 +125,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["data"] is None
         assert actual["message"] == "Bot has not been trained yet!"
 
-    def test_chat_with_different_bot_not_trained(self):
+    def test_chat_with_different_bot_not_allowed(self):
         response = self.fetch(
             f"/api/bot/test/chat",
             method="POST",
@@ -138,7 +139,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert actual["data"] is None
-        assert actual["message"] == "Bot has not been trained yet!"
+        assert actual["message"] == "Access to bot is denied"
 
     def test_chat_different_bot(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:

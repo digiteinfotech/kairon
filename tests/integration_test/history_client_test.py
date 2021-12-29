@@ -54,8 +54,13 @@ def bot_details(*args, **kwargs):
     }
 
 
-@pytest.fixture
+def _mock_user_role(*args, **kwargs):
+    return {'role': 'tester'}
+
+
+@pytest.fixture(scope='function')
 def mock_auth(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
 
@@ -64,12 +69,12 @@ def endpoint_details(*args, **kwargs):
     return {"history_endpoint": {"url": "https://localhost:8083", "token": "test_token"}}
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def mock_mongo_processor(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", endpoint_details)
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def mock_mongo_processor_endpoint_not_configured(monkeypatch):
     def _mock_exception(*args, **kwargs):
         raise AppException('Config not found')
@@ -130,6 +135,7 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     )
 
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"].__contains__('Unable to connect to history server: ')

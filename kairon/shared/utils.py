@@ -564,7 +564,7 @@ class Utility:
                     shutil.move(cleanUp, new_path)
 
     @staticmethod
-    async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None):
+    async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None, **kwargs):
         if mail_type == 'password_reset':
             body = Utility.email_conf['email']['templates']['password_reset']
             subject = Utility.email_conf['email']['templates']['password_reset_subject']
@@ -577,6 +577,21 @@ class Utility:
         elif mail_type == 'verification_confirmation':
             body = Utility.email_conf['email']['templates']['verification_confirmation']
             subject = Utility.email_conf['email']['templates']['confirmed_subject']
+        elif mail_type == 'add_member':
+            body = Utility.email_conf['email']['templates']['add_member_invitation']
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('BOT_OWNER_NAME', first_name)
+            body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
+            body = body.replace('ACCESS_URL', url)
+            subject = Utility.email_conf['email']['templates']['add_member_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        elif mail_type == 'add_member_confirmation':
+            body = Utility.email_conf['email']['templates']['add_member_confirmation']
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('BOT_OWNER_NAME', first_name)
+            body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
+            subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return

@@ -20,7 +20,7 @@ class ChatHandler(BaseHandler, ABC):
         response = None
         error_code = 0
         try:
-            user: User = super().authenticate(self.request)
+            user: User = super().authenticate(self.request, bot=bot)
             body = json_decode(self.request.body.decode("utf8"))
             response = {"response": await ChatUtils.chat(body.get("data"), bot, user.get_user()) }
             logger.info(f"text={body.get('data')} response={response}")
@@ -40,7 +40,7 @@ class ReloadHandler(BaseHandler, ABC):
         response = None
         error_code = 0
         try:
-            user: User = super().authenticate(self.request)
+            user: User = super().authenticate(self.request, bot=bot)
             executor.submit(ChatUtils.reload, bot)
         except Exception as e:
             message = str(e)

@@ -6,11 +6,13 @@ import jwt
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
+from mongomock.object_id import ObjectId
 from pydantic import SecretStr
 
 from kairon.shared.auth import Authentication
-from kairon.shared.account.data_objects import User, Feedback
+from kairon.shared.account.data_objects import Feedback, BotAccess
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
@@ -24,7 +26,7 @@ def pytest_configure():
 
 
 class TestAccountProcessor:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
@@ -94,27 +96,29 @@ class TestAccountProcessor:
 
     def test_add_duplicate_bot(self):
         with pytest.raises(Exception):
-            AccountProcessor.add_bot("test", 1, "testAdmin")
+            print(list(AccountProcessor.list_bots(1)))
+            AccountProcessor.add_bot("test", pytest.account, "testAdmin")
 
     def test_add_duplicate_bot_case_insensitive(self):
         with pytest.raises(Exception):
-            AccountProcessor.add_bot("TEST", 1, "testAdmin")
+            print(list(AccountProcessor.list_bots(1)))
+            AccountProcessor.add_bot("TEST", pytest.account, "testAdmin")
 
     def test_add_blank_bot(self):
         with pytest.raises(AppException):
-            AccountProcessor.add_bot(" ", 1, "testAdmin")
+            AccountProcessor.add_bot(" ", pytest.account, "testAdmin")
 
     def test_add_empty_bot(self):
         with pytest.raises(AppException):
-            AccountProcessor.add_bot("", 1, "testAdmin")
+            AccountProcessor.add_bot("", pytest.account, "testAdmin")
 
     def test_add_none_bot(self):
         with pytest.raises(AppException):
-            AccountProcessor.add_bot(None, 1, "testAdmin")
+            AccountProcessor.add_bot(None, pytest.account, "testAdmin")
 
     def test_add_none_user(self):
         with pytest.raises(AppException):
-            AccountProcessor.add_bot('test', 1, None)
+            AccountProcessor.add_bot('test', pytest.account, None)
 
     def test_add_user(self):
         user = AccountProcessor.add_user(
@@ -123,7 +127,6 @@ class TestAccountProcessor:
             last_name="Shaikh",
             password="Welcome@1",
             account=pytest.account,
-            bot=pytest.bot,
             user="testAdmin",
         )
         assert user
@@ -134,8 +137,7 @@ class TestAccountProcessor:
         bot_response = AccountProcessor.add_bot("test_version_2", pytest.account, "fshaikh@digite.com", False)
         bot = Bot.objects(name="test_version_2").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
-        user = User.objects(email="fshaikh@digite.com").get()
-        assert len(user.bot) == 2
+        assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         assert config['language']
         assert config['pipeline'][6]['name'] == 'FallbackClassifier'
@@ -145,6 +147,133 @@ class TestAccountProcessor:
         assert config['policies'][2]['core_fallback_threshold'] == 0.3
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
+
+    def test_add_member_already_exists(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        with pytest.raises(AppException, match='User is already a collaborator'):
+            AccountProcessor.allow_access_to_bot(bot_id, "fshaikh@digite.com", 'testAdmin',
+                                                 pytest.account, ACCESS_ROLES.DESIGNER.value,
+                                                 ACTIVITY_STATUS.ACTIVE.value)
+
+    def test_add_member_bot_not_exists(self):
+        with pytest.raises(DoesNotExist, match='Bot does not exists!'):
+            AccountProcessor.allow_access_to_bot('bot_not_exists', "fshaikh@digite.com", 'testAdmin', pytest.account)
+
+    def test_list_bot_accessors_1(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        accessors = list(AccountProcessor.list_bot_accessors(bot_id))
+        assert len(accessors) == 1
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
+        assert accessors[0]['role'] == 'admin'
+        assert accessors[0]['bot']
+        assert accessors[0]['bot_account'] == pytest.account
+        assert accessors[0]['user'] == "fshaikh@digite.com"
+        assert accessors[0]['timestamp']
+
+    def test_update_bot_access(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        assert not AccountProcessor.update_bot_access(bot_id, "fshaikh@digite.com", 'testAdmin',
+                                                      ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.INACTIVE.value)
+        bot_access = BotAccess.objects(bot=bot_id, accessor_email="fshaikh@digite.com").get()
+        assert bot_access.role == ACCESS_ROLES.ADMIN.value
+        assert bot_access.status == ACTIVITY_STATUS.INACTIVE.value
+
+    def test_update_bot_access_invite_not_accepted(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        BotAccess(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
+                  role='designer', status='invite_not_accepted', bot_account=10).save()
+        with pytest.raises(AppException, match='User is yet to accept the invite'):
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com",
+                                               ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.INACTIVE.value)
+        assert BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
+                                 role='designer', status='invite_not_accepted', bot_account=10).get()
+
+    def test_update_bot_access_user_not_allowed(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        with pytest.raises(AppException, match='User not yet invited to collaborate'):
+            AccountProcessor.update_bot_access(bot_id, "pandey.udit867@gmail.com",
+                                               ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.INACTIVE.value)
+
+    def test_accept_bot_access_invite(self, monkeypatch):
+        def _mock_get_user(*args, **kwargs):
+            return None
+        monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
+
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        token = Utility.generate_token("udit.pandey@digite.com")
+        AccountProcessor.accept_bot_access_invite(token, bot_id)
+        assert BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
+                                 role='designer', status='active', bot_account=10).get()
+
+    def test_accept_bot_access_invite_user_not_exists(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        token = Utility.generate_token("pandey.udit867@gmail.com")
+        with pytest.raises(DoesNotExist, match='User does not exist!'):
+            AccountProcessor.accept_bot_access_invite(token, bot_id)
+
+    def test_accept_bot_access_invite_user_not_allowed(self, monkeypatch):
+        def _mock_get_user(*args, **kwargs):
+            return None
+        monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
+
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        token = Utility.generate_token("pandey.udit867@gmail.com")
+        with pytest.raises(AppException, match='No pending invite found for this bot and user'):
+            AccountProcessor.accept_bot_access_invite(token, bot_id)
+
+    def test_accept_bot_access_invite_token_expired(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        print(bot_id)
+        token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InBhbmRleS51ZGl0ODY3QGdtYWlsLmNvbSIsImV4cCI6MTUxNjIzOTAyMn0.dP8a4rHXb9dBrPFKfKD3_tfKu4NdwfSz213F15qej18'
+        with pytest.raises(AppException, match='Invalid token'):
+            AccountProcessor.accept_bot_access_invite(token, bot_id)
+
+    def test_accept_bot_access_invite_invalid_bot(self):
+        token = Utility.generate_token("pandey.udit867@gmail.com")
+        with pytest.raises(DoesNotExist, match='Bot does not exists!'):
+            AccountProcessor.accept_bot_access_invite(token, '61cb4e2f7c7ac78d2fa8fab7')
+
+    def test_list_bot_accessors_2(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        accessors = list(AccountProcessor.list_bot_accessors(bot_id))
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
+        assert accessors[0]['role'] == 'admin'
+        assert accessors[0]['bot']
+        assert accessors[0]['bot_account'] == pytest.account
+        assert accessors[0]['user'] == 'testAdmin'
+        assert accessors[0]['timestamp']
+        assert accessors[1]['accessor_email'] == 'udit.pandey@digite.com'
+        assert accessors[1]['role'] == 'designer'
+        assert accessors[1]['bot']
+        assert accessors[1]['bot_account'] == 10
+        assert accessors[1]['user'] == 'test'
+        assert accessors[1]['accept_timestamp']
+        assert accessors[1]['timestamp']
+
+    def test_remove_bot_access_not_a_member(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        with pytest.raises(AppException, match='User not a collaborator to this bot'):
+            AccountProcessor.remove_bot_access(bot_id, accessor_email='pandey.udit867@gmail.com')
+
+    def test_remove_bot_access(self):
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        assert not AccountProcessor.remove_bot_access(bot_id, accessor_email='udit.pandey@digite.com')
+        assert len(list(AccountProcessor.list_bot_accessors(bot_id))) == 1
+
+    def test_remove_bot_from_all_accessors(self):
+        bot_id = str(ObjectId())
+        BotAccess(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
+                  role='designer', status='active', bot_account=10).save()
+        BotAccess(bot=bot_id, accessor_email="pandey.udit867@gmail.com", user='test',
+                  role='designer', status='invite_not_accepted', bot_account=10).save()
+        BotAccess(bot=bot_id, accessor_email="pandey.udit@gmail.com", user='test',
+                  role='designer', status='inactive', bot_account=10).save()
+        BotAccess(bot=bot_id, accessor_email="udit867@gmail.com", user='test',
+                  role='designer', status='deleted', bot_account=10).save()
+        assert len(list(AccountProcessor.list_bot_accessors(bot_id))) == 3
+        AccountProcessor.remove_bot_access(bot_id)
+        assert len(list(AccountProcessor.list_bot_accessors(bot_id))) == 0
 
     def test_list_bots_2(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
@@ -170,21 +299,23 @@ class TestAccountProcessor:
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
         pytest.deleted_bot = bot[1]['_id']
-        AccountProcessor.add_bot_for_user(pytest.deleted_bot, "fshaikh@digite.com")
         AccountProcessor.delete_bot(pytest.deleted_bot, 'testAdmin')
         with pytest.raises(DoesNotExist):
             Bot.objects(id=pytest.deleted_bot, status=True).get()
-        user = User.objects(account=pytest.account, status=True).get()
-        assert len(user.bot) == 1
-        assert pytest.deleted_bot not in user.bot
+        bots = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")
+        assert len(bots['account_owned']) == 1
+        assert pytest.deleted_bot not in [bot['_id'] for bot in bots['account_owned']]
+        assert pytest.deleted_bot not in [bot['_id'] for bot in bots['shared']]
 
     def test_delete_bot_not_exists(self):
         with pytest.raises(AppException):
             AccountProcessor.delete_bot(pytest.deleted_bot, 'testAdmin')
 
     def test_add_bot_to_user_not_present(self):
-        with pytest.raises(AppException):
-            AccountProcessor.add_bot_for_user(pytest.deleted_bot, "fshaikh")
+        assert AccountProcessor.allow_access_to_bot(pytest.deleted_bot, "fshaikh", 'testAdmin',
+                                                    pytest.account, ACCESS_ROLES.DESIGNER.value,
+                                                    ACTIVITY_STATUS.ACTIVE.value)
+        assert BotAccess.objects(bot=pytest.deleted_bot, accessor_email="fshaikh").get()
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):
@@ -194,7 +325,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -206,7 +336,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -218,7 +347,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -230,7 +358,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -242,7 +369,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -254,7 +380,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -266,7 +391,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -278,7 +402,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -290,7 +413,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -302,7 +424,6 @@ class TestAccountProcessor:
                 last_name="",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -314,7 +435,6 @@ class TestAccountProcessor:
                 last_name=None,
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -326,7 +446,6 @@ class TestAccountProcessor:
                 last_name=" ",
                 password="Welcome@1",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -338,7 +457,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password="",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -350,7 +468,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password=" ",
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -362,7 +479,6 @@ class TestAccountProcessor:
                 last_name="Shaikh",
                 password=None,
                 account=1,
-                bot=pytest.bot,
                 user="testAdmin",
             )
 
@@ -372,6 +488,10 @@ class TestAccountProcessor:
             user[key] is False if key == "is_integration_user" else user[key]
             for key in user.keys()
         )
+
+    def test_get_user_not_exists(self):
+        with pytest.raises(DoesNotExist, match='User does not exist!'):
+            AccountProcessor.get_user("udit.pandey@digite.com")
 
     def test_get_user_details(self):
         user = AccountProcessor.get_user_details("fshaikh@digite.com")
@@ -471,12 +591,31 @@ class TestAccountProcessor:
                 ).keys()
             )
 
-    def test_get_integration_user(self):
+    def test_get_integration_user(self, monkeypatch):
+        def mock_get_bot(*args, **kwargs):
+            return None
+        monkeypatch.setattr(AccountProcessor, "get_bot", mock_get_bot)
+
         integration_user = AccountProcessor.get_integration_user(
             bot="support", account=2
         )
         assert integration_user["is_integration_user"]
         assert all(integration_user[key] for key in integration_user.keys())
+        assert BotAccess.objects(bot="support", bot_account=2, accessor_email=integration_user['email'],
+                                 role='admin', status='active').get()
+
+    def test_get_integration_user_already_exists(self, monkeypatch):
+        def mock_get_bot(*args, **kwargs):
+            return None
+        monkeypatch.setattr(AccountProcessor, "get_bot", mock_get_bot)
+
+        integration_user = AccountProcessor.get_integration_user(
+            bot="support", account=2
+        )
+        assert integration_user["is_integration_user"]
+        assert all(integration_user[key] for key in integration_user.keys())
+        assert BotAccess.objects(bot="support", bot_account=2, accessor_email=integration_user['email'],
+                                 role='admin', status='active').get()
 
     def test_account_setup_empty_values(self):
         account = {}
@@ -511,7 +650,6 @@ class TestAccountProcessor:
     def test_account_setup(self):
         account = {
             "account": "Test_Account",
-            "bot": "Test",
             "email": "demo@ac.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
@@ -519,11 +657,13 @@ class TestAccountProcessor:
         }
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
-        assert actual["role"] == "admin"
         assert actual["_id"]
         assert actual["account"]
-        assert actual["bot"]
         assert actual["first_name"]
+        bot_id = Bot.objects(account=actual['account'], user="testAdmin").get()
+        assert BotAccess.objects(bot_account=actual['account'], accessor_email=account['email'], bot=str(bot_id.id),
+                                 status=ACTIVITY_STATUS.ACTIVE.value, role=ACCESS_ROLES.ADMIN.value,
+                                 user=account['email']).get()
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
@@ -577,7 +717,6 @@ class TestAccountProcessor:
             last_name="2",
             password='Welcome@1',
             account=1,
-            bot=pytest.bot,
             user="testAdmin",
         )
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
@@ -663,7 +802,6 @@ class TestAccountProcessor:
             last_name="3",
             password='Welcome@1',
             account=1,
-            bot=pytest.bot,
             user="testAdmin",
         )
         Utility.email_conf["email"]["enable"] = True

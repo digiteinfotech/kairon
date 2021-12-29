@@ -48,7 +48,6 @@ class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    bot: list
     active_bot: str = None
     account: int
     status: bool
