@@ -1,6 +1,6 @@
 from typing import List, Any, Dict
 import validators
-from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE
+from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -69,6 +69,12 @@ class RegisterAccount(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
+
+
+class BotAccessRequest(BaseModel):
+    email: str
+    role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
+    activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
 
 class EndPointBot(BaseModel):

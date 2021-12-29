@@ -53,6 +53,10 @@ def pytest_configure():
             }
 
 
+async def mock_smtp(*args, **kwargs):
+    return None
+
+
 def test_api_wrong_login():
     response = client.post(
         "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
@@ -149,11 +153,13 @@ def test_api_login():
     ).json()
     assert response['data']['user']['_id']
     assert response['data']['user']['email'] == 'integration@demo.ai'
-    assert response['data']['user']['role'] == 'admin'
-    assert response['data']['user']['bot']
+    assert response['data']['user']['bots']['account_owned'][0]['user'] == 'sysadmin'
+    assert response['data']['user']['bots']['account_owned'][0]['timestamp']
+    assert response['data']['user']['bots']['account_owned'][0]['name']
+    assert response['data']['user']['bots']['account_owned'][0]['_id']
+    assert not response['data']['user']['bots']['shared']
     assert response['data']['user']['timestamp']
     assert response['data']['user']['status']
-    assert response['data']['user']['bot_name']
     assert response['data']['user']['account_name'] == 'integration'
     assert response['data']['user']['first_name'] == 'Demo'
     assert response['data']['user']['last_name'] == 'User'
@@ -175,10 +181,16 @@ def test_list_bots():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    assert len(response['data']) == 2
-    pytest.bot = response['data'][0]['_id']
-    assert response['data'][0]['name'] == 'Hi-Hello'
-    assert response['data'][1]['name'] == 'covid-bot'
+    pytest.bot = response['data']['account_owned'][0]['_id']
+    assert response['data']['account_owned'][0]['user'] == 'sysadmin'
+    assert response['data']['account_owned'][0]['timestamp']
+    assert response['data']['account_owned'][0]['name'] == 'Hi-Hello'
+    assert response['data']['account_owned'][0]['_id']
+    assert response['data']['account_owned'][1]['user'] == 'integration@demo.ai'
+    assert response['data']['account_owned'][1]['timestamp']
+    assert response['data']['account_owned'][1]['name'] == 'covid-bot'
+    assert response['data']['account_owned'][1]['_id']
+    assert response['data']['shared'] == []
 
 
 def test_list_entities_empty():
@@ -224,9 +236,9 @@ def test_update_bot_name():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert len(response['data']) == 2
-    pytest.bot = response['data'][0]['_id']
-    assert response['data'][0]['name'] == 'Hi-Hello-bot'
-    assert response['data'][1]['name'] == 'covid-bot'
+    pytest.bot = response['data']['account_owned'][0]['_id']
+    assert response['data']['account_owned'][0]['name'] == 'Hi-Hello-bot'
+    assert response['data']['account_owned'][1]['name'] == 'covid-bot'
 
 
 @pytest.fixture()
@@ -2312,10 +2324,6 @@ def test_api_login_with_account_not_verified():
     assert actual['message'] == 'Please verify your mail'
 
 
-async def mock_smtp(*args, **kwargs):
-    return None
-
-
 def test_account_registration_with_confirmation(monkeypatch):
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
@@ -2349,6 +2357,19 @@ def test_account_registration_with_confirmation(monkeypatch):
     assert actual['success']
     assert actual['error_code'] == 0
 
+    response = client.post(
+        "/api/auth/login",
+        data={"username": 'integ1@gmail.com', "password": "Welcome@1"},
+    )
+    actual = response.json()
+    pytest.add_member_token = actual["data"]["access_token"]
+    pytest.add_member_token_type = actual["data"]["token_type"]
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    pytest.add_member_bot = response['data']['account_owned'][0]['_id']
+
 
 def test_invalid_token_for_confirmation():
     response = client.post("/api/account/email/confirmation",
@@ -2361,6 +2382,97 @@ def test_invalid_token_for_confirmation():
     assert actual['data'] is None
     assert not actual['success']
     assert actual['error_code'] == 422
+
+
+def test_add_member(monkeypatch):
+    def __mock_verify_token(*args, **kwargs):
+        return "integration@demo.ai"
+
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(Utility, 'verify_token', __mock_verify_token)
+
+    Utility.email_conf["email"]["enable"] = True
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration@demo.ai", "role": "tester"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'An invitation has been sent to the user'
+    assert response['error_code'] == 0
+    assert response['success']
+
+    monkeypatch.setattr(AccountProcessor, 'get_user_details', mock_smtp)
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member/invite/accept",
+        json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoidXNlckBrYWlyb24uY"}
+    ).json()
+    assert response['message'] == 'Invitation accepted'
+    assert response['error_code'] == 0
+    assert response['success']
+    Utility.email_conf["email"]["enable"] = False
+
+
+def test_list_members():
+    response = client.get(
+        f"/api/user/{pytest.add_member_bot}/member",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['error_code'] == 0
+    assert response['success']
+    assert response['data'][0]['accessor_email'] == 'integ1@gmail.com'
+    assert response['data'][0]['role'] == 'admin'
+    assert response['data'][1]['status']
+    assert response['data'][1]['accessor_email'] == 'integration@demo.ai'
+    assert response['data'][1]['role'] == 'tester'
+    assert response['data'][1]['status']
+
+
+def test_list_members_2():
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    bot = response['data']['account_owned'][1]['_id']
+    response = client.get(
+        f"/api/user/{bot}/member",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['error_code'] == 422
+    assert not response['success']
+    assert not response['data']
+    assert response['message'] == 'Access to bot is denied'
+
+
+def test_update_member_role_not_exists():
+    response = client.put(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "user@kairon.ai", "role": "admin", "status": "inactive"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User not yet invited to collaborate'
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
+def test_update_member_role():
+    response = client.put(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration@demo.ai", "role": "admin", "status": "inactive"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User access updated'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_delete_member():
+    response = client.delete(
+        f"/api/user/{pytest.add_member_bot}/member/integration@demo.ai",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User removed'
+    assert response['error_code'] == 0
+    assert response['success']
 
 
 def test_add_intents_no_bot():
@@ -2384,7 +2496,7 @@ def test_add_intents_not_authorised():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Access denied for bot'
+    assert actual["message"] == 'Access to bot is denied'
 
 
 def test_add_intents_inactive_bot(monkeypatch):
@@ -2398,11 +2510,14 @@ def test_add_intents_inactive_bot(monkeypatch):
             last_name='test',
             account=2,
             status=True,
-            is_integration_user=False,
-            bot=['5ea8127db7c285f4055129a4', '5ea8127db7c285f4055129a5'])
+            is_integration_user=False)
+
+    def _mock_role(*args, **kwargs):
+        return {'role': 'admin'}
 
     monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot)
     monkeypatch.setattr(Authentication, 'get_current_user', _mock_user)
+    monkeypatch.setattr(AccountProcessor, 'fetch_role_for_user', _mock_role)
 
     response = client.post(
         "/api/bot/5ea8127db7c285f4055129a4/intents",
@@ -2446,7 +2561,7 @@ def test_add_intents_to_different_bot():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    pytest.bot_2 = response['data'][1]['_id']
+    pytest.bot_2 = response['data']['account_owned'][1]['_id']
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/intents",
@@ -2545,7 +2660,7 @@ def test_delete_bot():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    bot = response['data'][1]['_id']
+    bot = response['data']['account_owned'][1]['_id']
 
     response = client.delete(
         f"/api/account/bot/{bot}",
@@ -2576,8 +2691,8 @@ def test_list_bots_for_different_user():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    assert len(response['data']) == 1
-    pytest.bot = response['data'][0]['_id']
+    assert len(response['data']['account_owned']) == 1
+    pytest.bot = response['data']['account_owned'][0]['_id']
 
 
 def test_reset_password_for_valid_id(monkeypatch):
@@ -2643,8 +2758,8 @@ def test_list_bots_for_different_user_2():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    assert len(response['data']) == 1
-    pytest.bot = response['data'][0]['_id']
+    assert len(response['data']['account_owned']) == 1
+    pytest.bot = response['data']['account_owned'][0]['_id']
 
 
 def test_login_old_password():
