@@ -103,7 +103,7 @@ class TestMongoProcessor:
         )
         assert result is None
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
-        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 22
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
         assert len(
@@ -489,7 +489,7 @@ class TestMongoProcessor:
     def test_get_intents(self):
         processor = MongoProcessor()
         actual = processor.get_intents("tests")
-        assert actual.__len__() == 10
+        assert actual.__len__() == 15
 
     def test_add_intent_with_underscore(self):
         processor = MongoProcessor()
@@ -1902,7 +1902,7 @@ class TestMongoProcessor:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
         assert len(
@@ -1923,7 +1923,7 @@ class TestMongoProcessor:
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
         await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -1946,7 +1946,7 @@ class TestMongoProcessor:
         http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -5144,7 +5144,7 @@ class TestModelProcessor:
     def test_get_intents_and_training_examples(self):
         processor = MongoProcessor()
         actual = processor.get_intents_and_training_examples("tests")
-        assert len(actual) == 12
+        assert len(actual) == 17
 
     def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
