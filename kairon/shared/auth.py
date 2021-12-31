@@ -1,18 +1,36 @@
 import re
+import urllib
 from datetime import datetime, timedelta
 from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import SecurityScopes
+from fastapi_sso.sso.facebook import FacebookSSO
+from fastapi_sso.sso.google import GoogleSSO
 from jwt import PyJWTError, encode
+from mongoengine import DoesNotExist
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
+from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
 
+from starlette.requests import Request
+
+app = FastAPI(docs_url=None, redoc_url=None)
+app.add_middleware(SessionMiddleware, secret_key='!secret')
+from typing import Dict
+import httpx
+
+from fastapi_sso.sso.base import OpenID, SSOBase, SSOLoginError
+from starlette.config import Config
+
+config = Config('.env')
 Utility.load_environment()
 
 
@@ -93,7 +111,7 @@ class Authentication:
         return user
 
     @staticmethod
-    def create_access_token( *, data: dict, is_integration=False, token_expire: int = 0):
+    def create_access_token(*, data: dict, is_integration=False, token_expire: int = 0):
         access_token_expire_minutes = Utility.environment['security']["token_expire"]
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
@@ -192,3 +210,86 @@ class Authentication:
             data=data, is_integration=True
         )
         return access_token
+
+
+class LinkedinSSO(SSOBase):
+    """Class providing login via linkedin OAuth"""
+    discovery_url = "https://www.linkedin.com/oauth/v2"
+    grant_type = "authorization_code"
+
+    @classmethod
+    async def openid_from_response(cls, response: dict) -> OpenID:
+        if response.get("email_verified"):
+            return OpenID(
+                email=response.get("email", ""),
+                provider=cls.provider,
+                id=response.get("sub"),
+                first_name=response.get("given_name"),
+                last_name=response.get("family_name"),
+                display_name=response.get("name"),
+                picture=response.get("picture"),
+            )
+
+        raise SSOLoginError(401, f"User {response.get('email')} is not verified with linkedin")
+
+    @classmethod
+    async def get_discovery_document(cls) -> Dict[str, str]:
+        """Get document containing handy urls"""
+        async with httpx.AsyncClient() as session:
+            response = await session.get(cls.discovery_url)
+            content = response.json()
+            return content
+
+
+class LoginSSOFactory:
+    facebook_sso = FacebookSSO(Utility.environment["auth"]["facebooksso"]["client_id"],
+                               Utility.environment["auth"]["facebooksso"]["client_secret"],
+                               urllib.parse.urljoin(Utility.environment["auth"]["redirect_url"], "facebook"),
+                               allow_insecure_http=False, use_state=True)
+
+    linkedin_sso = LinkedinSSO(Utility.environment["auth"]["linkedinsso"]["client_id"],
+                               Utility.environment["auth"]["linkedinsso"]["client_secret"],
+                               urllib.parse.urljoin(Utility.environment["auth"]["redirect_url"], "linkedin"),
+                               allow_insecure_http=False, use_state=True)
+
+    google_sso = GoogleSSO(Utility.environment["auth"]["googlesso"]["client_id"],
+                           Utility.environment["auth"]["googlesso"]["client_secret"],
+                           urllib.parse.urljoin(Utility.environment["auth"]["redirect_url"], "google"),
+                           allow_insecure_http=False, use_state=True)
+
+    @staticmethod
+    async def get_redirect_url(sso_type):
+
+        if sso_type == "google":
+            redirect_url = LoginSSOFactory.google_sso.get_login_redirect()
+        elif sso_type == "facebook":
+            redirect_url = LoginSSOFactory.facebook_sso.get_login_redirect()
+        elif sso_type == "linkedin":
+            redirect_url = LoginSSOFactory.linkedin_sso.get_login_redirect()
+        else:
+            raise AppException("invalid sso type")
+
+        return await redirect_url
+
+    @staticmethod
+    async def verify_and_process(request, sso_type):
+        try:
+            if sso_type == "google":
+                user = await LoginSSOFactory.google_sso.verify_and_process(request)
+                email = user.email
+            elif sso_type == "facebook":
+                user = await LoginSSOFactory.facebook_sso.verify_and_process(request)
+                email = user.email
+            elif sso_type == "linkedin":
+                user = await LoginSSOFactory.linkedin_sso.verify_and_process(request)
+                email = user.email
+            else:
+                raise AppException("invalid sso type")
+        except SSOLoginError:
+            raise AppException("State parameter doesnt match with our internal state")
+
+        try:
+            user = AccountProcessor.get_user_details(email)
+        except DoesNotExist:
+            raise AppException("User does not exist!")
+        return Authentication.create_access_token(data={"sub": user["email"]})

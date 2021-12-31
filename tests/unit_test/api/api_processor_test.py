@@ -3,14 +3,19 @@ import datetime
 import os
 
 import jwt
+from fastapi_sso.sso.base import OpenID
+from fastapi_sso.sso.facebook import FacebookSSO
+from fastapi_sso.sso.google import GoogleSSO
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
+from starlette.datastructures import Headers
+from starlette.requests import Request
 
-from kairon.shared.auth import Authentication
-from kairon.shared.account.data_objects import Feedback, BotAccess
+from kairon.shared.auth import Authentication, LoginSSOFactory, LinkedinSSO
+from kairon.shared.account.data_objects import User,Feedback, BotAccess
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES
 from kairon.shared.data.data_objects import Configs, Rules, Responses
@@ -670,29 +675,29 @@ class TestAccountProcessor:
     async def mock_smtp(self, *args, **kwargs):
         return None
 
-    def test_validate_and_send_mail(self,monkeypatch):
+    def test_validate_and_send_mail(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject='test',body='test'))
+        loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject='test', body='test'))
         assert True
 
-    def test_send_false_email_id(self,monkeypatch):
+    def test_send_false_email_id(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('..',subject='test',body="test"))
+            loop.run_until_complete(Utility.validate_and_send_mail('..', subject='test', body="test"))
 
-    def test_send_empty_mail_subject(self,monkeypatch):
+    def test_send_empty_mail_subject(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject=' ',body='test'))
+            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject=' ', body='test'))
 
-    def test_send_empty_mail_body(self,monkeypatch):
+    def test_send_empty_mail_body(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in',subject='test',body=' '))
+            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject='test', body=' '))
 
     def test_format_and_send_mail_invalid_type(self):
         loop = asyncio.new_event_loop()
@@ -707,7 +712,7 @@ class TestAccountProcessor:
         with pytest.raises(Exception):
             Utility.verify_token('..')
 
-    def test_new_user_confirm(self,monkeypatch):
+    def test_new_user_confirm(self, monkeypatch):
         AccountProcessor.add_user(
             email="integ2@gmail.com",
             first_name="inteq",
@@ -722,7 +727,7 @@ class TestAccountProcessor:
         loop.run_until_complete(AccountProcessor.confirm_email(token))
         assert True
 
-    def test_user_already_confirmed(self,monkeypatch):
+    def test_user_already_confirmed(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         token = Utility.generate_token('integ2@gmail.com')
@@ -741,7 +746,7 @@ class TestAccountProcessor:
         with pytest.raises(Exception):
             Utility.verify_token(' ')
 
-    def test_reset_link_with_mail(self,monkeypatch):
+    def test_reset_link_with_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
@@ -749,7 +754,7 @@ class TestAccountProcessor:
         Utility.email_conf["email"]["enable"] = False
         assert True
 
-    def test_reset_link_with_empty_mail(self,monkeypatch):
+    def test_reset_link_with_empty_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
@@ -773,23 +778,25 @@ class TestAccountProcessor:
             loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
         Utility.email_conf["email"]["enable"] = False
 
-    def test_overwrite_password_with_invalid_token(self,monkeypatch):
+    def test_overwrite_password_with_invalid_token(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(AccountProcessor.overwrite_password('fgh',"asdfghj@1"))
+            loop.run_until_complete(AccountProcessor.overwrite_password('fgh', "asdfghj@1"))
 
     def test_overwrite_password_with_empty_password_string(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(AccountProcessor.overwrite_password('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20', " "))
+            loop.run_until_complete(AccountProcessor.overwrite_password(
+                'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20',
+                " "))
 
     def test_overwrite_password_with_valid_entries(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.overwrite_password(token,"Welcome@3"))
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
         assert True
 
     def test_send_confirmation_link_with_valid_id(self, monkeypatch):
@@ -832,7 +839,7 @@ class TestAccountProcessor:
             loop.run_until_complete(AccountProcessor.send_confirmation_link('sasha.41195@gmail.com'))
         Utility.email_conf["email"]["enable"] = False
 
-    def test_reset_link_with_mail_not_enabled(self,monkeypatch):
+    def test_reset_link_with_mail_not_enabled(self, monkeypatch):
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
@@ -846,11 +853,11 @@ class TestAccountProcessor:
 
     def test_create_authentication_token_with_expire_time(self, monkeypatch):
         start_date = datetime.datetime.now()
-        token = Authentication.create_access_token(data={"sub": "test"},token_expire=180)
+        token = Authentication.create_access_token(data={"sub": "test"}, token_expire=180)
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds()/60) == 180
+        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 180
         assert payload.get('sub') == 'test'
 
         start_date = datetime.datetime.now()
@@ -906,3 +913,162 @@ class TestAccountProcessor:
         assert AccountProcessor.get_ui_config('test') == config
         config = {'has_stepper': True, 'has_tour': False, 'theme': 'black'}
         assert AccountProcessor.get_ui_config('test_user') == config
+
+    @pytest.mark.asyncio
+    async def test_verify_and_process_google(self, monkeypatch):
+        async def _mock_google_response(*args, **kwargs):
+            return OpenID(
+                id='116918187277293076263',
+                email='monisha.ks@digite.com',
+                first_name='Monisha',
+                last_name='KS',
+                display_name='Monisha KS',
+                picture='https://lh3.googleusercontent.com/a/AATXAJxqb5pnbXi5Yryt_9TPdPiB8mQe8Lk613-4ytus=s96-c',
+                provider='google')
+
+        def _mock_user_details(*args, **kwargs):
+            return {"email": "monisha.ks@digite.com"}
+
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
+        monkeypatch.setattr(GoogleSSO, "verify_and_process", _mock_google_response)
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        token = await LoginSSOFactory.verify_and_process(request, "google")
+        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+
+    @pytest.mark.asyncio
+    async def test_verify_and_process_user_doesnt_exist_google(self, monkeypatch):
+        async def _mock_google_response(*args, **kwargs):
+            return OpenID(
+                id='116918187277293076263',
+                email='monisha.ks@digite.com',
+                first_name='Monisha',
+                last_name='KS',
+                display_name='Monisha KS',
+                picture='https://lh3.googleusercontent.com/a/AATXAJxqb5pnbXi5Yryt_9TPdPiB8mQe8Lk613-4ytus=s96-c',
+                provider='google')
+
+        monkeypatch.setattr(GoogleSSO, "verify_and_process", _mock_google_response)
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        with pytest.raises(Exception):
+            await LoginSSOFactory.verify_and_process(request, "google")
+
+    @pytest.mark.asyncio
+    async def test_ssostate_google(*args, **kwargs):
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        with pytest.raises(Exception):
+            await LoginSSOFactory.verify_and_process(request, "google")
+
+    @pytest.mark.asyncio
+    async def test_get_redirect_url_google(self):
+        await LoginSSOFactory.get_redirect_url("google")
+
+    @pytest.mark.asyncio
+    async def test_verify_and_process_facebook(self, monkeypatch):
+        async def _mock_facebook_response(*args, **kwargs):
+            return OpenID(
+                id='107921368422696',
+                email='monisha.ks@digite.com',
+                first_name='Moni',
+                last_name='Shareddy',
+                display_name='Monisha Shareddy',
+                picture='https://scontent-bom1-2.xx.fbcdn.net/v/t1.30497-1/cp0/c15.0.50.50a/p50x50/84628273_176159830277856_972693363922829312_n.jpg?_nc_cat=1&ccb=1-5&_nc_sid=12b3be&_nc_ohc=reTAAmyXfF0AX9vbxxH&_nc_ht=scontent-bom1-2.xx&edm=AP4hL3IEAAAA&oh=00_AT_6IOixo-clV4B1Gthr_UabmxEzz50ri6yAhhXJzlbFeQ&oe=61F21F38',
+                provider='facebook')
+
+        def _mock_user_details(*args, **kwargs):
+            return {"email": "monisha.ks@digite.com"}
+
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
+        monkeypatch.setattr(FacebookSSO, "verify_and_process", _mock_facebook_response)
+
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDEkezmJoa3hfyVOafJkHbXG5OJNV3dZQ4gElP3WS71LJbErkK6ljLq31C0B3xRw2dv2G4Fh9mA2twjBVrQZfv_j0MYBS8xq0DEAg08YTZ2Kd1mPJ2HVDF5GnrhZcl2V1qpcO0pGzVQAFMLVRKVWxmirya0uqm150ZLHL_xN9NZjCvk1DRnOXKYXXZtaaU-HgO22Rxxzo90hTtW4mLBl7Vg55SRmic6p1r3KAkyfnAVTLSNPhaX2I9KUgeUjQ6EwGz3NtwjxKLPnsC1yPZqQMGBS6u2lHt-BOjj80iJmukbLH_35Xzn6Mv6xVSjqGwTjNEnn6N5dyT-3_X_vmYTlcGpr8LOn6tTf7kz_ysauexbGxn883m_thFV3Ozb9oP9u78)]'})
+        token = await LoginSSOFactory.verify_and_process(request, "facebook")
+        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+
+    @pytest.mark.asyncio
+    async def test_verify_and_process_user_doesnt_exist_facebook(self, monkeypatch):
+        async def _mock_facebook_response(*args, **kwargs):
+            return OpenID(
+                id='107921368422696',
+                email='monisha.ks@digite.com',
+                first_name='Moni',
+                last_name='Shareddy',
+                display_name='Monisha Shareddy',
+                picture='https://scontent-bom1-2.xx.fbcdn.net/v/t1.30497-1/cp0/c15.0.50.50a/p50x50/84628273_176159830277856_972693363922829312_n.jpg?_nc_cat=1&ccb=1-5&_nc_sid=12b3be&_nc_ohc=reTAAmyXfF0AX9vbxxH&_nc_ht=scontent-bom1-2.xx&edm=AP4hL3IEAAAA&oh=00_AT_6IOixo-clV4B1Gthr_UabmxEzz50ri6yAhhXJzlbFeQ&oe=61F21F38',
+                provider='facebook')
+
+        monkeypatch.setattr(FacebookSSO, "verify_and_process", _mock_facebook_response)
+        request = Request({'type': 'http',
+                           'headers': Headers({'cookie': "ssostate=a257c5b8-4293-49db-a773-2c6fd78df016"}).raw,
+                           'query_string': 'code=AQB4u0qDPLiqREyHXEmGydCw-JBg-vU1VL9yfR1PLuGijlyGsZs7CoYe98XhQ-jkQu_jYj-DMefRL_AcAvhenbBEuQ5Bhd18B9gOfDwe0JvB-Y5TAm21MrhVZtDxSm9VTSZVaPrwsWeN0dQYr2OgG9I0qPoM-OBEsOdJRYpCn-nKBKFGAbXb6AR7KTHhQtRDHHrylLe0QcSz2p1FjlLVWOrBh-A3o5xmvsaXaRtwYfYdJuxOBz2W7DlVw9m6qP9fx4gAzkp-j1sNKmiZjuHBsHJvKQsBG7xCw7etZh5Uie49R-WtP87-yic_CMYulju5bYRWTMd-549QWwjMW8lIQkPXStGwbU0JaOy9BHKmB6iUSrp0jIyo1RYdBo6Ji81Jyms&state=a257c5b8-4293-49db-a773-2c6fd78df016'})
+        with pytest.raises(AppException, match="User does not exist!"):
+            await LoginSSOFactory.verify_and_process(request, "facebook")
+
+    @pytest.mark.asyncio
+    async def test_get_redirect_url_facebook(self):
+        await LoginSSOFactory.get_redirect_url("facebook")
+
+    @pytest.mark.asyncio
+    async def test_ssostate_facebook(self, monkeypatch):
+        async def _mock_facebook_response(*args, **kwargs):
+            return OpenID(
+                id='107921368422696',
+                email='monisha.ks@digite.com',
+                first_name='Moni',
+                last_name='Shareddy',
+                display_name='Monisha Shareddy',
+                picture='https://scontent-bom1-2.xx.fbcdn.net/v/t1.30497-1/cp0/c15.0.50.50a/p50x50/84628273_176159830277856_972693363922829312_n.jpg?_nc_cat=1&ccb=1-5&_nc_sid=12b3be&_nc_ohc=reTAAmyXfF0AX9vbxxH&_nc_ht=scontent-bom1-2.xx&edm=AP4hL3IEAAAA&oh=00_AT_6IOixo-clV4B1Gthr_UabmxEzz50ri6yAhhXJzlbFeQ&oe=61F21F38',
+                provider='facebook')
+
+        def _mock_user_details(*args, **kwargs):
+            return {"email": "monisha.ks@digite.com"}
+
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
+
+        monkeypatch.setattr(FacebookSSO, "verify_and_process", _mock_facebook_response)
+        request = Request({'type': 'http',
+                           'headers': Headers({'cookie': "ssostate=a257c5b8-4293-49db-a773-2c6fd78df016"}).raw,
+                           'query_string': 'code=AQB4u0qDPLiqREyHXEmGydCw-JBg-vU1VL9yfR1PLuGijlyGsZs7CoYe98XhQ-jkQu_jYj-DMefRL_AcAvhenbBEuQ5Bhd18B9gOfDwe0JvB-Y5TAm21MrhVZtDxSm9VTSZVaPrwsWeN0dQYr2OgG9I0qPoM-OBEsOdJRYpCn-nKBKFGAbXb6AR7KTHhQtRDHHrylLe0QcSz2p1FjlLVWOrBh-A3o5xmvsaXaRtwYfYdJuxOBz2W7DlVw9m6qP9fx4gAzkp-j1sNKmiZjuHBsHJvKQsBG7xCw7etZh5Uie49R-WtP87-yic_CMYulju5bYRWTMd-549QWwjMW8lIQkPXStGwbU0JaOy9BHKmB6iUSrp0jIyo1RYdBo6Ji81Jyms&state=a257c5b8-4293-49db-a773-2c6fd78df016'})
+        await LoginSSOFactory.verify_and_process(request, "facebook")
+
+    @pytest.mark.asyncio
+    async def test_invalid_ssostate_facebook(*args, **kwargs):
+        request = Request({'type': 'http',
+                           'headers': Headers({'cookie': "ssostate=a257c5b8-4293-49db-a773-2c6fd78df016"}).raw,
+                           'query_string': 'code=AQB4u0qDPLiqREyHXEmGydCw-JBg-vU1VL9yfR1PLuGijlyGsZs7CoYe98XhQ-jkQu_jYj-DMefRL_AcAvhenbBEuQ5Bhd18B9gOfDwe0JvB-Y5TAm21MrhVZtDxSm9VTSZVaPrwsWeN0dQYr2OgG9I0qPoM-OBEsOdJRYpCn-nKBKFGAbXb6AR7KTHhQtRDHHrylLe0QcSz2p1FjlLVWOrBh-A3o5xmvsaXaRtwYfYdJuxOBz2W7DlVw9m6qP9fx4gAzkp-j1sNKmiZjuHBsHJvKQsBG7xCw7etZh5Uie49R-WtP87-yic_CMYulju5bYRWTMd-549QWwjMW8lIQkPXStGwbU0JaOy9BHKmB6iUSrp0jIyo1RYdBo6Ji81Jyms&state=a257c5b8-4293-49db-a773-2c6fd78df016'})
+        with pytest.raises(AppException, match="State parameter doesnt match with our internal state"):
+            await LoginSSOFactory.verify_and_process(request, "facebook")
+
+    @pytest.mark.asyncio
+    async def test_verify_and_process_linkedin(self, monkeypatch):
+        async def _mock_linkedin_response(*args, **kwargs):
+            return OpenID(
+                id='107921368422696',
+                email='monisha.ks@digite.com',
+                first_name='Monisha',
+                last_name='KS',
+                display_name='Monisha KS',
+                picture='urn:li:digitalmediaAsset:C5603AQH0XzgAJ6cdUQ',
+                provider='linkedin')
+
+        def _mock_user_details(*args, **kwargs):
+            return {"email": "monisha.ks@digite.com"}
+
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
+        monkeypatch.setattr(LinkedinSSO, "verify_and_process", _mock_linkedin_response)
+        request = Request({'type': 'http',
+                           'headers': Headers({'cookie': "ssostate=1245"}).raw,
+                           'query_string': 'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        token = await LoginSSOFactory.verify_and_process(request, "linkedin")
+        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+
+    @pytest.mark.asyncio
+    async def test_get_redirect_url_linkedin(self):
+        await LoginSSOFactory.get_redirect_url("linkedin")

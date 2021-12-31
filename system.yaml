@@ -11,6 +11,19 @@ security:
   token_expire: ${TOKEN_EXPIRE:10080}
   fernet_key: ${FERNET_KEY:"gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="}
 
+auth:
+  googlesso:
+    client_id: ${GOOGLE_CLIENT_ID:"b82313833491-cd7odl4io7hlibp98bq9sdq5nm9ahqmu.apps.googleusercontent.com"}
+    client_secret: ${GOOGLE_CLIENT_SECRET:"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" }
+  facebooksso:
+    client_id: ${FACEBOOK_CLIENT_ID:"235830408556281"}
+    client_secret: ${FACEBOOK_CLIENT_SECRET:"71b01b9fd032e1797f62661bc203601b" }
+  linkedinsso:
+    client_id: ${LINKEDIN_CLIENT_ID:"786yc5ghfb556v"}
+    client_secret: ${LINKEDIN_CLIENT_SECRET:"RDqhCfLPxXrecdhJ" }
+    code : ${CODE:"AQTwa0T_dc_ugphWgmOWgs-A-attlIETlArio1oJBz7n9xYLljIJoqk8c_ojXWLUFUAObqGcmVyJJG-boyrhyFw8-2sienSLfXp28Tip_wC5ENV2HkNCAGqRwUaRp01G-kGqU6i-UaQRwwfvhsEwQQgwFr5Y62my3VpnMroqnA-SvGQTGizVEJrDA3_bIQmZTFTJcolu50gzoqyvXCw"}
+  redirect_url: ${REDIRECT_URL:"http://localhost:8080/callback"}
+
 augmentation:
   paraphrase_url: ${PARAPHRASE_URL:"http://localhost:8000/paraphrases"}
   question_generation_url: ${QUESTION_GENERATION_URL:"http://localhost:8000/questions"}
@@ -49,3 +62,4 @@ elasticsearch:
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
   token: ${KAIRON_HISTORY_SERVER_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
+
