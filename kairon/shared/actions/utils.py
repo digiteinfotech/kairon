@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
@@ -21,7 +22,7 @@ from rasa_sdk import Tracker
 
 from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction
 from .exception import ActionFailure
-from .models import ParameterType, ActionType, SlotValidationOperators, LogicalOperators
+from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
 
@@ -88,18 +89,39 @@ class ActionUtility:
         request_body = {}
 
         for param in http_action_config_params or []:
-            if param['parameter_type'] == ParameterType.sender_id:
+            if param['parameter_type'] == ActionParameterType.sender_id.value:
                 value = tracker.sender_id
-            elif param['parameter_type'] == ParameterType.slot:
+            elif param['parameter_type'] == ActionParameterType.slot.value:
                 value = tracker.get_slot(param['value'])
-            elif param['parameter_type'] == ParameterType.user_message:
+            elif param['parameter_type'] == ActionParameterType.user_message.value:
                 value = tracker.latest_message.get('text')
+            elif param['parameter_type'] == ActionParameterType.intent.value:
+                value = tracker.get_intent_of_latest_message()
+            elif param['parameter_type'] == ActionParameterType.message_trail.value:
+                iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
+                value = {
+                    'sender_id': tracker.sender_id,
+                    'session_started': iat,
+                    'conversation': msg_trail
+                }
             else:
                 value = param['value']
             request_body[param['key']] = value
             logger.debug("value for key " + param['key'] + ": " + str(value))
 
         return request_body
+
+    @staticmethod
+    def prepare_message_trail(tracker_events):
+        message_trail = []
+        initiated_at = None
+        for event in tracker_events:
+            if event.get('event') == 'session_started' and event.get('timestamp'):
+                initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            elif event.get('event') == 'user' or event.get('event') == 'bot':
+                message_trail.append({event['event']: event.get('text')})
+
+        return initiated_at, message_trail
 
     @staticmethod
     def prepare_url(request_method: str, http_url: str, request_body=None):

@@ -2566,9 +2566,6 @@ class MongoProcessor:
         except DoesNotExist as ex:
             logging.exception(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
-        except Exception as e:
-            logging.exception(e)
-            raise AppException(e)
 
     def list_http_actions(self, bot: str):
         """

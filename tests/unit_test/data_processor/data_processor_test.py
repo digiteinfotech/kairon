@@ -248,9 +248,12 @@ class TestMongoProcessor:
         training_data = processor.load_nlu("test_upload_case_insensitivity")
         assert isinstance(training_data, TrainingData)
         assert training_data.intents == {'deny', 'greet'}
-        assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka', 'karnataka': 'karnataka', 'KA': 'karnataka'}
-        assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'}, {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
-        assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']}, {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka',
+                                                 'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'},
+                                                {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
+        assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']},
+                                               {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
         story_graph = processor.load_stories("test_upload_case_insensitivity")
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
@@ -284,11 +287,17 @@ class TestMongoProcessor:
             {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
              'request_method': 'GET',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]},
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'}]},
             {'action_name': 'action_get_microsoft_application', 'response': 'json',
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                             {'key': 'testParam2', 'value': 'testValue1', 'parameter_type': 'slot'}]}]}
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'},
+                             {'key': 'testParam1', 'value': '', 'parameter_type': 'message_trail'},
+                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
+                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
+                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
+                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
+                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot'}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
                                                                                                      'utter_default',
@@ -3931,14 +3940,16 @@ class TestMongoProcessor:
              '_has_been_set': False},
             {'name': 'file_text', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
-            {'name': 'name', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'name', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
+             '_has_been_set': False},
             {'name': 'priority', 'type': 'categorical', 'auto_fill': True,
              'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True, '_has_been_set': False},
             {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'auto_fill': True, 'max_value': 1.0,
              'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False},
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
-            {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
+             '_has_been_set': False},
             {'name': 'age', 'type': 'float', 'auto_fill': True, 'max_value': 1.0, 'min_value': 0.0,
              'influence_conversation': True, '_has_been_set': False},
             {'name': 'occupation', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
@@ -3970,11 +3981,11 @@ class TestMongoProcessor:
                          {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]},
                          {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'name',
                                                                                                     'mapping': [{
-                                                                                                                    'type': 'from_text',
-                                                                                                                    'value': 'user'},
-                                                                                                                {
-                                                                                                                    'type': 'from_entity',
-                                                                                                                    'entity': 'name'}]},
+                                                                                                        'type': 'from_text',
+                                                                                                        'value': 'user'},
+                                                                                                        {
+                                                                                                            'type': 'from_entity',
+                                                                                                            'entity': 'name'}]},
                          {'slot': 'age', 'mapping': [
                              {'type': 'from_intent', 'value': 20, 'intent': ['retrieve_age', 'ask_age'],
                               'not_intent': ['get_age', 'affirm', 'deny']}]}, {'slot': 'occupation', 'mapping': [
@@ -4233,7 +4244,8 @@ class TestMongoProcessor:
     def test_list_forms(self):
         processor = MongoProcessor()
         forms = processor.list_forms('test')
-        assert set(forms) == {'know_user', 'know_user_form', 'restaurant_form', 'ticket_file_form', 'ticket_attributes_form'}
+        assert set(forms) == {'know_user', 'know_user_form', 'restaurant_form', 'ticket_file_form',
+                              'ticket_attributes_form'}
 
     def test_list_forms_no_form_added(self):
         processor = MongoProcessor()
@@ -4279,14 +4291,14 @@ class TestMongoProcessor:
         assert form['path'][2]['responses'][0]['value']['text']
         assert form['path'][2]['responses'][1]['value']['text']
         assert form['path'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                          {'operator': 'has_no_whitespace'}]}
+                                                         {'operator': 'has_no_whitespace'}]}
         assert form['path'][0]['utter_msg_on_invalid'] == 'please rephrase'
         assert form['path'][0]['utter_msg_on_valid'] == 'got it'
         assert form['path'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                          {'operator': 'is_less_than', 'value': 70},
-                                                          {'operator': 'starts_with', 'value': 'valid'},
-                                                          {'operator': 'ends_with', 'value': 'value'},
-                                                          ]}
+                                                         {'operator': 'is_less_than', 'value': 70},
+                                                         {'operator': 'starts_with', 'value': 'valid'},
+                                                         {'operator': 'ends_with', 'value': 'value'},
+                                                         ]}
         assert form['path'][1]['utter_msg_on_invalid'] == 'please enter again'
         assert form['path'][1]['utter_msg_on_valid'] == 'valid entry'
         assert form['path'][2]['validation'] == {'and': [
@@ -4493,13 +4505,15 @@ class TestMongoProcessor:
         user = 'user'
         slot = {"slot": "ac_required",
                 'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
-                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
-        processor.add_slot({"name": "ac_required", "type": "text", "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+        processor.add_slot({"name": "ac_required", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
         processor.add_or_update_slot_mapping(slot, bot, user)
 
         processor.edit_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
-        assert form.required_slots == ['location', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'ac_required', 'feedback']
+        assert form.required_slots == ['location', 'num_people', 'cuisine', 'outdoor_seating', 'preferences',
+                                       'ac_required', 'feedback']
         assert Utterances.objects(name='utter_ask_restaurant_form_location', bot=bot,
                                   status=True).get().form_attached == 'restaurant_form'
         assert Utterances.objects(name='utter_ask_restaurant_form_num_people', bot=bot,
@@ -4559,11 +4573,13 @@ class TestMongoProcessor:
 
         processor.edit_form('know_user', path, bot, user)
         assert Forms.objects(name='know_user', bot=bot, status=True).get()
-        assert Utterances.objects(name='utter_ask_know_user_age', bot=bot, status=True).get().form_attached == 'know_user'
+        assert Utterances.objects(name='utter_ask_know_user_age', bot=bot,
+                                  status=True).get().form_attached == 'know_user'
         assert Utterances.objects(name='utter_ask_know_user_location', bot=bot,
                                   status=True).get().form_attached == 'know_user'
         assert len(Responses.objects(name='utter_ask_know_user_age', bot=bot, status=True)) == 2
-        assert Responses.objects(name='utter_ask_know_user_location', bot=bot, status=True).get().text.text == 'provide your location?'
+        assert Responses.objects(name='utter_ask_know_user_location', bot=bot,
+                                 status=True).get().text.text == 'provide your location?'
 
     def test_delete_form_with_validations(self):
         bot = 'test'
@@ -5413,10 +5429,18 @@ class TestModelProcessor:
         request_method = 'POST'
         http_params_list = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+            HttpActionParameters(key="param4", value="value2", parameter_type="value"),
+            HttpActionParameters(key="param5", parameter_type="sender_id"),
+            HttpActionParameters(key="param6", parameter_type="user_message"),
+            HttpActionParameters(key="param7", parameter_type="message_trail"),
+            HttpActionParameters(key="param8", parameter_type="intent")]
         header = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+            HttpActionParameters(key="param2", value="value2", parameter_type="value"),
+            HttpActionParameters(key="param3", parameter_type="sender_id"),
+            HttpActionParameters(key="param4", parameter_type="user_message"),
+            HttpActionParameters(key="param5", parameter_type="message_trail"),
+            HttpActionParameters(key="param6", parameter_type="intent")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             response=response,
@@ -5441,12 +5465,36 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][1]['key'] == "param4"
         assert actual_http_action['params_list'][1]['value'] == "value2"
         assert actual_http_action['params_list'][1]['parameter_type'] == "value"
+        assert actual_http_action['params_list'][2]['key'] == "param5"
+        assert not actual_http_action['params_list'][2]['value']
+        assert actual_http_action['params_list'][2]['parameter_type'] == "sender_id"
+        assert actual_http_action['params_list'][3]['key'] == "param6"
+        assert not actual_http_action['params_list'][3]['value']
+        assert actual_http_action['params_list'][3]['parameter_type'] == "user_message"
+        assert actual_http_action['params_list'][4]['key'] == "param7"
+        assert not actual_http_action['params_list'][4]['value']
+        assert actual_http_action['params_list'][4]['parameter_type'] == "message_trail"
+        assert actual_http_action['params_list'][5]['key'] == "param8"
+        assert not actual_http_action['params_list'][5]['value']
+        assert actual_http_action['params_list'][5]['parameter_type'] == "intent"
         assert actual_http_action['headers'][0]['key'] == "param1"
         assert actual_http_action['headers'][0]['value'] == "param1"
         assert actual_http_action['headers'][0]['parameter_type'] == "slot"
         assert actual_http_action['headers'][1]['key'] == "param2"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert actual_http_action['headers'][2]['key'] == "param3"
+        assert not actual_http_action['headers'][2]['value']
+        assert actual_http_action['headers'][2]['parameter_type'] == "sender_id"
+        assert actual_http_action['headers'][3]['key'] == "param4"
+        assert not actual_http_action['headers'][3]['value']
+        assert actual_http_action['headers'][3]['parameter_type'] == "user_message"
+        assert actual_http_action['headers'][4]['key'] == "param5"
+        assert not actual_http_action['headers'][4]['value']
+        assert actual_http_action['headers'][4]['parameter_type'] == "message_trail"
+        assert actual_http_action['headers'][5]['key'] == "param6"
+        assert not actual_http_action['headers'][5]['value']
+        assert actual_http_action['headers'][5]['parameter_type'] == "intent"
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()
