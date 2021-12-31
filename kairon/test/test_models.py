@@ -298,7 +298,7 @@ class TestDataGenerator:
         all_input_text = []
         all_stop_words = []
         all_entities = []
-        for text in input_text:
+        for text in input_text or []:
             stopwords = []
             entity_names = []
             if text.get('entities'):
