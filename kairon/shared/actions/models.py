@@ -7,11 +7,17 @@ class ParameterType(str, Enum):
     user = "user"
     action = "action"
     form = "form"
-    slot = "slot"
     http = "http"
-    sender_id = "sender_id"
     http_action_config = "http_action_config"
+
+
+class ActionParameterType(str, Enum):
+    value = "value"
+    slot = "slot"
+    sender_id = "sender_id"
     user_message = "user_message"
+    intent = "intent"
+    message_trail = "message_trail"
 
 
 class ActionType(str, Enum):

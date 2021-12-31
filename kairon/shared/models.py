@@ -42,6 +42,8 @@ class ParameterChoice(str, Enum):
     slot = "slot"
     sender_id = "sender_id"
     user_message = "user_message"
+    intent = "intent"
+    message_trail = "message_trail"
 
 
 class User(BaseModel):
