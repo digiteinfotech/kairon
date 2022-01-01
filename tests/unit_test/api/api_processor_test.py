@@ -935,7 +935,7 @@ class TestAccountProcessor:
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
         token = await LoginSSOFactory.verify_and_process(request, "google")
-        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+        assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
 
     @pytest.mark.asyncio
     async def test_verify_and_process_user_doesnt_exist_google(self, monkeypatch):
@@ -990,7 +990,7 @@ class TestAccountProcessor:
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDEkezmJoa3hfyVOafJkHbXG5OJNV3dZQ4gElP3WS71LJbErkK6ljLq31C0B3xRw2dv2G4Fh9mA2twjBVrQZfv_j0MYBS8xq0DEAg08YTZ2Kd1mPJ2HVDF5GnrhZcl2V1qpcO0pGzVQAFMLVRKVWxmirya0uqm150ZLHL_xN9NZjCvk1DRnOXKYXXZtaaU-HgO22Rxxzo90hTtW4mLBl7Vg55SRmic6p1r3KAkyfnAVTLSNPhaX2I9KUgeUjQ6EwGz3NtwjxKLPnsC1yPZqQMGBS6u2lHt-BOjj80iJmukbLH_35Xzn6Mv6xVSjqGwTjNEnn6N5dyT-3_X_vmYTlcGpr8LOn6tTf7kz_ysauexbGxn883m_thFV3Ozb9oP9u78)]'})
         token = await LoginSSOFactory.verify_and_process(request, "facebook")
-        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+        assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
 
     @pytest.mark.asyncio
     async def test_verify_and_process_user_doesnt_exist_facebook(self, monkeypatch):
@@ -1067,8 +1067,8 @@ class TestAccountProcessor:
                            'headers': Headers({'cookie': "ssostate=1245"}).raw,
                            'query_string': 'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
         token = await LoginSSOFactory.verify_and_process(request, "linkedin")
-        assert Utility.decode_limited_access_token(token.decode())["sub"] == "monisha.ks@digite.com"
+        assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
 
     @pytest.mark.asyncio
     async def test_get_redirect_url_linkedin(self):
-        await LoginSSOFactory.get_redirect_url("linkedin")
+        assert await LoginSSOFactory.get_redirect_url("linkedin")
