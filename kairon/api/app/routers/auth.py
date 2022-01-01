@@ -3,8 +3,6 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.requests import Request
 
-from kairon.exceptions import AppException
-from kairon.shared import auth
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.api.models import Response
 from kairon.shared.constants import ADMIN_ACCESS
@@ -43,11 +41,22 @@ async def generate_integration_token(
 
 
 @router.get('/login/sso/{sso_type}')
-async def login_social_login(sso_type: str = Path(default=None, description="social media type", example="google")):
+async def sso_login(sso_type: str = Path(default=None, description="social media type", example="google")):
+    """
+    Generate redirect url based on social media type.
+    """
     return await LoginSSOFactory.get_redirect_url(sso_type)
 
 
-@router.get("/login/sso/callback/{sso_type}")
-async def sso_callback(request: Request, sso_type: str = Path(default=None, description="social media type", example="google")):
-    """Process login response from Google and return user info"""
-    return await LoginSSOFactory.verify_and_process(request, sso_type)
+@router.get("/login/sso/callback/{sso_type}", response_model=Response)
+async def sso_callback(request: Request, sso_type: str = Path(default=None,
+                                                              description="social media type", example="google")):
+    """
+    Generate login token after successful social media login.
+    """
+    access_token = await LoginSSOFactory.verify_and_process(request, sso_type)
+    return {
+        "data": {"access_token": access_token, "token_type": "bearer"},
+        "message": """It is your responsibility to keep the token secret.
+            If leaked then other may have access to your system.""",
+    }
