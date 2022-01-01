@@ -1,10 +1,14 @@
+import json
 import re
 import urllib
 from datetime import datetime, timedelta
+from typing import Dict, Optional
 from typing import Text
 
+import httpx
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import SecurityScopes
+from fastapi_sso.sso.base import OpenID, SSOBase, SSOLoginError
 from fastapi_sso.sso.facebook import FacebookSSO
 from fastapi_sso.sso.google import GoogleSSO
 from jwt import PyJWTError, encode
@@ -17,20 +21,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
-from fastapi import FastAPI
-from starlette.middleware.sessions import SessionMiddleware
 
-from starlette.requests import Request
-
-app = FastAPI(docs_url=None, redoc_url=None)
-app.add_middleware(SessionMiddleware, secret_key='!secret')
-from typing import Dict
-import httpx
-
-from fastapi_sso.sso.base import OpenID, SSOBase, SSOLoginError
-from starlette.config import Config
-
-config = Config('.env')
 Utility.load_environment()
 
 
@@ -213,35 +204,97 @@ class Authentication:
 
 
 class LinkedinSSO(SSOBase):
-    """Class providing login via linkedin OAuth"""
+
+    """
+    Class providing login via linkedin OAuth
+    """
+
+    provider = "linkedin"
     discovery_url = "https://www.linkedin.com/oauth/v2"
+    profile_url = "https://api.linkedin.com/v2"
     grant_type = "authorization_code"
+    scope = 'r_liteprofile r_emailaddress'
+
+    @property
+    async def useremail_endpoint(self) -> Optional[str]:
+        """Return `useremail_endpoint` from discovery document"""
+        discovery = await self.get_discovery_document()
+        return discovery.get("useremail_endpoint")
 
     @classmethod
     async def openid_from_response(cls, response: dict) -> OpenID:
-        if response.get("email_verified"):
+        """
+        returns user details
+        """
+        if response.get("emailAddress"):
             return OpenID(
-                email=response.get("email", ""),
-                provider=cls.provider,
-                id=response.get("sub"),
-                first_name=response.get("given_name"),
-                last_name=response.get("family_name"),
-                display_name=response.get("name"),
-                picture=response.get("picture"),
-            )
+                    email=response.get("emailAddress"),
+                    provider=cls.provider,
+                    id=response.get("id"),
+                    first_name=response.get("localizedFirstName"),
+                    last_name=response.get("localizedLastName"),
+                    display_name=response.get("localizedFirstName"),
+                    picture=response.get("profilePicture", {}).get("displayImage"),
+                )
 
-        raise SSOLoginError(401, f"User {response.get('email')} is not verified with linkedin")
+        raise AppException("User was not verified with linkedin")
 
     @classmethod
     async def get_discovery_document(cls) -> Dict[str, str]:
-        """Get document containing handy urls"""
+        """
+        Get document containing handy urls.
+        """
+        return {
+            "authorization_endpoint": f"{cls.discovery_url}/authorization",
+            "token_endpoint": f"{cls.discovery_url}/accessToken",
+            "userinfo_endpoint": f"{cls.profile_url}/me",
+            "useremail_endpoint": f"{cls.profile_url}/emailAddress?q=members&projection=(elements*(handle~))"
+        }
+
+    async def process_login(self, code: str, request: Request) -> Optional[OpenID]:
+        """This method should be called from callback endpoint to verify the user and request user info endpoint.
+        This is low level, you should use {verify_and_process} instead.
+        """
+        url = request.url
+        scheme = url.scheme
+        if not self.allow_insecure_http and scheme != "https":
+            current_url = str(url).replace("http://", "https://")
+            scheme = "https"
+        else:
+            current_url = str(url)
+        current_path = f"{scheme}://{url.netloc}{url.path}"
+
+        token_url, headers, body = self.oauth_client.prepare_token_request(
+            await self.token_endpoint, authorization_response=current_url, redirect_url=current_path, code=code
+        )  # type: ignore
+
+        if token_url is None:
+            return None
+
+        auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
-            response = await session.get(cls.discovery_url)
+            response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
-            return content
+            self.oauth_client.parse_request_body_response(json.dumps(content))
+
+            uri, headers, _ = self.oauth_client.add_token(await self.userinfo_endpoint)
+            response = await session.get(uri, headers=headers)
+            profile_details = response.json()
+
+            uri, headers, _ = self.oauth_client.add_token(await self.useremail_endpoint)
+            response = await session.get(uri, headers=headers)
+            content = response.json()
+            profile_details['emailAddress'] = content.get('elements', [{}])[0].get('handle~', {}).get('emailAddress')
+
+        return await self.openid_from_response(profile_details)
 
 
 class LoginSSOFactory:
+
+    """
+    Factory to get redirect url as well as the login token.
+    """
+
     facebook_sso = FacebookSSO(Utility.environment["auth"]["facebooksso"]["client_id"],
                                Utility.environment["auth"]["facebooksso"]["client_secret"],
                                urllib.parse.urljoin(Utility.environment["auth"]["redirect_url"], "facebook"),
@@ -259,7 +312,11 @@ class LoginSSOFactory:
 
     @staticmethod
     async def get_redirect_url(sso_type):
+        """
+        Returns redirect url based on sso_type.
 
+        :param sso_type: one of supported type - google/facebook/linkedin.
+        """
         if sso_type == "google":
             redirect_url = LoginSSOFactory.google_sso.get_login_redirect()
         elif sso_type == "facebook":
@@ -267,12 +324,19 @@ class LoginSSOFactory:
         elif sso_type == "linkedin":
             redirect_url = LoginSSOFactory.linkedin_sso.get_login_redirect()
         else:
-            raise AppException("invalid sso type")
+            raise AppException(f"Provider {sso_type} not supported")
 
         return await redirect_url
 
     @staticmethod
     async def verify_and_process(request, sso_type):
+        """
+        Fetches user details and returns a login token
+        if user details are successfully returned.
+
+        :param request: starlette request object
+        :param sso_type: one of supported type - google/facebook/linkedin.
+        """
         try:
             if sso_type == "google":
                 user = await LoginSSOFactory.google_sso.verify_and_process(request)
@@ -284,12 +348,10 @@ class LoginSSOFactory:
                 user = await LoginSSOFactory.linkedin_sso.verify_and_process(request)
                 email = user.email
             else:
-                raise AppException("invalid sso type")
-        except SSOLoginError:
-            raise AppException("State parameter doesnt match with our internal state")
-
-        try:
+                raise AppException(f"Provider {sso_type} not supported")
             user = AccountProcessor.get_user_details(email)
+            return Authentication.create_access_token(data={"sub": user["email"]})
         except DoesNotExist:
             raise AppException("User does not exist!")
-        return Authentication.create_access_token(data={"sub": user["email"]})
+        except Exception as e:
+            raise AppException(f'Failed to verify with {sso_type}: {e}')
