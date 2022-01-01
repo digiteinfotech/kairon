@@ -125,6 +125,19 @@ class SLOT_MAPPING_TYPE(str, Enum):
     FROM_TEXT = "from_text"
 
 
+class ACCESS_ROLES(str, Enum):
+    ADMIN = "admin"
+    DESIGNER = "designer"
+    TESTER = "tester"
+
+
+class ACTIVITY_STATUS(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    INVITE_NOT_ACCEPTED = "invite_not_accepted"
+    DELETED = "deleted"
+
+
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
 ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.md', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}

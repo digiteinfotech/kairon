@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import SecurityScopes
 from jwt import PyJWTError, encode
 from starlette.status import HTTP_401_UNAUTHORIZED
 
@@ -62,7 +63,11 @@ class Authentication:
         return user_model
 
     @staticmethod
-    async def get_current_user_and_bot(request: Request, token: str = Depends(DataUtility.oauth2_scheme)):
+    async def get_current_user_and_bot(security_scopes: SecurityScopes, request: Request, token: str = Depends(DataUtility.oauth2_scheme)):
+        if security_scopes.scopes:
+            authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
+        else:
+            authenticate_value = "Bearer"
         user = await Authentication.get_current_user(request, token)
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):
@@ -70,16 +75,19 @@ class Authentication:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Bot is required',
             )
-        if bot_id not in user.bot:
+        user_role = AccountProcessor.fetch_role_for_user(user.email, bot_id)
+        if security_scopes.scopes and user_role['role'] not in security_scopes.scopes:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail='Access denied for bot',
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"{security_scopes.scopes} access is required to perform this operation on the bot",
+                headers={"WWW-Authenticate": authenticate_value},
             )
         bot = AccountProcessor.get_bot(bot_id)
         if not bot["status"]:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Inactive Bot Please contact system admin!",
+                headers={"WWW-Authenticate": authenticate_value},
             )
         user.active_bot = bot_id
         return user
