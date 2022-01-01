@@ -25,7 +25,6 @@ from starlette.requests import Request
 app = FastAPI(docs_url=None, redoc_url=None)
 app.add_middleware(SessionMiddleware, secret_key='!secret')
 from typing import Dict
-import httpx
 
 from fastapi_sso.sso.base import OpenID, SSOBase, SSOLoginError
 from starlette.config import Config
@@ -213,21 +212,29 @@ class Authentication:
 
 
 class LinkedinSSO(SSOBase):
-    """Class providing login via linkedin OAuth"""
-    discovery_url = "https://www.linkedin.com/oauth/v2"
+
+    """
+    Class providing login via linkedin OAuth
+    """
+
+    base_url = "https://www.linkedin.com/oauth/v2"
     grant_type = "authorization_code"
+    scope = 'r_liteprofile%20r_emailaddress'
 
     @classmethod
     async def openid_from_response(cls, response: dict) -> OpenID:
+        """
+        returns user details
+        """
         if response.get("email_verified"):
             return OpenID(
-                email=response.get("email", ""),
+                email=response.get("emailAddress", ""),
                 provider=cls.provider,
-                id=response.get("sub"),
-                first_name=response.get("given_name"),
-                last_name=response.get("family_name"),
+                id=response.get("id"),
+                first_name=response.get("localizedFirstName"),
+                last_name=response.get("localizedLastName"),
                 display_name=response.get("name"),
-                picture=response.get("picture"),
+                picture=response.get("profilePicture"),
             )
 
         raise SSOLoginError(401, f"User {response.get('email')} is not verified with linkedin")
@@ -235,13 +242,19 @@ class LinkedinSSO(SSOBase):
     @classmethod
     async def get_discovery_document(cls) -> Dict[str, str]:
         """Get document containing handy urls"""
-        async with httpx.AsyncClient() as session:
-            response = await session.get(cls.discovery_url)
-            content = response.json()
-            return content
+        return {
+            "authorization_endpoint": f"{cls.base_url}/authorization",
+            "token_endpoint": f"{cls.base_url}/accessToken",
+            "userinfo_endpoint": f"{cls.base_url}/me?fields=id,name,email,first_name,last_name,picture",
+        }
 
 
 class LoginSSOFactory:
+
+    """
+    Factory to get redirect url as well as the login token.
+    """
+
     facebook_sso = FacebookSSO(Utility.environment["auth"]["facebooksso"]["client_id"],
                                Utility.environment["auth"]["facebooksso"]["client_secret"],
                                urllib.parse.urljoin(Utility.environment["auth"]["redirect_url"], "facebook"),
@@ -260,6 +273,10 @@ class LoginSSOFactory:
     @staticmethod
     async def get_redirect_url(sso_type):
 
+        """
+        Returns redirect url based on sso_type.
+        """
+
         if sso_type == "google":
             redirect_url = LoginSSOFactory.google_sso.get_login_redirect()
         elif sso_type == "facebook":
@@ -267,12 +284,18 @@ class LoginSSOFactory:
         elif sso_type == "linkedin":
             redirect_url = LoginSSOFactory.linkedin_sso.get_login_redirect()
         else:
-            raise AppException("invalid sso type")
+            raise AppException(f"Provider {sso_type} not supported")
 
         return await redirect_url
 
     @staticmethod
     async def verify_and_process(request, sso_type):
+
+        """
+        Fetches user details and returns a login token
+        if user details are successfully returned.
+        """
+
         try:
             if sso_type == "google":
                 user = await LoginSSOFactory.google_sso.verify_and_process(request)
@@ -284,12 +307,10 @@ class LoginSSOFactory:
                 user = await LoginSSOFactory.linkedin_sso.verify_and_process(request)
                 email = user.email
             else:
-                raise AppException("invalid sso type")
+                raise AppException(f"Provider {sso_type} not supported")
+            user = AccountProcessor.get_user_details(email)
+            return Authentication.create_access_token(data={"sub": user["email"]})
         except SSOLoginError:
             raise AppException("State parameter doesnt match with our internal state")
-
-        try:
-            user = AccountProcessor.get_user_details(email)
         except DoesNotExist:
             raise AppException("User does not exist!")
-        return Authentication.create_access_token(data={"sub": user["email"]})
