@@ -18,7 +18,7 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.auth import Authentication
+from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
@@ -6522,3 +6522,90 @@ def test_model_testing_no_existing_models():
     assert actual["error_code"] == 422
     assert actual['message'] == 'No model trained yet. Please train a model to test'
     assert not actual["success"]
+
+
+def test_sso_redirect_url_invalid_type():
+    response = client.get(
+        url=f"/api/auth/login/sso/ethereum"
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Provider ethereum not supported'
+    assert not actual["success"]
+
+
+def test_sso_redirect_url():
+    response = client.get(
+        url=f"/api/auth/login/sso/google", allow_redirects=False
+    )
+    assert response.status_code == 303
+    assert response.headers['location'].__contains__('https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id')
+
+    response = client.get(
+        url=f"/api/auth/login/sso/linkedin", allow_redirects=False
+    )
+    assert response.status_code == 303
+    assert response.headers['location'].__contains__(
+        'https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=')
+
+    response = client.get(
+        url=f"/api/auth/login/sso/facebook", allow_redirects=False
+    )
+    assert response.status_code == 303
+    assert response.headers['location'].__contains__(
+        'https://www.facebook.com/v9.0/dialog/oauth?response_type=code&client_id=')
+
+
+def test_sso_get_login_token_invalid_type():
+    response = client.get(
+        url=f"/api/auth/login/sso/callback/ethereum"
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Failed to verify with ethereum: Provider ethereum not supported'
+    assert not actual["success"]
+
+
+def test_sso_get_login_token(monkeypatch):
+    async def __mock_verify_and_process(*args, **kwargs):
+        return 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+
+    monkeypatch.setattr(LoginSSOFactory, 'verify_and_process', __mock_verify_and_process)
+    response = client.get(
+        url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        url=f"/api/auth/login/sso/callback/linkedin?code=123456789", allow_redirects=False
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        url=f"/api/auth/login/sso/callback/facebook?code=123456789", allow_redirects=False
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
