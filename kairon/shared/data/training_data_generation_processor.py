@@ -18,7 +18,7 @@ class TrainingDataGenerationProcessor:
     def validate_history_id(doc_id):
         try:
             history = TrainingDataGenerator.objects().get(id=doc_id)
-            if not history.response:
+            if not history.data:
                 logger.info("response field is empty.")
                 raise AppException("No Training Data Generated")
         except DoesNotExist as e:
@@ -26,13 +26,16 @@ class TrainingDataGenerationProcessor:
             raise AppException("Matching history_id not found!")
 
     @staticmethod
-    def retreive_response_and_set_status(request_data, bot, user):
+    def format_data_and_set_status(
+            response: dict, bot: Text, user: Text,
+            status: EVENT_STATUS = EVENT_STATUS.SAVE.value, exception: Text = None
+    ):
         training_data_list = None
-        if request_data.response:
+        if response:
             training_data_list = []
-            for training_data in request_data.response:
+            for training_data in response:
                 training_examples = []
-                for example in training_data.training_examples:
+                for example in training_data['training_examples']:
                     training_examples.append(
                         TrainingExamplesTrainingDataGenerator(
                             training_example=example
@@ -41,14 +44,14 @@ class TrainingDataGenerationProcessor:
 
                 training_data_list.append(
                     TrainingDataGeneratorResponse(
-                        intent=training_data.intent,
+                        intent=training_data.get('intent'),
                         training_examples=training_examples,
-                        response=training_data.response
+                        response=training_data.get('response')
                     ))
         TrainingDataGenerationProcessor.set_status(
-            status=request_data.status,
+            status=status,
             response=training_data_list,
-            exception=request_data.exception,
+            exception=exception,
             bot=bot,
             user=user
         )
@@ -58,8 +61,9 @@ class TrainingDataGenerationProcessor:
             bot: Text,
             user: Text,
             status: Text,
-            document_path=None,
-            response=None,
+            document_path: Text = None,
+            generator_type: Text = None,
+            response: dict = None,
             exception: Text = None,
     ):
         """
@@ -69,6 +73,7 @@ class TrainingDataGenerationProcessor:
         :param user: user id
         :param status: InProgress, Done, Fail
         :param document_path: location on disk where document is saved
+        :param generator_type: document/website_url
         :param response: data generation response
         :param exception: exception while training
         :return: None
@@ -78,21 +83,19 @@ class TrainingDataGenerationProcessor:
                     Q(status=EVENT_STATUS.TASKSPAWNED.value) |
                     Q(status=EVENT_STATUS.INITIATED.value) |
                     Q(status=EVENT_STATUS.INPROGRESS.value)).get()
-            doc.status = status
         except DoesNotExist as e:
             logger.error(str(e))
-            doc = TrainingDataGenerator()
-            doc.status = EVENT_STATUS.INITIATED.value
-            doc.document_path = document_path
-            doc.start_timestamp = datetime.utcnow()
-
-        doc.last_update_timestamp = datetime.utcnow()
+            doc = TrainingDataGenerator(
+                status=EVENT_STATUS.INITIATED.value, generator_type=generator_type,
+                document_path=document_path,
+                start_timestamp=datetime.utcnow(), bot=bot
+            )
         if status in [EVENT_STATUS.FAIL, EVENT_STATUS.COMPLETED]:
             doc.end_timestamp = datetime.utcnow()
             doc.last_update_timestamp = doc.end_timestamp
-        doc.bot = bot
+        doc.status = status
         doc.user = user
-        doc.response = response
+        doc.data = response
         doc.exception = exception
         doc.save()
 
@@ -193,40 +196,10 @@ class TrainingDataGenerationProcessor:
 
     @staticmethod
     def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
-        history = TrainingDataGenerator.objects().get(id=doc_id)
-        updated_training_data_with_flag = []
-        for training_data in history.response:
-            intent = training_data.intent
-            response = training_data.response
-            existing_training_examples = [example.training_example for example in training_data.training_examples]
-            training_examples = []
-
-            if persisted_training_data.get(intent):
-                examples_added = persisted_training_data.get(training_data.intent)
-                examples_not_added = list(set(existing_training_examples) - set(examples_added))
-
-                for example in examples_not_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example
-                        )
-                    )
-
-                for example in examples_added:
-                    training_examples.append(
-                        TrainingExamplesTrainingDataGenerator(
-                            training_example=example,
-                            is_persisted=True
-                        )
-                    )
-            else:
-                training_examples = training_data.training_examples
-
-            updated_training_data_with_flag.append(
-                TrainingDataGeneratorResponse(
-                    intent=intent,
-                    training_examples=training_examples,
-                    response=response
-                ))
-        history.response = updated_training_data_with_flag
-        history.save()
+        training_examples_added = sum(persisted_training_data.values(), [])
+        training_data = TrainingDataGenerator.objects(id=doc_id).get()
+        for example in training_data.data or []:
+            for ex in example.training_examples or []:
+                if ex.training_example in training_examples_added:
+                    ex.is_persisted = True
+        training_data.save()

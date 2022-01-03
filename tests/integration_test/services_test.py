@@ -38,7 +38,7 @@ access_token = None
 token_type = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope='class')
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
@@ -1519,14 +1519,13 @@ def test_get_model_training_history():
 
 def test_get_file_training_history():
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"] is True
     assert actual["error_code"] == 0
-    assert actual["data"]
-    assert "training_history" in actual["data"]
+    assert actual["data"] == []
 
 
 def test_deploy_missing_configuration():
@@ -1782,7 +1781,7 @@ def test_augment_paraphrase_gpt():
         status=200
     )
     response = client.post(
-        "/api/augment/paraphrases/gpt",
+        f"/api/augment/{pytest.bot}/paraphrases/gpt",
         json={"data": ["Where is digite located?"], "api_key": "MockKey"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1800,7 +1799,7 @@ def test_augment_paraphrase_gpt():
 
 def test_augment_paraphrase_gpt_validation():
     response = client.post(
-        "/api/augment/paraphrases/gpt",
+        f"/api/augment/{pytest.bot}/paraphrases/gpt",
         json={"data": [], "api_key": "MockKey"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1812,7 +1811,7 @@ def test_augment_paraphrase_gpt_validation():
     assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
 
     response = client.post(
-        "/api/augment/paraphrases/gpt",
+        f"/api/augment/{pytest.bot}/paraphrases/gpt",
         json={"data": ["hi", "hello", "thanks", "hello", "bye", "how are you"], "api_key": "MockKey"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1842,7 +1841,7 @@ def test_augment_paraphrase_gpt_fail():
         status=200,
     )
     response = client.post(
-        "/api/augment/paraphrases/gpt",
+        f"/api/augment/{pytest.bot}/paraphrases/gpt",
         json={"data": ["Where is digite located?"], "api_key": "InvalidKey"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1880,7 +1879,7 @@ def test_augment_paraphrase():
         match=[responses.json_params_matcher(["where is digite located?"])]
     )
     response = client.post(
-        "/api/augment/paraphrases",
+        f"/api/augment/{pytest.bot}/paraphrases",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": ["where is digite located?"]},
     )
@@ -1894,7 +1893,7 @@ def test_augment_paraphrase():
 
 def test_augment_paraphrase_no_of_questions():
     response = client.post(
-        "/api/augment/paraphrases",
+        f"/api/augment/{pytest.bot}/paraphrases",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": []},
     )
@@ -1906,7 +1905,7 @@ def test_augment_paraphrase_no_of_questions():
     assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'Question Please!', 'type': 'value_error'}]
 
     response = client.post(
-        "/api/augment/paraphrases",
+        f"/api/augment/{pytest.bot}/paraphrases",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"data": ["Hi", "Hello", "How are you", "Bye", "Thanks", "Welcome"]},
     )
@@ -3538,7 +3537,33 @@ def test_train_using_event(monkeypatch):
     assert actual["message"] == "Model training started."
 
 
-def test_update_training_data_generator_status(monkeypatch):
+@responses.activate
+def test_file_upload_pdf(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+    response = client.post(
+        f"/api/augment/{pytest.bot}/generate/data/file/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": ("sample1.pdf", open("tests/testing_data/file_data/sample1.pdf", "rb"))})
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_update_training_data_generator_status():
+    response = client.get(
+        f"/api/augment/{pytest.bot}/history/generate/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
     request_body = {
         "status": EVENT_STATUS.INITIATED
     }
@@ -3556,7 +3581,7 @@ def test_update_training_data_generator_status(monkeypatch):
 
 def test_get_training_data_history(monkeypatch):
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3564,7 +3589,7 @@ def test_get_training_data_history(monkeypatch):
     assert actual["error_code"] == 0
     response = actual["data"]
     assert response is not None
-    response['status'] = 'Initiated'
+    assert response[0]['status'] == 'Initiated'
     assert actual["message"] is None
 
 
@@ -3618,7 +3643,7 @@ def test_update_training_data_generator_wrong_status(monkeypatch):
 
 def test_add_training_data(monkeypatch):
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3626,9 +3651,9 @@ def test_add_training_data(monkeypatch):
     assert actual["error_code"] == 0
     response = actual["data"]
     assert response is not None
-    response['status'] = 'Initiated'
+    assert response[0]['status'] == 'Completed'
     assert actual["message"] is None
-    doc_id = response['training_history'][0]['_id']
+    doc_id = response[0]['_id']
     training_data = {
         "history_id": doc_id,
         "training_data": [{
@@ -3674,20 +3699,19 @@ def test_add_training_data(monkeypatch):
 
 def test_get_training_data_history_1(monkeypatch):
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] is None
-    training_data = actual["data"]['training_history'][0]
+    training_data = actual["data"][0]
 
     assert training_data['status'] == EVENT_STATUS.COMPLETED.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
-    assert training_data['last_update_timestamp'] == end_timestamp
-    response = training_data['response']
+    response = training_data['data']
     assert response is not None
     assert response[0]['intent'] == 'intent1_test_add_training_data'
     assert response[0]['training_examples'][0]['training_example'] == "example1"
@@ -3703,7 +3727,49 @@ def test_get_training_data_history_1(monkeypatch):
     assert response[1]['response'] == 'response2'
 
 
+@responses.activate
+def test_fetch_latest(monkeypatch):
+    async def __mock_upload(*args, **kwargs):
+        return 'sample.pdf'
+    monkeypatch.setattr(Utility, 'upload_document', __mock_upload)
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+
+    response = client.post(
+        f"/api/augment/{pytest.bot}/generate/data/file/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": ("sample1.pdf", open("tests/testing_data/file_data/sample1.pdf", "rb"))})
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/augment/{pytest.bot}/history/generate/data?running_event=True",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
+    assert actual["message"] is None
+
+
+@responses.activate
 def test_update_training_data_generator_status_exception(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+
     request_body = {
         "status": EVENT_STATUS.INITIATED,
     }
@@ -3736,40 +3802,18 @@ def test_update_training_data_generator_status_exception(monkeypatch):
 
 def test_get_training_data_history_2(monkeypatch):
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] is None
-    training_data = actual["data"]['training_history'][0]
+    training_data = actual["data"][0]
     assert training_data['status'] == EVENT_STATUS.FAIL.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
-    assert training_data['last_update_timestamp'] == end_timestamp
     assert training_data['exception'] == 'Exception message'
-
-
-def test_fetch_latest(monkeypatch):
-    request_body = {
-        "status": EVENT_STATUS.INITIATED,
-    }
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/latest",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
-    assert actual["message"] is None
 
 
 async def mock_upload(doc):
@@ -3801,7 +3845,7 @@ def test_file_upload_docx(mock_file_upload, monkeypatch):
     monkeypatch.setattr(Utility, "upload_document", mock_upload)
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
+        f"/api/augment/{pytest.bot}/generate/data/file/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"doc": (
             "tests/testing_data/file_data/sample1.docx",
@@ -3814,28 +3858,9 @@ def test_file_upload_docx(mock_file_upload, monkeypatch):
     assert actual["success"]
 
 
-def test_file_upload_pdf(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={"doc": (
-            "tests/testing_data/file_data/sample1.pdf",
-            open("tests/testing_data/file_data/sample1.pdf", "rb"))})
-
-    actual = response.json()
-    assert actual["message"] == "File uploaded successfully and training data generation has begun"
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-
 def test_file_upload_error(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
     response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
+        f"/api/augment/{pytest.bot}/generate/data/file/upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"doc": (
             "nlu.md",
@@ -3951,7 +3976,7 @@ def test_add_training_data_invalid_id(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
+        f"/api/augment/{pytest.bot}/history/generate/data",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3959,9 +3984,8 @@ def test_add_training_data_invalid_id(monkeypatch):
     assert actual["error_code"] == 0
     response = actual["data"]
     assert response is not None
-    response['status'] = 'Initiated'
     assert actual["message"] is None
-    doc_id = response['training_history'][0]['_id']
+    doc_id = response[0]['_id']
     training_data = {
         "history_id": doc_id,
         "training_data": [{
@@ -6736,3 +6760,27 @@ def test_delete_email_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action deleted'
+
+
+
+@responses.activate
+def test_data_generation_from_website(monkeypatch):
+    monkeypatch.setitem(
+        Utility.environment['data_generation']['from_website'],
+        'event_url', 'http://localhost.data_generation.upload'
+    )
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+    response = client.post(
+        f"/api/augment/{pytest.bot}/generate/data/website",
+        json={'url': 'http://localhost.kairon.local'},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+
+    actual = response.json()
+    assert actual["message"] == "Training data generation initiated. Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]

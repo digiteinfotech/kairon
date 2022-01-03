@@ -45,5 +45,5 @@ networkx==2.6
 fastapi_sso
 pytest-httpx==0.15.0
 json2html
-bs4
+beautifulsoup4
 trafilatura==1.0.0

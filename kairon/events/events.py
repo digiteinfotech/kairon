@@ -4,8 +4,10 @@ from typing import Text
 from loguru import logger
 from requests import exceptions
 
+from augmentation.web.generator import WebsiteQnAGenerator
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.importer.data_importer import DataImporter
+from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -108,3 +110,35 @@ class EventsTrigger:
         except Exception as e:
             logger.error(str(e))
             ModelTestingLogProcessor.log_test_result(bot, user, exception=str(e), event_status=EVENT_STATUS.FAIL.value)
+
+    @staticmethod
+    def trigger_qna_generator_for_website(bot: Text, user: Text, website_url: Text, depth: int = 2):
+        try:
+            event_url = Utility.get_event_url("QNA_GENERATOR")
+            if not Utility.check_empty_string(event_url):
+                env_var = {'BOT': bot, 'USER': user, 'URL': website_url, 'DEPTH': depth}
+                event_request = Utility.build_event_request(env_var)
+                Utility.http_request("POST", event_url, None, user, event_request)
+                TrainingDataGenerationProcessor.set_status(
+                    bot, user, EVENT_STATUS.TASKSPAWNED.value, website_url, 'website_url'
+                )
+            else:
+                TrainingDataGenerationProcessor.set_status(
+                    bot, user, EVENT_STATUS.INPROGRESS.value, website_url, 'website_url'
+                )
+                generated_qna = WebsiteQnAGenerator.get_qa_data(website_url, depth)
+                TrainingDataGenerationProcessor.format_data_and_set_status(generated_qna, bot, user)
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            TrainingDataGenerationProcessor.set_status(
+                bot, user, EVENT_STATUS.FAIL.value, website_url,
+                'website_url',
+                exception=f'Failed to trigger the event. {e}'
+            )
+        except Exception as e:
+            logger.error(str(e))
+            TrainingDataGenerationProcessor.set_status(
+                bot, user, EVENT_STATUS.FAIL.value,
+                website_url, 'website_url',
+                exception=str(e)
+            )

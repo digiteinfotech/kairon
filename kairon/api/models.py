@@ -456,3 +456,8 @@ class EmailActionRequest(BaseModel):
     to_email: str
     response: str
     tls: bool = False
+
+
+class QnAGeneratorRequest(BaseModel):
+    url: str
+    max_depth: int = 2
