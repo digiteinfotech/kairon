@@ -22,7 +22,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE
+from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -468,28 +468,6 @@ async def upload_files(
     return {"message": "Upload in progress! Check logs."}
 
 
-@router.post("/upload/data_generation/file", response_model=Response)
-async def upload_data_generation_file(
-    background_tasks: BackgroundTasks,
-    doc: UploadFile = File(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Uploads document for training data generation and triggers event for intent creation
-    """
-    TrainingDataGenerationProcessor.is_in_progress(current_user.get_bot())
-    TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
-    file_path = await Utility.upload_document(doc)
-    TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
-                                               user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
-                                               document_path=file_path)
-    token = Authentication.create_access_token(data={"sub": current_user.email})
-    background_tasks.add_task(
-        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
-    )
-    return {"message": "File uploaded successfully and training data generation has begun"}
-
-
 @router.get("/download/data")
 async def download_data(
         background_tasks: BackgroundTasks,
@@ -821,39 +799,18 @@ async def add_training_data(
 
 @router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
-        request_data: TrainingDataGeneratorStatusModel, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        request_data: TrainingDataGeneratorStatusModel,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Update training data generator status
     """
-    try:
-        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
-                                                                         current_user.get_user())
-    except Exception as e:
-        raise AppException(e)
+    request_data = request_data.dict()
+    TrainingDataGenerationProcessor.format_data_and_set_status(
+        request_data.get('response'), current_user.get_bot(), current_user.get_user(),
+        request_data['status'], request_data.get('exception')
+    )
     return {"message": "Status updated successfully!"}
-
-
-@router.get("/data/generation/history", response_model=Response)
-async def get_train_data_history(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
-):
-    """
-    Fetches File Data Generation history, when and who initiated the process
-    """
-    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot())
-    return {"data": {"training_history": file_history}}
-
-
-@router.get("/data/generation/latest", response_model=Response)
-async def get_latest_data_generation_status(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
-):
-    """
-    Fetches status for latest data generation request
-    """
-    latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(), current_user.get_user())
-    return {"data": latest_data_generation_status}
 
 
 @router.get("/slots", response_model=Response)

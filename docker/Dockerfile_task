@@ -31,6 +31,7 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install cryptography~=3.4.8
+RUN python -m pip install fastapi_sso
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

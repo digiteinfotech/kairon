@@ -1,11 +1,9 @@
-from question_generation import pipeline
+from augmentation.question_generator.generator import QuestionGenerator
 
 
 class TrainingDataGenerator:
 
     """Class contains logic to retrieve intents, training examples and responses from pdf and docx documents"""
-
-    nlp = pipeline('e2e-qg')
 
     @staticmethod
     def helper_intent(node_index, branch_name, treedict, newlist):
@@ -33,7 +31,7 @@ class TrainingDataGenerator:
 
     @staticmethod
     def generate_question(paragraph):
-        question_list = TrainingDataGenerator.nlp(paragraph)
+        question_list = QuestionGenerator.generate(paragraph)
         return [paragraph, question_list]
 
     @staticmethod

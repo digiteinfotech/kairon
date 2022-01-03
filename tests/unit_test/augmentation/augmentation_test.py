@@ -59,8 +59,8 @@ class TestQuestionGeneration:
     def test_generate_questions_from_passage(self):
         actual = QuestionGenerator.generate(
             "Python is a programming language. Created by Guido van Rossum and first released in 1991.")
-        expected = ['What is a programming language?', "Who created Python?", "When was Python first released?"]
-        assert all(text in expected for text in actual)
+        expected = ["Who created Python?", "When was Python first released?"]
+        assert all(text in actual for text in expected)
 
 
 class TestDocumentParser:

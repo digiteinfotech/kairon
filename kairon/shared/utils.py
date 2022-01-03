@@ -704,6 +704,9 @@ class Utility:
         elif "TESTING" == event_type:
             if Utility.environment.get('model') and Utility.environment['model']['test'].get('event_url'):
                 url = Utility.environment['model']['test'].get('event_url')
+        elif "QNA_GENERATOR" == event_type:
+            if Utility.environment.get('data_generation') and Utility.environment['data_generation']['from_website'].get('event_url'):
+                url = Utility.environment['data_generation']['from_website'].get('event_url')
         else:
             raise AppException("Invalid event type received")
         if Utility.check_empty_string(url) and raise_exc:

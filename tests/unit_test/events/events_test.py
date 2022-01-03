@@ -10,9 +10,11 @@ from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.importers.rasa import RasaFileImporter
 
+from augmentation.web.generator import WebsiteQnAGenerator
 from kairon import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
+from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -978,3 +980,86 @@ class TestEvents:
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    def test_trigger_website_qna_generator_event_connection_error(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        website_url = 'http://localhost.kairon.local'
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['data_generation']['from_website'], "event_url", event_url)
+        EventsTrigger.trigger_qna_generator_for_website(bot, user, website_url)
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot))
+        assert len(logs) == 1
+        assert logs[0].get('exception').__contains__('Failed to trigger the event. ')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('generator_type') == 'website_url'
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == EVENT_STATUS.FAIL.value
+
+    @responses.activate
+    def test_trigger_website_qna_generator_event_success(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        website_url = 'http://localhost.kairon.local'
+        event_url = "http://url.event"
+
+        responses.add(
+            responses.POST,
+            event_url,
+            status=200,
+            body=''
+        )
+        monkeypatch.setitem(Utility.environment['data_generation']['from_website'], "event_url", event_url)
+        EventsTrigger.trigger_qna_generator_for_website(bot, user, website_url)
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('generator_type') == 'website_url'
+        assert logs[0].get('document_path') == website_url
+        assert not logs[0].get('end_timestamp')
+        assert logs[0].get('status') == EVENT_STATUS.TASKSPAWNED.value
+
+    @responses.activate
+    def test_trigger_website_qna_generator_existing_run(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        website_url = 'http://localhost.kairon.local'
+
+        responses.add("GET",
+                      website_url,
+                      status=200,
+                      body=open(
+                          "tests/testing_data/augmentation/scraper_test_data_2.txt",
+                          "r", encoding='latin-1'),
+                      )
+        EventsTrigger.trigger_qna_generator_for_website(bot, user, website_url)
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('generator_type') == 'website_url'
+        assert logs[0].get('document_path') == website_url
+        assert not logs[0].get('end_timestamp')
+        assert logs[0].get('status') == EVENT_STATUS.SAVE.value
+
+    @responses.activate
+    def test_trigger_website_qna_generator_exception(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        website_url = 'http://localhost.kairon.local'
+
+        def __mock_exception(*args, **kwargs):
+            raise Exception('Invalid url')
+
+        monkeypatch.setattr(WebsiteQnAGenerator, 'get_qa_data', __mock_exception)
+        EventsTrigger.trigger_qna_generator_for_website(bot, user, website_url)
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot))
+        assert len(logs) == 3
+        assert logs[0].get('exception') == 'Invalid url'
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('generator_type') == 'website_url'
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == EVENT_STATUS.FAIL.value

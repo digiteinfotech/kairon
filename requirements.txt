@@ -44,5 +44,5 @@ aiohttp==3.8.0
 networkx==2.6
 fastapi_sso
 pytest-httpx==0.15.0
-bs4
+beautifulsoup4
 trafilatura==1.0.0
