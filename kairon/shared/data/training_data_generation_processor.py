@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Text
 
 from loguru import logger
+from markdown.util import deprecated
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
@@ -26,13 +27,16 @@ class TrainingDataGenerationProcessor:
             raise AppException("Matching history_id not found!")
 
     @staticmethod
-    def retreive_response_and_set_status(request_data, bot, user):
+    def format_data_and_set_status(
+            response: dict, bot: Text, user: Text,
+            status: EVENT_STATUS = EVENT_STATUS.SAVE.value, exception: Text = None
+    ):
         training_data_list = None
-        if request_data.response:
+        if response:
             training_data_list = []
-            for training_data in request_data.response:
+            for training_data in response:
                 training_examples = []
-                for example in training_data.training_examples:
+                for example in training_data['training_examples']:
                     training_examples.append(
                         TrainingExamplesTrainingDataGenerator(
                             training_example=example
@@ -41,14 +45,14 @@ class TrainingDataGenerationProcessor:
 
                 training_data_list.append(
                     TrainingDataGeneratorResponse(
-                        intent=training_data.intent,
+                        intent=training_data.get('intent'),
                         training_examples=training_examples,
-                        response=training_data.response
+                        response=training_data.get('response')
                     ))
         TrainingDataGenerationProcessor.set_status(
-            status=request_data.status,
+            status=status,
             response=training_data_list,
-            exception=request_data.exception,
+            exception=exception,
             bot=bot,
             user=user
         )
@@ -58,8 +62,9 @@ class TrainingDataGenerationProcessor:
             bot: Text,
             user: Text,
             status: Text,
-            document_path=None,
-            response=None,
+            document_path: Text = None,
+            generator_type: Text = None,
+            response: dict = None,
             exception: Text = None,
     ):
         """
@@ -69,6 +74,7 @@ class TrainingDataGenerationProcessor:
         :param user: user id
         :param status: InProgress, Done, Fail
         :param document_path: location on disk where document is saved
+        :param generator_type: document/website_url
         :param response: data generation response
         :param exception: exception while training
         :return: None
@@ -81,16 +87,14 @@ class TrainingDataGenerationProcessor:
             doc.status = status
         except DoesNotExist as e:
             logger.error(str(e))
-            doc = TrainingDataGenerator()
-            doc.status = EVENT_STATUS.INITIATED.value
-            doc.document_path = document_path
-            doc.start_timestamp = datetime.utcnow()
-
-        doc.last_update_timestamp = datetime.utcnow()
+            doc = TrainingDataGenerator(
+                status=EVENT_STATUS.INITIATED.value, generator_type=generator_type,
+                document_path=document_path,
+                start_timestamp=datetime.utcnow(), bot=bot
+            )
         if status in [EVENT_STATUS.FAIL, EVENT_STATUS.COMPLETED]:
             doc.end_timestamp = datetime.utcnow()
             doc.last_update_timestamp = doc.end_timestamp
-        doc.bot = bot
         doc.user = user
         doc.response = response
         doc.exception = exception
@@ -192,6 +196,15 @@ class TrainingDataGenerationProcessor:
             return False
 
     @staticmethod
+    def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
+        training_examples_added = sum(persisted_training_data.values(), [])
+        TrainingDataGenerator.objects(
+            id=doc_id,
+            response__training_examples__training_example__in=training_examples_added
+        ).update(set__response__S__training_examples__is_persisted=True)
+
+    @staticmethod
+    @deprecated('This method has been rewritten above as mongoengine query')
     def update_is_persisted_flag(doc_id: Text, persisted_training_data: dict):
         history = TrainingDataGenerator.objects().get(id=doc_id)
         updated_training_data_with_flag = []

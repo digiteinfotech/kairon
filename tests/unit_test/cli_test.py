@@ -4,6 +4,7 @@ import os
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
+from kairon.cli.website_qna_generator import website_qna_generator
 from kairon.events.events import EventsTrigger
 from kairon.shared.utils import Utility
 from mongoengine import connect
@@ -170,5 +171,55 @@ class TestModelTestingCli:
         def mock_testing(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        monkeypatch.setattr(EventsTrigger, "triggerargs_model_testing", mock_testing)
         cli()
+
+
+class TestWebsiteQnaGeneratorCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(
+                    func=website_qna_generator, bot="test_cli", user="testUser", url="kairon.digite.com", depth=5))
+    def test_parse_website_and_generate_training_data_failure(self, monkeypatch):
+        def __raise_exception(*args, **kwargs):
+            raise Exception("Could not connect to website")
+
+        monkeypatch.setattr(EventsTrigger, "trigger_qna_generator_for_website", __raise_exception)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(
+                    func=website_qna_generator, bot="test_cli", user="testUser", url="kairon.digite.com", depth=5))
+    def test_parse_website_and_generate_training_data(self, monkeypatch):
+        def __mock_response(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_qna_generator_for_website", __mock_response)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=website_qna_generator))
+    def test_parse_website_and_generate_training_data_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=website_qna_generator, bot="test_cli"))
+    def test_parse_website_and_generate_training_data_no_argument_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=website_qna_generator, bot="test_cli", user="testUser"))
+    def test_parse_website_and_generate_training_data_no_argument_website_url(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'url'")

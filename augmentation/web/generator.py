@@ -1,21 +1,26 @@
 from loguru import logger
-from .generator import QuestionGenerator
-from .web_scraper import WebScraper
+
+from augmentation.exception import AugmentationException
+from augmentation.question_generator.generator import QuestionGenerator
+from augmentation.web.scraper import WebScraper
+
+
 class WebsiteQnAGenerator:
     """
-    This class is used to generate QnA for a website
+    Generates QnA from a website content.
     """
 
     @staticmethod
-    def get_qa_data(url: str,max_pages: int):
+    def get_qa_data(url: str, max_pages: int):
         """
-        Scrape website and generate questions
+        Scrape website and generate questions.
+
         :param url: url of website
         :param max_pages: maximum number of pages to extract
         :return: List of dictionaries contaning questions and answer
         """
-        pages = WebScraper.scrape_pages(url,max_pages)
-        qa_data=[]
+        pages = WebScraper.scrape_pages(url, max_pages)
+        qna = []
         for i in range(len(pages)):
             for j in range(len(pages[i]['text'])):
                 try:
@@ -23,9 +28,8 @@ class WebsiteQnAGenerator:
                         link = """ <a target="_blank" href={}> LEARN MORE</a>""".format(pages[i]['url'])
                         context = pages[i]['text'][j][k]
                         questions = QuestionGenerator.generate(context)
-                        if len(questions)!=0 and questions['status']== 'success':
-                            qa_data.append({"questions":questions['questions'],"answer":context+link})
-                except Exception as ex:
-                    logger.exception("Exception occured in WebsiteQnAGenerator: {}".format(ex))
-        return qa_data
-                
+                        if questions:
+                            qna.append({"training_examples": questions, "response": context + link})
+                except AugmentationException as ex:
+                    logger.exception(ex)
+        return qna

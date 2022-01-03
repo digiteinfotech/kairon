@@ -18,7 +18,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase, SlotMappingRequest
+    TextDataLowerCase, SlotMappingRequest, QnAGeneratorRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -468,6 +468,23 @@ async def upload_files(
     return {"message": "Upload in progress! Check logs."}
 
 
+@router.post("/generate/qna/website", response_model=Response)
+async def generate_qna_from_website(
+    background_tasks: BackgroundTasks, request: QnAGeneratorRequest,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Scrapes website data and generates question and answer pairs from it.
+    """
+    TrainingDataGenerationProcessor.is_in_progress(current_user.get_bot())
+    TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
+    background_tasks.add_task(
+        EventsTrigger.trigger_qna_generator_for_website, current_user.get_bot(),
+        current_user.get_user(), request.url, request.max_depth
+    )
+    return {"message": "Training data generation initiated. Check logs."}
+
+
 @router.post("/upload/data_generation/file", response_model=Response)
 async def upload_data_generation_file(
     background_tasks: BackgroundTasks,
@@ -482,7 +499,7 @@ async def upload_data_generation_file(
     file_path = await Utility.upload_document(doc)
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
                                                user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
-                                               document_path=file_path)
+                                               document_path=file_path, generator_type='document')
     token = Authentication.create_access_token(data={"sub": current_user.email})
     background_tasks.add_task(
         DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
@@ -826,16 +843,17 @@ async def add_training_data(
 
 @router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
-        request_data: TrainingDataGeneratorStatusModel, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        request_data: TrainingDataGeneratorStatusModel,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Update training data generator status
     """
-    try:
-        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
-                                                                         current_user.get_user())
-    except Exception as e:
-        raise AppException(e)
+    request_data = request_data.dict()
+    TrainingDataGenerationProcessor.format_data_and_set_status(
+        request_data.get('response'), current_user.get_bot(), current_user.get_user(),
+        request_data['status'], request_data.get('exception')
+    )
     return {"message": "Status updated successfully!"}
 
 

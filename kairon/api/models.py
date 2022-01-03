@@ -443,3 +443,8 @@ class SlotSetActionRequest(BaseModel):
     slot: str
     type: SLOT_SET_TYPE
     value: Any = None
+
+
+class QnAGeneratorRequest(BaseModel):
+    url: str
+    max_depth: int = 2

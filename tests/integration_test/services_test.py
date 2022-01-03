@@ -37,7 +37,7 @@ access_token = None
 token_type = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope='class')
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
@@ -3518,7 +3518,31 @@ def test_train_using_event(monkeypatch):
     assert actual["message"] == "Model training started."
 
 
-def test_update_training_data_generator_status(monkeypatch):
+@responses.activate
+def test_file_upload_pdf(monkeypatch):
+    async def __mock_upload(*args, **kwargs):
+        return 'sample.pdf'
+
+    monkeypatch.setattr(Utility, 'upload_document', __mock_upload)
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload/data_generation/file",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": ("sample1.pdf", open("tests/testing_data/file_data/sample1.pdf", "rb"))})
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+
+def test_update_training_data_generator_status():
     request_body = {
         "status": EVENT_STATUS.INITIATED
     }
@@ -3666,7 +3690,6 @@ def test_get_training_data_history_1(monkeypatch):
     assert training_data['status'] == EVENT_STATUS.COMPLETED.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
-    assert training_data['last_update_timestamp'] == end_timestamp
     response = training_data['response']
     assert response is not None
     assert response[0]['intent'] == 'intent1_test_add_training_data'
@@ -3683,7 +3706,47 @@ def test_get_training_data_history_1(monkeypatch):
     assert response[1]['response'] == 'response2'
 
 
+def test_fetch_latest(monkeypatch):
+    async def __mock_upload(*args, **kwargs):
+        return 'sample.pdf'
+    monkeypatch.setattr(Utility, 'upload_document', __mock_upload)
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload/data_generation/file",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"doc": ("sample1.pdf", open("tests/testing_data/file_data/sample1.pdf", "rb"))})
+
+    actual = response.json()
+    assert actual["message"] == "File uploaded successfully and training data generation has begun"
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/generation/latest",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
+    assert actual["message"] is None
+
+
 def test_update_training_data_generator_status_exception(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'event_url', 'http://localhost.data_generation.upload')
+    responses.add(
+        responses.POST,
+        'http://localhost.data_generation.upload',
+        status=200
+    )
+
     request_body = {
         "status": EVENT_STATUS.INITIATED,
     }
@@ -3727,29 +3790,7 @@ def test_get_training_data_history_2(monkeypatch):
     assert training_data['status'] == EVENT_STATUS.FAIL.value
     end_timestamp = training_data['end_timestamp']
     assert end_timestamp is not None
-    assert training_data['last_update_timestamp'] == end_timestamp
     assert training_data['exception'] == 'Exception message'
-
-
-def test_fetch_latest(monkeypatch):
-    request_body = {
-        "status": EVENT_STATUS.INITIATED,
-    }
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/latest",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]['status'] == EVENT_STATUS.INITIATED.value
-    assert actual["message"] is None
 
 
 async def mock_upload(doc):
@@ -3786,23 +3827,6 @@ def test_file_upload_docx(mock_file_upload, monkeypatch):
         files={"doc": (
             "tests/testing_data/file_data/sample1.docx",
             open("tests/testing_data/file_data/sample1.docx", "rb"))})
-
-    actual = response.json()
-    assert actual["message"] == "File uploaded successfully and training data generation has begun"
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-
-def test_file_upload_pdf(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={"doc": (
-            "tests/testing_data/file_data/sample1.pdf",
-            open("tests/testing_data/file_data/sample1.pdf", "rb"))})
 
     actual = response.json()
     assert actual["message"] == "File uploaded successfully and training data generation has begun"

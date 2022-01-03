@@ -5925,7 +5925,8 @@ class TestTrainingDataProcessor:
             bot="tests2",
             user="testUser2",
             document_path='document/doc.pdf',
-            status=''
+            status='',
+            generator_type='document'
         )
         status = TrainingDataGenerator.objects(
             bot="tests2",
@@ -5935,7 +5936,6 @@ class TestTrainingDataProcessor:
         assert status['status'] == EVENT_STATUS.INITIATED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
 
     def test_fetch_latest_workload(self):
         status = TrainingDataGenerationProcessor.fetch_latest_workload(
@@ -5947,7 +5947,6 @@ class TestTrainingDataProcessor:
         assert status['status'] == EVENT_STATUS.INITIATED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
 
     def test_validate_history_id_no_response_generated(self):
         status = TrainingDataGenerator.objects(
@@ -5998,7 +5997,6 @@ class TestTrainingDataProcessor:
         assert status['status'] == EVENT_STATUS.COMPLETED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
         assert status['end_timestamp'] is not None
         assert status['response'] is not None
 
@@ -6030,7 +6028,6 @@ class TestTrainingDataProcessor:
         assert status['status'] == EVENT_STATUS.COMPLETED.value
         assert status['document_path'] == 'document/doc.pdf'
         assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
         assert status['end_timestamp'] is not None
         response = status['response']
         assert response is not None
@@ -6059,7 +6056,7 @@ class TestTrainingDataProcessor:
     def test_daily_file_limit_exceeded_False(self, monkeypatch):
         monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
         TrainingDataGenerationProcessor.set_status(
-            "tests", "testUser", "Initiated")
+            "tests", "testUser", "Initiated", 'qna.pdf', 'document')
         actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
         assert actual_response is False
 
