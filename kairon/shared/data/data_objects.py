@@ -579,7 +579,7 @@ class TrainingExamplesTrainingDataGenerator(EmbeddedDocument):
 
 
 class TrainingDataGeneratorResponse(EmbeddedDocument):
-    intent = StringField(required=True)
+    intent = StringField()
     training_examples = ListField(EmbeddedDocumentField(TrainingExamplesTrainingDataGenerator), required=True)
     response = StringField(required=True)
 
@@ -587,12 +587,12 @@ class TrainingDataGeneratorResponse(EmbeddedDocument):
 class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
+    generator_type = StringField(required=True, choices=['website_url', 'document'])
     document_path = StringField(default=None)
     status = StringField(default=EVENT_STATUS.INITIATED)
     start_timestamp = DateTimeField(default=None)
-    last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
-    response = ListField(EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None)
+    data = ListField(EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None)
     exception = StringField(default=None)
 
 

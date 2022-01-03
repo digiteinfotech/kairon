@@ -33,12 +33,10 @@ RUN chmod 777 -R /tmp
 
 COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/
-COPY template ${KG_HOME}/template
-COPY custom ${KG_HOME}/custom
-COPY email.yaml ${KG_HOME}/
 
-ENV KAIRON_URL default
+ENV BOT default
 ENV USER default
-ENV TOKEN default
+ENV URL default
+ENV DEPTH default
 
-CMD ["sh","-c","python -m augmentation --generate-training-data ${KAIRON_URL} ${USER} ${TOKEN}"]
+CMD ["sh","-c","python -m kairon generate-training-data ${BOT} ${USER} ${URL} ${DEPTH}"]

@@ -2,7 +2,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from mongoengine import connect
 
-from kairon.cli import importer, training, testing
+from kairon.cli import importer, training, testing, website_qna_generator
 from kairon.shared.utils import Utility
 
 """
@@ -20,6 +20,10 @@ Usage:
         
     Test model:
         kairon test <bot-id> <user-id>
+        
+    Generate QnA:
+        kairon generate-training-data <botid> <userid> <website_url>
+        kairon generate-training-data <botid> <userid> <website_url> <depth>
 """
 
 
@@ -35,6 +39,7 @@ def create_argument_parser():
     training.add_subparser(subparsers, parents=parent_parsers)
     importer.add_subparser(subparsers, parents=parent_parsers)
     testing.add_subparser(subparsers, parents=parent_parsers)
+    website_qna_generator.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 
