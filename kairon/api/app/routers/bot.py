@@ -740,13 +740,8 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     """
     Deletes the http action config and story event
     """
-    try:
-        mongo_processor.delete_http_action_config(action, user=current_user.get_user(),
-                                                  bot=current_user.get_bot())
-    except Exception as e:
-        raise AppException(e)
-    message = "HTTP action deleted"
-    return Response(message=message)
+    mongo_processor.delete_http_action_config(action, user=current_user.get_user(), bot=current_user.get_bot())
+    return Response(message="HTTP action deleted")
 
 
 @router.post("/action/slotset", response_model=Response)

@@ -12,17 +12,27 @@ from datetime import datetime
 
 from validators import ValidationFailure, url
 
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import SLOT_SET_TYPE
 
 
 class HttpActionRequestBody(EmbeddedDocument):
     key = StringField(required=True)
     value = StringField(default="")
-    parameter_type = StringField(default="value", choices=["value", "slot", "sender_id", "user_message"])
+    parameter_type = StringField(default=ActionParameterType.value,
+                                 choices=[p_type.value for p_type in ActionParameterType])
+
+    def clean(self):
+        from .utils import ActionUtility
+
+        if self.parameter_type == ActionParameterType.slot.value and not ActionUtility.is_empty(self.value):
+            self.value = self.value.lower()
 
     def validate(self, clean=True):
         from .utils import ActionUtility
+
+        if clean:
+            self.clean()
 
         if ActionUtility.is_empty(self.key):
             raise ValidationError("key in http action parameters cannot be empty")
@@ -56,6 +66,9 @@ class HttpActionConfig(Document):
             raise ValidationError("Invalid HTTP method")
 
         for param in self.params_list:
+            param.validate()
+
+        for param in self.headers:
             param.validate()
 
     def clean(self):

@@ -3048,6 +3048,16 @@ def test_add_http_action_with_sender_id_parameter_type():
         }, {
             "key": "testParam3",
             "parameter_type": "user_message",
+        }, {
+            "key": "testParam4",
+            "parameter_type": "message_trail",
+        }, {
+            "key": "testParam5",
+            "parameter_type": "intent",
+        }, {
+            "key": "testParam6",
+            "parameter_type": "value",
+            'value': "12345"
         }],
         "headers": [{
             "key": "testParam1",
@@ -3060,6 +3070,16 @@ def test_add_http_action_with_sender_id_parameter_type():
         }, {
             "key": "testParam3",
             "parameter_type": "user_message",
+        }, {
+            "key": "testParam4",
+            "parameter_type": "message_trail",
+        }, {
+            "key": "testParam5",
+            "parameter_type": "intent",
+        }, {
+            "key": "testParam6",
+            "parameter_type": "value",
+            'value': "12345"
         }]
     }
 
@@ -3089,12 +3109,19 @@ def test_get_http_action():
     assert actual["data"]['request_method'] == 'GET'
     assert actual["data"]['params_list'] == [
         {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
-        {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
-        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
+        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot'},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'},
+        {'key': 'testParam4', 'value': '', 'parameter_type': 'message_trail'},
+        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent'},
+        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value'}]
     assert actual["data"]['headers'] == [
         {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
-        {'key': 'testParam2', 'value': 'testValue2', 'parameter_type': 'slot'},
-        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'}]
+        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot'},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'},
+        {'key': 'testParam4', 'value': '', 'parameter_type': 'message_trail'},
+        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent'},
+        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value'}
+    ]
     assert not actual["message"]
     assert actual["success"]
 
