@@ -14,3 +14,5 @@ email:
         confirmed_subject: ${EMAIL_TEMPLATES_CONFIRMED_SUBJECT:"Verification complete! Build your first chatbot."}
         password_reset_subject: ${EMAIL_TEMPLATES_PASSWORD_RESET_SUBJECT:"Password Reset"}
         password_changed_subject: ${EMAIL_TEMPLATES_PASSWORD_CHANGED_SUBJECT:"Password Changed!"}
+        add_member_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_SUBJECT:"Invitation to collaborate on BOT_NAME bot"}
+        add_member_confirmation_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_CONFIRMATION_SUBJECT:"Invitation accepted by INVITED_PERSON_NAME"}

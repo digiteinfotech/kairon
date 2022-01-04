@@ -1,6 +1,6 @@
 from typing import List, Any, Dict
 import validators
-from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE
+from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -69,6 +69,12 @@ class RegisterAccount(BaseModel):
         ):
             raise ValueError("Password and Confirm Password does not match")
         return v
+
+
+class BotAccessRequest(BaseModel):
+    email: str
+    role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
+    activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
 
 class EndPointBot(BaseModel):
@@ -372,11 +378,16 @@ class LookupTablesRequest(BaseModel):
 
 
 class SlotMapping(BaseModel):
-    entity: str = None
+    entity: constr(to_lower=True, strip_whitespace=True) = None
     type: SLOT_MAPPING_TYPE
     value: Any = None
-    intent: List[str] = None
-    not_intent: List[str] = None
+    intent: List[constr(to_lower=True, strip_whitespace=True)] = None
+    not_intent: List[constr(to_lower=True, strip_whitespace=True)] = None
+
+
+class SlotMappingRequest(BaseModel):
+    slot: constr(to_lower=True, strip_whitespace=True)
+    mapping: List[SlotMapping] = None
 
 
 class Validation(BaseModel):
@@ -397,10 +408,29 @@ class SlotValidation(BaseModel):
 class FormPath(BaseModel):
     responses: List[str]
     slot: str
-    mapping: List[SlotMapping]
     validation: SlotValidation = None
     utter_msg_on_valid: str = None
     utter_msg_on_invalid: str = None
+
+    @validator("responses")
+    def validate_responses(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v:
+            raise ValueError("Response cannot be empty or contain spaces")
+
+        for response in v:
+            if Utility.check_empty_string(response):
+                raise ValueError("Response cannot be empty or contain spaces")
+        return v
+
+    @validator("slot")
+    def validate_slot(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("Slot is required")
+        return v
 
 
 class Forms(BaseModel):

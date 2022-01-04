@@ -1,6 +1,8 @@
 import pytest
+from mongoengine import ValidationError
 
 from kairon.api.models import HttpActionConfigRequest, HttpActionParameters
+from kairon.shared.data.data_objects import Slots, SlotMapping
 
 
 class TestBotModels:
@@ -78,3 +80,19 @@ class TestBotModels:
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response",
                                     http_url="http://www.google.com",
                                     request_method=None, http_params_list=[])
+
+    def test_slot(self):
+        with pytest.raises(ValueError, match="Slot name and type cannot be empty or blank spaces"):
+            Slots(name='email_id', type=' ', auto_fill=True).save()
+        with pytest.raises(ValueError, match="Slot name and type cannot be empty or blank spaces"):
+            Slots(name=' ', type='text', auto_fill=True).save()
+
+    def test_validate_slot_mapping(self):
+        with pytest.raises(ValueError, match="Slot name cannot be empty or blank spaces"):
+            SlotMapping(slot=' ', mapping=[{"type": "from_value"}]).save()
+        with pytest.raises(ValidationError,
+                           match="Your form 'form_name' uses an invalid slot mapping of type 'from_value' for slot 'email_id'. Please see https://rasa.com/docs/rasa/forms for more information."):
+            SlotMapping(slot='email_id', mapping=[{"type": "from_value"}]).save()
+        assert not SlotMapping(
+            slot='email_id', mapping=[{"type": "from_intent", "value": 'uditpandey@hotmail.com'}]
+        ).validate()

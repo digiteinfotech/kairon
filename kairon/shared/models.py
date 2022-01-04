@@ -42,13 +42,14 @@ class ParameterChoice(str, Enum):
     slot = "slot"
     sender_id = "sender_id"
     user_message = "user_message"
+    intent = "intent"
+    message_trail = "message_trail"
 
 
 class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    bot: list
     active_bot: str = None
     account: int
     status: bool

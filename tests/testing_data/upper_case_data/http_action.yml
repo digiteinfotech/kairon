@@ -9,6 +9,20 @@ http_actions:
   - key: testParam2
     parameter_type: slot
     value: testValue1
+  headers:
+    - key: testParam1
+      parameter_type: message_trail
+    - key: testParam2
+      parameter_type: user_message
+    - key: testParam3
+      parameter_type: value
+    - key: testParam4
+      parameter_type: intent
+    - key: testParam5
+      parameter_type: sender_id
+    - key: testParam4
+      parameter_type: slot
+      value: testValue1
   request_method: GET
   response: json
 - action_name: ACTION_GET_MICROSOFT_APPLICATION
@@ -19,6 +33,19 @@ http_actions:
     parameter_type: value
     value: testValue1
   - key: testParam2
+    parameter_type: slot
+    value: testValue1
+  - key: testParam1
+    parameter_type: message_trail
+  - key: testParam2
+    parameter_type: user_message
+  - key: testParam3
+    parameter_type: value
+  - key: testParam4
+    parameter_type: intent
+  - key: testParam5
+    parameter_type: sender_id
+  - key: testParam4
     parameter_type: slot
     value: testValue1
   request_method: GET

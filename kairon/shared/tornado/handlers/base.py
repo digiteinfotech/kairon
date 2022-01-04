@@ -17,5 +17,5 @@ class BaseHandler(RequestHandler, ABC):
         self.set_status(204)
         self.finish()
 
-    def authenticate(self, request: HTTPServerRequest):
-        return TornadoAuthenticate.get_current_user(request)
+    def authenticate(self, request: HTTPServerRequest, **kwargs):
+        return TornadoAuthenticate.get_current_user_and_bot(request, **kwargs)

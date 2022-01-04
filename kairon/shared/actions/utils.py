@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
@@ -19,9 +20,9 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidations
+from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction
 from .exception import ActionFailure
-from .models import ParameterType, ActionType, SlotValidationOperators, LogicalOperators
+from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
 
@@ -88,18 +89,39 @@ class ActionUtility:
         request_body = {}
 
         for param in http_action_config_params or []:
-            if param['parameter_type'] == ParameterType.sender_id:
+            if param['parameter_type'] == ActionParameterType.sender_id.value:
                 value = tracker.sender_id
-            elif param['parameter_type'] == ParameterType.slot:
+            elif param['parameter_type'] == ActionParameterType.slot.value:
                 value = tracker.get_slot(param['value'])
-            elif param['parameter_type'] == ParameterType.user_message:
+            elif param['parameter_type'] == ActionParameterType.user_message.value:
                 value = tracker.latest_message.get('text')
+            elif param['parameter_type'] == ActionParameterType.intent.value:
+                value = tracker.get_intent_of_latest_message()
+            elif param['parameter_type'] == ActionParameterType.message_trail.value:
+                iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
+                value = {
+                    'sender_id': tracker.sender_id,
+                    'session_started': iat,
+                    'conversation': msg_trail
+                }
             else:
                 value = param['value']
             request_body[param['key']] = value
             logger.debug("value for key " + param['key'] + ": " + str(value))
 
         return request_body
+
+    @staticmethod
+    def prepare_message_trail(tracker_events):
+        message_trail = []
+        initiated_at = None
+        for event in tracker_events:
+            if event.get('event') == 'session_started' and event.get('timestamp'):
+                initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            elif event.get('event') == 'user' or event.get('event') == 'bot':
+                message_trail.append({event['event']: event.get('text')})
+
+        return initiated_at, message_trail
 
     @staticmethod
     def prepare_url(request_method: str, http_url: str, request_body=None):
@@ -264,7 +286,7 @@ class ActionUtility:
 
     @staticmethod
     def get_form_validation_config(bot: str, name: str):
-        action = FormValidations.objects(bot=bot, name=name, status=True)
+        action = FormValidationAction.objects(bot=bot, name=name, status=True)
         logger.debug("form_validation_config: " + str(action.to_json()))
         return action
 
@@ -407,7 +429,7 @@ class ExpressionEvaluator:
     def __evaluate_float_type(slot_value: Any, operator: str, operand: Any):
         is_valid = False
         try:
-            slot_value = int(slot_value)
+            slot_value = float(slot_value)
         except ValueError:
             return is_valid
         expression = f'({slot_value} {operator} {operand})'
@@ -545,3 +567,29 @@ class ExpressionEvaluator:
                 expr_str = expr_str + expr + operator
         expr_str = f'{{{re.sub(f"{operator}$", "", expr_str)}}}'
         return expr_str
+
+    @staticmethod
+    def list_slot_validation_operators():
+        text_data_validations = [SlotValidationOperators.equal_to.value, SlotValidationOperators.not_equal_to.value,
+                                 SlotValidationOperators.case_insensitive_equals.value, SlotValidationOperators.contains.value,
+                                 SlotValidationOperators.starts_with.value, SlotValidationOperators.ends_with.value,
+                                 SlotValidationOperators.has_length.value, SlotValidationOperators.has_length_greater_than.value,
+                                 SlotValidationOperators.has_length_less_than.value, SlotValidationOperators.has_no_whitespace.value,
+                                 SlotValidationOperators.is_in.value, SlotValidationOperators.is_not_in.value,
+                                 SlotValidationOperators.is_not_null_or_empty.value, SlotValidationOperators.is_null_or_empty.value,
+                                 SlotValidationOperators.is_an_email_address.value, SlotValidationOperators.matches_regex.value]
+        operators = {
+            SLOT_TYPE.LIST.value: [SlotValidationOperators.equal_to.value, SlotValidationOperators.contains.value,
+                                   SlotValidationOperators.has_length.value, SlotValidationOperators.has_length_greater_than.value,
+                                   SlotValidationOperators.has_length_less_than.value, SlotValidationOperators.is_in.value,
+                                   SlotValidationOperators.is_not_in.value, SlotValidationOperators.is_null_or_empty.value,
+                                   SlotValidationOperators.is_not_null_or_empty.value],
+            SLOT_TYPE.BOOLEAN.value: [SlotValidationOperators.is_true.value, SlotValidationOperators.is_false.value],
+            SLOT_TYPE.FLOAT.value: [SlotValidationOperators.equal_to.value, SlotValidationOperators.is_greater_than.value,
+                                    SlotValidationOperators.is_less_than.value, SlotValidationOperators.is_in.value,
+                                    SlotValidationOperators.is_not_in.value],
+            SLOT_TYPE.TEXT.value: text_data_validations,
+            SLOT_TYPE.CATEGORICAL.value: text_data_validations,
+            SLOT_TYPE.ANY.value: text_data_validations
+        }
+        return operators

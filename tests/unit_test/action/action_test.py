@@ -14,7 +14,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidations
+    Actions, FormValidationAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -24,7 +24,7 @@ import requests
 
 class TestActions:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -470,6 +470,117 @@ class TestActions:
                                                        http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert request_params['user_id'] == "kairon_user@digite.com"
+
+    def test_prepare_request_with_intent(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="card_type", parameter_type="intent")]
+        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
+                          latest_message={'intent': {'name': 'credit_card', 'confidence': 1.0}, 'entities': [],
+                                          'text': '/restart', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c',
+                                          'metadata': {}, 'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
+                          followup_action=None, active_loop=None, latest_action_name='action_listen')
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
+        assert request_params['param1'] == "value1"
+        assert request_params['card_type'] == "restart"
+
+    def test_prepare_request_with_message_trail(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
+        events = [{'event': 'action', 'timestamp': 1640969978.0159726, 'name': 'action_session_start', 'policy': None,
+                   'confidence': 1.0, 'action_text': None, 'hide_rule_turn': False},
+                  {'event': 'session_started', 'timestamp': 1640969978.0159986},
+                  {'event': 'action', 'timestamp': 1640969978.016019, 'name': 'action_listen', 'policy': None,
+                   'confidence': None, 'action_text': None, 'hide_rule_turn': False},
+                  {'event': 'user', 'timestamp': 1640969978.0570025, 'text': 'hi', 'parse_data': {
+                      'intent': {'id': -8668963632308028537, 'name': 'greet', 'confidence': 0.99999588727951},
+                      'entities': [], 'text': 'hi', 'message_id': '4e73ad5c91b64efebdf40c7f3d4e52fa', 'metadata': {},
+                      'intent_ranking': [{'id': -8668963632308028537, 'name': 'greet', 'confidence': 0.99999588727951},
+                                         {'id': -1751152876609809599, 'name': 'request_form',
+                                          'confidence': 2.344663471376407e-06},
+                                         {'id': -2576880868556300477, 'name': 'bot_challenge',
+                                          'confidence': 1.020069134938239e-06},
+                                         {'id': 7193050473371041842, 'name': 'mood_great',
+                                          'confidence': 1.82201702614293e-07},
+                                         {'id': 663567542510652931, 'name': 'deny',
+                                          'confidence': 1.634757040847034e-07},
+                                         {'id': -6952488953767557633, 'name': 'mood_unhappy',
+                                          'confidence': 1.4424769290144457e-07},
+                                         {'id': 1097471593766011183, 'name': 'affirm',
+                                          'confidence': 1.358881149826629e-07},
+                                         {'id': 1147054466470445121, 'name': 'goodbye',
+                                          'confidence': 1.20473117704023e-07}],
+                      'response_selector': {'all_retrieval_intents': [], 'default': {
+                          'response': {'id': None, 'responses': None, 'response_templates': None, 'confidence': 0.0,
+                                       'intent_response_key': None, 'utter_action': 'utter_None',
+                                       'template_name': 'utter_None'}, 'ranking': []}}}, 'input_channel': 'cmdline',
+                   'message_id': '4e73ad5c91b64efebdf40c7f3d4e52fa', 'metadata': {}},
+                  {'event': 'user_featurization', 'timestamp': 1640969978.0593514, 'use_text_for_featurization': False},
+                  {'event': 'action', 'timestamp': 1640969978.0593657, 'name': 'know_user',
+                   'policy': 'policy_1_RulePolicy', 'confidence': 1.0, 'action_text': None, 'hide_rule_turn': True},
+                  {'event': 'active_loop', 'timestamp': 1640969978.059406, 'name': 'know_user'},
+                  {'event': 'slot', 'timestamp': 1640969978.0594149, 'name': 'happy', 'value': 'happy_user'},
+                  {'event': 'slot', 'timestamp': 1640969978.0594206, 'name': 'requested_slot', 'value': 'is_ok'},
+                  {'event': 'bot', 'timestamp': 1640969978.0594227,
+                   'metadata': {'utter_action': 'utter_ask_know_user_is_ok'}, 'text': 'are you ok?',
+                   'data': {'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None, 'image': None,
+                            'custom': None}},
+                  {'event': 'action', 'timestamp': 1640969978.0599716, 'name': 'action_listen',
+                   'policy': 'policy_1_RulePolicy', 'confidence': 1.0, 'action_text': None, 'hide_rule_turn': True},
+                  {'event': 'user', 'timestamp': 1640969981.5157223, 'text': 'yes', 'parse_data': {
+                      'intent': {'id': 1097471593766011183, 'name': 'affirm', 'confidence': 0.9999915361404411},
+                      'entities': [], 'text': 'yes', 'message_id': '77e78de14cb046f0826cb90f9edb830a', 'metadata': {},
+                      'intent_ranking': [
+                          {'id': 1097471593766011183, 'name': 'affirm', 'confidence': 0.9999915361404411},
+                          {'id': 7193050473371041842, 'name': 'mood_great', 'confidence': 4.36471009379602e-06},
+                          {'id': -1751152876609809599, 'name': 'request_form', 'confidence': 1.730760686768917e-06},
+                          {'id': -2576880868556300477, 'name': 'bot_challenge', 'confidence': 6.831762107140094e-07},
+                          {'id': -6952488953767557633, 'name': 'mood_unhappy', 'confidence': 6.729432016072678e-07},
+                          {'id': 1147054466470445121, 'name': 'goodbye', 'confidence': 5.120287482895947e-07},
+                          {'id': 663567542510652931, 'name': 'deny', 'confidence': 3.602933134061459e-07},
+                          {'id': -8668963632308028537, 'name': 'greet', 'confidence': 1.1663559007502039e-07}],
+                      'response_selector': {'all_retrieval_intents': [], 'default': {
+                          'response': {'id': None, 'responses': None, 'response_templates': None, 'confidence': 0.0,
+                                       'intent_response_key': None, 'utter_action': 'utter_None',
+                                       'template_name': 'utter_None'}, 'ranking': []}}}, 'input_channel': 'cmdline',
+                   'message_id': '77e78de14cb046f0826cb90f9edb830a', 'metadata': {}},
+                  {'event': 'user_featurization', 'timestamp': 1640969981.5169573, 'use_text_for_featurization': False},
+                  {'event': 'action', 'timestamp': 1640969981.5169718, 'name': 'know_user',
+                   'policy': 'policy_1_RulePolicy', 'confidence': 1.0, 'action_text': None, 'hide_rule_turn': True},
+                  {'event': 'slot', 'timestamp': 1640969981.5169845, 'name': 'is_ok', 'value': 'yes'},
+                  {'event': 'slot', 'timestamp': 1640969981.5169895, 'name': 'requested_slot', 'value': None},
+                  {'event': 'active_loop', 'timestamp': 1640969981.5169928, 'name': None},
+                  {'event': 'action', 'timestamp': 1640969981.5179346, 'name': 'utter_happy',
+                   'policy': 'policy_1_RulePolicy', 'confidence': 1.0, 'action_text': None, 'hide_rule_turn': True},
+                  {'event': 'bot', 'timestamp': 1640969981.5179627, 'metadata': {'utter_action': 'utter_happy'},
+                   'text': 'Great, carry on!',
+                   'data': {'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None, 'image': None,
+                            'custom': None}},
+                  {'event': 'action', 'timestamp': 1640969981.5188172, 'name': 'action_listen',
+                   'policy': 'policy_1_RulePolicy', 'confidence': 1.0, 'action_text': None, 'hide_rule_turn': True},
+                  {'event': 'user', 'timestamp': 1640969987.3492067, 'text': '/restart',
+                   'parse_data': {'intent': {'name': 'restart', 'confidence': 1.0}, 'entities': [], 'text': '/restart',
+                                  'message_id': 'f4341cbf3eb1446e889a69d768ac091c', 'metadata': {},
+                                  'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
+                   'input_channel': 'cmdline', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c', 'metadata': {}},
+                  {'event': 'user_featurization', 'timestamp': 1640969987.350634, 'use_text_for_featurization': False}]
+        http_action_config_params = [HttpActionRequestBody(key="intent", parameter_type="intent"),
+                                     HttpActionRequestBody(key="user_msg", value="", parameter_type="message_trail")]
+        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
+                          latest_message={'intent': {'name': 'restart', 'confidence': 1.0}, 'entities': [],
+                                          'text': '/restart', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c',
+                                          'metadata': {}, 'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
+                          followup_action=None, active_loop=None, latest_action_name='action_listen')
+        request_params = ActionUtility.prepare_request(tracker=tracker,
+                                                       http_action_config_params=http_action_config_params)
+        assert request_params == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
+                                                                    'session_started': '2021-12-31 16:59:38',
+                                                                    'conversation': [{'user': 'hi'},
+                                                                                     {'bot': 'are you ok?'},
+                                                                                     {'user': 'yes'},
+                                                                                     {'bot': 'Great, carry on!'},
+                                                                                     {'user': '/restart'}]}}
 
     def test_prepare_request_user_message(self):
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
@@ -1316,8 +1427,8 @@ class TestActions:
         bot = 'test_actions'
         user = 'test'
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
-        expected_output = FormValidations(name='validate_form', slot='name', validation_semantic=validation_semantic,
-                                          bot=bot, user=user).save().to_mongo().to_dict()
+        expected_output = FormValidationAction(name='validate_form', slot='name', validation_semantic=validation_semantic,
+                                               bot=bot, user=user).save().to_mongo().to_dict()
         config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
         config.pop('timestamp')
         expected_output.pop('timestamp')
@@ -1329,9 +1440,9 @@ class TestActions:
         validation_semantic = {'or': [{'less_than': '5'}, {'==': 6}]}
         expected_outputs = []
         for slot in ['name', 'user', 'location']:
-            expected_output = FormValidations(name='validate_form_1', slot=slot,
-                                              validation_semantic=validation_semantic,
-                                              bot=bot, user=user).save().to_mongo().to_dict()
+            expected_output = FormValidationAction(name='validate_form_1', slot=slot,
+                                                   validation_semantic=validation_semantic,
+                                                   bot=bot, user=user).save().to_mongo().to_dict()
             expected_output.pop('_id')
             expected_output.pop('timestamp')
             expected_outputs.append(expected_output)
@@ -1579,65 +1690,65 @@ class TestActions:
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 == 5)}'
+        assert final_expr == '{(5.0 == 5)}'
 
         semantic_expression = {'and': [{'operator': '==', 'value': 6}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 == 6)}'
+        assert final_expr == '{(5.0 == 6)}'
 
         semantic_expression = {'and': [{'operator': '>', 'value': 5}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 > 5)}'
+        assert final_expr == '{(5.0 > 5)}'
         semantic_expression = {'and': [{'operator': '>', 'value': 4}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 > 4)}'
+        assert final_expr == '{(5.0 > 4)}'
 
         semantic_expression = {'and': [{'operator': '<', 'value': 5}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 < 5)}'
+        assert final_expr == '{(5.0 < 5)}'
         semantic_expression = {'and': [{'operator': '<', 'value': 6}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 < 6)}'
+        assert final_expr == '{(5.0 < 6)}'
 
         semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 in [1, 2, 5, 6])}'
+        assert final_expr == '{(5.0 in [1, 2, 5, 6])}'
         semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(5 in [1, 2, 3, 4])}'
+        assert final_expr == '{(5.0 in [1, 2, 3, 4])}'
 
         semantic_expression = {'and': [{'operator': '==', 'value': 5.0}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
                                                                                  semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(5 == 5.0)}'
+        assert final_expr == '{(5.0 == 5.0)}'
         semantic_expression = {'and': [{'operator': '<', 'value': 6.12}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6.10, semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(6 < 6.12)}'
+        assert final_expr == '{(6.1 < 6.12)}'
 
         semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 7, semantic_expression)
         assert is_slot_data_valid
-        assert final_expr == '{(7 not in [1, 2, 5, 6])}'
+        assert final_expr == '{(7.0 not in [1, 2, 5, 6])}'
         semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
         final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
         assert not is_slot_data_valid
-        assert final_expr == '{(6 not in [1, 2, 5, 6])}'
+        assert final_expr == '{(6.0 not in [1, 2, 5, 6])}'
 
         with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "has_length" for slot type "float"'):
             semantic_expression = {'and': [{'operator': 'has_length', 'value': 6}]}

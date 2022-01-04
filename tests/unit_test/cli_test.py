@@ -14,7 +14,7 @@ from kairon import cli
 
 class TestTrainingCli:
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -64,7 +64,7 @@ class TestTrainingCli:
 
 class TestDataImporterCli:
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -126,7 +126,7 @@ class TestDataImporterCli:
 
 class TestModelTestingCli:
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
