@@ -10,6 +10,9 @@ from mongoengine import connect
 from kairon.exceptions import AppException
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
+from unittest.mock import patch
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 class TestUtility:
@@ -55,7 +58,7 @@ class TestUtility:
         shutil.make_archive(zip_file, 'zip', data_path)
         pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
         yield "resource_unzip_and_validate"
-        os.remove(zip_file+'.zip')
+        os.remove(zip_file + '.zip')
 
     @pytest.fixture()
     def resource_unzip_and_validate_exception(self):
@@ -383,7 +386,8 @@ class TestUtility:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
 
     @pytest.mark.asyncio
-    async def test_save_and_validate_training_files_no_rules_and_http_actions(self, resource_save_and_validate_training_files):
+    async def test_save_and_validate_training_files_no_rules_and_http_actions(self,
+                                                                              resource_save_and_validate_training_files):
         training_files = [pytest.config, pytest.domain, pytest.nlu, pytest.stories]
         bot_data_home_dir = await DataUtility.save_uploaded_data(pytest.bot, training_files)
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -431,7 +435,6 @@ class TestUtility:
             Utility.download_csv({"conversation_data": []}, "error_message")
         assert str(e).__contains__("error_message")
 
-
     def test_extract_db_config_without_login(self):
         config = Utility.extract_db_config("mongodb://localhost/test")
         assert config['db'] == "test"
@@ -465,3 +468,177 @@ class TestUtility:
         assert not Utility.is_model_file_exists('invalid_bot', False)
         with pytest.raises(AppException, match='No model trained yet. Please train a model to test'):
             Utility.is_model_file_exists('invalid_bot')
+
+    @pytest.mark.asyncio
+    async def test_trigger_email(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            content_type = "html"
+            to_email = "test@demo.com"
+            subject = "Test"
+            body = "Test"
+            smtp_url = "localhost"
+            smtp_port = 293
+            sender_email = "dummy@test.com"
+            smtp_password = "test"
+            smtp_userid = None
+            tls = False
+
+            await Utility.trigger_email(to_email,
+                                        subject,
+                                        body,
+                                        content_type=content_type,
+                                        smtp_url=smtp_url,
+                                        smtp_port=smtp_port,
+                                        sender_email=sender_email,
+                                        smtp_userid=smtp_userid,
+                                        smtp_password=smtp_password,
+                                        tls=tls)
+
+            mbody = MIMEText(body, content_type)
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = sender_email
+            msg['To'] = to_email
+            msg.attach(mbody)
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().connect'
+            assert {} == kwargs
+
+            host, port = args
+            assert host == smtp_url
+            assert port == port
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().login'
+            assert {} == kwargs
+
+            from_email, password = args
+            assert from_email == sender_email
+            assert password == smtp_password
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().sendmail'
+            assert {} == kwargs
+
+            assert args[0] == sender_email
+            assert args[1] == to_email
+            assert str(args[2]).__contains__(subject)
+            assert str(args[2]).__contains__(body)
+
+    @pytest.mark.asyncio
+    async def test_trigger_email_tls(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            content_type = "html"
+            to_email = "test@demo.com"
+            subject = "Test"
+            body = "Test"
+            smtp_url = "localhost"
+            smtp_port = 293
+            sender_email = "dummy@test.com"
+            smtp_password = "test"
+            smtp_userid = None
+            tls = True
+
+            await Utility.trigger_email(to_email,
+                                        subject,
+                                        body,
+                                        content_type=content_type,
+                                        smtp_url=smtp_url,
+                                        smtp_port=smtp_port,
+                                        sender_email=sender_email,
+                                        smtp_userid=smtp_userid,
+                                        smtp_password=smtp_password,
+                                        tls=tls)
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().connect'
+            assert {} == kwargs
+
+            host, port = args
+            assert host == smtp_url
+            assert port == port
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().starttls'
+            assert {} == kwargs
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().login'
+            assert {} == kwargs
+
+            from_email, password = args
+            assert from_email == sender_email
+            assert password == smtp_password
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().sendmail'
+            assert {} == kwargs
+
+            assert args[0] == sender_email
+            assert args[1] == to_email
+            assert str(args[2]).__contains__(subject)
+            assert str(args[2]).__contains__(body)
+
+    @pytest.mark.asyncio
+    async def test_trigger_email_using_smtp_userid(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            content_type = "html"
+            to_email = "test@demo.com"
+            subject = "Test"
+            body = "Test"
+            smtp_url = "localhost"
+            smtp_port = 293
+            sender_email = "dummy@test.com"
+            smtp_password = "test"
+            smtp_userid = "test_user"
+            tls = True
+
+            await Utility.trigger_email(to_email,
+                                        subject,
+                                        body,
+                                        content_type=content_type,
+                                        smtp_url=smtp_url,
+                                        smtp_port=smtp_port,
+                                        sender_email=sender_email,
+                                        smtp_userid=smtp_userid,
+                                        smtp_password=smtp_password,
+                                        tls=tls)
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().connect'
+            assert {} == kwargs
+
+            host, port = args
+            assert host == smtp_url
+            assert port == port
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().starttls'
+            assert {} == kwargs
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().login'
+            assert {} == kwargs
+
+            from_email, password = args
+            assert from_email == smtp_userid
+            assert password == smtp_password
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().sendmail'
+            assert {} == kwargs
+
+            assert args[0] == sender_email
+            assert args[1] == to_email
+            assert str(args[2]).__contains__(subject)
+            assert str(args[2]).__contains__(body)
+
+    def test_validate_smtp_valid(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            assert Utility.validate_smtp("localhost")
+
+    def test_validate_smtp_invalid(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            mock.return_value = Exception()
+            assert not Utility.validate_smtp("dummy.test.com")

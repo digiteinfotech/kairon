@@ -10,3 +10,9 @@ if os.path.isdir(output):
         os.mkdir(new_path)
     for cleanUp in glob(os.path.join(output, '*.tar.gz')):
         print(cleanUp)
+
+
+from smtplib import SMTP
+import re
+
+re.findall(r"{[a-zA-Z0-9]*}", "Hello {How} are {you}")

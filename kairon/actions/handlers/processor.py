@@ -12,6 +12,7 @@ from ...shared.actions.utils import ActionUtility, ExpressionEvaluator
 from loguru import logger
 
 from ...shared.constants import SLOT_SET_TYPE
+from ...shared.utils import Utility
 
 
 class ActionProcessor:
@@ -46,7 +47,11 @@ class ActionProcessor:
             elif action_type == ActionType.slot_set_action.value:
                 slot, slot_value = await ActionProcessor.__process_slot_set_action(tracker, action_config)
             elif action_type == ActionType.form_validation_action.value:
-                slot, slot_value = await ActionProcessor.__process_form_validation_action(dispatcher, tracker, action_config)
+                slot, slot_value = await ActionProcessor.__process_form_validation_action(dispatcher, tracker,
+                                                                                          action_config)
+            elif action_type == ActionType.email_action.value:
+                slot, bot_response = await ActionProcessor.__process_email_action(dispatcher, tracker, action_config)
+                slot_value = bot_response
             return [SlotSet(slot, slot_value)]
         #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
         except Exception as e:
@@ -182,3 +187,41 @@ class ActionProcessor:
             ).save()
 
         return slot, slot_value
+
+    @staticmethod
+    async def __process_email_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        status = "SUCCESS"
+        exception = None
+        bot_response = action_config.get("response")
+        to_email = action_config['to_email']
+        try:
+            body = ActionUtility.prepare_email_body(tracker.events)
+            await Utility.trigger_email(email=to_email,
+                                        subject=f"{tracker.sender_id} {action_config['subject']}",
+                                        body=f"{body}",
+                                        smtp_url=action_config['smtp_url'],
+                                        smtp_port=action_config['smtp_port'],
+                                        sender_email=action_config['from_email'],
+                                        smtp_password=action_config['smtp_password'],
+                                        smtp_userid=action_config.get("smtp_userid"),
+                                        tls=action_config['tls'],
+                                        )
+
+        except Exception as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = str(e)
+            bot_response = "I have failed to process your request"
+            status = "FAILURE"
+        finally:
+            ActionServerLogs(
+                type=ActionType.email_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=tracker.latest_action_name,
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return KAIRON_ACTION_RESPONSE_SLOT, bot_response

@@ -20,11 +20,12 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction
+from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, EmailActionConfig
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
+from json2html import *
 
 
 class ActionUtility:
@@ -243,6 +244,8 @@ class ActionUtility:
                 config = ActionUtility.get_slot_set_config(bot, name)
             elif action.get('type') == ActionType.form_validation_action.value:
                 config = ActionUtility.get_form_validation_config(bot, name)
+            elif action.get('type') == ActionType.email_action.value:
+                config = ActionUtility.get_email_action_config(bot, name)
             else:
                 raise ActionFailure('Only http & slot set actions are compatible with action server')
         except DoesNotExist as e:
@@ -288,6 +291,12 @@ class ActionUtility:
     def get_form_validation_config(bot: str, name: str):
         action = FormValidationAction.objects(bot=bot, name=name, status=True)
         logger.debug("form_validation_config: " + str(action.to_json()))
+        return action
+
+    @staticmethod
+    def get_email_action_config(bot: str, name: str):
+        action = EmailActionConfig.objects(bot=bot, action_name=name, status=True).get().to_mongo().to_dict()
+        logger.debug("email_action_config: " + str(action))
         return action
 
     @staticmethod
@@ -366,6 +375,10 @@ class ActionUtility:
 
         return parsed_output
 
+    @staticmethod
+    def prepare_email_body(tracker_events):
+        iat, msgtrail = ActionUtility.prepare_message_trail(tracker_events)
+        return json2html.convert(msgtrail)
 
 class ExpressionEvaluator:
 

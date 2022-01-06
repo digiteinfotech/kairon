@@ -18,7 +18,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase, SlotMappingRequest
+    TextDataLowerCase, SlotMappingRequest, EmailActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -1324,3 +1324,43 @@ async def list_entities(current_user: User = Security(Authentication.get_current
     Fetch entities registered in a bot.
     """
     return Response(data=mongo_processor.get_entities(current_user.get_bot()))
+
+
+@router.post("/action/email", response_model=Response)
+async def add_slot_set_action(request_data: EmailActionRequest,
+                              current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    """
+    Stores the slot set action config.
+    """
+    mongo_processor.add_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/action/email", response_model=Response)
+async def list_email_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of slot set actions for bot.
+    """
+    actions = mongo_processor.list_email_action(current_user.get_bot())
+    return Response(data=actions)
+
+
+@router.put("/action/email", response_model=Response)
+async def edit_email_action(request_data: EmailActionRequest,
+                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    """
+    Edits the slot set action config.
+    """
+    mongo_processor.edit_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/action/email/{action}", response_model=Response)
+async def delete_email_action(
+        action: str = Path(default=None, description="action name", example="action_email"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    """
+    Deletes the slot set action config.
+    """
+    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')

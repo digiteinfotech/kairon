@@ -188,7 +188,7 @@ class Utility:
 
     @staticmethod
     def is_exist_query(
-            document: Document, query: QCombination, exp_message: Text = None, raise_error = True
+            document: Document, query: QCombination, exp_message: Text = None, raise_error=True
     ):
         """
         check if document exist
@@ -464,7 +464,7 @@ class Utility:
             collection=bot,
             username=config.get('username'),
             password=config.get('password'),
-            auth_source= config['options'].get("authSource") if config['options'].get("authSource") else "admin"
+            auth_source=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
         )
 
     @staticmethod
@@ -634,17 +634,52 @@ class Utility:
         :param content_type: "plain" or "html" content
         :return: None
         """
-        smtp = SMTP(Utility.email_conf["email"]["sender"]["service"],
-                    port=Utility.email_conf["email"]["sender"]["port"])
-        smtp.connect(Utility.email_conf["email"]["sender"]["service"],
-                     Utility.email_conf["email"]["sender"]["port"])
-        if Utility.email_conf["email"]["sender"]["tls"]:
+        await Utility.trigger_email(email,
+                                    subject,
+                                    body,
+                                    content_type=content_type,
+                                    smtp_url=Utility.email_conf["email"]["sender"]["service"],
+                                    smtp_port=Utility.email_conf["email"]["sender"]["port"],
+                                    sender_email=Utility.email_conf["email"]["sender"]["email"],
+                                    smtp_userid=Utility.email_conf["email"]["sender"]["userid"],
+                                    smtp_password=Utility.email_conf["email"]["sender"]["password"])
+
+    @staticmethod
+    async def trigger_email(email: str,
+                            subject: str,
+                            body: str,
+                            smtp_url: str,
+                            smtp_port: int,
+                            sender_email: str,
+                            smtp_password: str,
+                            smtp_userid: str = None,
+                            tls: bool = False,
+                            content_type='html'):
+        """
+        Sends an email to the mail id of the recipient
+
+        :param smtp_userid:
+        :param sender_email:
+        :param tls:
+        :param smtp_port:
+        :param smtp_url:
+        :param email: the mail id of the recipient
+        :param subject: the subject of the mail
+        :param body: the body of the mail
+        :param content_type: "plain" or "html" content
+        :return: None
+        """
+        smtp = SMTP(smtp_url,
+                    port=smtp_port)
+        smtp.connect(smtp_url,
+                     smtp_port)
+        if tls:
             smtp.starttls()
-        smtp.login(Utility.email_conf["email"]["sender"]["userid"] if
-                   Utility.email_conf["email"]["sender"]["userid"] else
-                   Utility.email_conf["email"]["sender"]["email"],
-                   Utility.email_conf["email"]["sender"]["password"])
-        from_addr = Utility.email_conf["email"]["sender"]["email"]
+        smtp.login(smtp_userid if
+                   smtp_userid else
+                   sender_email,
+                   smtp_password)
+        from_addr = sender_email
         body = MIMEText(body, content_type)
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -662,8 +697,8 @@ class Utility:
             service_name = Utility.environment["elasticsearch"].get("service_name")
             env = Utility.environment["elasticsearch"].get("env_type")
             config = {"SERVER_URL": server_url,
-                       "SERVICE_NAME": service_name,
-                       'ENVIRONMENT': env, }
+                      "SERVICE_NAME": service_name,
+                      'ENVIRONMENT': env, }
             if Utility.environment["elasticsearch"].get("secret_token"):
                 config['SECRET_TOKEN'] = Utility.environment["elasticsearch"].get("secret_token")
             logger.debug(f'apm: {config}')
@@ -853,7 +888,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules = None, http_action: dict = None):
+                            stories, rules=None, http_action: dict = None):
         """
         convert mongo data  to individual files
 
@@ -908,7 +943,7 @@ class Utility:
     @staticmethod
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
-            rules = None,
+            rules=None,
             http_action: Dict = None
     ):
         """
@@ -1096,3 +1131,13 @@ class Utility:
 
             for n in node.names:
                 yield n.name.split('.')[0]
+
+    @staticmethod
+    def validate_smtp(smtp_url: str):
+        try:
+            smtp = SMTP()
+            smtp.connect(smtp_url)
+            smtp.quit()
+            return True
+        except:
+            return False

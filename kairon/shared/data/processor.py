@@ -6,7 +6,8 @@ from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
 from typing import Text, Dict, List
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
+    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
 from fastapi import File
 from loguru import logger as logging
@@ -37,7 +38,7 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
-    SlotSetAction, FormValidationAction
+    SlotSetAction, FormValidationAction, EmailActionConfig
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from kairon.shared.models import StoryEventType, TemplateType
 from kairon.shared.utils import Utility
@@ -1182,9 +1183,11 @@ class MongoProcessor:
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
-        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold')  if nlu_fallback.get('threshold') else None
+        selected_config['nlu_confidence_threshold'] = nlu_fallback.get('threshold') if nlu_fallback.get(
+            'threshold') else None
         selected_config['action_fallback'] = action_fallback.get('core_fallback_action_name')
-        selected_config['action_fallback_threshold'] = action_fallback.get('core_fallback_threshold') if action_fallback.get('core_fallback_threshold') else None
+        selected_config['action_fallback_threshold'] = action_fallback.get(
+            'core_fallback_threshold') if action_fallback.get('core_fallback_threshold') else None
         selected_config['ted_epochs'] = ted_policy.get('epochs')
         selected_config['nlu_epochs'] = diet_classifier.get('epochs')
         selected_config['response_epochs'] = response_selector.get('epochs')
@@ -1655,12 +1658,12 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Entity Name cannot be empty or blank spaces")
         if not Utility.is_exist(
-            Entities,
-            raise_error=raise_exc_if_exists,
-            exp_message="Entity already exists!",
-            name__iexact=name.strip(),
-            bot=bot,
-            status=True,
+                Entities,
+                raise_error=raise_exc_if_exists,
+                exp_message="Entity already exists!",
+                name__iexact=name.strip(),
+                bot=bot,
+                status=True,
         ):
             entity = Entities(name=name, bot=bot, user=user).save().to_mongo().to_dict()
             return entity["_id"].__str__()
@@ -2094,7 +2097,8 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
+                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event[
+                    'type'] == ActionExecuted.type_name:
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
@@ -2433,7 +2437,8 @@ class MongoProcessor:
             responses = list(Responses.objects(name=utterance_name, bot=bot, status=True))
             if not responses:
                 if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
-                    self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
+                    self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form,
+                                               raise_exc=True)
                     return
                 raise DoesNotExist("Utterance does not exists")
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
@@ -2530,7 +2535,8 @@ class MongoProcessor:
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
-        self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value, raise_exception=False)
+        self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value,
+                        raise_exception=False)
         self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
                        "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
@@ -2560,7 +2566,8 @@ class MongoProcessor:
         :return: HttpActionConfig object containing configuration for the Http action.
         """
         try:
-            http_config_dict = HttpActionConfig.objects().get(bot=bot, action_name=action_name, status=True).to_mongo().to_dict()
+            http_config_dict = HttpActionConfig.objects().get(bot=bot, action_name=action_name,
+                                                              status=True).to_mongo().to_dict()
             del http_config_dict['_id']
             return http_config_dict
         except DoesNotExist as ex:
@@ -2579,7 +2586,7 @@ class MongoProcessor:
 
     def list_actions(self, bot: Text):
         all_actions = list(Actions.objects(bot=bot, status=True).aggregate([
-        {
+            {
                 '$group': {
                     '_id': {
                         '$ifNull': [
@@ -2590,7 +2597,7 @@ class MongoProcessor:
                         '$addToSet': '$name'
                     }
                 }
-        }
+            }
         ]))
         all_actions = {action["_id"]: action["actions"] for action in all_actions}
         all_actions["utterances"] = list(Utterances.objects(bot=bot, status=True).values_list('name'))
@@ -3120,7 +3127,8 @@ class MongoProcessor:
         for value in values:
             yield {"_id": value.id.__str__(), "value": value.value}
 
-    def add_utterance_name(self, name: Text, bot: Text, user: Text, form_attached: str = None, raise_error_if_exists: bool = False):
+    def add_utterance_name(self, name: Text, bot: Text, user: Text, form_attached: str = None,
+                           raise_error_if_exists: bool = False):
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
         try:
@@ -3389,7 +3397,8 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException('Form name cannot be empty or spaces')
         Utility.is_exist(Forms, f'Form with name "{name}" exists', name__iexact=name, bot=bot, status=True)
-        required_slots = [slots_to_fill['slot'] for slots_to_fill in path if not Utility.check_empty_string(slots_to_fill['slot'])]
+        required_slots = [slots_to_fill['slot'] for slots_to_fill in path if
+                          not Utility.check_empty_string(slots_to_fill['slot'])]
         self.__validate_slots_attached_to_form(set(required_slots), bot)
         for slots_to_fill in path:
             self.__add_form_responses(slots_to_fill['responses'],
@@ -3466,7 +3475,8 @@ class MongoProcessor:
                     logging.error(str(e))
             form.status = False
             form.save()
-            if Utility.is_exist(FormValidationAction, raise_error=False, name__iexact=f'validate_{name}', bot=bot, status=True):
+            if Utility.is_exist(FormValidationAction, raise_error=False, name__iexact=f'validate_{name}', bot=bot,
+                                status=True):
                 self.delete_action(f'validate_{name}', bot, user)
         except DoesNotExist:
             raise AppException(f'Form "{name}" does not exists')
@@ -3531,7 +3541,8 @@ class MongoProcessor:
     def add_slot_set_action(self, action: dict, bot: Text, user: Text):
         if Utility.check_empty_string(action.get("name")) or Utility.check_empty_string(action.get("slot")):
             raise AppException('Slot setting action name and slot cannot be empty or spaces')
-        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name__iexact=action['name'], bot=bot, status=True)
+        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name__iexact=action['name'],
+                         bot=bot, status=True)
         if not Utility.is_exist(Slots, raise_error=False, name=action['slot'], bot=bot, status=True):
             raise AppException(f'Slot with name "{action["slot"]}" not found')
         SlotSetAction(name=action["name"],
@@ -3543,7 +3554,8 @@ class MongoProcessor:
 
     @staticmethod
     def list_slot_set_actions(bot: Text):
-        actions = SlotSetAction.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp', 'status').to_json()
+        actions = SlotSetAction.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
+                                                                      'status').to_json()
         return json.loads(actions)
 
     @staticmethod
@@ -3562,6 +3574,13 @@ class MongoProcessor:
             raise AppException(f'Slot setting action with name "{action.get("name")}" not found')
 
     def delete_action(self, name: Text, bot: Text, user: Text):
+        """
+        soft delete an action
+        :param name: action name
+        :param bot: bot id
+        :param user: user id
+        :return:
+        """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
             story = list(Stories.objects(bot=bot, status=True, events__name__iexact=name, events__type__exact='action'))
@@ -3571,9 +3590,71 @@ class MongoProcessor:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
                 Utility.delete_document([FormValidationAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.email_action.value:
+                Utility.delete_document([EmailActionConfig], action_name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
             action.save()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
+
+    def add_email_action(self, action: Dict, bot: str, user: str):
+        """
+        add a new Email Action
+        :param action: email action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        action['bot'] = bot
+        action['user'] = user
+        Utility.is_exist(EmailActionConfig, exp_message="Action exists!",
+                         action_name__iexact=action.get("action_name"), bot=bot,
+                         status=True)
+
+        email = EmailActionConfig(**action).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(action['action_name'], bot, user, action_type=ActionType.email_action.value,
+                        raise_exception=False)
+        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
+                       "influence_conversation": False}, bot, user,
+                      raise_exception_if_exists=False)
+        return email
+
+    def edit_email_action(self, action: dict, bot: Text, user: Text):
+        """
+
+        update a new Email Action
+        :param action: email action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        try:
+            if not Utility.is_exist(EmailActionConfig, raise_error=False, action_name=action.get('action_name'), bot=bot, status=True):
+                raise AppException(f'Action with name "{action.get("action_name")}" not found')
+            email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
+            email_action.smtp_url = action['smtp_url']
+            email_action.smtp_port = action['smtp_port']
+            email_action.smtp_userid = action['smtp_userid']
+            email_action.smtp_password = action['smtp_password']
+            email_action.from_email = action['from_email']
+            email_action.subject = action['subject']
+            email_action.to_email = action['to_email']
+            email_action.response = action['response']
+            email_action.tls = action['tls']
+            email_action.user = user
+            email_action.timestamp = datetime.utcnow()
+            email_action.save()
+        except DoesNotExist:
+            raise AppException(f'Email action with name "{action.get("action_name")}" not found')
+
+    def list_email_action(self, bot: Text):
+        """
+        List Email Action
+        :param bot: bot id
+        """
+        actions = EmailActionConfig.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
+                                                                      'status').to_json()
+        return json.loads(actions)
+

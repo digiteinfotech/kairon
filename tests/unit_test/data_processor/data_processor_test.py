@@ -47,13 +47,14 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction
+    FormValidationAction, EmailActionConfig
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
+from unittest.mock import patch
 
 
 class TestMongoProcessor:
@@ -6453,3 +6454,159 @@ class TestTrainingDataProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.delete_complex_story("rule with action", "TEST", "tests", "testUser")
+
+    def test_add_email_action(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.add_email_action(email_config, "TEST", "tests") is not None
+
+    def test_add_email_action_validation_error(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config1",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            mock_smtp.return_value = Exception()
+            with pytest.raises(ValidationError, match="Invalid SMTP url"):
+                processor.add_email_action(email_config, "TEST", "tests")
+
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            temp = email_config['action_name']
+            email_config['action_name'] = ""
+            with pytest.raises(ValidationError, match="Action name cannot be empty"):
+                processor.add_email_action(email_config, "TEST", "tests")
+            email_config['action_name'] = temp
+
+            temp = email_config['smtp_url']
+            email_config['smtp_url'] = ""
+            with pytest.raises(ValidationError, match="URL cannot be empty"):
+                processor.add_email_action(email_config, "TEST", "tests")
+            email_config['smtp_url'] = temp
+
+            temp = email_config['from_email']
+            email_config['from_email'] = "test@test"
+            with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.add_email_action(email_config, "TEST", "tests")
+            email_config['from_email'] = temp
+
+            temp = email_config['to_email']
+            email_config['to_email'] = "test@test"
+            with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.add_email_action(email_config, "TEST", "tests")
+            email_config['to_email'] = temp
+
+    def test_add_email_action_duplicate(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            with pytest.raises(AppException, match="Action exists!"):
+                processor.add_email_action(email_config, "TEST", "tests")
+
+    def test_edit_email_action(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.edit_email_action(email_config, "TEST", "tests") is None
+
+    def test_edit_email_action_validation_error(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            mock_smtp.return_value = Exception()
+            with pytest.raises(ValidationError, match="Invalid SMTP url"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            temp = email_config['action_name']
+            email_config['action_name'] = ""
+            with pytest.raises(AppException, match='Action with name "" not found'):
+                processor.edit_email_action(email_config, "TEST", "tests")
+            email_config['action_name'] = temp
+
+            temp = email_config['smtp_url']
+            email_config['smtp_url'] = ""
+            with pytest.raises(ValidationError, match="URL cannot be empty"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+            email_config['smtp_url'] = temp
+
+            temp = email_config['from_email']
+            email_config['from_email'] = "test@test"
+            with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+            email_config['from_email'] = temp
+
+            temp = email_config['to_email']
+            email_config['to_email'] = "test@test"
+            with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+            email_config['to_email'] = temp
+
+    def test_edit_email_action_does_not_exist(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config1",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            with pytest.raises(AppException, match='Action with name "email_config1" not found'):
+                processor.edit_email_action(email_config, "TEST", "tests")
+
+    def test_list_email_actions(self):
+        processor = MongoProcessor()
+        assert len(processor.list_email_action("TEST")) == 1

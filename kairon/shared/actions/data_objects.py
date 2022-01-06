@@ -5,6 +5,7 @@ from mongoengine import (
     StringField,
     DateTimeField,
     BooleanField,
+    IntField,
     ListField, DictField, DynamicField
 )
 from mongoengine.errors import ValidationError
@@ -14,6 +15,8 @@ from validators import ValidationFailure, url
 
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.utils import Utility
+from validators import email
 
 
 class HttpActionRequestBody(EmbeddedDocument):
@@ -153,3 +156,36 @@ class FormValidationAction(Document):
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+
+class EmailActionConfig(Document):
+    action_name = StringField(required=True)
+    smtp_url = StringField(required=True)
+    smtp_port = IntField(required=True)
+    smtp_userid = StringField()
+    smtp_password = StringField()
+    from_email = StringField(required=True)
+    subject = StringField(required=True)
+    to_email = StringField(required=True)
+    response = StringField(required=True)
+    tls = BooleanField(default=False)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if self.action_name is None or not self.action_name.strip():
+            raise ValidationError("Action name cannot be empty")
+        if self.smtp_url is None or not self.smtp_url.strip():
+            raise ValidationError("URL cannot be empty")
+        if not Utility.validate_smtp(self.smtp_url):
+            raise ValidationError("Invalid SMTP url")
+        elif isinstance(email(self.from_email), ValidationFailure) or isinstance(email(self.to_email), ValidationFailure):
+            raise ValidationError("Invalid From or To email address")
+
+    def clean(self):
+        self.action_name = self.action_name.strip().lower()

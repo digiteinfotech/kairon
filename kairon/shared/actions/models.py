@@ -24,6 +24,7 @@ class ActionType(str, Enum):
     http_action = "http_action"
     slot_set_action = "slot_set_action"
     form_validation_action = "form_validation_action"
+    email_action = "email_action"
 
 
 class LogicalOperators(str, Enum):

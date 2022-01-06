@@ -443,3 +443,16 @@ class SlotSetActionRequest(BaseModel):
     slot: str
     type: SLOT_SET_TYPE
     value: Any = None
+
+
+class EmailActionRequest(BaseModel):
+    action_name: constr(to_lower=True, strip_whitespace=True)
+    smtp_url: str
+    smtp_port: int
+    smtp_userid: str = None
+    smtp_password: str = None
+    from_email: str
+    subject: str
+    to_email: str
+    response: str
+    tls: bool = False

@@ -29,6 +29,7 @@ from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 import json
+from unittest.mock import patch
 
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -312,7 +313,8 @@ def test_list_entities():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error', 'priority', 'requested_slot', 'fdresponse'}
+    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
+                                                   'priority', 'requested_slot', 'fdresponse'}
     assert actual["success"]
 
 
@@ -509,14 +511,21 @@ def test_get_data_importer_logs():
     del actual['data'][2]['start_timestamp']
     del actual['data'][2]['end_timestamp']
     del actual['data'][2]['files_received']
-    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []}, 'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []}, 'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10, 'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []}, 'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []}, 'http_actions': {'count': 5, 'data': []}, 'exception': '', 'is_data_uploaded': True, 'status': 'Success', 'event_status': 'Completed'}
+    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
+                                 'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
+                                 'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
+                                            'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
+                                 'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
+                                 'http_actions': {'count': 5, 'data': []}, 'exception': '', 'is_data_uploaded': True,
+                                 'status': 'Success', 'event_status': 'Completed'}
     assert actual['data'][3]['intents']['count'] == 16
     assert actual['data'][3]['intents']['data']
     assert actual['data'][3]['utterances']['count'] == 25
     assert actual['data'][3]['stories']['count'] == 16
     assert actual['data'][3]['stories']['data']
     assert actual['data'][3]['training_examples'] == {'count': 292, 'data': []}
-    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9, 'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9,
+                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data'][3]['config'] == {'count': 0, 'data': []}
     assert actual['data'][3]['http_actions'] == {'count': 0, 'data': []}
     assert actual['data'][3]['is_data_uploaded']
@@ -750,6 +759,7 @@ def test_get_training_examples_as_dict(monkeypatch):
 
     def _mongo_aggregation(*args, **kwargs):
         return [{'training_examples': training_examples}]
+
     monkeypatch.setattr(BaseQuerySet, 'aggregate', _mongo_aggregation)
 
     response = client.get(
@@ -5595,7 +5605,8 @@ def test_add_form_with_validations():
     assert actual["success"]
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
-        json={"slot": "age", 'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
+        json={"slot": "age",
+              'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5916,7 +5927,8 @@ def test_get_slot_mapping():
                                                            {'type': 'from_entity', 'entity': 'name'}]},
                               {'slot': 'num_people', 'mapping': [{'type': 'from_entity', 'entity': 'number',
                                                                   'intent': ['inform', 'request_restaurant']}]},
-                              {'slot': 'cuisine', 'mapping': [{'type': 'from_intent', 'intent': ['order', 'menu'], 'value': 'cuisine'}]},
+                              {'slot': 'cuisine',
+                               'mapping': [{'type': 'from_intent', 'intent': ['order', 'menu'], 'value': 'cuisine'}]},
                               {'slot': 'outdoor_seating', 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                                                                       {'type': 'from_intent', 'value': True,
                                                                        'intent': ['affirm']},
@@ -6566,7 +6578,8 @@ def test_sso_redirect_url():
         url=f"/api/auth/login/sso/google", allow_redirects=False
     )
     assert response.status_code == 303
-    assert response.headers['location'].__contains__('https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id')
+    assert response.headers['location'].__contains__(
+        'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id')
 
     response = client.get(
         url=f"/api/auth/login/sso/linkedin", allow_redirects=False
@@ -6636,3 +6649,107 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action(mock_smtp):
+    request = {"action_name": "email_config",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": "test",
+               "from_email": "test@demo.com",
+               "to_email": "test@test.com",
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_list_email_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/email",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 'test', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action(mock_smtp):
+    request = {"action_name": "email_config",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": "test",
+               "from_email": "test@demo.com",
+               "to_email": "test@test.com",
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_does_not_exists(mock_smtp):
+    request = {"action_name": "email_config1",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": "test",
+               "from_email": "test@demo.com",
+               "to_email": "test@test.com",
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "email_config1" not found'
+
+
+def test_delete_email_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/email/non_existant",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "non_existant" not found'
+
+
+def test_delete_email_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/email/email_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
