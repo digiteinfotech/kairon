@@ -17,7 +17,7 @@ class ActionParameterType(str, Enum):
     sender_id = "sender_id"
     user_message = "user_message"
     intent = "intent"
-    message_trail = "message_trail"
+    chat_log = "chat_log"
 
 
 class ActionType(str, Enum):
