@@ -10,7 +10,10 @@ from validators import email as mail_check
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
     MailTemplates, SystemProperties, BotAccess
+from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -121,11 +124,12 @@ class AccountProcessor:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.status = False
             bot_info.save()
-            Utility.hard_delete_document([Actions, Configs, Endpoints, Entities, EntitySynonyms, Forms,
-                                          HttpActionConfig, ActionServerLogs, Intents, LookupTables, ModelDeployment,
-                                          ModelTraining, RegexFeatures, Responses, Rules, SessionConfigs, Slots,
-                                          Stories, TrainingDataGenerator, TrainingExamples, ValidationLogs], bot,
-                                         user=user)
+            Utility.hard_delete_document([
+                Actions, Configs, Endpoints, Entities, EntitySynonyms, Forms, BotSettings, HttpActionConfig,
+                ActionServerLogs, Intents, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Responses,
+                Rules, SessionConfigs, Slots, Stories, TrainingDataGenerator, TrainingExamples, ValidationLogs,
+                BotAccess, FormValidationAction, ChatClientConfig, ModelTestingLogs, SlotMapping, SlotSetAction
+            ], bot, user=user)
             AccountProcessor.remove_bot_access(bot)
         except DoesNotExist:
             raise AppException('Bot not found')
@@ -378,6 +382,7 @@ class AccountProcessor:
         user["account_name"] = account["name"]
         user['bots'] = bots
         user["_id"] = user["_id"].__str__()
+        user.pop('password')
         return user
 
     @staticmethod

@@ -3,6 +3,7 @@ from typing import Dict, Text, List, Any
 from mongoengine import DoesNotExist
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
+from rasa_sdk.forms import REQUESTED_SLOT
 from rasa_sdk.interfaces import Tracker
 
 from ...shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
@@ -27,8 +28,7 @@ class ActionProcessor:
     async def __process_action(dispatcher: CollectingDispatcher,
                                tracker: Tracker,
                                domain: Dict[Text, Any], action) -> List[Dict[Text, Any]]:
-        slot = KAIRON_ACTION_RESPONSE_SLOT
-        slot_value = None
+        slots = {}
         action_type = None
         try:
             logger.info(tracker.current_slot_values())
@@ -41,19 +41,15 @@ class ActionProcessor:
 
             action_config, action_type = ActionUtility.get_action_config(bot=bot_id, name=action)
             if action_type == ActionType.http_action.value:
-                slot, bot_response = await ActionProcessor.__process_http_action(tracker, action_config)
-                dispatcher.utter_message(bot_response)
-                slot_value = bot_response
+                slots = await ActionProcessor.__process_http_action(tracker, action_config)
+                dispatcher.utter_message(slots.get(KAIRON_ACTION_RESPONSE_SLOT))
             elif action_type == ActionType.slot_set_action.value:
-                slot, slot_value = await ActionProcessor.__process_slot_set_action(tracker, action_config)
+                slots = await ActionProcessor.__process_slot_set_action(tracker, action_config)
             elif action_type == ActionType.form_validation_action.value:
-                slot, slot_value = await ActionProcessor.__process_form_validation_action(dispatcher, tracker,
-                                                                                          action_config)
+                slots = await ActionProcessor.__process_form_validation_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.email_action.value:
-                slot, bot_response = await ActionProcessor.__process_email_action(dispatcher, tracker, action_config)
-                slot_value = bot_response
-            return [SlotSet(slot, slot_value)]
-        #  deepcode ignore W0703: General exceptions are captured to raise application specific exceptions
+                slots = await ActionProcessor.__process_email_action(dispatcher, tracker, action_config)
+            return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
             ActionServerLogs(
@@ -116,7 +112,7 @@ class ActionProcessor:
                 bot=tracker.get_slot("bot"),
                 status=status
             ).save()
-        return KAIRON_ACTION_RESPONSE_SLOT, bot_response
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
 
     @staticmethod
     async def __process_slot_set_action(tracker: Tracker, action_config: dict):
@@ -140,37 +136,39 @@ class ActionProcessor:
             bot=tracker.get_slot("bot"),
             status=status
         ).save()
-        return action_config['slot'], value
+        return {action_config['slot']: value}
 
     @staticmethod
     async def __process_form_validation_action(dispatcher: CollectingDispatcher, tracker: Tracker, form_validations):
-        slot = tracker.get_slot('requested_slot')
+        slot = tracker.get_slot(REQUESTED_SLOT)
         slot_value = tracker.get_slot(slot)
         msg = [f'slot: {slot} | slot_value: {slot_value}']
-        status = "SKIPPED"
+        status = "FAILURE"
+        if ActionUtility.is_empty(slot):
+            return {}
         try:
-            if form_validations:
-                validation = form_validations.get(slot=slot)
-                slot_type = ActionUtility.get_slot_type(validation.bot, slot)
-                msg.append(f'slot_type: {slot_type}')
-                semantic = validation.validation_semantic
-                msg.append(f'validation: {semantic}')
-                utter_msg_on_valid = validation.utter_msg_on_valid
-                utter_msg_on_invalid = validation.utter_msg_on_invalid
-                msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
-                msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
-                expr_as_str, is_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic)
-                msg.append(f'Expression: {expr_as_str}')
-                msg.append(f'is_valid: {is_valid}')
+            validation = form_validations.get(slot=slot)
+            slot_type = ActionUtility.get_slot_type(validation.bot, slot)
+            msg.append(f'slot_type: {slot_type}')
+            semantic = validation.validation_semantic
+            msg.append(f'validation: {semantic}')
+            utter_msg_on_valid = validation.valid_response
+            utter_msg_on_invalid = validation.invalid_response
+            msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
+            msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
+            expr_as_str, is_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic)
+            msg.append(f'Expression: {expr_as_str}')
+            msg.append(f'is_valid: {is_valid}')
 
-                if is_valid and utter_msg_on_valid:
-                    dispatcher.utter_message(utter_msg_on_valid)
+            if is_valid:
+                status = "SUCCESS"
+                if not ActionUtility.is_empty(utter_msg_on_valid):
+                    dispatcher.utter_message(text=utter_msg_on_valid)
 
-                if not is_valid:
-                    slot_value = None
-                    if utter_msg_on_invalid:
-                        dispatcher.utter_message(utter_msg_on_invalid)
-                status = 'SUCCESS'
+            if not is_valid:
+                slot_value = None
+                if not ActionUtility.is_empty(utter_msg_on_invalid):
+                    dispatcher.utter_message(utter_msg_on_invalid)
         except DoesNotExist as e:
             logger.exception(e)
             msg.append(f'Skipping validation as no validation config found for slot: {slot}')
@@ -186,7 +184,7 @@ class ActionProcessor:
                 status=status
             ).save()
 
-        return slot, slot_value
+        return {slot: slot_value}
 
     @staticmethod
     async def __process_email_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
@@ -224,4 +222,4 @@ class ActionProcessor:
                 status=status
             ).save()
         dispatcher.utter_message(bot_response)
-        return KAIRON_ACTION_RESPONSE_SLOT, bot_response
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}

@@ -567,7 +567,7 @@ class TestActions:
                    'input_channel': 'cmdline', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c', 'metadata': {}},
                   {'event': 'user_featurization', 'timestamp': 1640969987.350634, 'use_text_for_featurization': False}]
         http_action_config_params = [HttpActionRequestBody(key="intent", parameter_type="intent"),
-                                     HttpActionRequestBody(key="user_msg", value="", parameter_type="message_trail")]
+                                     HttpActionRequestBody(key="user_msg", value="", parameter_type="chat_log")]
         tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
                           latest_message={'intent': {'name': 'restart', 'confidence': 1.0}, 'entities': [],
                                           'text': '/restart', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c',

@@ -66,7 +66,7 @@ class SpacyPatternNER(EntityExtractor):
             for element in lookup_table['elements']:
                 tokens = [{'LOWER': token.lower()} for token in str(element).split()]
                 pattern.append(tokens)
-            self.matcher.add(key, None, *pattern)
+            self.matcher.add(key, pattern)
 
     def process(self, message, **kwargs):
         """Process an incoming message.
