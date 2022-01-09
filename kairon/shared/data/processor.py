@@ -1935,7 +1935,7 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION"]:
+            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "FORM_ACTION"]:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -1984,7 +1984,7 @@ class MongoProcessor:
 
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
-                               exp_message="FLow already exists!")
+                               exp_message="Flow already exists!")
 
         data_object.block_name = name
         data_object.events = events
@@ -2031,13 +2031,13 @@ class MongoProcessor:
         try:
             data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
         except DoesNotExist:
-            raise AppException("FLow does not exists")
+            raise AppException("Flow does not exists")
 
         events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         data_object['events'] = events
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
-                               exp_message="FLow already exists!")
+                               exp_message="Flow already exists!")
 
         story_id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
@@ -2079,6 +2079,7 @@ class MongoProcessor:
 
         http_actions = self.list_http_action_names(bot)
         reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
+        forms = list(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2109,6 +2110,8 @@ class MongoProcessor:
                         step['type'] = 'HTTP_ACTION'
                     elif event['name'] in reset_slot_actions:
                         step['type'] = 'SLOT_SET_ACTION'
+                    elif event['name'] in forms:
+                        step['type'] = 'FORM_ACTION'
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = 'BOT'
                     else:
@@ -3348,31 +3351,26 @@ class MongoProcessor:
         existing_slot_validations = FormValidationAction.objects(name=name, bot=bot, status=True)
         existing_validations = {validation.slot for validation in list(existing_slot_validations)}
         slots_required_for_form = {slots_to_fill['slot'] for slots_to_fill in path}
-        existing_slots_with_no_validations = {slots_to_fill['slot'] for slots_to_fill in path if
-                                              slots_to_fill['slot'] in existing_validations and
-                                              slots_to_fill.get('validation') is None}
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            if slots_to_fill.get('validation'):
-                validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
-                if slot in existing_validations:
-                    validation = existing_slot_validations.get(slot=slot)
-                    validation.validation_semantic = validation_semantic
-                    validation.utter_msg_on_valid = slots_to_fill.get('utter_msg_on_valid')
-                    validation.utter_msg_on_invalid = slots_to_fill.get('utter_msg_on_invalid')
-                    validation.user = user
-                    validation.timestamp = datetime.utcnow()
-                    validation.save()
-                else:
-                    FormValidationAction(name=name, slot=slot,
-                                         validation_semantic=validation_semantic,
-                                         bot=bot, user=user,
-                                         utter_msg_on_valid=slots_to_fill.get('utter_msg_on_valid'),
-                                         utter_msg_on_invalid=slots_to_fill.get('utter_msg_on_invalid')).save()
+            validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
+            if slot in existing_validations:
+                validation = existing_slot_validations.get(slot=slot)
+                validation.validation_semantic = validation_semantic
+                validation.valid_response = slots_to_fill.get('valid_response')
+                validation.invalid_response = slots_to_fill.get('invalid_response')
+                validation.user = user
+                validation.timestamp = datetime.utcnow()
+                validation.save()
+            else:
+                FormValidationAction(name=name, slot=slot,
+                                     validation_semantic=validation_semantic,
+                                     bot=bot, user=user,
+                                     valid_response=slots_to_fill.get('valid_response'),
+                                     invalid_response=slots_to_fill.get('invalid_response')).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
-        slot_validations_to_delete.update(existing_slots_with_no_validations)
         for slot in slot_validations_to_delete:
             validation = existing_slot_validations.get(slot=slot)
             validation.user = user
@@ -3401,7 +3399,7 @@ class MongoProcessor:
                           not Utility.check_empty_string(slots_to_fill['slot'])]
         self.__validate_slots_attached_to_form(set(required_slots), bot)
         for slots_to_fill in path:
-            self.__add_form_responses(slots_to_fill['responses'],
+            self.__add_form_responses(slots_to_fill['ask_questions'],
                                       utterance_name=f'utter_ask_{name}_{slots_to_fill["slot"]}',
                                       form=name, bot=bot, user=user)
         Forms(name=name, required_slots=required_slots, bot=bot, user=user).save()
@@ -3410,7 +3408,10 @@ class MongoProcessor:
 
     @staticmethod
     def list_forms(bot: Text):
-        return list(Forms.objects(bot=bot, status=True).values_list('name'))
+        forms = Forms.objects(bot=bot, status=True).exclude(
+            'id', 'ignored_intents', 'bot', 'user', 'timestamp', 'status'
+        ).to_json()
+        return json.loads(forms)
 
     def get_form(self, name: Text, bot: Text):
         try:
@@ -3421,15 +3422,15 @@ class MongoProcessor:
             slot_mapping = []
             for slot in form.get('required_slots') or []:
                 utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))
-                mapping = {'slot': slot, 'responses': utterance, 'validation': None,
-                           'utter_msg_on_valid': None, 'utter_msg_on_invalid': None}
+                mapping = {'slot': slot, 'ask_questions': utterance, 'validation': None,
+                           'valid_response': None, 'invalid_response': None}
                 if slot in slots_with_validations:
                     validations = form_validations.get(slot=slot).to_mongo().to_dict()
                     mapping['validation'] = validations.get('validation_semantic')
-                    mapping['utter_msg_on_valid'] = validations.get('utter_msg_on_valid')
-                    mapping['utter_msg_on_invalid'] = validations.get('utter_msg_on_invalid')
+                    mapping['valid_response'] = validations.get('valid_response')
+                    mapping['invalid_response'] = validations.get('invalid_response')
                 slot_mapping.append(mapping)
-            form['path'] = slot_mapping
+            form['settings'] = slot_mapping
             return form
         except DoesNotExist as e:
             logging.error(str(e))
@@ -3453,7 +3454,7 @@ class MongoProcessor:
             for slots_to_fill in path:
                 slot_name = slots_to_fill['slot']
                 if slot_name in new_slots_to_add:
-                    self.__add_form_responses(slots_to_fill['responses'],
+                    self.__add_form_responses(slots_to_fill['ask_questions'],
                                               utterance_name=f'utter_ask_{name}_{slot_name}',
                                               form=name, bot=bot, user=user)
             form.required_slots = slots_required_for_form
@@ -3467,6 +3468,9 @@ class MongoProcessor:
     def delete_form(self, name: Text, bot: Text, user: Text):
         try:
             form = Forms.objects(name=name, bot=bot, status=True).get()
+            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=name, events__type__exact='action'))
+            if story:
+                raise AppException(f'Cannot remove form "{name}" linked to story "{story[0].block_name}"')
             for slot in form.required_slots:
                 try:
                     utterance_name = f'utter_ask_{name}_{slot}'

@@ -36,6 +36,7 @@ RUN python -m pip install nlpaug
 RUN python -m pip install torch
 RUN python -m pip install nltk==3.6.4
 RUN python -m pip install pytest
+RUN python -m pip install fastapi_sso
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 

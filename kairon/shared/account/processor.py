@@ -378,6 +378,7 @@ class AccountProcessor:
         user["account_name"] = account["name"]
         user['bots'] = bots
         user["_id"] = user["_id"].__str__()
+        user.pop('password')
         return user
 
     @staticmethod

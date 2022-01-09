@@ -9,6 +9,7 @@ class StoryStepType(str, Enum):
     http_action = "HTTP_ACTION"
     action = "ACTION"
     slot_set_action = "SLOT_SET_ACTION"
+    form_action = "FORM_ACTION"
 
 
 class StoryType(str, Enum):
@@ -43,7 +44,7 @@ class ParameterChoice(str, Enum):
     sender_id = "sender_id"
     user_message = "user_message"
     intent = "intent"
-    message_trail = "message_trail"
+    chat_log = "chat_log"
 
 
 class User(BaseModel):

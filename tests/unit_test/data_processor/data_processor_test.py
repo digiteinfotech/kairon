@@ -293,7 +293,7 @@ class TestMongoProcessor:
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
                              {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'},
-                             {'key': 'testParam1', 'value': '', 'parameter_type': 'message_trail'},
+                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
                              {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
                              {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
                              {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
@@ -4004,9 +4004,9 @@ class TestMongoProcessor:
 
     def test_add_form(self):
         processor = MongoProcessor()
-        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name'},
-                {'responses': ['what is your age?', 'age?'], 'slot': 'age'},
-                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name'},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age'},
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
         bot = 'test'
         user = 'user'
         processor.add_form('know_user', path, bot, user)
@@ -4044,21 +4044,21 @@ class TestMongoProcessor:
 
     def test_add_form_slots_not_exists(self):
         processor = MongoProcessor()
-        path = [{'responses': ['please give us your name?'], 'slot': 'name',
+        path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}]},
-                {'responses': ['seats required?'], 'slot': 'num_people',
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
-                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
-                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'responses': ['any preferences?'], 'slot': 'preferences',
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
                  'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
                  'mapping': [{'type': 'from_text'},
                              {'type': 'from_entity', 'entity': 'feedback'}]},
                 ]
@@ -4073,10 +4073,10 @@ class TestMongoProcessor:
 
     def test_add_form_mapping_not_found(self):
         processor = MongoProcessor()
-        path = [{'responses': ['please give us your name?'], 'slot': 'name'},
-                {'responses': ['seats required?'], 'slot': 'num_people'},
-                {'responses': ['food choice?'], 'slot': 'category'},
-                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating'}]
+        path = [{'ask_questions': ['please give us your name?'], 'slot': 'name'},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people'},
+                {'ask_questions': ['food choice?'], 'slot': 'category'},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'}]
         bot = 'test'
         user = 'user'
         Slots(name='outdoor_seating', type="text", bot=bot, user=user).save()
@@ -4085,12 +4085,12 @@ class TestMongoProcessor:
 
     def test_add_form_2(self):
         processor = MongoProcessor()
-        path = [{'responses': ['please give us your name?'], 'slot': 'name'},
-                {'responses': ['seats required?'], 'slot': 'num_people'},
-                {'responses': ['type of cuisine?'], 'slot': 'cuisine'},
-                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
-                {'responses': ['any preferences?'], 'slot': 'preferences'},
-                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
+        path = [{'ask_questions': ['please give us your name?'], 'slot': 'name'},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people'},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine'},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
@@ -4155,9 +4155,9 @@ class TestMongoProcessor:
 
     def test_add_form_no_entity_and_mapping_type(self):
         processor = MongoProcessor()
-        path = [{'responses': ['what is your name?'], 'slot': 'name'},
-                {'responses': ['what is your age?'], 'slot': 'age'},
-                {'responses': ['where are you located?'], 'slot': 'category'}]
+        path = [{'ask_questions': ['what is your name?'], 'slot': 'name'},
+                {'ask_questions': ['what is your age?'], 'slot': 'age'},
+                {'ask_questions': ['where are you located?'], 'slot': 'category'}]
         bot = 'test'
         user = 'user'
         with pytest.raises(AppException, match="Mapping is required for slot: {'category'}"):
@@ -4182,16 +4182,16 @@ class TestMongoProcessor:
              'validations': [{'operator': 'has_length_greater_than', 'value': 20},
                              {'operator': 'has_no_whitespace'},
                              {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
-        path = [{'responses': ['your name?', 'ur name?'], 'slot': 'name',
+        path = [{'ask_questions': ['your name?', 'ur name?'], 'slot': 'name',
                  'validation': name_validation,
-                 'utter_msg_on_valid': 'got it',
-                 'utter_msg_on_invalid': 'please rephrase'},
-                {'responses': ['your age?', 'ur age?'], 'slot': 'age',
+                 'valid_response': 'got it',
+                 'invalid_response': 'please rephrase'},
+                {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
                  'validation': age_validation,
-                 'utter_msg_on_valid': 'valid entry',
-                 'utter_msg_on_invalid': 'please enter again'
+                 'valid_response': 'valid entry',
+                 'invalid_response': 'please enter again'
                  },
-                {'responses': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
+                {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
                  'validation': occupation_validation}]
         bot = 'test'
         user = 'user'
@@ -4219,8 +4219,8 @@ class TestMongoProcessor:
         assert validations_added[0].slot == 'name'
         assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
                                                                     {'operator': 'has_no_whitespace'}]}
-        assert validations_added[0].utter_msg_on_valid == 'got it'
-        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+        assert validations_added[0].valid_response == 'got it'
+        assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10},
@@ -4228,8 +4228,8 @@ class TestMongoProcessor:
                                                                     {'operator': 'starts_with', 'value': 'valid'},
                                                                     {'operator': 'ends_with', 'value': 'value'},
                                                                     ]}
-        assert validations_added[1].utter_msg_on_valid == 'valid entry'
-        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+        assert validations_added[1].valid_response == 'valid entry'
+        assert validations_added[1].invalid_response == 'please enter again'
 
         assert validations_added[2].slot == 'occupation'
         assert validations_added[2].validation_semantic == {'and': [
@@ -4239,14 +4239,18 @@ class TestMongoProcessor:
             {'or': [{'operator': 'has_length_greater_than', 'value': 20},
                     {'operator': 'has_no_whitespace'},
                     {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
-        assert not validations_added[2].utter_msg_on_valid
-        assert not validations_added[2].utter_msg_on_invalid
+        assert not validations_added[2].valid_response
+        assert not validations_added[2].invalid_response
 
     def test_list_forms(self):
         processor = MongoProcessor()
         forms = processor.list_forms('test')
-        assert set(forms) == {'know_user', 'know_user_form', 'restaurant_form', 'ticket_file_form',
-                              'ticket_attributes_form'}
+        assert forms == [{'name': 'ticket_attributes_form', 'required_slots': ['date_time', 'priority']},
+                         {'name': 'ticket_file_form', 'required_slots': ['file']},
+                         {'name': 'know_user', 'required_slots': ['name', 'age', 'occupation']},
+                         {'name': 'restaurant_form', 'required_slots': [
+                             'name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']},
+                         {'name': 'know_user_form', 'required_slots': ['name', 'age', 'occupation']}]
 
     def test_list_forms_no_form_added(self):
         processor = MongoProcessor()
@@ -4255,62 +4259,63 @@ class TestMongoProcessor:
 
     def test_get_form(self):
         form = MongoProcessor().get_form('know_user', 'test')
-        assert form['path'][0]['slot'] == 'name'
-        assert form['path'][1]['slot'] == 'age'
-        assert form['path'][2]['slot'] == 'occupation'
-        assert form['path'][0]['responses'][0]['_id']
-        assert form['path'][0]['responses'][0]['value'] == {'text': 'name?'}
-        assert form['path'][0]['responses'][1]['value'] == {'text': 'what is your name?'}
-        assert form['path'][1]['responses'][0]['_id']
-        assert form['path'][1]['responses'][0]['value'] == {'text': 'age?'}
-        assert form['path'][1]['responses'][1]['value'] == {'text': 'what is your age?'}
-        assert form['path'][2]['responses'][0]['_id']
-        assert form['path'][2]['responses'][0]['value'] == {'text': 'occupation?'}
-        assert form['path'][2]['responses'][1]['value'] == {'text': 'what is your occupation?'}
-        assert not form['path'][0]['validation']
-        assert not form['path'][0]['utter_msg_on_invalid']
-        assert not form['path'][0]['utter_msg_on_valid']
-        assert not form['path'][1]['validation']
-        assert not form['path'][1]['utter_msg_on_invalid']
-        assert not form['path'][1]['utter_msg_on_valid']
-        assert not form['path'][2]['validation']
-        assert not form['path'][2]['utter_msg_on_invalid']
-        assert not form['path'][2]['utter_msg_on_valid']
+        assert form['settings'][0]['slot'] == 'name'
+        assert form['settings'][1]['slot'] == 'age'
+        assert form['settings'][2]['slot'] == 'occupation'
+        assert form['settings'][0]['ask_questions'][0]['_id']
+        assert form['settings'][0]['ask_questions'][0]['value'] == {'text': 'name?'}
+        assert form['settings'][0]['ask_questions'][1]['value'] == {'text': 'what is your name?'}
+        assert form['settings'][1]['ask_questions'][0]['_id']
+        assert form['settings'][1]['ask_questions'][0]['value'] == {'text': 'age?'}
+        assert form['settings'][1]['ask_questions'][1]['value'] == {'text': 'what is your age?'}
+        assert form['settings'][2]['ask_questions'][0]['_id']
+        assert form['settings'][2]['ask_questions'][0]['value'] == {'text': 'occupation?'}
+        assert form['settings'][2]['ask_questions'][1]['value'] == {'text': 'what is your occupation?'}
+        assert not form['settings'][0]['validation']
+        assert not form['settings'][0]['invalid_response']
+        assert not form['settings'][0]['valid_response']
+        assert not form['settings'][1]['validation']
+        assert not form['settings'][1]['invalid_response']
+        assert not form['settings'][1]['valid_response']
+        assert not form['settings'][2]['validation']
+        assert not form['settings'][2]['invalid_response']
+        assert not form['settings'][2]['valid_response']
 
     def test_get_form_with_validations(self):
         form = MongoProcessor().get_form('know_user_form', 'test')
-        assert form['path'][0]['slot'] == 'name'
-        assert form['path'][1]['slot'] == 'age'
-        assert form['path'][2]['slot'] == 'occupation'
-        assert form['path'][0]['responses'][0]['_id']
-        assert form['path'][0]['responses'][0]['value']['text']
-        assert form['path'][0]['responses'][1]['value']['text']
-        assert form['path'][1]['responses'][0]['_id']
-        assert form['path'][1]['responses'][0]['value']['text']
-        assert form['path'][1]['responses'][1]['value']['text']
-        assert form['path'][2]['responses'][0]['_id']
-        assert form['path'][2]['responses'][0]['value']['text']
-        assert form['path'][2]['responses'][1]['value']['text']
-        assert form['path'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
+        print(form)
+        assert form['settings'][0]['slot'] == 'name'
+        assert form['settings'][1]['slot'] == 'age'
+        assert form['settings'][2]['slot'] == 'occupation'
+        assert form['settings'][0]['ask_questions'][0]['_id']
+        assert form['settings'][0]['ask_questions'][0]['value']['text']
+        assert form['settings'][0]['ask_questions'][1]['value']['text']
+        assert form['settings'][1]['ask_questions'][0]['_id']
+        assert form['settings'][1]['ask_questions'][0]['value']['text']
+        assert form['settings'][1]['ask_questions'][1]['value']['text']
+        assert form['settings'][2]['ask_questions'][0]['_id']
+        assert form['settings'][2]['ask_questions'][0]['value']['text']
+        assert form['settings'][2]['ask_questions'][1]['value']['text']
+        assert form['settings'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
                                                          {'operator': 'has_no_whitespace'}]}
-        assert form['path'][0]['utter_msg_on_invalid'] == 'please rephrase'
-        assert form['path'][0]['utter_msg_on_valid'] == 'got it'
-        assert form['path'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
+        assert form['settings'][0]['invalid_response'] == 'please rephrase'
+        assert form['settings'][0]['valid_response'] == 'got it'
+        assert form['settings'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
                                                          {'operator': 'is_less_than', 'value': 70},
                                                          {'operator': 'starts_with', 'value': 'valid'},
                                                          {'operator': 'ends_with', 'value': 'value'},
                                                          ]}
-        assert form['path'][1]['utter_msg_on_invalid'] == 'please enter again'
-        assert form['path'][1]['utter_msg_on_valid'] == 'valid entry'
-        assert form['path'][2]['validation'] == {'and': [
+        assert form['settings'][1]['invalid_response'] == 'please enter again'
+        assert form['settings'][1]['valid_response'] == 'valid entry'
+        assert form['settings'][2]['validation'] == {'and': [
             {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
                      {'operator': 'has_no_whitespace'},
                      {'operator': 'ends_with', 'value': 'value'}]},
             {'or': [{'operator': 'has_length_greater_than', 'value': 20},
                     {'operator': 'has_no_whitespace'},
                     {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
-        assert not form['path'][2]['utter_msg_on_invalid']
-        assert not form['path'][2]['utter_msg_on_valid']
+        assert not form['settings'][2]['invalid_response']
+        assert not form['settings'][2]['valid_response']
 
     def test_get_form_not_added(self):
         with pytest.raises(AppException, match='Form does not exists'):
@@ -4318,45 +4323,45 @@ class TestMongoProcessor:
 
     def test_get_form_having_on_intent_and_not_intent(self):
         form = MongoProcessor().get_form('restaurant_form', 'test')
-        assert form['path'][0]['slot'] == 'name'
-        assert form['path'][1]['slot'] == 'num_people'
-        assert form['path'][2]['slot'] == 'cuisine'
-        assert form['path'][3]['slot'] == 'outdoor_seating'
-        assert form['path'][4]['slot'] == 'preferences'
-        assert form['path'][5]['slot'] == 'feedback'
-        assert form['path'][0]['responses'][0]['_id']
-        assert form['path'][1]['responses'][0]['_id']
-        assert form['path'][2]['responses'][0]['_id']
-        assert form['path'][3]['responses'][0]['_id']
-        assert form['path'][4]['responses'][0]['_id']
-        assert form['path'][5]['responses'][0]['_id']
-        assert form['path'][0]['responses'][0]['value']['text']
-        assert form['path'][1]['responses'][0]['value']['text']
-        assert form['path'][2]['responses'][0]['value']['text']
-        assert form['path'][3]['responses'][0]['value']['text']
-        assert form['path'][4]['responses'][0]['value']['text']
-        assert form['path'][5]['responses'][0]['value']['text']
+        assert form['settings'][0]['slot'] == 'name'
+        assert form['settings'][1]['slot'] == 'num_people'
+        assert form['settings'][2]['slot'] == 'cuisine'
+        assert form['settings'][3]['slot'] == 'outdoor_seating'
+        assert form['settings'][4]['slot'] == 'preferences'
+        assert form['settings'][5]['slot'] == 'feedback'
+        assert form['settings'][0]['ask_questions'][0]['_id']
+        assert form['settings'][1]['ask_questions'][0]['_id']
+        assert form['settings'][2]['ask_questions'][0]['_id']
+        assert form['settings'][3]['ask_questions'][0]['_id']
+        assert form['settings'][4]['ask_questions'][0]['_id']
+        assert form['settings'][5]['ask_questions'][0]['_id']
+        assert form['settings'][0]['ask_questions'][0]['value']['text']
+        assert form['settings'][1]['ask_questions'][0]['value']['text']
+        assert form['settings'][2]['ask_questions'][0]['value']['text']
+        assert form['settings'][3]['ask_questions'][0]['value']['text']
+        assert form['settings'][4]['ask_questions'][0]['value']['text']
+        assert form['settings'][5]['ask_questions'][0]['value']['text']
 
     def test_edit_form_slot_not_present(self):
         processor = MongoProcessor()
-        path = [{'utterance': 'which location would you prefer?', 'slot': 'restaurant_location',
+        path = [{'ask_questions': 'which location would you prefer?', 'slot': 'restaurant_location',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
                              {'type': 'from_entity', 'entity': 'location'}]},
-                {'utterance': 'seats required?', 'slot': 'num_people',
+                {'ask_questions': 'seats required?', 'slot': 'num_people',
                  'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
-                {'utterance': 'type of cuisine?', 'slot': 'cuisine',
+                {'ask_questions': 'type of cuisine?', 'slot': 'cuisine',
                  'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
-                {'utterance': 'outdoor seating required?', 'slot': 'outdoor_seating',
+                {'ask_questions': 'outdoor seating required?', 'slot': 'outdoor_seating',
                  'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'any preferences?', 'slot': 'preferences',
+                {'ask_questions': 'any preferences?', 'slot': 'preferences',
                  'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                              {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-                {'utterance': 'do you want to go with an AC room?', 'slot': 'ac_required',
+                {'ask_questions': 'do you want to go with an AC room?', 'slot': 'ac_required',
                  'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                              {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-                {'utterance': 'Please give your feedback on your experience so far', 'slot': 'feedback',
+                {'ask_questions': 'Please give your feedback on your experience so far', 'slot': 'feedback',
                  'mapping': [{'type': 'from_text'},
                              {'type': 'from_entity', 'entity': 'feedback'}]}
                 ]
@@ -4374,16 +4379,16 @@ class TestMongoProcessor:
                                                             {'operator': 'has_no_whitespace'}]}]}
         age_validation = {'logical_operator': 'and',
                           'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10}]}]}
-        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation': name_validation,
-                 'utter_msg_on_valid': 'got it',
-                 'utter_msg_on_invalid': 'please rephrase'},
-                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'valid_response': 'got it',
+                 'invalid_response': 'please rephrase'},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation': age_validation,
-                 'utter_msg_on_valid': 'valid entry',
-                 'utter_msg_on_invalid': 'please enter again'
+                 'valid_response': 'valid entry',
+                 'invalid_response': 'please enter again'
                  },
-                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation': None}]
         bot = 'test'
         user = 'user'
@@ -4407,33 +4412,36 @@ class TestMongoProcessor:
         assert resp[1].text.text == 'ur occupation?'
 
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
-        assert len(validations_added) == 2
+        assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
         assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
                                                                     {'operator': 'has_no_whitespace'}]}
-        assert validations_added[0].utter_msg_on_valid == 'got it'
-        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+        assert validations_added[0].valid_response == 'got it'
+        assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10}]}
-        assert validations_added[1].utter_msg_on_valid == 'valid entry'
-        assert validations_added[1].utter_msg_on_invalid == 'please enter again'
+        assert validations_added[1].valid_response == 'valid entry'
+        assert validations_added[1].invalid_response == 'please enter again'
+
+        assert validations_added[2].slot == 'occupation'
+        assert not validations_added[2].validation_semantic
 
     def test_edit_form_remove_validations(self):
         processor = MongoProcessor()
-        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}],
                  'validation': None,
-                 'utter_msg_on_valid': 'got it',
-                 'utter_msg_on_invalid': 'please rephrase'},
-                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'valid_response': 'got it',
+                 'invalid_response': 'please rephrase'},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
                  'validation': None,
-                 'utter_msg_on_valid': 'valid entry',
-                 'utter_msg_on_invalid': 'please enter again'
+                 'valid_response': 'valid entry',
+                 'invalid_response': 'please enter again'
                  },
-                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'mapping': [
                      {'type': 'from_intent', 'intent': ['get_occupation'], 'entity': 'occupation', 'value': 'business'},
                      {'type': 'from_text', 'entity': 'occupation', 'value': 'engineer'},
@@ -4462,46 +4470,55 @@ class TestMongoProcessor:
         assert resp[0].text.text == 'your occupation?'
         assert resp[1].text.text == 'ur occupation?'
 
-        validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
-        assert len(validations_added) == 0
+        validations = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
+        assert len(validations) == 3
+        assert validations[0].validation_semantic == {}
+        assert validations[0].valid_response == 'got it'
+        assert validations[0].invalid_response == 'please rephrase'
+        assert validations[1].validation_semantic == {}
+        assert validations[1].valid_response == 'valid entry'
+        assert validations[1].invalid_response == 'please enter again'
+        assert validations[2].validation_semantic == {}
+        assert not validations[2].valid_response
+        assert not validations[2].invalid_response
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
         name_validation = {'logical_operator': 'and',
                            'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}
-        path = [{'responses': ['what is your name?', 'name?'], 'slot': 'name',
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation': name_validation,
-                 'utter_msg_on_valid': 'got it',
-                 'utter_msg_on_invalid': 'please rephrase'},
-                {'responses': ['what is your age?', 'age?'], 'slot': 'age',
+                 'valid_response': 'got it',
+                 'invalid_response': 'please rephrase'},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation': None,
-                 'utter_msg_on_valid': 'valid entry',
-                 'utter_msg_on_invalid': 'please enter again'
+                 'valid_response': 'valid entry',
+                 'invalid_response': 'please enter again'
                  },
-                {'responses': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation': None}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
 
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
-        assert len(validations_added) == 1
+        assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
         assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
-        assert validations_added[0].utter_msg_on_valid == 'got it'
-        assert validations_added[0].utter_msg_on_invalid == 'please rephrase'
+        assert validations_added[0].valid_response == 'got it'
+        assert validations_added[0].invalid_response == 'please rephrase'
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
-        path = [{'responses': ['which location would you prefer?'], 'slot': 'location'},
-                {'responses': ['seats required?'], 'slot': 'num_people'},
-                {'responses': ['type of cuisine?'], 'slot': 'cuisine',
+        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location'},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people'},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'validation': {'logical_operator': 'and',
                                 'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}},
-                {'responses': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
-                {'responses': ['any preferences?'], 'slot': 'preferences'},
-                {'responses': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
-                {'responses': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
+                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
@@ -4550,9 +4567,9 @@ class TestMongoProcessor:
                                  status=True).get().text.text == 'Please give your feedback on your experience so far'
 
         validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
-        assert len(validations_added) == 1
-        assert validations_added[0].slot == 'cuisine'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert len(validations_added) == 7
+        assert validations_added[1].slot == 'cuisine'
+        assert validations_added[1].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()
@@ -4561,8 +4578,8 @@ class TestMongoProcessor:
 
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
-        path = [{'responses': ['provide your age?'], 'slot': 'age'},
-                {'responses': ['provide your location?'], 'slot': 'location'}]
+        path = [{'ask_questions': ['provide your age?'], 'slot': 'age'},
+                {'ask_questions': ['provide your location?'], 'slot': 'location'}]
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_name', bot=bot).get()
@@ -4683,6 +4700,48 @@ class TestMongoProcessor:
         user = 'test'
         with pytest.raises(AppException, match="Cannot remove intent linked to flow"):
             processor.delete_intent('greet', bot, user, False)
+
+    def test_add_story_with_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "restaurant_form", "type": "FORM_ACTION"},
+            {"name": "utter_thanks", "type": "ACTION"},
+        ]
+        story_dict = {'name': "story with form", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with form", bot=bot,
+                               events__name='restaurant_form', status=True).get()
+        assert story.events[1].type == 'action'
+
+    def test_get_story_with_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        stories = list(processor.get_stories(bot))
+        assert stories[16]['name'] == 'story with form'
+        assert stories[16]['type'] == 'STORY'
+        assert stories[16]['steps'][0]['name'] == 'greet'
+        assert stories[16]['steps'][0]['type'] == 'INTENT'
+        assert stories[16]['steps'][1]['name'] == 'restaurant_form'
+        assert stories[16]['steps'][1]['type'] == 'FORM_ACTION'
+        assert stories[16]['template_type'] == 'CUSTOM'
+
+    def test_delete_form_attached_to_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        with pytest.raises(AppException, match='Cannot remove form "restaurant_form" linked to story "story with form"'):
+            processor.delete_form("restaurant_form", bot, user)
+
+    def test_delete_story_with_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        processor.delete_complex_story("story with form", 'STORY', bot, user)
+        assert Stories.objects(block_name="story with form", bot=bot,
+                               events__name='restaurant_form', status=False).get()
 
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()
@@ -5433,14 +5492,14 @@ class TestModelProcessor:
             HttpActionParameters(key="param4", value="value2", parameter_type="value"),
             HttpActionParameters(key="param5", parameter_type="sender_id"),
             HttpActionParameters(key="param6", parameter_type="user_message"),
-            HttpActionParameters(key="param7", parameter_type="message_trail"),
+            HttpActionParameters(key="param7", parameter_type="chat_log"),
             HttpActionParameters(key="param8", parameter_type="intent")]
         header = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value"),
             HttpActionParameters(key="param3", parameter_type="sender_id"),
             HttpActionParameters(key="param4", parameter_type="user_message"),
-            HttpActionParameters(key="param5", parameter_type="message_trail"),
+            HttpActionParameters(key="param5", parameter_type="chat_log"),
             HttpActionParameters(key="param6", parameter_type="intent")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
@@ -5474,7 +5533,7 @@ class TestModelProcessor:
         assert actual_http_action['params_list'][3]['parameter_type'] == "user_message"
         assert actual_http_action['params_list'][4]['key'] == "param7"
         assert not actual_http_action['params_list'][4]['value']
-        assert actual_http_action['params_list'][4]['parameter_type'] == "message_trail"
+        assert actual_http_action['params_list'][4]['parameter_type'] == "chat_log"
         assert actual_http_action['params_list'][5]['key'] == "param8"
         assert not actual_http_action['params_list'][5]['value']
         assert actual_http_action['params_list'][5]['parameter_type'] == "intent"
@@ -5492,7 +5551,7 @@ class TestModelProcessor:
         assert actual_http_action['headers'][3]['parameter_type'] == "user_message"
         assert actual_http_action['headers'][4]['key'] == "param5"
         assert not actual_http_action['headers'][4]['value']
-        assert actual_http_action['headers'][4]['parameter_type'] == "message_trail"
+        assert actual_http_action['headers'][4]['parameter_type'] == "chat_log"
         assert actual_http_action['headers'][5]['key'] == "param6"
         assert not actual_http_action['headers'][5]['value']
         assert actual_http_action['headers'][5]['parameter_type'] == "intent"

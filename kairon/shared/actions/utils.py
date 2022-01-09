@@ -98,7 +98,7 @@ class ActionUtility:
                 value = tracker.latest_message.get('text')
             elif param['parameter_type'] == ActionParameterType.intent.value:
                 value = tracker.get_intent_of_latest_message()
-            elif param['parameter_type'] == ActionParameterType.message_trail.value:
+            elif param['parameter_type'] == ActionParameterType.chat_log.value:
                 iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
                 value = {
                     'sender_id': tracker.sender_id,
@@ -387,6 +387,10 @@ class ExpressionEvaluator:
         expression_evaluated_as_str = []
         final_expr = None
         is_slot_data_valid = True
+
+        if slot_value is None:
+            is_slot_data_valid = False
+
         if semantic_expression:
             result = []
             for parent_operator, expressions in semantic_expression.items():

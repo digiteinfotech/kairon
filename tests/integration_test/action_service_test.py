@@ -480,6 +480,88 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
                           'responses': []})
 
+    def test_form_validation_action_no_requested_slot(self):
+        action_name = "validate_location"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        slot = 'location'
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': None},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [], 'responses': []})
+
+    def test_form_validation_action_no_validation_provided_for_slot_with_none_value(self):
+        action_name = "slot_with_none_value"
+        bot = '5f50fd0a56b698ca10d35d2f'
+        user = 'test_user'
+        slot = 'location'
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic={}, bot=bot, user=user).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: None, 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": bot, "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}],
+                          'responses': []})
+
     def test_form_validation_action_valid_slot_value_with_utterance(self):
         action_name = "validate_user"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -497,7 +579,7 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user,
-                             utter_msg_on_valid='that is great!').save()
+                             valid_response='that is great!').save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -550,7 +632,7 @@ class TestActionServer(AsyncHTTPTestCase):
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
         FormValidationAction(name=action_name, slot='user_id', validation_semantic=semantic_expression,
-                             bot=bot, user=user, utter_msg_on_valid='that is great!').save().to_mongo().to_dict()
+                             bot=bot, user=user, valid_response='that is great!').save().to_mongo().to_dict()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
@@ -605,8 +687,8 @@ class TestActionServer(AsyncHTTPTestCase):
         FormValidationAction(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
-                             bot=bot, user=user, utter_msg_on_valid='that is great!',
-                             utter_msg_on_invalid='Invalid value. Please type again!').save().to_mongo().to_dict()
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         request_object = {
@@ -691,9 +773,9 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'operator': 'has_no_whitespace'},
                                                ]}]}
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
-                             bot=bot, user=user, utter_msg_on_valid='that is great!').save()
+                             bot=bot, user=user, valid_response='that is great!').save()
         FormValidationAction(name=action_name, slot='occupation', validation_semantic=semantic_expression,
-                             bot=bot, user=user, utter_msg_on_valid='that is great!').save()
+                             bot=bot, user=user, valid_response='that is great!').save()
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
@@ -708,8 +790,8 @@ class TestActionServer(AsyncHTTPTestCase):
         slot = 'reservation_id'
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic={},
-                             bot=bot, user=user, utter_msg_on_valid='that is great!',
-                             utter_msg_on_invalid='Invalid value. Please type again!').save()
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
         request_object = {
             "next_action": action_name,
             "tracker": {
