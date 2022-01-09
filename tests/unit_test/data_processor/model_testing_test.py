@@ -192,8 +192,9 @@ class TestModelTesting:
         nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
-        with pytest.raises(AppException, match='No training examples found for intent: [\'mood_unhappy\']'):
-            TestDataGenerator.create(bot, True)
+        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)
 
     def test_data_generator_no_training_data(self):
         bot = 'no_data_bot'

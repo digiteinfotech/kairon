@@ -1269,7 +1269,7 @@ async def add_form(request: Forms, current_user: User = Security(Authentication.
     """
     Adds a new form.
     """
-    mongo_processor.add_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
     return Response(message='Form added')
 
 
@@ -1297,7 +1297,7 @@ async def edit_form(request: Forms, current_user: User = Security(Authentication
     """
     Edits a form.
     """
-    mongo_processor.edit_form(request.name, request.dict()['path'], current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
     return Response(message='Form updated')
 
 
@@ -1311,7 +1311,9 @@ async def delete_form(request: TextData, current_user: User = Security(Authentic
 
 
 @router.get("/forms/validations/list", response_model=Response)
-async def get_supported_form_validations(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_supported_form_validations(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get list of all supported form validations according to slot types.
     """
