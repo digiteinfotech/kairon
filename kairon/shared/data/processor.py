@@ -403,14 +403,9 @@ class MongoProcessor:
     def __extract_training_examples(self, training_examples, bot: Text, user: Text):
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
-            if 'text' in training_example.data and \
-                    str(training_example.data['text']).lower() not in saved_training_examples and \
-                    str(training_example.data[TRAINING_EXAMPLE.INTENT.value]) not in DEFAULT_INTENTS:
-
+            if 'text' in training_example.data and str(training_example.data['text']).lower() not in saved_training_examples:
                 training_data = TrainingExamples()
-                training_data.intent = str(training_example.data[
-                                               TRAINING_EXAMPLE.INTENT.value
-                                           ])
+                training_data.intent = str(training_example.data[TRAINING_EXAMPLE.INTENT.value])
                 training_data.text = training_example.data['text']
                 training_data.bot = bot
                 training_data.user = user
@@ -576,7 +571,7 @@ class MongoProcessor:
         """
         saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
-            if intent.strip().lower() not in saved_intents and intent not in DEFAULT_INTENTS:
+            if intent.strip().lower() not in saved_intents:
                 entities = intents[intent].get('used_entities')
                 use_entities = True if entities else False
                 new_intent = Intents(name=intent, bot=bot, user=user, use_entities=use_entities)
@@ -701,7 +696,7 @@ class MongoProcessor:
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
-            if action.strip().lower() not in saved_actions and action not in DEFAULT_ACTIONS:
+            if action.strip().lower() not in saved_actions:
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
@@ -3161,7 +3156,7 @@ class MongoProcessor:
 
     def get_training_data_count(self, bot: Text):
         intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'bot': bot, 'status': True}},
+            [{'$match': {'name': {'$nin': DEFAULT_INTENTS}, 'status': True}},
              {'$lookup': {'from': 'training_examples',
                           'let': {'bot_id': bot, 'name': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},

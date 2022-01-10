@@ -205,23 +205,6 @@ def test_list_entities_empty():
     assert actual["success"]
 
 
-def test_no_default_intents_in_bot():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/intents",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    intents = set([d['name'] for d in actual["data"]])
-    assert 'nlu_fallback' not in intents
-    assert 'restart' not in intents
-    assert 'back' not in intents
-    assert 'session_start' not in intents
-    assert 'out_of_scope' not in intents
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert Utility.check_empty_string(actual["message"])
-
-
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
@@ -674,7 +657,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 14
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -687,7 +670,7 @@ def test_get_all_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 14
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -1727,7 +1710,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 15
+    assert len(actual["data"]) == 20
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
