@@ -337,7 +337,7 @@ actions:
 - utter_good_feedback
 - utter_bad_feedback
 - utter_delete
-- ticket_attributes_form
+- validate_ticket_attributes_form
 - ticket_file_form
 forms:
   ticket_attributes_form:

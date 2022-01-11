@@ -1071,15 +1071,18 @@ class Utility:
 
     @staticmethod
     def prepare_form_validation_semantic(validations: dict):
-        parent_operator = validations.get('logical_operator')
-        expressions = validations.get('expressions')
-        validation_semantic = []
-        for exp in expressions:
-            if exp.get('logical_operator'):
-                validation_semantic.append({exp['logical_operator']: exp.get('validations')})
-            else:
-                validation_semantic.extend(exp.get('validations'))
-        return {parent_operator: validation_semantic}
+        semantic = {}
+        if validations:
+            parent_operator = validations.get('logical_operator')
+            expressions = validations.get('expressions')
+            validation_semantic = []
+            for exp in expressions:
+                if exp.get('logical_operator'):
+                    validation_semantic.append({exp['logical_operator']: exp.get('validations')})
+                else:
+                    validation_semantic.extend(exp.get('validations'))
+            semantic = {parent_operator: validation_semantic}
+        return semantic
 
     @staticmethod
     def get_latest_model(bot: Text):

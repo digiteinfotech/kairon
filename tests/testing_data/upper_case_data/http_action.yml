@@ -11,7 +11,7 @@ http_actions:
     value: testValue1
   headers:
     - key: testParam1
-      parameter_type: message_trail
+      parameter_type: chat_log
     - key: testParam2
       parameter_type: user_message
     - key: testParam3
@@ -36,7 +36,7 @@ http_actions:
     parameter_type: slot
     value: testValue1
   - key: testParam1
-    parameter_type: message_trail
+    parameter_type: chat_log
   - key: testParam2
     parameter_type: user_message
   - key: testParam3

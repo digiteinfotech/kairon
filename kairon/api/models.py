@@ -405,23 +405,23 @@ class SlotValidation(BaseModel):
     expressions: List[Expression]
 
 
-class FormPath(BaseModel):
-    responses: List[str]
+class FormSettings(BaseModel):
+    ask_questions: List[str]
     slot: str
     validation: SlotValidation = None
-    utter_msg_on_valid: str = None
-    utter_msg_on_invalid: str = None
+    valid_response: str = None
+    invalid_response: str = None
 
-    @validator("responses")
+    @validator("ask_questions")
     def validate_responses(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
-
+        err_msg = "Questions cannot be empty or contain spaces"
         if not v:
-            raise ValueError("Response cannot be empty or contain spaces")
+            raise ValueError(err_msg)
 
         for response in v:
             if Utility.check_empty_string(response):
-                raise ValueError("Response cannot be empty or contain spaces")
+                raise ValueError(err_msg)
         return v
 
     @validator("slot")
@@ -435,7 +435,7 @@ class FormPath(BaseModel):
 
 class Forms(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
-    path: List[FormPath]
+    settings: List[FormSettings]
 
 
 class SlotSetActionRequest(BaseModel):

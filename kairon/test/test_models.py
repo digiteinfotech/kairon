@@ -402,9 +402,8 @@ class TestDataGenerator:
                 training_examples = random.sample(training_examples, num_samples)
             elif len(training_examples) > test_data_threshold:
                 training_examples = random.sample(training_examples, test_data_threshold)
-
-        if not training_examples:
-            raise AppException(f'No training examples found for intent: {intent}')
+        else:
+            return []
 
         augmented_examples = TestDataGenerator.augment_sentences(training_examples)
         for example in augmented_examples:
