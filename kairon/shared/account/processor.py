@@ -496,7 +496,8 @@ class AccountProcessor:
                 verification=open('template/emails/verification.html', 'r').read(),
                 verification_confirmation=open('template/emails/verificationConfirmation.html', 'r').read(),
                 add_member_invitation=open('template/emails/memberAddAccept.html', 'r').read(),
-                add_member_confirmation=open('template/emails/memberAddAccept.html', 'r').read(),
+                add_member_confirmation=open('template/emails/memberAddConfirmation.html', 'r').read(),
+                password_generated=open('template/emails/passwordGenerated.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -505,6 +506,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['password_reset_confirmation'] = system_properties['mail_templates']['password_reset_confirmation']
         Utility.email_conf['email']['templates']['add_member_invitation'] = system_properties['mail_templates']['add_member_invitation']
         Utility.email_conf['email']['templates']['add_member_confirmation'] = system_properties['mail_templates']['add_member_confirmation']
+        Utility.email_conf['email']['templates']['password_generated'] = system_properties['mail_templates']['password_generated']
 
     @staticmethod
     async def confirm_email(token: str):
