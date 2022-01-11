@@ -20,3 +20,9 @@ TESTER_ACCESS = [ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_R
 class SLOT_SET_TYPE(str, Enum):
     FROM_VALUE = "from_value"
     RESET_SLOT = "reset_slot"
+
+
+class SSO_TYPES(str, Enum):
+    FACEBOOK = "facebook"
+    LINKEDIN = "linkedin"
+    GOOGLE = "google"

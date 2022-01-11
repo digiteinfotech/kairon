@@ -11,6 +11,7 @@ import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
+from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
@@ -6554,11 +6555,55 @@ def test_sso_redirect_url_invalid_type():
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual['message'] == 'Provider ethereum not supported'
+    assert actual['message'] == 'ethereum login is not enabled'
+    assert not actual["success"]
+
+
+def test_list_sso_not_enabled():
+    response = client.get(
+        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual["data"] == {
+            'facebook': False,
+            'linkedin': False,
+            'google': False
+        }
+
+
+def test_sso_redirect_url_not_enabled():
+    response = client.get(
+        url=f"/api/auth/login/sso/google", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'google login is not enabled'
+    assert not actual["success"]
+
+    response = client.get(
+        url=f"/api/auth/login/sso/linkedin", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'linkedin login is not enabled'
+    assert not actual["success"]
+
+    response = client.get(
+        url=f"/api/auth/login/sso/facebook", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'facebook login is not enabled'
     assert not actual["success"]
 
 
 def test_sso_redirect_url():
+    Utility.environment['sso']['linkedin']['enable'] = True
+    Utility.environment['sso']['google']['enable'] = True
+    Utility.environment['sso']['facebook']['enable'] = True
+
     response = client.get(
         url=f"/api/auth/login/sso/google", allow_redirects=False
     )
@@ -6581,19 +6626,36 @@ def test_sso_redirect_url():
         'https://www.facebook.com/v9.0/dialog/oauth?response_type=code&client_id=')
 
 
+def test_list_sso_enabled():
+    Utility.environment['sso']['linkedin']['enable'] = True
+    Utility.environment['sso']['google']['enable'] = True
+
+    response = client.get(
+        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual["data"] == {
+            'facebook': False,
+            'linkedin': True,
+            'google': True
+        }
+
+
 def test_sso_get_login_token_invalid_type():
     response = client.get(
         url=f"/api/auth/login/sso/callback/ethereum"
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual['message'] == 'Failed to verify with ethereum: Provider ethereum not supported'
+    assert actual['message'] == 'Failed to verify with ethereum: ethereum login is not enabled'
     assert not actual["success"]
 
 
 def test_sso_get_login_token(monkeypatch):
     async def __mock_verify_and_process(*args, **kwargs):
-        return 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+        return True, {}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
 
     monkeypatch.setattr(LoginSSOFactory, 'verify_and_process', __mock_verify_and_process)
     response = client.get(
@@ -6635,6 +6697,29 @@ def test_sso_get_login_token(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
 
+
+def test_trigger_mail_on_new_signup_with_sso(monkeypatch):
+    token = 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+
+    async def __mock_verify_and_process(*args, **kwargs):
+        return False, {'email': 'new_user@digite.com', 'first_name': 'new', 'password': SecretStr('123456789')}, token
+
+    monkeypatch.setattr(LoginSSOFactory, 'verify_and_process', __mock_verify_and_process)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    Utility.email_conf["email"]["enable"] = True
+    response = client.get(
+        url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
+    )
+    actual = response.json()
+    Utility.email_conf["email"]["enable"] = False
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not Utility.check_empty_string(actual["message"])
+    actual = response.json()
+    assert actual["data"]["access_token"] == token
+    assert actual["data"]["token_type"] == 'bearer'
+
+
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_add_email_action(mock_smtp):
     request = {"action_name": "email_config",
@@ -6671,6 +6756,7 @@ def test_list_email_actions():
     assert len(actual["data"]) == 1
     assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 'test', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
 
+
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action(mock_smtp):
     request = {"action_name": "email_config",
@@ -6693,6 +6779,7 @@ def test_edit_email_action(mock_smtp):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action updated'
+
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action_does_not_exists(mock_smtp):

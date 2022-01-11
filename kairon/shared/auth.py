@@ -1,6 +1,6 @@
 import json
 import re
-import urllib
+from urllib.parse import urljoin
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from typing import Text
@@ -13,11 +13,13 @@ from fastapi_sso.sso.facebook import FacebookSSO
 from fastapi_sso.sso.google import GoogleSSO
 from jwt import PyJWTError, encode
 from mongoengine import DoesNotExist
+from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.constants import SSO_TYPES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -297,64 +299,95 @@ class LoginSSOFactory:
     """
     Factory to get redirect url as well as the login token.
     """
-
-    facebook_sso = FacebookSSO(Utility.environment["sso"]["facebook"]["client_id"],
-                               Utility.environment["sso"]["facebook"]["client_secret"],
-                               urllib.parse.urljoin(Utility.environment["sso"]["redirect_url"], "facebook"),
-                               allow_insecure_http=False, use_state=True)
-
-    linkedin_sso = LinkedinSSO(Utility.environment["sso"]["linkedin"]["client_id"],
-                               Utility.environment["sso"]["linkedin"]["client_secret"],
-                               urllib.parse.urljoin(Utility.environment["sso"]["redirect_url"], "linkedin"),
-                               allow_insecure_http=False, use_state=True)
-
-    google_sso = GoogleSSO(Utility.environment["sso"]["google"]["client_id"],
-                           Utility.environment["sso"]["google"]["client_secret"],
-                           urllib.parse.urljoin(Utility.environment["sso"]["redirect_url"], "google"),
-                           allow_insecure_http=False, use_state=True)
+    facebook_sso: FacebookSSO = NotImplemented
+    linkedin_sso: LinkedinSSO = NotImplemented
+    google_sso: GoogleSSO = NotImplemented
 
     @staticmethod
-    async def get_redirect_url(sso_type):
+    def get_client(sso_type: str, raise_error_if_not_enabled=True):
+        """
+        Returns SSO client based on type.
+        Raises exception if client requested is not enabled.
+
+        :param sso_type: sso login type
+        :param raise_error_if_not_enabled: raise exception is sso type is not enabled.
+        """
+        is_enabled = Utility.check_is_enabled(sso_type, raise_error_if_not_enabled)
+        if sso_type == SSO_TYPES.FACEBOOK.value:
+            if is_enabled and LoginSSOFactory.facebook_sso == NotImplemented:
+                LoginSSOFactory.facebook_sso = FacebookSSO(
+                    Utility.environment["sso"][SSO_TYPES.FACEBOOK.value]["client_id"],
+                    Utility.environment["sso"][SSO_TYPES.FACEBOOK.value]["client_secret"],
+                    urljoin(Utility.environment["sso"]["redirect_url"], SSO_TYPES.FACEBOOK.value),
+                    allow_insecure_http=False, use_state=True
+                )
+            return LoginSSOFactory.facebook_sso
+        if sso_type == SSO_TYPES.LINKEDIN.value:
+            if is_enabled and LoginSSOFactory.linkedin_sso == NotImplemented:
+                LoginSSOFactory.linkedin_sso = LinkedinSSO(
+                    Utility.environment["sso"][SSO_TYPES.LINKEDIN.value]["client_id"],
+                    Utility.environment["sso"][SSO_TYPES.LINKEDIN.value]["client_secret"],
+                    urljoin(Utility.environment["sso"]["redirect_url"], SSO_TYPES.LINKEDIN.value),
+                    allow_insecure_http=False, use_state=True
+                )
+            return LoginSSOFactory.linkedin_sso
+        if sso_type == SSO_TYPES.GOOGLE.value:
+            if is_enabled and LoginSSOFactory.google_sso == NotImplemented:
+                LoginSSOFactory.google_sso = GoogleSSO(
+                    Utility.environment["sso"][SSO_TYPES.GOOGLE.value]["client_id"],
+                    Utility.environment["sso"][SSO_TYPES.GOOGLE.value]["client_secret"],
+                    urljoin(Utility.environment["sso"]["redirect_url"], SSO_TYPES.GOOGLE.value),
+                    allow_insecure_http=False, use_state=True
+                )
+            return LoginSSOFactory.google_sso
+
+    @staticmethod
+    async def get_redirect_url(sso_type: str):
         """
         Returns redirect url based on sso_type.
 
-        :param sso_type: one of supported type - google/facebook/linkedin.
+        :param sso_type: one of supported types - google/facebook/linkedin.
         """
-        if sso_type == "google":
-            redirect_url = LoginSSOFactory.google_sso.get_login_redirect()
-        elif sso_type == "facebook":
-            redirect_url = LoginSSOFactory.facebook_sso.get_login_redirect()
-        elif sso_type == "linkedin":
-            redirect_url = LoginSSOFactory.linkedin_sso.get_login_redirect()
-        else:
-            raise AppException(f"Provider {sso_type} not supported")
-
-        return await redirect_url
+        sso_client = LoginSSOFactory.get_client(sso_type)
+        return await sso_client.get_login_redirect()
 
     @staticmethod
-    async def verify_and_process(request, sso_type):
+    async def verify(request, sso_type: str):
         """
-        Fetches user details and returns a login token
-        if user details are successfully returned.
+        Fetches user details using code received in the request.
 
         :param request: starlette request object
-        :param sso_type: one of supported type - google/facebook/linkedin.
+        :param sso_type: one of supported types - google/facebook/linkedin.
         """
         try:
-            if sso_type == "google":
-                user = await LoginSSOFactory.google_sso.verify_and_process(request)
-                email = user.email
-            elif sso_type == "facebook":
-                user = await LoginSSOFactory.facebook_sso.verify_and_process(request)
-                email = user.email
-            elif sso_type == "linkedin":
-                user = await LoginSSOFactory.linkedin_sso.verify_and_process(request)
-                email = user.email
-            else:
-                raise AppException(f"Provider {sso_type} not supported")
-            user = AccountProcessor.get_user_details(email)
-            return Authentication.create_access_token(data={"sub": user["email"]})
-        except DoesNotExist:
-            raise AppException("User does not exist!")
+            sso_client = LoginSSOFactory.get_client(sso_type)
+            user = await sso_client.verify_and_process(request)
+            return vars(user)
         except Exception as e:
             raise AppException(f'Failed to verify with {sso_type}: {e}')
+
+    @staticmethod
+    async def verify_and_process(request, sso_type: str):
+        """
+        Fetches user details and returns a login token.
+        If user does not have an account, it will be created.
+
+        :param request: starlette request object
+        :param sso_type: one of supported types - google/facebook/linkedin.
+        """
+        user_details = await LoginSSOFactory.verify(request, sso_type)
+        try:
+            AccountProcessor.get_user(user_details['email'])
+            existing_user = True
+        except DoesNotExist:
+            existing_user = False
+            user_details['password'] = SecretStr(Utility.generate_password())
+            user_details['account'] = user_details['email']
+        if existing_user:
+            AccountProcessor.get_user_details(user_details['email'])
+        else:
+            await AccountProcessor.account_setup(user_details, "sysadmin")
+            tmp_token = Utility.generate_token(user_details['email'])
+            await AccountProcessor.confirm_email(tmp_token)
+        access_token = Authentication.create_access_token(data={"sub": user_details["email"]})
+        return existing_user, user_details, access_token
