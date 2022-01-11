@@ -6655,7 +6655,7 @@ def test_sso_get_login_token_invalid_type():
 
 def test_sso_get_login_token(monkeypatch):
     async def __mock_verify_and_process(*args, **kwargs):
-        return True, {}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+        return False, {}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
 
     monkeypatch.setattr(LoginSSOFactory, 'verify_and_process', __mock_verify_and_process)
     response = client.get(

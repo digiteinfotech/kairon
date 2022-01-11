@@ -43,7 +43,7 @@ async def generate_integration_token(
 
 
 @router.get("/login/sso/list/enabled", response_model=Response)
-async def sso_callback():
+async def sso_enabled_login_list():
     """
     List social media logins enabled.
     """
