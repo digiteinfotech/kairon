@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+from urllib.parse import urljoin
 
 import jwt
 import responses
@@ -918,7 +919,42 @@ class TestAccountProcessor:
         assert AccountProcessor.get_ui_config('test_user') == config
 
     @pytest.mark.asyncio
+    async def test_sso_login_google_not_enabled(self):
+        with pytest.raises(AppException, match='google login is not enabled'):
+            await Authentication.get_redirect_url("google")
+
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        with pytest.raises(AppException, match='google login is not enabled'):
+            await Authentication.verify_and_process(request, "google")
+
+    @pytest.mark.asyncio
+    async def test_sso_login_facebook_not_enabled(self):
+        with pytest.raises(AppException, match='facebook login is not enabled'):
+            await Authentication.get_redirect_url("facebook")
+
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        with pytest.raises(AppException, match='facebook login is not enabled'):
+            await Authentication.verify_and_process(request, "facebook")
+
+    @pytest.mark.asyncio
+    async def test_sso_login_linkedin_not_enabled(self):
+        with pytest.raises(AppException, match='linkedin login is not enabled'):
+            await Authentication.get_redirect_url("linkedin")
+
+        request = Request({'type': 'http',
+                           'headers': Headers({}).raw,
+                           'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
+        with pytest.raises(AppException, match='linkedin login is not enabled'):
+            await Authentication.verify_and_process(request, "linkedin")
+
+    @pytest.mark.asyncio
     async def test_verify_and_process_google(self, monkeypatch):
+        Utility.environment['sso']['google']['enable'] = True
+
         async def _mock_google_response(*args, **kwargs):
             return OpenID(
                 id='116918187277293076263',
@@ -932,13 +968,19 @@ class TestAccountProcessor:
         def _mock_user_details(*args, **kwargs):
             return {"email": "monisha.ks@digite.com"}
 
+        monkeypatch.setattr(AccountProcessor, "get_user", _mock_user_details)
         monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
         monkeypatch.setattr(GoogleSSO, "verify_and_process", _mock_google_response)
         request = Request({'type': 'http',
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
-        token = await LoginSSOFactory.verify_and_process(request, "google")
+        existing_user, user, token = await Authentication.verify_and_process(request, "google")
         assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
+        assert user['email'] == 'monisha.ks@digite.com'
+        assert user['first_name'] == 'Monisha'
+        assert user['last_name'] == 'KS'
+        assert Utility.check_empty_string(user.get('password'))
+        assert existing_user
 
     @pytest.mark.asyncio
     async def test_verify_and_process_user_doesnt_exist_google(self, monkeypatch):
@@ -956,8 +998,20 @@ class TestAccountProcessor:
         request = Request({'type': 'http',
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
-        with pytest.raises(AppException, match="User does not exist!"):
-            await LoginSSOFactory.verify_and_process(request, "google")
+        existing_user, user, token = await Authentication.verify_and_process(request, "google")
+        assert user['email'] == 'monisha.ks@digite.com'
+        assert user['first_name'] == 'Monisha'
+        assert user['last_name'] == 'KS'
+        assert not Utility.check_empty_string(user.get('password').get_secret_value())
+        assert user.get('account') == user.get('email')
+        assert not existing_user
+        user = AccountProcessor.get_user_details('monisha.ks@digite.com')
+        assert all(
+            user[key] is False if key == "is_integration_user" else user[key]
+            for key in user.keys()
+        )
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
     async def test_ssostate_google(*args, **kwargs):
@@ -965,15 +1019,17 @@ class TestAccountProcessor:
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDKEbWXmRjtjiPdGUxXSTuye8ggMZvN9A_cXf1Bw9j_FLSe_Tuwsf_EP-LmmHVAQqTIhqL1Yj7mnsnBbsQdSPLC_4QmJ1GJqM--mbDR0l7UAKVxWdtqy8YAK60Ws02EhjydiIKJ7duyccCa7vXZN01XPAanHak2vvp1URPMvmIMgjEcMyI-IJR0k9PR5NHCEKUmdqeeFBkyFbTtjizGvjYee7kFt7T6_-6DT3q9_1fPvC9VRVPa7ppkJOD0n6NW4smjtpLrEckjO5UF3ekOCNfISYrRdIU8LSMv0RU3i0ALgK2CDyp7rSzOwrkpw6780Ix-QtgFOF4T7scDYR7ZqG6HY5vljBt_lUE-ZWjv-zT_QHhv08Dm-9AoeC_yGNx1Wb8&state=f7ad9a88-be24-4d88-a3bd-3f02b4b12a18&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none'})
         with pytest.raises(AppException) as e:
-            await LoginSSOFactory.verify_and_process(request, "google")
+            await Authentication.verify_and_process(request, "google")
         assert str(e).__contains__('Failed to verify with google')
 
     @pytest.mark.asyncio
     async def test_get_redirect_url_google(self):
-        await LoginSSOFactory.get_redirect_url("google")
+        await Authentication.get_redirect_url("google")
 
     @pytest.mark.asyncio
     async def test_verify_and_process_facebook(self, monkeypatch):
+        Utility.environment['sso']['facebook']['enable'] = True
+
         async def _mock_facebook_response(*args, **kwargs):
             return OpenID(
                 id='107921368422696',
@@ -987,21 +1043,27 @@ class TestAccountProcessor:
         def _mock_user_details(*args, **kwargs):
             return {"email": "monisha.ks@digite.com"}
 
+        monkeypatch.setattr(AccountProcessor, "get_user", _mock_user_details)
         monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
         monkeypatch.setattr(FacebookSSO, "verify_and_process", _mock_facebook_response)
 
         request = Request({'type': 'http',
                            'headers': Headers({}).raw,
                            'query_string': 'code=AQDEkezmJoa3hfyVOafJkHbXG5OJNV3dZQ4gElP3WS71LJbErkK6ljLq31C0B3xRw2dv2G4Fh9mA2twjBVrQZfv_j0MYBS8xq0DEAg08YTZ2Kd1mPJ2HVDF5GnrhZcl2V1qpcO0pGzVQAFMLVRKVWxmirya0uqm150ZLHL_xN9NZjCvk1DRnOXKYXXZtaaU-HgO22Rxxzo90hTtW4mLBl7Vg55SRmic6p1r3KAkyfnAVTLSNPhaX2I9KUgeUjQ6EwGz3NtwjxKLPnsC1yPZqQMGBS6u2lHt-BOjj80iJmukbLH_35Xzn6Mv6xVSjqGwTjNEnn6N5dyT-3_X_vmYTlcGpr8LOn6tTf7kz_ysauexbGxn883m_thFV3Ozb9oP9u78)]'})
-        token = await LoginSSOFactory.verify_and_process(request, "facebook")
+        existing_user, user, token = await Authentication.verify_and_process(request, "facebook")
         assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
+        assert user['email'] == 'monisha.ks@digite.com'
+        assert user['first_name'] == 'Moni'
+        assert user['last_name'] == 'Shareddy'
+        assert Utility.check_empty_string(user.get('password'))
+        assert existing_user
 
     @pytest.mark.asyncio
     async def test_verify_and_process_user_doesnt_exist_facebook(self, monkeypatch):
         async def _mock_facebook_response(*args, **kwargs):
             return OpenID(
                 id='107921368422696',
-                email='monisha.ks@digite.com',
+                email='monishaks@digite.com',
                 first_name='Moni',
                 last_name='Shareddy',
                 display_name='Monisha Shareddy',
@@ -1012,12 +1074,24 @@ class TestAccountProcessor:
         request = Request({'type': 'http',
                            'headers': Headers({'cookie': "ssostate=a257c5b8-4293-49db-a773-2c6fd78df016"}).raw,
                            'query_string': 'code=AQB4u0qDPLiqREyHXEmGydCw-JBg-vU1VL9yfR1PLuGijlyGsZs7CoYe98XhQ-jkQu_jYj-DMefRL_AcAvhenbBEuQ5Bhd18B9gOfDwe0JvB-Y5TAm21MrhVZtDxSm9VTSZVaPrwsWeN0dQYr2OgG9I0qPoM-OBEsOdJRYpCn-nKBKFGAbXb6AR7KTHhQtRDHHrylLe0QcSz2p1FjlLVWOrBh-A3o5xmvsaXaRtwYfYdJuxOBz2W7DlVw9m6qP9fx4gAzkp-j1sNKmiZjuHBsHJvKQsBG7xCw7etZh5Uie49R-WtP87-yic_CMYulju5bYRWTMd-549QWwjMW8lIQkPXStGwbU0JaOy9BHKmB6iUSrp0jIyo1RYdBo6Ji81Jyms&state=a257c5b8-4293-49db-a773-2c6fd78df016'})
-        with pytest.raises(AppException, match="User does not exist!"):
-            await LoginSSOFactory.verify_and_process(request, "facebook")
+        existing_user, user, token = await Authentication.verify_and_process(request, "facebook")
+        assert user['email'] == 'monishaks@digite.com'
+        assert user['first_name'] == 'Moni'
+        assert user['last_name'] == 'Shareddy'
+        assert not Utility.check_empty_string(user.get('password').get_secret_value())
+        assert user.get('account') == user.get('email')
+        assert not existing_user
+        user = AccountProcessor.get_user_details('monishaks@digite.com')
+        assert all(
+            user[key] is False if key == "is_integration_user" else user[key]
+            for key in user.keys()
+        )
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
     async def test_get_redirect_url_facebook(self):
-        await LoginSSOFactory.get_redirect_url("facebook")
+        await Authentication.get_redirect_url("facebook")
 
     @pytest.mark.asyncio
     async def test_invalid_ssostate_facebook(*args, **kwargs):
@@ -1025,29 +1099,31 @@ class TestAccountProcessor:
                            'headers': Headers({'cookie': "ssostate=a257c5b8-4293-49db-a773-2c6fd78df016"}).raw,
                            'query_string': 'code=AQB4u0qDPLiqREyHXEmGydCw-JBg-vU1VL9yfR1PLuGijlyGsZs7CoYe98XhQ-jkQu_jYj-DMefRL_AcAvhenbBEuQ5Bhd18B9gOfDwe0JvB-Y5TAm21MrhVZtDxSm9VTSZVaPrwsWeN0dQYr2OgG9I0qPoM-OBEsOdJRYpCn-nKBKFGAbXb6AR7KTHhQtRDHHrylLe0QcSz2p1FjlLVWOrBh-A3o5xmvsaXaRtwYfYdJuxOBz2W7DlVw9m6qP9fx4gAzkp-j1sNKmiZjuHBsHJvKQsBG7xCw7etZh5Uie49R-WtP87-yic_CMYulju5bYRWTMd-549QWwjMW8lIQkPXStGwbU0JaOy9BHKmB6iUSrp0jIyo1RYdBo6Ji81Jyms&state=a257c5b8-4293-49db-a773-2c6fd78df016'})
         with pytest.raises(AppException) as e:
-            await LoginSSOFactory.verify_and_process(request, "facebook")
+            await Authentication.verify_and_process(request, "facebook")
         assert str(e).__contains__('Failed to verify with facebook')
 
     @pytest.mark.asyncio
     async def test_get_redirect_url_linkedin(self):
-        response = await LoginSSOFactory.get_redirect_url("linkedin")
+        Utility.environment['sso']['linkedin']['enable'] = True
+
+        response = await Authentication.get_redirect_url("linkedin")
         assert isinstance(response, RedirectResponse)
 
     @pytest.mark.asyncio
     async def test_sso_linkedin_login_error(self, httpx_mock: HTTPXMock):
         httpx_mock.add_response(
             method=responses.POST,
-            url=await LoginSSOFactory.linkedin_sso.token_endpoint,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
             json={'access_token': '1234567890'},
         )
         httpx_mock.add_response(
             method=responses.GET,
-            url=await LoginSSOFactory.linkedin_sso.userinfo_endpoint,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
             json={'first_name': 'udit', 'last_name': 'pandey', 'profile_url': '1234::mkfnwuefhbwi'},
         )
         httpx_mock.add_response(
             method=responses.GET,
-            url=await LoginSSOFactory.linkedin_sso.useremail_endpoint,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
             json={'emailAddress': '1234567890'},
         )
         scope = {
@@ -1058,7 +1134,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                    'cookie': f"ssostate={LoginSSOFactory.linkedin_sso.state}",
+                    'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
                     'host': 'www.example.org',
                     'accept': 'application/json',
 
@@ -1070,24 +1146,24 @@ class TestAccountProcessor:
         request = Request(scope=scope)
         request._url = URL(scope=scope)
         with pytest.raises(AppException, match='User was not verified with linkedin'):
-            await LoginSSOFactory.verify_and_process(request, "linkedin")
+            await Authentication.verify_and_process(request, "linkedin")
 
     @pytest.mark.asyncio
     async def test_sso_linkedin_login_success(self, httpx_mock: HTTPXMock, monkeypatch):
         httpx_mock.add_response(
             method=responses.POST,
-            url=await LoginSSOFactory.linkedin_sso.token_endpoint,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
             json={'access_token': '1234567890'},
         )
         httpx_mock.add_response(
             method=responses.GET,
-            url=await LoginSSOFactory.linkedin_sso.userinfo_endpoint,
-            json={'first_name': 'udit', 'last_name': 'pandey', 'profile_url': '1234::mkfnwuefhbwi'},
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
+            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
         )
         httpx_mock.add_response(
             method=responses.GET,
-            url=await LoginSSOFactory.linkedin_sso.useremail_endpoint,
-            json={'elements': [{'handle~': {'emailAddress': '1234567890'}}]}
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
+            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks@digite.com'}}]}
         )
         scope = {
             "type": "http",
@@ -1097,7 +1173,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.linkedin_sso.state}",
+                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -1109,8 +1185,85 @@ class TestAccountProcessor:
         def _mock_user_details(*args, **kwargs):
             return {"email": "monisha.ks@digite.com"}
 
+        monkeypatch.setattr(AccountProcessor, "get_user", _mock_user_details)
         monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_user_details)
         request = Request(scope=scope)
         request._url = URL(scope=scope)
-        token = await LoginSSOFactory.verify_and_process(request, "linkedin")
+        existing_user, user, token = await Authentication.verify_and_process(request, "linkedin")
         assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks@digite.com"
+        assert user['email'] == 'monisha.ks@digite.com'
+        assert user['first_name'] == 'monisha'
+        assert user['last_name'] == 'reddy'
+        assert Utility.check_empty_string(user.get('password'))
+        assert existing_user
+
+    @pytest.mark.asyncio
+    async def test_sso_linkedin_login_new_user(self, httpx_mock: HTTPXMock, monkeypatch):
+        httpx_mock.add_response(
+            method=responses.POST,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
+            json={'access_token': '1234567890'},
+        )
+        httpx_mock.add_response(
+            method=responses.GET,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
+            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
+        )
+        httpx_mock.add_response(
+            method=responses.GET,
+            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
+            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks.ks@digite.com'}}]}
+        )
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "https",
+            "path": "/",
+            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
+            "headers": Headers({
+                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'host': 'www.example.org',
+                'accept': 'application/json',
+
+            }).raw,
+            "client": ("134.56.78.4", 1453),
+            "server": ("www.example.org", 443),
+        }
+
+        request = Request(scope=scope)
+        request._url = URL(scope=scope)
+        existing_user, user, token = await Authentication.verify_and_process(request, "linkedin")
+        assert Utility.decode_limited_access_token(token)["sub"] == "monisha.ks.ks@digite.com"
+        assert user['email'] == 'monisha.ks.ks@digite.com'
+        assert user['first_name'] == 'monisha'
+        assert user['last_name'] == 'reddy'
+        assert not Utility.check_empty_string(user.get('password').get_secret_value())
+        assert not existing_user
+        user = AccountProcessor.get_user_details('monisha.ks@digite.com')
+        assert all(
+            user[key] is False if key == "is_integration_user" else user[key]
+            for key in user.keys()
+        )
+        user = AccountProcessor.get_user_details('monishaks@digite.com')
+        assert all(
+            user[key] is False if key == "is_integration_user" else user[key]
+            for key in user.keys()
+        )
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert not AccountProcessor.is_user_confirmed(user['email'])
+
+    def test_sso_login_client_linkedin(self):
+        assert LoginSSOFactory.get_client('linkedin').sso_client.client_secret == Utility.environment['sso']['linkedin']['client_secret']
+        assert LoginSSOFactory.get_client('linkedin').sso_client.client_id == Utility.environment['sso']['linkedin']['client_id']
+        assert LoginSSOFactory.get_client('linkedin').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'linkedin')
+
+    def test_sso_login_client_gmail(self):
+        assert LoginSSOFactory.get_client('google').sso_client.client_secret == Utility.environment['sso']['google']['client_secret']
+        assert LoginSSOFactory.get_client('google').sso_client.client_id == Utility.environment['sso']['google']['client_id']
+        assert LoginSSOFactory.get_client('google').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'google')
+
+    def test_sso_login_client_facebook(self):
+        assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
+        assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
+        assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')

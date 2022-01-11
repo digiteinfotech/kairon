@@ -592,6 +592,10 @@ class Utility:
             body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
             subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+        elif mail_type == 'password_generated':
+            body = Utility.email_conf['email']['templates']['password_generated']
+            body = body.replace('PASSWORD', kwargs.get('password', ""))
+            subject = Utility.email_conf['email']['templates']['password_generated_subject']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -1144,3 +1148,22 @@ class Utility:
             return True
         except:
             return False
+
+    @staticmethod
+    def check_is_enabled(sso_type: str, raise_error_is_not_enabled=True):
+        """
+        Checks if sso login for the sso_type is enabled in system.yaml.
+        Valid sso_type: facebook, linkedin, google
+        """
+        is_enabled = Utility.environment.get("sso", {}).get(sso_type, {}).get('enable', False)
+        if not is_enabled and raise_error_is_not_enabled:
+            raise AppException(f'{sso_type} login is not enabled')
+        return is_enabled
+
+    @staticmethod
+    def get_enabled_sso():
+        return {
+            'facebook': Utility.check_is_enabled('facebook', False),
+            'linkedin': Utility.check_is_enabled('linkedin', False),
+            'google': Utility.check_is_enabled('google', False)
+        }

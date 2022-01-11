@@ -110,6 +110,7 @@ class MailTemplates(EmbeddedDocument):
     password_reset_confirmation = StringField()
     add_member_invitation = StringField()
     add_member_confirmation = StringField()
+    password_generated = StringField()
 
 
 class SystemProperties(Document):
