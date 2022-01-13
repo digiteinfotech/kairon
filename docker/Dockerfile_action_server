@@ -35,6 +35,7 @@ COPY kairon/shared/models.py /app/kairon/shared/
 COPY kairon/shared/constants.py /app/kairon/shared/
 COPY kairon/shared/data/constant.py /app/kairon/shared/data/constant.py
 COPY kairon/shared/data/data_objects.py /app/kairon/shared/data/data_objects.py
+COPY kairon/shared/test/data_objects.py /app/kairon/shared/test/data_objects.py
 COPY kairon/exceptions.py /app/kairon/exceptions.py
 COPY system.yaml /app/
 COPY email.yaml /app/
