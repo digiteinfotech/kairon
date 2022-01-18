@@ -13,7 +13,6 @@ from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConf
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
-from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -117,6 +116,7 @@ class AccountProcessor:
         from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
             EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, \
             Slots, TrainingDataGenerator, TrainingExamples
+        from kairon.shared.test.data_objects import ModelTestingLogs
         from kairon.shared.importer.data_objects import ValidationLogs
         from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
 
