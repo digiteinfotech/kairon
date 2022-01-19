@@ -21,6 +21,7 @@ class TestUtility:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
+        Utility.load_email_configuration()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         pytest.bot = 'test'
         yield None
@@ -642,3 +643,49 @@ class TestUtility:
         with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
             mock.return_value = Exception()
             assert not Utility.validate_smtp("dummy.test.com")
+
+    @pytest.mark.asyncio
+    async def test_trigger_smtp(self):
+        with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
+            content_type = "html"
+            to_email = "test@demo.com"
+            subject = "Test"
+            body = "Test"
+            smtp_url = "changeit"
+            sender_email = "changeit@changeit.com"
+            smtp_password = "changeit"
+            smtp_port = 587
+
+            await Utility.trigger_smtp(to_email,
+                                        subject,
+                                        body,
+                                        content_type=content_type)
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().connect'
+            assert {} == kwargs
+
+            host, port = args
+            assert host == smtp_url
+            assert port == smtp_port
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().starttls'
+            assert {} == kwargs
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().login'
+            assert {} == kwargs
+
+            from_email, password = args
+            assert from_email == sender_email
+            assert password == smtp_password
+
+            name, args, kwargs = mock.method_calls.pop(0)
+            assert name == '().sendmail'
+            assert {} == kwargs
+
+            assert args[0] == sender_email
+            assert args[1] == to_email
+            assert str(args[2]).__contains__(subject)
+            assert str(args[2]).__contains__(body)
