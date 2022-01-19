@@ -646,7 +646,8 @@ class Utility:
                                     smtp_port=Utility.email_conf["email"]["sender"]["port"],
                                     sender_email=Utility.email_conf["email"]["sender"]["email"],
                                     smtp_userid=Utility.email_conf["email"]["sender"]["userid"],
-                                    smtp_password=Utility.email_conf["email"]["sender"]["password"])
+                                    smtp_password=Utility.email_conf["email"]["sender"]["password"],
+                                    tls=True)
 
     @staticmethod
     async def trigger_email(email: str,
