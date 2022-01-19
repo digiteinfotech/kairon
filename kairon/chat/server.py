@@ -14,7 +14,7 @@ def make_app():
         (r"/", IndexHandler),
         (r"/api/bot/([^/]+)/chat", ChatHandler),
         (r"/api/bot/([^/]+)/reload", ReloadHandler),
-    ], compress_response=True, debug=True)
+    ], compress_response=True, debug=False)
 
 
 if __name__ == "__main__":

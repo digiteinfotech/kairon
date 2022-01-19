@@ -15,16 +15,16 @@ def make_app():
     return Application([
         (r"/", IndexHandler),
         (r"/webhook", ActionHandler),
-    ], compress_response=True, debug=True)
+    ], compress_response=True, debug=False)
 
 
 if __name__ == "__main__":
     connect(**Utility.mongoengine_connection())
     app = make_app()
     Utility.initiate_tornado_apm_client(app)
+    parse_command_line()
     server = HTTPServer(app)
     server.bind(5055)
     server.start(num_processes=int(getenv("WEB_CONCURRENCY", "1")))
-    parse_command_line()
-    logger.info("Server Started")
     IOLoop.current().start()
+    logger.info("Server Started")
