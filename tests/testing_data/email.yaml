@@ -1,0 +1,19 @@
+app:
+    url: ${APP_URL:"kairon.digite.com"}
+email:
+    enable: ${EMAIL_ENABLE:False}
+    sender:
+        email: ${EMAIL_SENDER_EMAIL:"changeit@changeit.com"}
+        password: ${EMAIL_SENDER_PASSWORD:"changeit"}
+        port: ${EMAIL_SENDER_PORT:587}
+        service: ${EMAIL_SENDER_SERVICE:"changeit"}
+        tls: ${EMAIL_SENDER_TLS:True}
+        userid: ${EMAIL_SENDER_USERID}
+    templates:
+        confirmation_subject: ${EMAIL_TEMPLATES_CONFIRMATION_SUBJECT:"Welcome to kAIron! Please verify your account."}
+        confirmed_subject: ${EMAIL_TEMPLATES_CONFIRMED_SUBJECT:"Verification complete! Build your first chatbot."}
+        password_reset_subject: ${EMAIL_TEMPLATES_PASSWORD_RESET_SUBJECT:"Password Reset"}
+        password_changed_subject: ${EMAIL_TEMPLATES_PASSWORD_CHANGED_SUBJECT:"Password Changed!"}
+        add_member_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_SUBJECT:"Invitation to collaborate on BOT_NAME bot"}
+        add_member_confirmation_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_CONFIRMATION_SUBJECT:"Invitation accepted by INVITED_PERSON_NAME"}
+        password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
