@@ -196,6 +196,14 @@ class HttpActionConfigRequest(BaseModel):
         return v.upper()
 
 
+class GoogleSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    api_key: str
+    search_engine_id: str
+    failure_response: str = 'I have failed to process your request.'
+    num_results: int = 1
+
+
 class TrainingData(BaseModel):
     intent: constr(to_lower=True, strip_whitespace=True)
     training_examples: List[str]

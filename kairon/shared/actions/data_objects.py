@@ -187,5 +187,35 @@ class EmailActionConfig(Document):
         elif isinstance(email(self.from_email), ValidationFailure) or isinstance(email(self.to_email), ValidationFailure):
             raise ValidationError("Invalid From or To email address")
 
+        self.preprocess()
+
     def clean(self):
         self.action_name = self.action_name.strip().lower()
+
+    def preprocess(self):
+        self.smtp_url = Utility.encrypt_message(self.smtp_url)
+        self.smtp_password = Utility.encrypt_message(self.smtp_password)
+
+
+class GoogleSearchAction(Document):
+    name = StringField(required=True)
+    api_key = StringField(required=True)
+    search_engine_id = StringField(required=True)
+    failure_response = StringField(default='I have failed to process your request.')
+    num_results = IntField(default=1)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        self.preprocess()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+    def preprocess(self):
+        self.api_key = Utility.encrypt_message(self.api_key)
