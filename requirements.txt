@@ -45,3 +45,4 @@ networkx==2.6
 fastapi_sso
 pytest-httpx==0.15.0
 json2html
+google-api-python-client
