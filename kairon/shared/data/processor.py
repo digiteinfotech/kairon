@@ -38,7 +38,7 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
-    SlotSetAction, FormValidationAction, EmailActionConfig
+    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from kairon.shared.models import StoryEventType, TemplateType
 from kairon.shared.utils import Utility
@@ -2618,6 +2618,78 @@ class MongoProcessor:
         actions = list(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         return actions
 
+    def add_google_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Add a new google search action
+
+        :param action_config: google search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        Utility.is_exist(
+            GoogleSearchAction, f'Action with name "{action_config.get("name")}" exists', bot=bot,
+            name=action_config.get('name'), status=True
+        )
+        action = GoogleSearchAction(
+            name=action_config['name'],
+            api_key=action_config['api_key'],
+            search_engine_id=action_config['search_engine_id'],
+            failure_response=action_config.get('failure_response'),
+            num_results=action_config.get('num_results'),
+            bot=bot,
+            user=user,
+        ).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            action_config['name'], bot, user, action_type=ActionType.google_search_action.value,
+            raise_exception=False
+        )
+        self.add_slot(
+            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False},
+            bot, user, raise_exception_if_exists=False
+        )
+        return action
+
+    def edit_google_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Update google search action with new values.
+        :param action_config: google search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        try:
+            if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
+                raise AppException(f'Action with name "{action_config.get("name")}" not found')
+            action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
+            action.api_key = action_config['api_key']
+            action.search_engine_id = action_config['search_engine_id']
+            action.failure_response = action_config.get('failure_response')
+            action.num_results = action_config.get('num_results')
+            action.user = user
+            action.timestamp = datetime.utcnow()
+            action.save()
+        except DoesNotExist:
+            raise AppException(f'Email action with name "{action_config.get("name")}" not found')
+
+    def list_google_search_actions(self, bot: Text, mask_characters: bool = True):
+        """
+        List google search actions
+        :param bot: bot id
+        :param mask_characters: masks last 3 characters of api_key if True
+        """
+        for action in GoogleSearchAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
+            action['api_key'] = Utility.decrypt_message(action['api_key'])
+            if mask_characters:
+                action['api_key'] = action['api_key'][:-3] + '***'
+            action.pop('user')
+            action.pop('bot')
+            action.pop('timestamp')
+            action.pop('status')
+            yield action
+
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         """
         Adds slot if it doesn't exist, updates slot if it exists
@@ -3601,6 +3673,8 @@ class MongoProcessor:
                 Utility.delete_document([FormValidationAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.email_action.value:
                 Utility.delete_document([EmailActionConfig], action_name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.google_search_action.value:
+                Utility.delete_document([GoogleSearchAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -3632,7 +3706,6 @@ class MongoProcessor:
 
     def edit_email_action(self, action: dict, bot: Text, user: Text):
         """
-
         update a new Email Action
         :param action: email action configuration
         :param bot: bot id
@@ -3658,12 +3731,21 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException(f'Email action with name "{action.get("action_name")}" not found')
 
-    def list_email_action(self, bot: Text):
+    def list_email_action(self, bot: Text, mask_characters: bool = True):
         """
         List Email Action
         :param bot: bot id
+        :param mask_characters: masks last 3 characters of the password if True
         """
-        actions = EmailActionConfig.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
-                                                                      'status').to_json()
-        return json.loads(actions)
-
+        for action in EmailActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action['smtp_url'] = Utility.decrypt_message(action['smtp_url'])
+            action['smtp_password'] = Utility.decrypt_message(action['smtp_password'])
+            if mask_characters:
+                action['smtp_password'] = action['smtp_password'][:-3] + '***'
+            action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('timestamp')
+            action.pop('status')
+            yield action

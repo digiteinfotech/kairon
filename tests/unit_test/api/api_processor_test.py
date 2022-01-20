@@ -1023,8 +1023,14 @@ class TestAccountProcessor:
         assert str(e).__contains__('Failed to verify with google')
 
     @pytest.mark.asyncio
-    async def test_get_redirect_url_google(self):
-        await Authentication.get_redirect_url("google")
+    async def test_get_redirect_url_google(self, monkeypatch):
+        discovery_url = 'https://discovery.url.localhost/o/oauth2/v2/auth?response_type=code&client_id'
+
+        async def _mock_get_discovery_doc(*args, **kwargs):
+            return {'authorization_endpoint': discovery_url}
+
+        monkeypatch.setattr(GoogleSSO, 'get_discovery_document', _mock_get_discovery_doc)
+        assert isinstance(await Authentication.get_redirect_url("google"), RedirectResponse)
 
     @pytest.mark.asyncio
     async def test_verify_and_process_facebook(self, monkeypatch):
@@ -1091,7 +1097,7 @@ class TestAccountProcessor:
 
     @pytest.mark.asyncio
     async def test_get_redirect_url_facebook(self):
-        await Authentication.get_redirect_url("facebook")
+        assert isinstance(await Authentication.get_redirect_url("facebook"), RedirectResponse)
 
     @pytest.mark.asyncio
     async def test_invalid_ssostate_facebook(*args, **kwargs):

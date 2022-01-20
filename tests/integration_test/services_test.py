@@ -9,6 +9,7 @@ from zipfile import ZipFile
 import pytest
 import responses
 from fastapi.testclient import TestClient
+from fastapi_sso.sso.google import GoogleSSO
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
 from pydantic import SecretStr
@@ -3496,7 +3497,7 @@ def test_list_actions():
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
-        'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [],
+        'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -6627,17 +6628,22 @@ def test_sso_redirect_url_not_enabled():
     assert not actual["success"]
 
 
-def test_sso_redirect_url():
+def test_sso_redirect_url(monkeypatch):
+    discovery_url = 'https://discovery.url.localhost/o/oauth2/v2/auth?response_type=code&client_id'
+
+    async def _mock_get_discovery_doc(*args, **kwargs):
+        return {'authorization_endpoint': discovery_url}
+
     Utility.environment['sso']['linkedin']['enable'] = True
     Utility.environment['sso']['google']['enable'] = True
     Utility.environment['sso']['facebook']['enable'] = True
+    monkeypatch.setattr(GoogleSSO, 'get_discovery_document', _mock_get_discovery_doc)
 
     response = client.get(
         url=f"/api/auth/login/sso/google", allow_redirects=False
     )
     assert response.status_code == 303
-    assert response.headers['location'].__contains__(
-        'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id')
+    assert response.headers['location'].__contains__(discovery_url)
 
     response = client.get(
         url=f"/api/auth/login/sso/linkedin", allow_redirects=False
@@ -6782,7 +6788,7 @@ def test_list_email_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 'test', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -6853,3 +6859,124 @@ def test_delete_email_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action deleted'
+
+
+def test_list_google_search_action_no_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 0
+
+
+def test_add_google_search_action():
+    action = {
+        'name': 'google_custom_search',
+        'api_key': '12345678',
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_google_search_exists():
+    action = {
+        'name': 'google_custom_search',
+        'api_key': '12345678',
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "google_custom_search" exists'
+
+
+def test_edit_google_search_action_not_exists():
+    action = {
+        'name': 'custom_search',
+        'api_key': '12345678',
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "custom_search" not found'
+
+
+def test_edit_google_search_action():
+    action = {
+        'name': 'google_custom_search',
+        'api_key': '1234567889',
+        'search_engine_id': 'asdfg:12345689',
+        'failure_response': 'Failed to perform search',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_list_google_search_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"][0]['name'] == 'google_custom_search'
+    assert actual["data"][0]['api_key'] == '1234567***'
+    assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
+    assert actual["data"][0]['failure_response'] == 'Failed to perform search'
+    assert actual["data"][0]['num_results'] == 1
+
+
+def test_delete_google_search_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/googlesearch/google_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_delete_google_search_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/googlesearch/google_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "google_custom_search" not found'
