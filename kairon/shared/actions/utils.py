@@ -6,6 +6,7 @@ from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
 import requests
+from googleapiclient.discovery import build
 from loguru import logger
 from mongoengine import DoesNotExist
 from pymongo.common import _CaseInsensitiveDictionary
@@ -20,12 +21,15 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, EmailActionConfig
+from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
+    EmailActionConfig, GoogleSearchAction
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
 from json2html import *
+
+from ... import Utility
 
 
 class ActionUtility:
@@ -237,7 +241,7 @@ class ActionUtility:
 
         try:
             action = Actions.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("http_action_config: " + str(action))
+            logger.debug("action_config: " + str(action))
             if action.get('type') == ActionType.http_action.value:
                 config = ActionUtility.get_http_action_config(bot, name)
             elif action.get('type') == ActionType.slot_set_action.value:
@@ -246,8 +250,10 @@ class ActionUtility:
                 config = ActionUtility.get_form_validation_config(bot, name)
             elif action.get('type') == ActionType.email_action.value:
                 config = ActionUtility.get_email_action_config(bot, name)
+            elif action.get('type') == ActionType.google_search_action.value:
+                config = ActionUtility.get_google_search_action_config(bot, name)
             else:
-                raise ActionFailure('Only http & slot set actions are compatible with action server')
+                raise ActionFailure(f'{action.get("type")} action is not supported with action server')
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No action found for bot")
@@ -297,6 +303,22 @@ class ActionUtility:
     def get_email_action_config(bot: str, name: str):
         action = EmailActionConfig.objects(bot=bot, action_name=name, status=True).get().to_mongo().to_dict()
         logger.debug("email_action_config: " + str(action))
+        action['smtp_url'] = Utility.decrypt_message(action['smtp_url'])
+        action['smtp_password'] = Utility.decrypt_message(action['smtp_password'])
+        action['from_email'] = Utility.decrypt_message(action['from_email'])
+        if not ActionUtility.is_empty(action.get('smtp_userid')):
+            action['smtp_userid'] = Utility.decrypt_message(action['smtp_userid'])
+        return action
+
+    @staticmethod
+    def get_google_search_action_config(bot: str, name: str):
+        try:
+            action = GoogleSearchAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("google_search_action_config: " + str(action))
+            action['api_key'] = Utility.decrypt_message(action['api_key'])
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Google search action not found")
         return action
 
     @staticmethod
@@ -307,6 +329,24 @@ class ActionUtility:
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure(f'Slot not found in database: {slot}')
+
+    @staticmethod
+    def perform_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
+        results = []
+        try:
+            service = build("customsearch", "v1", developerKey=api_key)
+            search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
+            for item in search_results.get('items') or []:
+                results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
+    def format_search_result(results: list):
+        link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
+        return f'{results[0]["text"]}\nTo know more, please visit: {link}'
 
     @staticmethod
     def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
@@ -379,6 +419,7 @@ class ActionUtility:
     def prepare_email_body(tracker_events):
         iat, msgtrail = ActionUtility.prepare_message_trail(tracker_events)
         return json2html.convert(msgtrail)
+
 
 class ExpressionEvaluator:
 

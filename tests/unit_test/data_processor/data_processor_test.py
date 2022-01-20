@@ -47,7 +47,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, EmailActionConfig
+    FormValidationAction, GoogleSearchAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -5625,7 +5625,8 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'email_action': [], 'form_validation_action': []}
+        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [],
+                           'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -5646,7 +5647,7 @@ class TestModelProcessor:
             'actions': ['action_check'],
             'http_action': [],
             'slot_set_action': [],
-            'utterances': [], 'email_action': [], 'form_validation_action': []}
+            'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -5664,7 +5665,7 @@ class TestModelProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert actions == {'actions': [],
-                           'http_action': [],
+                           'http_action': [], 'google_search_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -5940,7 +5941,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {'actions': ['reset_slot'],
+        assert actions == {'actions': ['reset_slot'], 'google_search_action': [],
                            'http_action': ['action_performanceuser1000@digite.com'],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_offer_help',
@@ -6213,7 +6214,7 @@ class TestTrainingDataProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [],
-            'http_action': [],
+            'http_action': [], 'google_search_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -6682,4 +6683,92 @@ class TestTrainingDataProcessor:
 
     def test_list_email_actions(self):
         processor = MongoProcessor()
-        assert len(processor.list_email_action("TEST")) == 1
+        assert len(list(processor.list_email_action("TEST"))) == 1
+
+    def test_add_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        assert processor.add_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_google_search_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action with name "google_custom_search" exists'):
+            processor.add_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_list_google_search_action_masked(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_google_search_actions(bot))
+        assert actions[0]['name'] == 'google_custom_search'
+        assert actions[0]['api_key'] == '12345***'
+        assert actions[0]['search_engine_id'] == 'asdfg:123456'
+        assert actions[0]['failure_response'] == 'I have failed to process your request'
+        assert actions[0]['num_results'] == 1
+
+    def test_edit_google_search_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action with name "custom_search" not found'):
+            processor.edit_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_edit_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '1234567889',
+            'search_engine_id': 'asdfg:12345689',
+            'failure_response': 'Failed to perform search',
+        }
+        assert not processor.edit_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_list_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_google_search_actions(bot, False))
+        assert actions[0]['name'] == 'google_custom_search'
+        assert actions[0]['api_key'] == '1234567889'
+        assert actions[0]['search_engine_id'] == 'asdfg:12345689'
+        assert actions[0]['failure_response'] == 'Failed to perform search'
+        assert actions[0]['num_results'] == 1
+
+    def test_delete_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('google_custom_search', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()

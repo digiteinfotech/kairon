@@ -49,6 +49,8 @@ class ActionProcessor:
                 slots = await ActionProcessor.__process_form_validation_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.email_action.value:
                 slots = await ActionProcessor.__process_email_action(dispatcher, tracker, action_config)
+            elif action_type == ActionType.google_search_action.value:
+                slots = await ActionProcessor.__process_google_search_action(dispatcher, tracker, action_config)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
@@ -216,6 +218,38 @@ class ActionProcessor:
                 type=ActionType.email_action.value,
                 intent=tracker.get_intent_of_latest_message(),
                 action=tracker.latest_action_name,
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+
+    @staticmethod
+    async def __process_google_search_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        exception = None
+        status = "SUCCESS"
+        latest_msg = tracker.latest_message.get('text')
+        bot_response = action_config.get("failure_response")
+        try:
+            if not ActionUtility.is_empty(latest_msg):
+                results = ActionUtility.perform_google_search(
+                    action_config['api_key'], action_config['search_engine_id'], latest_msg,
+                    num=action_config.get("num_results")
+                )
+                if results:
+                    bot_response = ActionUtility.format_search_result(results)
+        except Exception as e:
+            logger.exception(e)
+            exception = str(e)
+            status = "FAILURE"
+        finally:
+            ActionServerLogs(
+                type=ActionType.google_search_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=tracker.latest_action_name,
+                bot_response=bot_response,
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
