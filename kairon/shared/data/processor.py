@@ -3402,23 +3402,28 @@ class MongoProcessor:
             self.__add_form_responses(slots_to_fill['ask_questions'],
                                       utterance_name=f'utter_ask_{name}_{slots_to_fill["slot"]}',
                                       form=name, bot=bot, user=user)
-        Forms(name=name, required_slots=required_slots, bot=bot, user=user).save()
+        form_id = Forms(name=name, required_slots=required_slots, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
         self.__add_or_update_form_validations(f'validate_{name}', path, bot, user)
         self.add_action(f'validate_{name}', bot, user, action_type=ActionType.form_validation_action.value)
+        return form_id
 
     @staticmethod
     def list_forms(bot: Text):
-        forms = Forms.objects(bot=bot, status=True).exclude(
-            'id', 'ignored_intents', 'bot', 'user', 'timestamp', 'status'
-        ).to_json()
-        return json.loads(forms)
+        for form in Forms.objects(bot=bot, status=True):
+            form = form.to_mongo().to_dict()
+            form['_id'] = form['_id'].__str__()
+            form.pop('bot')
+            form.pop('user')
+            form.pop('status')
+            yield form
 
-    def get_form(self, name: Text, bot: Text):
+    def get_form(self, form_id: Text, bot: Text):
         try:
-            form = Forms.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+            form = Forms.objects(id=form_id, bot=bot, status=True).get().to_mongo().to_dict()
+            name = form['name']
+            form['_id'] = form['_id'].__str__()
             form_validations = FormValidationAction.objects(name=f'validate_{name}', bot=bot, status=True)
             slots_with_validations = {validation.slot for validation in form_validations}
-            form['_id'] = form['_id'].__str__()
             slot_mapping = []
             for slot in form.get('required_slots') or []:
                 utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))

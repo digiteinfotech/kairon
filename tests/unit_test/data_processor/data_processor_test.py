@@ -59,7 +59,7 @@ from unittest.mock import patch
 
 class TestMongoProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -4010,7 +4010,7 @@ class TestMongoProcessor:
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
         bot = 'test'
         user = 'user'
-        processor.add_form('know_user', path, bot, user)
+        assert processor.add_form('know_user', path, bot, user)
         form = Forms.objects(name='know_user', bot=bot).get()
         assert form.required_slots == ['name', 'age', 'occupation']
         assert Utterances.objects(name='utter_ask_know_user_name', bot=bot,
@@ -4118,7 +4118,7 @@ class TestMongoProcessor:
                            raise_exception_if_exists=False)
         processor.add_or_update_slot_mapping(slot, bot, user)
 
-        processor.add_form('restaurant_form', path, bot, user)
+        assert processor.add_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
         assert form.required_slots == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']
         assert Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
@@ -4196,7 +4196,7 @@ class TestMongoProcessor:
                  'validation': occupation_validation}]
         bot = 'test'
         user = 'user'
-        processor.add_form('know_user_form', path, bot, user)
+        assert processor.add_form('know_user_form', path, bot, user)
         form = Forms.objects(name='know_user_form', bot=bot).get()
         assert form.required_slots == ['name', 'age', 'occupation']
         assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
@@ -4245,21 +4245,26 @@ class TestMongoProcessor:
 
     def test_list_forms(self):
         processor = MongoProcessor()
-        forms = processor.list_forms('test')
-        assert forms == [{'name': 'ticket_attributes_form', 'required_slots': ['date_time', 'priority']},
-                         {'name': 'ticket_file_form', 'required_slots': ['file']},
-                         {'name': 'know_user', 'required_slots': ['name', 'age', 'occupation']},
-                         {'name': 'restaurant_form', 'required_slots': [
-                             'name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']},
-                         {'name': 'know_user_form', 'required_slots': ['name', 'age', 'occupation']}]
+        forms = list(processor.list_forms('test'))
+        print(forms)
+        assert len(forms) == 5
+        assert len([f['name'] for f in forms]) == 5
+        assert len([f['_id'] for f in forms]) == 5
+        required_slots = [f['required_slots'] for f in forms]
+        assert required_slots == [['date_time', 'priority'], ['file'], ['name', 'age', 'occupation'],
+                                  ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback'],
+                                  ['name', 'age', 'occupation']]
 
     def test_list_forms_no_form_added(self):
         processor = MongoProcessor()
-        forms = processor.list_forms('new_bot')
+        forms = list(processor.list_forms('new_bot'))
         assert forms == []
 
     def test_get_form(self):
-        form = MongoProcessor().get_form('know_user', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'know_user'][0]
+        form = processor.get_form(form_id, 'test')
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'age'
         assert form['settings'][2]['slot'] == 'occupation'
@@ -4283,7 +4288,10 @@ class TestMongoProcessor:
         assert not form['settings'][2]['valid_response']
 
     def test_get_form_with_validations(self):
-        form = MongoProcessor().get_form('know_user_form', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'know_user_form'][0]
+        form = processor.get_form(form_id, 'test')
         print(form)
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'age'
@@ -4319,11 +4327,16 @@ class TestMongoProcessor:
         assert not form['settings'][2]['valid_response']
 
     def test_get_form_not_added(self):
+        import mongomock
+
         with pytest.raises(AppException, match='Form does not exists'):
-            MongoProcessor().get_form('form_not_present', 'test')
+            MongoProcessor().get_form(mongomock.ObjectId().__str__(), 'test')
 
     def test_get_form_having_on_intent_and_not_intent(self):
-        form = MongoProcessor().get_form('restaurant_form', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'restaurant_form'][0]
+        form = MongoProcessor().get_form(form_id, 'test')
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'num_people'
         assert form['settings'][2]['slot'] == 'cuisine'
@@ -5013,7 +5026,7 @@ class TestAgentProcessor:
 
 
 class TestModelProcessor:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -6023,7 +6036,7 @@ class TestModelProcessor:
 
 class TestTrainingDataProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()

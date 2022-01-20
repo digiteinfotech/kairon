@@ -5506,7 +5506,16 @@ def test_add_form():
 
 def test_get_form_with_no_validations():
     response = client.get(
-        f"/api/bot/{pytest.bot}/forms/restaurant_form",
+        f"/api/bot/{pytest.bot}/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    form_id = actual["data"][0]['_id']
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/{form_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5680,7 +5689,16 @@ def test_add_form_with_validations():
 
 def test_get_form_with_validations():
     response = client.get(
-        f"/api/bot/{pytest.bot}/forms/know_user_form",
+        f"/api/bot/{pytest.bot}/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    form_id = actual["data"][1]['_id']
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/{form_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5782,14 +5800,24 @@ def test_list_form():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [{'name': 'restaurant_form',
-                               'required_slots': ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']},
-                              {'name': 'know_user_form', 'required_slots': ['name', 'age', 'location', 'occupation']}]
+    assert actual["data"][0]['name'] == 'restaurant_form'
+    assert actual["data"][0]['required_slots'] == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']
+    assert actual["data"][1]['name'] == 'know_user_form'
+    assert actual["data"][1]['required_slots'] == ['name', 'age', 'location', 'occupation']
 
 
 def test_get_form_after_edit():
     response = client.get(
-        f"/api/bot/{pytest.bot}/forms/restaurant_form",
+        f"/api/bot/{pytest.bot}/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    form_1 = actual["data"][0]['_id']
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/{form_1}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -6408,22 +6436,22 @@ def test_add_form_case_insensitivity():
     assert actual["message"] == "Form added"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/forms/CASE_INSENSITIVE_FORM",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == 'Form does not exists'
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/forms/case_insensitive_form",
+        f"/api/bot/{pytest.bot}/forms",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data']
+    form_1 = actual["data"][1]['_id']
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/forms/{form_1}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']['name'] == 'case_insensitive_form'
 
 
 def test_add_slot_set_action_case_insensitivity():
