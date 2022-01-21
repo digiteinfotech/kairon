@@ -18,7 +18,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase, SlotMappingRequest, EmailActionRequest
+    TextDataLowerCase, SlotMappingRequest, EmailActionRequest, GoogleSearchActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -784,6 +784,57 @@ async def delete_slot_set_action(
     return Response(message='Action deleted')
 
 
+@router.post("/action/googlesearch", response_model=Response)
+async def add_google_search_action(
+        request_data: GoogleSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the google search action config.
+    """
+    action_id = mongo_processor.add_google_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(data=action_id, message='Action added')
+
+
+@router.get("/action/googlesearch", response_model=Response)
+async def list_google_search_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of google search actions for bot.
+    """
+    actions = list(mongo_processor.list_google_search_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/action/googlesearch", response_model=Response)
+async def update_google_search_action(
+        request_data: GoogleSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the google search action configuration.
+    """
+    mongo_processor.edit_google_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(message='Action updated')
+
+
+@router.delete("/action/googlesearch/{action}", response_model=Response)
+async def delete_google_search_action(
+        action: str = Path(default=None, description="action name", example="action_google_search"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the google search action.
+    """
+    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
+    return Response(message="Action deleted")
+
+
 @router.get("/actions/logs", response_model=Response)
 async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -1265,12 +1316,14 @@ async def delete_slot_mapping(name: str = Path(default=None, description="Name o
 
 
 @router.post("/forms", response_model=Response)
-async def add_form(request: Forms, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def add_form(
+        request: Forms, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
     """
     Adds a new form.
     """
-    mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
-    return Response(message='Form added')
+    form = mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
+    return Response(data=form, message='Form added')
 
 
 @router.get("/forms", response_model=Response)
@@ -1278,22 +1331,26 @@ async def list_forms(current_user: User = Security(Authentication.get_current_us
     """
     Lists all forms in the bot.
     """
-    forms = mongo_processor.list_forms(current_user.get_bot())
+    forms = list(mongo_processor.list_forms(current_user.get_bot()))
     return Response(data=forms)
 
 
-@router.get("/forms/{form_name}", response_model=Response)
-async def get_form(form_name: str = Path(default=None, description="Name of the form"),
-                   current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+@router.get("/forms/{form_id}", response_model=Response)
+async def get_form(
+        form_id: str = Path(default=None, description="Form id"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get a particular form.
     """
-    form = mongo_processor.get_form(form_name, current_user.get_bot())
+    form = mongo_processor.get_form(form_id, current_user.get_bot())
     return Response(data=form)
 
 
 @router.put("/forms", response_model=Response)
-async def edit_form(request: Forms, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def edit_form(
+        request: Forms, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
     """
     Edits a form.
     """
@@ -1302,7 +1359,9 @@ async def edit_form(request: Forms, current_user: User = Security(Authentication
 
 
 @router.delete("/forms", response_model=Response)
-async def delete_form(request: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def delete_form(
+        request: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
     """
     Deletes a form and its associated utterances.
     """
@@ -1343,7 +1402,7 @@ async def list_email_actions(current_user: User = Security(Authentication.get_cu
     """
     Returns list of slot set actions for bot.
     """
-    actions = mongo_processor.list_email_action(current_user.get_bot())
+    actions = list(mongo_processor.list_email_action(current_user.get_bot()))
     return Response(data=actions)
 
 
