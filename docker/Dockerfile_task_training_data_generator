@@ -17,7 +17,7 @@ RUN python -m pip install smart-config==0.1.3
 RUN python -m pip install python-docx
 RUN python -m pip install PyMuPDF
 RUN python -m pip install sentencepiece
-RUN python -m pip install nltk
+RUN python -m pip install nltk==3.6.6
 RUN python -m pip install torch==1.6.0
 RUN python -m pip install nlp
 RUN python -m pip install transformers==4.5.0
@@ -28,6 +28,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp
+RUN python -m pip install numpy==1.22.0
 
 COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/

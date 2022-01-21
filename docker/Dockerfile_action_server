@@ -21,9 +21,10 @@ RUN python -m pip install pydantic~=1.8.2
 RUN python -m pip install password-strength
 RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install cryptography~=3.4.8
-RUN python -m pip install websockets==9.1
+RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install json2html
+RUN python -m pip install numpy==1.22.0
 
 
 COPY kairon/actions /app/kairon/actions/
