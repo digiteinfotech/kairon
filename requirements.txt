@@ -46,3 +46,4 @@ fastapi_sso
 pytest-httpx==0.15.0
 json2html
 google-api-python-client
+ujson>=5.1.0 # not directly required, pinned by Snyk to avoid a vulnerability
