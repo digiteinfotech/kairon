@@ -15,11 +15,11 @@ test:
   script:
     - python3.8 -m pip install pip==20.2.4
     - python3.8 -m pip install -r requirements.txt
-    - python3.8 -m pip install git+https://github.com/sfahad1414/question_generation.git
     - python3.8 -m nltk.downloader wordnet
     - python3.8 -m nltk.downloader averaged_perceptron_tagger
     - python3.8 -m nltk.downloader punkt
     - python3.8 -m nltk.downloader stopwords
+    - python3.8 -m nltk.downloader omw-1.4
     - python3.8 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --ignore tests/load_test/
 
 build-dev:
