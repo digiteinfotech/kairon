@@ -47,7 +47,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, EmailActionConfig
+    FormValidationAction, GoogleSearchAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -59,7 +59,7 @@ from unittest.mock import patch
 
 class TestMongoProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -4010,7 +4010,7 @@ class TestMongoProcessor:
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
         bot = 'test'
         user = 'user'
-        processor.add_form('know_user', path, bot, user)
+        assert processor.add_form('know_user', path, bot, user)
         form = Forms.objects(name='know_user', bot=bot).get()
         assert form.required_slots == ['name', 'age', 'occupation']
         assert Utterances.objects(name='utter_ask_know_user_name', bot=bot,
@@ -4118,7 +4118,7 @@ class TestMongoProcessor:
                            raise_exception_if_exists=False)
         processor.add_or_update_slot_mapping(slot, bot, user)
 
-        processor.add_form('restaurant_form', path, bot, user)
+        assert processor.add_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
         assert form.required_slots == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']
         assert Utterances.objects(name='utter_ask_restaurant_form_name', bot=bot, status=True).get()
@@ -4196,7 +4196,7 @@ class TestMongoProcessor:
                  'validation': occupation_validation}]
         bot = 'test'
         user = 'user'
-        processor.add_form('know_user_form', path, bot, user)
+        assert processor.add_form('know_user_form', path, bot, user)
         form = Forms.objects(name='know_user_form', bot=bot).get()
         assert form.required_slots == ['name', 'age', 'occupation']
         assert Utterances.objects(name='utter_ask_know_user_form_name', bot=bot,
@@ -4245,21 +4245,26 @@ class TestMongoProcessor:
 
     def test_list_forms(self):
         processor = MongoProcessor()
-        forms = processor.list_forms('test')
-        assert forms == [{'name': 'ticket_attributes_form', 'required_slots': ['date_time', 'priority']},
-                         {'name': 'ticket_file_form', 'required_slots': ['file']},
-                         {'name': 'know_user', 'required_slots': ['name', 'age', 'occupation']},
-                         {'name': 'restaurant_form', 'required_slots': [
-                             'name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']},
-                         {'name': 'know_user_form', 'required_slots': ['name', 'age', 'occupation']}]
+        forms = list(processor.list_forms('test'))
+        print(forms)
+        assert len(forms) == 5
+        assert len([f['name'] for f in forms]) == 5
+        assert len([f['_id'] for f in forms]) == 5
+        required_slots = [f['required_slots'] for f in forms]
+        assert required_slots == [['date_time', 'priority'], ['file'], ['name', 'age', 'occupation'],
+                                  ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback'],
+                                  ['name', 'age', 'occupation']]
 
     def test_list_forms_no_form_added(self):
         processor = MongoProcessor()
-        forms = processor.list_forms('new_bot')
+        forms = list(processor.list_forms('new_bot'))
         assert forms == []
 
     def test_get_form(self):
-        form = MongoProcessor().get_form('know_user', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'know_user'][0]
+        form = processor.get_form(form_id, 'test')
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'age'
         assert form['settings'][2]['slot'] == 'occupation'
@@ -4283,7 +4288,10 @@ class TestMongoProcessor:
         assert not form['settings'][2]['valid_response']
 
     def test_get_form_with_validations(self):
-        form = MongoProcessor().get_form('know_user_form', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'know_user_form'][0]
+        form = processor.get_form(form_id, 'test')
         print(form)
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'age'
@@ -4319,11 +4327,16 @@ class TestMongoProcessor:
         assert not form['settings'][2]['valid_response']
 
     def test_get_form_not_added(self):
+        import mongomock
+
         with pytest.raises(AppException, match='Form does not exists'):
-            MongoProcessor().get_form('form_not_present', 'test')
+            MongoProcessor().get_form(mongomock.ObjectId().__str__(), 'test')
 
     def test_get_form_having_on_intent_and_not_intent(self):
-        form = MongoProcessor().get_form('restaurant_form', 'test')
+        processor = MongoProcessor()
+        forms = list(processor.list_forms('test'))
+        form_id = [f['_id'] for f in forms if f['name'] == 'restaurant_form'][0]
+        form = MongoProcessor().get_form(form_id, 'test')
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'num_people'
         assert form['settings'][2]['slot'] == 'cuisine'
@@ -5013,7 +5026,7 @@ class TestAgentProcessor:
 
 
 class TestModelProcessor:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -5612,7 +5625,8 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'email_action': [], 'form_validation_action': []}
+        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [],
+                           'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -5633,7 +5647,7 @@ class TestModelProcessor:
             'actions': ['action_check'],
             'http_action': [],
             'slot_set_action': [],
-            'utterances': [], 'email_action': [], 'form_validation_action': []}
+            'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -5651,7 +5665,7 @@ class TestModelProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert actions == {'actions': [],
-                           'http_action': [],
+                           'http_action': [], 'google_search_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -5927,7 +5941,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {'actions': ['reset_slot'],
+        assert actions == {'actions': ['reset_slot'], 'google_search_action': [],
                            'http_action': ['action_performanceuser1000@digite.com'],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_offer_help',
@@ -6023,7 +6037,7 @@ class TestModelProcessor:
 
 class TestTrainingDataProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -6200,7 +6214,7 @@ class TestTrainingDataProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [],
-            'http_action': [],
+            'http_action': [], 'google_search_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -6669,4 +6683,92 @@ class TestTrainingDataProcessor:
 
     def test_list_email_actions(self):
         processor = MongoProcessor()
-        assert len(processor.list_email_action("TEST")) == 1
+        assert len(list(processor.list_email_action("TEST"))) == 1
+
+    def test_add_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        assert processor.add_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_google_search_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action with name "google_custom_search" exists'):
+            processor.add_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_list_google_search_action_masked(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_google_search_actions(bot))
+        assert actions[0]['name'] == 'google_custom_search'
+        assert actions[0]['api_key'] == '12345***'
+        assert actions[0]['search_engine_id'] == 'asdfg:123456'
+        assert actions[0]['failure_response'] == 'I have failed to process your request'
+        assert actions[0]['num_results'] == 1
+
+    def test_edit_google_search_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'custom_search',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action with name "custom_search" not found'):
+            processor.edit_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_edit_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'google_custom_search',
+            'api_key': '1234567889',
+            'search_engine_id': 'asdfg:12345689',
+            'failure_response': 'Failed to perform search',
+        }
+        assert not processor.edit_google_search_action(action, bot, user)
+        assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_list_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_google_search_actions(bot, False))
+        assert actions[0]['name'] == 'google_custom_search'
+        assert actions[0]['api_key'] == '1234567889'
+        assert actions[0]['search_engine_id'] == 'asdfg:12345689'
+        assert actions[0]['failure_response'] == 'Failed to perform search'
+        assert actions[0]['num_results'] == 1
+
+    def test_delete_google_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('google_custom_search', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='google_custom_search', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()

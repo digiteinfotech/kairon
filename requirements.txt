@@ -46,3 +46,4 @@ fastapi_sso
 pytest-httpx==0.15.0
 json2html
 numpy==1.22.0
+google-api-python-client
