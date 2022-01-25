@@ -30,6 +30,7 @@ RUN mkdir ssl
 RUN mkdir training_data
 RUN chmod 777 -R /tmp
 RUN python -m pip install numpy==1.22.0
+RUN python -m pip install ujson==5.1.0
 
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY system.yaml ${IMPORTER_HOME}/

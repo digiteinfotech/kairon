@@ -29,6 +29,7 @@ RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp
 RUN python -m pip install numpy==1.22.0
+RUN python -m pip install ujson==5.1.0
 
 COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/

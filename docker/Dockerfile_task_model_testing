@@ -34,6 +34,8 @@ RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
+RUN python -m pip install ujson==5.1.0
+
 
 RUN mkdir ssl
 RUN mkdir testing_data

@@ -41,6 +41,8 @@ RUN python -m pip install json2html
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install numpy==1.22.0
+RUN python -m pip install ujson==5.1.0
+
 
 RUN mkdir ssl
 RUN mkdir data_generator

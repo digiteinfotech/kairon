@@ -31,6 +31,7 @@ RUN python -m pip install fastapi_sso
 RUN python -m pip install json2html
 RUN mkdir ssl
 RUN python -m pip install numpy==1.22.0
+RUN python -m pip install ujson==5.1.0
 
 COPY kairon /app/kairon
 COPY email.yaml /app/email.yaml
