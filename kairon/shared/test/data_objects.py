@@ -1,6 +1,8 @@
 from mongoengine import Document, StringField, DateTimeField, DictField
+from kairon.shared.data.signals import push_notification
 
 
+@push_notification.apply
 class ModelTestingLogs(Document):
     reference_id = StringField(default=None)
     data = DictField(default=None)

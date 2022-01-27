@@ -2658,19 +2658,16 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        try:
-            if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
-                raise AppException(f'Action with name "{action_config.get("name")}" not found')
-            action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
-            action.api_key = action_config['api_key']
-            action.search_engine_id = action_config['search_engine_id']
-            action.failure_response = action_config.get('failure_response')
-            action.num_results = action_config.get('num_results')
-            action.user = user
-            action.timestamp = datetime.utcnow()
-            action.save()
-        except DoesNotExist:
-            raise AppException(f'Email action with name "{action_config.get("name")}" not found')
+        if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
+            raise AppException(f'Google search action with name "{action_config.get("name")}" not found')
+        action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
+        action.api_key = action_config['api_key']
+        action.search_engine_id = action_config['search_engine_id']
+        action.failure_response = action_config.get('failure_response')
+        action.num_results = action_config.get('num_results')
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
 
     def list_google_search_actions(self, bot: Text, mask_characters: bool = True):
         """
