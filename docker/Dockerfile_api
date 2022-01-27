@@ -38,6 +38,7 @@ RUN python -m pip install nltk==3.6.6
 RUN python -m pip install pytest
 RUN python -m pip install fastapi_sso
 RUN python -m pip install json2html
+RUN python -m pip install blinker
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install numpy==1.22.0

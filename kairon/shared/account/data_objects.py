@@ -11,7 +11,7 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
-
+from kairon.shared.data.signals import push_notification
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
 
@@ -53,6 +53,7 @@ class User(Document):
             raise ValidationError("Please enter valid email address")
 
 
+@push_notification.apply
 class Bot(Document):
     name = StringField(required=True)
     account = LongField(required=True)

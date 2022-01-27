@@ -223,6 +223,7 @@ class Utility:
         :param extension_pattern: file extension as a regular expression
         :return: latest file
         """
+        logger.info(f"Model path: {folder}")
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
@@ -317,6 +318,7 @@ class Utility:
         :param path: directory path
         :return: None
         """
+        logger.info(f"deleting data from path: {path}")
         shutil.rmtree(path)
 
     @staticmethod
@@ -344,6 +346,8 @@ class Utility:
         :param user: user id
         :return: NONE
         """
+        from kairon.shared.data.signals import push_bulk_update_notification
+
         for document in documents:
             kwargs['bot'] = bot
             update = {'set__user': user, 'set__timestamp': datetime.utcnow()}
@@ -352,7 +356,10 @@ class Utility:
                 update['set__status'] = False
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
+                list(fetched_documents)
                 fetched_documents.update(**update)
+                kwargs['event_type'] = 'delete'
+                push_bulk_update_notification(document, fetched_documents, **kwargs)
 
     @staticmethod
     def hard_delete_document(documents: List[Document], bot: Text, user: Text, **kwargs):
@@ -1107,7 +1114,8 @@ class Utility:
         try:
             Utility.get_latest_model(bot)
             return True
-        except AppException:
+        except AppException as e:
+            logger.exception(e)
             if raise_exc:
                 raise AppException('No model trained yet. Please train a model to test')
             return False
@@ -1168,3 +1176,21 @@ class Utility:
             'linkedin': Utility.check_is_enabled('linkedin', False),
             'google': Utility.check_is_enabled('google', False)
         }
+
+    @staticmethod
+    def push_notification(channel: Text, event_type: Text, collection: Text, metadata: dict, raise_error=False):
+        push_server_endpoint = Utility.environment['notifications']['server_endpoint']
+        push_server_endpoint = urljoin(push_server_endpoint, channel)
+        request_body = {
+            'event_type': event_type,
+            'event': {
+                'entity_type': collection,
+                'data': metadata
+            }
+        }
+        try:
+            Utility.http_request('POST', push_server_endpoint, None, json_dict=request_body)
+        except Exception as e:
+            logger.exception(e)
+            if raise_error:
+                raise AppException(e)

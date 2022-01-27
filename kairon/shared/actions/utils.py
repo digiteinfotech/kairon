@@ -6,7 +6,6 @@ from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
 import requests
-from googleapiclient.discovery import build
 from loguru import logger
 from mongoengine import DoesNotExist
 from pymongo.common import _CaseInsensitiveDictionary
@@ -29,7 +28,7 @@ from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
 from json2html import *
 
-from ... import Utility
+from ..utils import Utility
 
 
 class ActionUtility:
@@ -332,6 +331,8 @@ class ActionUtility:
 
     @staticmethod
     def perform_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
+        from googleapiclient.discovery import build
+
         results = []
         try:
             service = build("customsearch", "v1", developerKey=api_key)
