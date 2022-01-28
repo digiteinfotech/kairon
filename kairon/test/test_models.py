@@ -303,6 +303,8 @@ class TestDataGenerator:
         messages = list(chain.from_iterable(aug_training_examples))
         nlu_data = TrainingData(training_examples=messages)
         stories = processor.load_stories(bot)
+        rules = processor.get_rules_for_training(bot)
+        stories = stories.merge(rules)
         if stories.is_empty() or nlu_data.is_empty():
             raise AppException('Not enough training data exists. Please add some training data.')
 

@@ -1309,9 +1309,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1356,9 +1356,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4176,9 +4176,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4221,9 +4221,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
