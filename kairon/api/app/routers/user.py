@@ -23,9 +23,11 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
 
 
 @router.post("/{bot}/member", response_model=Response)
-async def allow_bot_for_user(allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,
-                             bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
-                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+async def allow_bot_for_user(
+        allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
     """
     Allows user to access a bot.
     """
@@ -58,9 +60,11 @@ async def accept_bot_collaboration_invite(
 
 
 @router.put("/{bot}/member", response_model=Response)
-async def update_bot_access_for_user(allow_bot: BotAccessRequest,
-                                     bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
-                                     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+async def update_bot_access_for_user(
+        allow_bot: BotAccessRequest,
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
     """
     Updates user's role or status.
     """
@@ -84,8 +88,10 @@ async def remove_user_from_bot(
 
 
 @router.get("/{bot}/member", response_model=Response)
-async def list_users_for_bot(bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
-                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_users_for_bot(
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Lists active/inactive/invited users of a bot.
     """

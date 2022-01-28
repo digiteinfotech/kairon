@@ -6923,7 +6923,7 @@ def test_edit_google_search_action_not_exists():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Action with name "custom_search" not found'
+    assert actual["message"] == 'Google search action with name "custom_search" not found'
 
 
 def test_edit_google_search_action():
