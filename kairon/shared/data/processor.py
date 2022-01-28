@@ -1934,7 +1934,9 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "FORM_ACTION"]:
+            elif step['type'] in {
+                "BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "GOOGLE_SEARCH_ACTION", "EMAIL_ACTION", "FORM_ACTION"
+            }:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -2077,8 +2079,10 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
-        reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
-        forms = list(Forms.objects(bot=bot, status=True).values_list('name'))
+        reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
+        google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
+        email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2097,8 +2101,7 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event[
-                    'type'] == ActionExecuted.type_name:
+                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
@@ -2109,6 +2112,10 @@ class MongoProcessor:
                         step['type'] = 'HTTP_ACTION'
                     elif event['name'] in reset_slot_actions:
                         step['type'] = 'SLOT_SET_ACTION'
+                    elif event['name'] in google_search_actions:
+                        step['type'] = 'GOOGLE_SEARCH_ACTION'
+                    elif event['name'] in email_actions:
+                        step['type'] = 'EMAIL_ACTION'
                     elif event['name'] in forms:
                         step['type'] = 'FORM_ACTION'
                     elif str(event['name']).startswith("utter_"):

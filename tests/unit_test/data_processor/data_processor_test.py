@@ -4731,6 +4731,13 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with form", bot=bot,
                                events__name='restaurant_form', status=True).get()
         assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with form']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'restaurant_form', 'type': 'FORM_ACTION'},
+            {'name': 'utter_thanks', 'type': 'BOT'}
+        ]
 
     def test_get_story_with_form(self):
         processor = MongoProcessor()
@@ -4804,6 +4811,12 @@ class TestMongoProcessor:
         ]
         story_dict = {'name': "story with slot_set_action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         assert processor.add_complex_story(story_dict, bot, user)
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with slot_set_action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'action_set_slot', 'type': 'SLOT_SET_ACTION'},
+        ]
 
     def test_fetch_story_with_slot_set_action(self):
         processor = MongoProcessor()
@@ -6676,6 +6689,27 @@ class TestTrainingDataProcessor:
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.add_email_action(email_config, "TEST", "tests") is not None
 
+    def test_add_email_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'TEST'
+        user = 'tests'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "email_config", "type": "EMAIL_ACTION"},
+        ]
+        story_dict = {'name': "story with email action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with email action", bot=bot,
+                                events__name='email_config', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "story with email action"]
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'email_config', 'type': 'EMAIL_ACTION'},
+        ]
+        processor.delete_complex_story('story with email action', 'STORY', bot, user)
+
     def test_add_email_action_validation_error(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config1",
@@ -6829,6 +6863,27 @@ class TestTrainingDataProcessor:
         assert processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_google_search_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "google_custom_search", "type": "GOOGLE_SEARCH_ACTION"},
+        ]
+        story_dict = {'name': "story with google action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with google action", bot=bot,
+                                events__name='google_custom_search', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with google action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'google_custom_search', 'type': 'GOOGLE_SEARCH_ACTION'},
+        ]
+        processor.delete_complex_story('story with google action', 'STORY', bot, user)
 
     def test_add_google_search_action_duplicate(self):
         processor = MongoProcessor()
