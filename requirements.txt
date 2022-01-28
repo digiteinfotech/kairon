@@ -46,5 +46,5 @@ pytest-httpx==0.15.0
 json2html
 numpy==1.22.0
 google-api-python-client
-nltk==3.6.6
+nltk==3.6.7
 blinker
