@@ -6691,8 +6691,8 @@ class TestTrainingDataProcessor:
 
     def test_add_email_action_with_story(self):
         processor = MongoProcessor()
-        bot = 'test'
-        user = 'test'
+        bot = 'TEST'
+        user = 'tests'
         steps = [
             {"name": "greet", "type": "INTENT"},
             {"name": "email_config", "type": "EMAIL_ACTION"},
@@ -6702,7 +6702,13 @@ class TestTrainingDataProcessor:
         story = Stories.objects(block_name="story with email action", bot=bot,
                                 events__name='email_config', status=True).get()
         assert story.events[1].type == 'action'
-        assert list(processor.get_stories(bot))
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "story with email action"]
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'email_config', 'type': 'EMAIL_ACTION'},
+        ]
+        processor.delete_complex_story('story with email action', 'STORY', bot, user)
 
     def test_add_email_action_validation_error(self):
         processor = MongoProcessor()
