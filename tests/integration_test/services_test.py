@@ -5394,6 +5394,28 @@ def test_add_slot_mapping():
     assert actual["error_code"] == 0
 
 
+def test_add_empty_slot_mapping():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={"slot": "num_people", 'mapping': []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == [{'loc': ['body', 'mapping'], 'msg': 'At least one mapping is required', 'type': 'value_error'}]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={"slot": "num_people", 'mapping': [{}]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
 def test_add_form():
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
