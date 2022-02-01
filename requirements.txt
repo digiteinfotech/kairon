@@ -48,3 +48,4 @@ numpy==1.22.0
 google-api-python-client
 nltk==3.6.6
 blinker
+ujson>=5.1.0 # not directly required, pinned by Snyk to avoid a vulnerability
