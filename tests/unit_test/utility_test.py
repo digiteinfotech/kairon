@@ -637,12 +637,12 @@ class TestUtility:
 
     def test_validate_smtp_valid(self):
         with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
-            assert Utility.validate_smtp("localhost")
+            assert Utility.validate_smtp("localhost", 25)
 
     def test_validate_smtp_invalid(self):
         with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
             mock.return_value = Exception()
-            assert not Utility.validate_smtp("dummy.test.com")
+            assert not Utility.validate_smtp("dummy.test.com", 467)
 
     @pytest.mark.asyncio
     async def test_trigger_smtp(self):
