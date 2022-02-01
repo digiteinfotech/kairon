@@ -179,7 +179,7 @@ class ActionProcessor:
             ActionServerLogs(
                 type=ActionType.form_validation_action.value,
                 intent=tracker.get_intent_of_latest_message(),
-                action=tracker.latest_action_name,
+                action=tracker.followup_action,
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 messages=msg,
@@ -195,10 +195,10 @@ class ActionProcessor:
         bot_response = action_config.get("response")
         to_email = action_config['to_email']
         try:
-            body = ActionUtility.prepare_email_body(tracker.events)
+            body = ActionUtility.prepare_email_body(tracker.events, action_config['subject'], to_email)
             await Utility.trigger_email(email=to_email,
                                         subject=f"{tracker.sender_id} {action_config['subject']}",
-                                        body=f"{body}",
+                                        body=body,
                                         smtp_url=action_config['smtp_url'],
                                         smtp_port=action_config['smtp_port'],
                                         sender_email=action_config['from_email'],
@@ -217,7 +217,7 @@ class ActionProcessor:
             ActionServerLogs(
                 type=ActionType.email_action.value,
                 intent=tracker.get_intent_of_latest_message(),
-                action=tracker.latest_action_name,
+                action=action_config['action_name'],
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
@@ -248,7 +248,7 @@ class ActionProcessor:
             ActionServerLogs(
                 type=ActionType.google_search_action.value,
                 intent=tracker.get_intent_of_latest_message(),
-                action=tracker.latest_action_name,
+                action=action_config['name'],
                 bot_response=bot_response,
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),

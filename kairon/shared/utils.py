@@ -681,10 +681,8 @@ class Utility:
         :param content_type: "plain" or "html" content
         :return: None
         """
-        smtp = SMTP(smtp_url,
-                    port=smtp_port)
-        smtp.connect(smtp_url,
-                     smtp_port)
+        smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
+        smtp.connect(smtp_url, smtp_port)
         if tls:
             smtp.starttls()
         smtp.login(smtp_userid if
@@ -1149,13 +1147,15 @@ class Utility:
                 yield n.name.split('.')[0]
 
     @staticmethod
-    def validate_smtp(smtp_url: str):
+    def validate_smtp(smtp_url: str, port: int):
         try:
-            smtp = SMTP()
-            smtp.connect(smtp_url)
+            logger.info(f'validating smtp details')
+            smtp = SMTP(timeout=10)
+            smtp.connect(smtp_url, port)
             smtp.quit()
             return True
-        except:
+        except Exception as e:
+            logger.exception(e)
             return False
 
     @staticmethod

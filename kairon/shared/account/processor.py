@@ -498,6 +498,9 @@ class AccountProcessor:
                 add_member_invitation=open('template/emails/memberAddAccept.html', 'r').read(),
                 add_member_confirmation=open('template/emails/memberAddConfirmation.html', 'r').read(),
                 password_generated=open('template/emails/passwordGenerated.html', 'r').read(),
+                conversation=open('template/emails/conversation.html', 'r').read(),
+                bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
+                user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -507,6 +510,9 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['add_member_invitation'] = system_properties['mail_templates']['add_member_invitation']
         Utility.email_conf['email']['templates']['add_member_confirmation'] = system_properties['mail_templates']['add_member_confirmation']
         Utility.email_conf['email']['templates']['password_generated'] = system_properties['mail_templates']['password_generated']
+        Utility.email_conf['email']['templates']['conversation'] = system_properties['mail_templates']['conversation']
+        Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
+        Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
 
     @staticmethod
     async def confirm_email(token: str):
