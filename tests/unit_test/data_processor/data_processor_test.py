@@ -3876,6 +3876,18 @@ class TestMongoProcessor:
         slot = SlotMapping.objects(slot='name', bot=bot, user=user).get()
         assert slot.mapping == [{'type': 'from_text', 'value': 'user'}, {'type': 'from_entity', 'entity': 'name'}]
 
+    def test_add_slot_with_empty_mapping(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        expected_slot = {"slot": "name", 'mapping': []}
+        with pytest.raises(ValueError, match='At least one mapping is required'):
+            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+
+        expected_slot = {"slot": "name", 'mapping': [{}]}
+        with pytest.raises(ValueError, match='At least one mapping is required'):
+            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+
     def test_update_slot_with_mapping(self):
         expected_slot = {"name": "age", "type": "float", "influence_conversation": True}
         processor = MongoProcessor()

@@ -3221,8 +3221,13 @@ class MongoProcessor:
     def get_utterances(self, bot: Text):
         utterances = Utterances.objects(bot=bot, status=True)
         for utterance in utterances:
-            utterance_dict = utterance.to_mongo().to_dict()
-            yield {"_id": utterance_dict['_id'].__str__(), 'name': utterance_dict['name']}
+            utterance = utterance.to_mongo().to_dict()
+            utterance['_id'] = utterance['_id'].__str__()
+            utterance.pop('status')
+            utterance.pop('timestamp')
+            utterance.pop('bot')
+            utterance.pop('user')
+            yield utterance
 
     def delete_utterance_name(self, name: Text, bot: Text, validate_has_form: bool = False, raise_exc: bool = False):
         try:
@@ -3576,7 +3581,7 @@ class MongoProcessor:
         :return: document id of the mapping
         """
         try:
-            if len(Slots.objects(name=mapping['slot'], bot=bot, status=True)) < 1:
+            if not Utility.is_exist(Slots, raise_error=False, name=mapping['slot'], bot=bot, status=True):
                 raise AppException(f'Slot with name \'{mapping["slot"]}\' not found')
             slot_mapping = SlotMapping.objects(slot=mapping['slot'], bot=bot, status=True).get()
         except DoesNotExist:

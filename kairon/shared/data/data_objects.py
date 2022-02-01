@@ -277,11 +277,13 @@ class SlotMapping(Document):
     def validate(self, clean=True):
         from rasa.shared.core.domain import _validate_slot_mappings
 
-        if clean:
-            self.clean()
-
+        if not self.mapping or self.mapping == [{}]:
+            raise ValueError("At least one mapping is required")
         if Utility.check_empty_string(self.slot):
             raise ValueError("Slot name cannot be empty or blank spaces")
+
+        if clean:
+            self.clean()
 
         try:
             _validate_slot_mappings({'form_name': {self.slot: self.mapping}})
