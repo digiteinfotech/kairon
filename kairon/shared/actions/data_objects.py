@@ -188,7 +188,7 @@ class EmailActionConfig(Document):
             raise ValidationError("Action name cannot be empty")
         if self.smtp_url is None or not self.smtp_url.strip():
             raise ValidationError("URL cannot be empty")
-        if not Utility.validate_smtp(self.smtp_url):
+        if not Utility.validate_smtp(self.smtp_url, self.smtp_port):
             raise ValidationError("Invalid SMTP url")
         elif isinstance(email(self.from_email), ValidationFailure) or isinstance(email(self.to_email), ValidationFailure):
             raise ValidationError("Invalid From or To email address")

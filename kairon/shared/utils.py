@@ -1149,13 +1149,15 @@ class Utility:
                 yield n.name.split('.')[0]
 
     @staticmethod
-    def validate_smtp(smtp_url: str):
+    def validate_smtp(smtp_url: str, port: int):
         try:
+            logger.info(f'validating smtp details')
             smtp = SMTP()
-            smtp.connect(smtp_url)
+            smtp.connect(smtp_url, port)
             smtp.quit()
             return True
-        except:
+        except Exception as e:
+            logger.exception(e)
             return False
 
     @staticmethod
