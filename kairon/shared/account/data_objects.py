@@ -112,6 +112,9 @@ class MailTemplates(EmbeddedDocument):
     add_member_invitation = StringField()
     add_member_confirmation = StringField()
     password_generated = StringField()
+    conversation = StringField()
+    bot_msg_conversation = StringField()
+    user_msg_conversation = StringField()
 
 
 class SystemProperties(Document):
