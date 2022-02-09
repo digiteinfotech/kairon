@@ -1,16 +1,18 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Text
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import SecurityScopes
 from jwt import PyJWTError, encode
+from loguru import logger
 from mongoengine import DoesNotExist
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
-from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.account.processor import AccountProcessor, IntegrationProcessor
+from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.sso.factory import LoginSSOFactory
@@ -47,23 +49,24 @@ class Authentication:
             if username is None:
                 raise credentials_exception
             token_data = TokenData(username=username)
+            user = AccountProcessor.get_user_details(token_data.username)
+            if user is None:
+                raise credentials_exception
+            user_model = User(**user)
+            if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
+                Authentication.validate_integration_token(payload, request.path_params.get('bot'))
+                alias_user = request.headers.get("X-USER")
+                if Utility.check_empty_string(alias_user):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Alias user missing for integration",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                user_model.is_integration_user = True
+                user_model.alias_user = alias_user
+            return user_model
         except PyJWTError:
             raise credentials_exception
-        user = AccountProcessor.get_user_details(token_data.username)
-        if user is None:
-            raise credentials_exception
-
-        user_model = User(**user)
-        if user["is_integration_user"]:
-            alias_user = request.headers.get("X-USER")
-            if Utility.check_empty_string(alias_user):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Alias user missing for integration",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            user_model.alias_user = alias_user
-        return user_model
 
     @staticmethod
     async def get_current_user_and_bot(security_scopes: SecurityScopes, request: Request, token: str = Depends(DataUtility.oauth2_scheme)):
@@ -96,12 +99,14 @@ class Authentication:
         return user
 
     @staticmethod
-    def create_access_token(*, data: dict, is_integration=False, token_expire: int = 0):
+    def create_access_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.LOGIN.value, token_expire: int = 0):
         access_token_expire_minutes = Utility.environment['security']["token_expire"]
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         to_encode = data.copy()
-        if not is_integration:
+
+        if token_type == TOKEN_TYPE.LOGIN.value or token_type not in [t_type.value for t_type in TOKEN_TYPE]:
+            token_type = TOKEN_TYPE.LOGIN.value
             if token_expire > 0:
                 expire = datetime.utcnow() + timedelta(minutes=token_expire)
             else:
@@ -111,6 +116,7 @@ class Authentication:
                     expires_delta = timedelta(minutes=15)
                 expire = datetime.utcnow() + expires_delta
             to_encode.update({"exp": expire})
+        to_encode.update({"type": token_type})
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
         return encoded_jwt
 
@@ -181,20 +187,81 @@ class Authentication:
             return collection
 
     @staticmethod
-    def generate_integration_token(bot: Text, account: int, expiry: int = 0, access_limit: list = None):
+    def generate_integration_token(
+            bot: Text, user: Text, iat: datetime = datetime.now(tz=timezone.utc), expiry: int = 0, access_limit: list = None,
+            name: Text = None, token_type: TOKEN_TYPE = TOKEN_TYPE.INTEGRATION.value
+    ):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
-        integration_user = AccountProcessor.get_integration_user(bot, account)
-        data = {"sub": integration_user["email"]}
+        if token_type == TOKEN_TYPE.LOGIN.value:
+            raise NotImplementedError
+        iat = iat.replace(microsecond=0)
+        iat_timestamp = iat.timestamp()
+        data = {'bot': bot, "sub": user, 'iat': iat_timestamp, 'type': token_type}
+        if not Utility.check_empty_string(name):
+            data.update({"name": name})
         if expiry > 0:
-            expire = datetime.utcnow() + timedelta(minutes=expiry)
-            data.update({"exp": expire})
+            expiry = iat + timedelta(minutes=expiry)
+            expiry = expiry.replace(microsecond=0)
+            expire_timestamp = expiry.timestamp()
+            data.update({"exp": expire_timestamp})
+        else:
+            expiry = None
         if access_limit:
             data['access-limit'] = access_limit
-        access_token = Authentication.create_access_token(
-            data=data, is_integration=True
-        )
+        access_token = Authentication.create_access_token(data=data, token_type=token_type)
+        if token_type == TOKEN_TYPE.INTEGRATION.value:
+            IntegrationProcessor.add_integration(name, bot, user, iat, expiry, access_limit)
         return access_token
+
+    @staticmethod
+    def update_integration_token(
+            name: Text, bot: Text, user: Text, iat: datetime = datetime.now(tz=timezone.utc), expiry: int = 0,
+            access_limit: list = None, int_status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value
+    ):
+        """ Generates a new access token for an existing integration. """
+        iat = iat.replace(microsecond=0)
+        iat_timestamp = iat.timestamp()
+        data = {"name": name, 'bot': bot, "sub": user, 'iat': iat_timestamp, 'type': 'integration'}
+        if expiry > 0:
+            expiry = iat + timedelta(minutes=expiry)
+            expiry = expiry.replace(microsecond=0)
+            expire_timestamp = expiry.timestamp()
+            data.update({"exp": expire_timestamp})
+        else:
+            expiry = None
+        if access_limit:
+            data['access-limit'] = access_limit
+        access_token = Authentication.create_access_token(data=data, token_type=TOKEN_TYPE.INTEGRATION.value)
+        IntegrationProcessor.update_integration(name, bot, user, int_status, iat, expiry, access_limit)
+        if int_status == INTEGRATION_STATUS.ACTIVE.value:
+            return access_token
+
+    @staticmethod
+    def validate_integration_token(payload: dict, accessing_bot: Text):
+        """
+        Validates:
+        1. whether integration token with this payload is active.
+        2. the bot which is being accessed is the same bot for which the integration was generated.
+
+        :param payload: Auth token claims dict.
+        :param accessing_bot: bot for which the request was made.
+        """
+        exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Access to bot is denied',
+        )
+        name = payload.get('name')
+        bot = payload.get('bot')
+        user = payload.get('sub')
+        iat = payload.get('iat')
+        if not Utility.check_empty_string(accessing_bot) and accessing_bot != bot:
+            raise exception
+        try:
+            IntegrationProcessor.verify_integration_token(name, bot, user, iat)
+        except Exception as e:
+            logger.exception(str(e))
+            raise exception
 
     @staticmethod
     async def get_redirect_url(sso_type: str):

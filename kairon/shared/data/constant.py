@@ -138,6 +138,18 @@ class ACTIVITY_STATUS(str, Enum):
     DELETED = "deleted"
 
 
+class INTEGRATION_STATUS(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    DELETED = "deleted"
+
+
+class TOKEN_TYPE(str, Enum):
+    INTEGRATION = "integration"
+    LOGIN = "login"
+    DYNAMIC = "dynamic"
+
+
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
 ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.md', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}

@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 
 import jwt
 import responses
+from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
 from fastapi_sso.sso.facebook import FacebookSSO
 from fastapi_sso.sso.google import GoogleSSO
@@ -20,8 +21,8 @@ from starlette.responses import RedirectResponse
 
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess
-from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES
+from kairon.shared.account.processor import AccountProcessor, IntegrationProcessor
+from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
@@ -597,32 +598,6 @@ class TestAccountProcessor:
                 ).keys()
             )
 
-    def test_get_integration_user(self, monkeypatch):
-        def mock_get_bot(*args, **kwargs):
-            return None
-        monkeypatch.setattr(AccountProcessor, "get_bot", mock_get_bot)
-
-        integration_user = AccountProcessor.get_integration_user(
-            bot="support", account=2
-        )
-        assert integration_user["is_integration_user"]
-        assert all(integration_user[key] for key in integration_user.keys())
-        assert BotAccess.objects(bot="support", bot_account=2, accessor_email=integration_user['email'],
-                                 role='admin', status='active').get()
-
-    def test_get_integration_user_already_exists(self, monkeypatch):
-        def mock_get_bot(*args, **kwargs):
-            return None
-        monkeypatch.setattr(AccountProcessor, "get_bot", mock_get_bot)
-
-        integration_user = AccountProcessor.get_integration_user(
-            bot="support", account=2
-        )
-        assert integration_user["is_integration_user"]
-        assert all(integration_user[key] for key in integration_user.keys())
-        assert BotAccess.objects(bot="support", bot_account=2, accessor_email=integration_user['email'],
-                                 role='admin', status='active').get()
-
     def test_account_setup_empty_values(self):
         account = {}
         with pytest.raises(AppException):
@@ -874,6 +849,299 @@ class TestAccountProcessor:
         token = Authentication.create_access_token(data={"sub": "test"})
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
+
+        start_date = datetime.datetime.now()
+        token = Authentication.create_access_token(data={"sub": "test"}, token_type='INVALID_TYPE')
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
+
+    def test_generate_integration_token_login_token(self):
+        bot = 'test'
+        user = 'test_user'
+        with pytest.raises(NotImplementedError):
+            Authentication.generate_integration_token(bot, user, token_type=TOKEN_TYPE.LOGIN.value)
+
+    def test_generate_integration_token(self):
+        bot = 'test'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        token = Authentication.generate_integration_token(bot, user, name='integration_token')
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        assert not payload.get('exp')
+
+    def test_generate_integration_token_with_expiry(self):
+        bot = 'test'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry')
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
+        assert round((exp-iat).total_seconds() / 60) == 15
+
+    def test_generate_integration_token_with_access_limit(self):
+        bot = 'test1'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        start_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        access_limit = ['/api/bot/endpoint']
+        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, name='integration_token_with_access_limit')
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert payload.get('access-limit') == access_limit
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
+        assert round((exp - iat).total_seconds() / 60) == 15
+
+    def test_generate_integration_token_name_exists(self, monkeypatch):
+        bot = 'test'
+        user = 'test_user'
+        monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
+        with pytest.raises(AppException, match='Integration token with this name has already been initiated'):
+            Authentication.generate_integration_token(bot, user, name='integration_token')
+
+    def test_generate_integration_token_limit_exceeded(self):
+        bot = 'test'
+        user = 'test_user'
+        with pytest.raises(AppException, match='Integrations limit reached!'):
+            Authentication.generate_integration_token(bot, user, name='integration_token1')
+
+    def test_generate_integration_token_dynamic(self):
+        bot = 'test'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        start_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        access_limit = ['/api/bot/endpoint']
+        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, token_type=TOKEN_TYPE.DYNAMIC.value)
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert payload.get('type') == TOKEN_TYPE.DYNAMIC.value
+        assert payload.get('access-limit') == access_limit
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
+        assert round((exp - iat).total_seconds() / 60) == 15
+
+    def test_generate_integration_token_without_name(self, monkeypatch):
+        bot = 'test'
+        user = 'test_user'
+        monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
+        with pytest.raises(ValidationError, match='name is required to add integration'):
+            Authentication.generate_integration_token(bot, user, expiry=15)
+
+    def test_list_integrations(self):
+        bot = 'test'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['status'] == 'active'
+        assert integrations[1]['name'] == 'integration_token_with_expiry'
+        assert integrations[1]['user'] == 'test_user'
+        assert integrations[1]['iat']
+        assert integrations[1]['expiry']
+        assert integrations[1]['status'] == 'active'
+
+        bot = 'test1'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token_with_access_limit'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['expiry']
+        assert integrations[0]['access_list'] == ['/api/bot/endpoint']
+        assert integrations[0]['status'] == 'active'
+
+    def test_update_integration_token_without_name(self):
+        bot = 'test'
+        user = 'test_user'
+        with pytest.raises(AppException, match="Integration does not exists"):
+            Authentication.update_integration_token(None, bot, user, expiry=15)
+
+    def test_update_integration_token_not_exists(self):
+        bot = 'test'
+        user = 'test_user'
+        with pytest.raises(AppException, match="Integration does not exists"):
+            Authentication.update_integration_token('integration_not_exists', bot, user)
+
+    def test_update_integration_token_remove_and_add_expiry(self):
+        bot = 'test'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        token = Authentication.update_integration_token('integration_token_with_expiry', bot, user)
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert not payload.get('exp')
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+
+        start_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        token = Authentication.update_integration_token('integration_token_with_expiry', bot, user, expiry=15)
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
+        assert round((exp - iat).total_seconds() / 60) == 15
+
+    def test_update_integration_token_remove_and_add_access_limit(self):
+        bot = 'test1'
+        user = 'test_user'
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user)
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        assert not payload.get('exp')
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+
+        access_limit = ['/api/bot/endpoint/new']
+        start_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user, expiry=20, access_limit=access_limit)
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload.get('bot') == bot
+        assert payload.get('sub') == user
+        assert payload.get('iat')
+        pytest.integration_iat = payload.get('iat')
+        assert payload.get('access-limit') == access_limit
+        assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
+        assert round((exp - iat).total_seconds() / 60) == 20
+
+    def test_validate_integration_token(self):
+        bot = 'test1'
+        user = 'test_user'
+        name = 'integration_token_with_access_limit'
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
+        assert not Authentication.validate_integration_token(payload, None)
+
+    def test_validate_integration_token_not_exists(self):
+        bot = 'test1'
+        user = 'test_user'
+        name = 'integration_not_exists'
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat}
+        with pytest.raises(HTTPException):
+            Authentication.validate_integration_token(payload, None)
+
+    def test_validate_integration_token_accessing_different_bot(self):
+        bot = 'test1'
+        bot_2 = 'test2'
+        user = 'test_user'
+        name = 'integration_not_exists'
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat}
+        with pytest.raises(HTTPException):
+            Authentication.validate_integration_token(payload, bot_2)
+
+    def test_list_integrations_after_update(self):
+        bot = 'test'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['status'] == 'active'
+        assert integrations[1]['name'] == 'integration_token_with_expiry'
+        assert integrations[1]['user'] == 'test_user'
+        assert integrations[1]['iat']
+        assert integrations[1]['expiry']
+        assert integrations[1]['status'] == 'active'
+
+        bot = 'test1'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token_with_access_limit'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['expiry']
+        assert integrations[0]['access_list'] == ['/api/bot/endpoint/new']
+        assert integrations[0]['status'] == 'active'
+
+    def test_update_integration_disable_integration_token(self):
+        bot = 'test1'
+        user = 'test_user'
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user, int_status=INTEGRATION_STATUS.INACTIVE.value)
+        assert not token
+
+    def test_list_integrations_after_disable(self):
+        bot = 'test'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['status'] == 'active'
+        assert integrations[1]['name'] == 'integration_token_with_expiry'
+        assert integrations[1]['user'] == 'test_user'
+        assert integrations[1]['iat']
+        assert integrations[1]['expiry']
+        assert integrations[1]['status'] == 'active'
+
+        bot = 'test1'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token_with_access_limit'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['expiry']
+        assert integrations[0]['access_list'] == ['/api/bot/endpoint/new']
+        assert integrations[0]['status'] == 'inactive'
+
+    def test_validate_disabled_integration_token(self):
+        bot = 'test1'
+        user = 'test_user'
+        name = 'integration_token_with_access_limit'
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
+        with pytest.raises(HTTPException):
+            Authentication.validate_integration_token(payload, None)
+
+    def test_update_integration_delete_integration_token(self):
+        bot = 'test1'
+        user = 'test_user'
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user, int_status=INTEGRATION_STATUS.DELETED.value)
+        assert not token
+
+    def test_list_integrations_after_deletion(self):
+        bot = 'test'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations[0]['name'] == 'integration_token'
+        assert integrations[0]['user'] == 'test_user'
+        assert integrations[0]['iat']
+        assert integrations[0]['status'] == 'active'
+        assert integrations[1]['name'] == 'integration_token_with_expiry'
+        assert integrations[1]['user'] == 'test_user'
+        assert integrations[1]['iat']
+        assert integrations[1]['expiry']
+        assert integrations[1]['status'] == 'active'
+
+        bot = 'test1'
+        integrations = list(IntegrationProcessor.get_integrations(bot))
+        assert integrations == []
+
+    def test_validate_deleted_integration_token(self):
+        bot = 'test1'
+        user = 'test_user'
+        name = 'integration_token_with_access_limit'
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
+        with pytest.raises(HTTPException):
+            Authentication.validate_integration_token(payload, None)
 
     def test_add_feedback(self):
         AccountProcessor.add_feedback(4.5, 'test', feedback='product is good')

@@ -5,8 +5,9 @@ from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon import Utility
+from kairon.shared.account.processor import IntegrationProcessor
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response
+from kairon.api.models import Response, IntegrationRequest
 from kairon.shared.constants import ADMIN_ACCESS
 from kairon.shared.models import User
 
@@ -25,21 +26,55 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     }
 
 
-@router.get("/{bot}/integration/token", response_model=Response)
+@router.post("/{bot}/integration/token", response_model=Response)
 async def generate_integration_token(
+    request: IntegrationRequest,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
     Generates an access token for api integration
     """
     access_token = Authentication.generate_integration_token(
-        bot=current_user.get_bot(), account=current_user.account
+        current_user.get_bot(), current_user.get_user(), expiry=request.expiry_seconds, name=request.name,
+        access_limit=request.access_list
     )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
-        "message": """It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system.""",
+        "message": """This token will be shown only once. Please copy this somewhere safe. 
+        It is your responsibility to keep the token secret. If leaked, others may have access to your system.""",
     }
+
+
+@router.put("/{bot}/integration/token", response_model=Response)
+async def update_integration_token(
+    request: IntegrationRequest,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
+):
+    """
+    Generates an access token for api integration
+    """
+    access_token = Authentication.update_integration_token(
+        request.name, current_user.get_bot(), current_user.get_user(), expiry=request.expiry_seconds,
+        access_limit=request.access_list, int_status=request.status
+    )
+    if access_token:
+        return {
+            "data": {"access_token": access_token, "token_type": "bearer"},
+            "message": """This token will be shown only once. Please copy this somewhere safe. 
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system.""",
+        }
+    else:
+        return {"message": "Integration status updated!"}
+
+
+@router.get("/{bot}/integration/token/list", response_model=Response)
+async def get_integrations(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
+):
+    """
+    List available integrations.
+    """
+    return Response(data=list(IntegrationProcessor.get_integrations(current_user.get_bot())))
 
 
 @router.get("/login/sso/list/enabled", response_model=Response)
