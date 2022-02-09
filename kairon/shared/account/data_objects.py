@@ -7,12 +7,12 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument
+    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
 from kairon.shared.data.signals import push_notification
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS
 from kairon.shared.utils import Utility
 
 
