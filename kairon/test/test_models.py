@@ -33,6 +33,7 @@ class ModelTester:
         from rasa.utils.common import run_in_loop
 
         bot_home = os.path.join('testing_data', bot)
+        logger.info(f"model test data path: {bot_home}")
         try:
             model_path = Utility.get_latest_model(bot)
             nlu_path, stories_path = TestDataGenerator.create(bot, run_e2e)
@@ -302,6 +303,8 @@ class TestDataGenerator:
         messages = list(chain.from_iterable(aug_training_examples))
         nlu_data = TrainingData(training_examples=messages)
         stories = processor.load_stories(bot)
+        rules = processor.get_rules_for_training(bot)
+        stories = stories.merge(rules)
         if stories.is_empty() or nlu_data.is_empty():
             raise AppException('Not enough training data exists. Please add some training data.')
 

@@ -1,14 +1,19 @@
-from tornado.ioloop import IOLoop
-from tornado.web import Application
-from tornado.httpserver import HTTPServer
-from tornado.options import parse_command_line
-from kairon.shared.tornado.handlers.index import IndexHandler
-from .handlers.action import ActionHandler
-from ..shared.utils import Utility
+from os import getenv
+
 from loguru import logger
 from mongoengine import connect
-from os import getenv
+from tornado.httpserver import HTTPServer
+from tornado.ioloop import IOLoop
+from tornado.options import parse_command_line
+from tornado.web import Application
+
+from kairon.shared.tornado.handlers.index import IndexHandler
+from .handlers.action import ActionHandler
+from ..shared.account.processor import AccountProcessor
+from ..shared.utils import Utility
+
 Utility.load_environment()
+Utility.load_email_configuration()
 
 
 def make_app():
@@ -20,6 +25,7 @@ def make_app():
 
 if __name__ == "__main__":
     connect(**Utility.mongoengine_connection())
+    AccountProcessor.load_system_properties()
     app = make_app()
     Utility.initiate_tornado_apm_client(app)
     parse_command_line()

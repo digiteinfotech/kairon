@@ -831,6 +831,10 @@ class TestActionServer(AsyncHTTPTestCase):
     @patch("kairon.shared.actions.utils.ActionUtility.get_action_config")
     @patch("kairon.shared.utils.SMTP", autospec=True)
     def test_email_action_execution(self, mock_smtp, mock_action):
+        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['bot_msg_conversation'] = open('template/emails/bot_msg_conversation.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['user_msg_conversation'] = open('template/emails/user_msg_conversation.html', 'rb').read().decode()
+
         action_name = "test_run_email_action"
         action = EmailActionConfig(
                 action_name=action_name,
@@ -912,8 +916,8 @@ class TestActionServer(AsyncHTTPTestCase):
         assert args[0] == action.from_email
         assert args[1] == "test@test.com"
         assert str(args[2]).__contains__(action.subject)
-        assert str(args[2]).__contains__("</table>")
-        assert str(args[2]).__contains__("default")
+        assert str(args[2]).__contains__("Content-Type: text/html")
+        assert str(args[2]).__contains__("Subject: default test")
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action_config")
     def test_email_action_failed_execution(self, mock_action):

@@ -1934,7 +1934,9 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in ["BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "FORM_ACTION"]:
+            elif step['type'] in {
+                "BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "GOOGLE_SEARCH_ACTION", "EMAIL_ACTION", "FORM_ACTION"
+            }:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
@@ -2077,8 +2079,10 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
-        reset_slot_actions = list(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
-        forms = list(Forms.objects(bot=bot, status=True).values_list('name'))
+        reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
+        google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
+        email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -2097,8 +2101,7 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event[
-                    'type'] == ActionExecuted.type_name:
+                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
@@ -2109,6 +2112,10 @@ class MongoProcessor:
                         step['type'] = 'HTTP_ACTION'
                     elif event['name'] in reset_slot_actions:
                         step['type'] = 'SLOT_SET_ACTION'
+                    elif event['name'] in google_search_actions:
+                        step['type'] = 'GOOGLE_SEARCH_ACTION'
+                    elif event['name'] in email_actions:
+                        step['type'] = 'EMAIL_ACTION'
                     elif event['name'] in forms:
                         step['type'] = 'FORM_ACTION'
                     elif str(event['name']).startswith("utter_"):
@@ -2658,19 +2665,16 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        try:
-            if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
-                raise AppException(f'Action with name "{action_config.get("name")}" not found')
-            action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
-            action.api_key = action_config['api_key']
-            action.search_engine_id = action_config['search_engine_id']
-            action.failure_response = action_config.get('failure_response')
-            action.num_results = action_config.get('num_results')
-            action.user = user
-            action.timestamp = datetime.utcnow()
-            action.save()
-        except DoesNotExist:
-            raise AppException(f'Email action with name "{action_config.get("name")}" not found')
+        if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
+            raise AppException(f'Google search action with name "{action_config.get("name")}" not found')
+        action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
+        action.api_key = action_config['api_key']
+        action.search_engine_id = action_config['search_engine_id']
+        action.failure_response = action_config.get('failure_response')
+        action.num_results = action_config.get('num_results')
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
 
     def list_google_search_actions(self, bot: Text, mask_characters: bool = True):
         """
@@ -3217,8 +3221,13 @@ class MongoProcessor:
     def get_utterances(self, bot: Text):
         utterances = Utterances.objects(bot=bot, status=True)
         for utterance in utterances:
-            utterance_dict = utterance.to_mongo().to_dict()
-            yield {"_id": utterance_dict['_id'].__str__(), 'name': utterance_dict['name']}
+            utterance = utterance.to_mongo().to_dict()
+            utterance['_id'] = utterance['_id'].__str__()
+            utterance.pop('status')
+            utterance.pop('timestamp')
+            utterance.pop('bot')
+            utterance.pop('user')
+            yield utterance
 
     def delete_utterance_name(self, name: Text, bot: Text, validate_has_form: bool = False, raise_exc: bool = False):
         try:
@@ -3572,7 +3581,7 @@ class MongoProcessor:
         :return: document id of the mapping
         """
         try:
-            if len(Slots.objects(name=mapping['slot'], bot=bot, status=True)) < 1:
+            if not Utility.is_exist(Slots, raise_error=False, name=mapping['slot'], bot=bot, status=True):
                 raise AppException(f'Slot with name \'{mapping["slot"]}\' not found')
             slot_mapping = SlotMapping.objects(slot=mapping['slot'], bot=bot, status=True).get()
         except DoesNotExist:

@@ -395,7 +395,13 @@ class SlotMapping(BaseModel):
 
 class SlotMappingRequest(BaseModel):
     slot: constr(to_lower=True, strip_whitespace=True)
-    mapping: List[SlotMapping] = None
+    mapping: List[SlotMapping]
+
+    @validator("mapping")
+    def validate_mapping(cls, v, values, **kwargs):
+        if not v or v == [{}]:
+            raise ValueError("At least one mapping is required")
+        return v
 
 
 class Validation(BaseModel):

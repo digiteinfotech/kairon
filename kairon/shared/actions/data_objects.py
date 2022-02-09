@@ -15,6 +15,7 @@ from validators import ValidationFailure, url
 
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.data.signals import push_notification
 from kairon.shared.utils import Utility
 from validators import email
 
@@ -43,6 +44,7 @@ class HttpActionRequestBody(EmbeddedDocument):
             raise ValidationError("Provide name of the slot as value")
 
 
+@push_notification.apply
 class HttpActionConfig(Document):
     action_name = StringField(required=True)
     response = StringField(required=True)
@@ -95,6 +97,7 @@ class ActionServerLogs(Document):
     status = StringField(default="SUCCESS")
 
 
+@push_notification.apply
 class Actions(Document):
     name = StringField(required=True)
     type = StringField(choices=[type.value for type in ActionType], default=None)
@@ -119,6 +122,7 @@ class Actions(Document):
             raise ValidationError("Action name cannot start with utter_")
 
 
+@push_notification.apply
 class SlotSetAction(Document):
     name = StringField(required=True)
     slot = StringField(required=True)
@@ -138,6 +142,7 @@ class SlotSetAction(Document):
         self.slot = self.slot.strip().lower()
 
 
+@push_notification.apply
 class FormValidationAction(Document):
     name = StringField(required=True)
     slot = StringField(required=True)
@@ -158,6 +163,7 @@ class FormValidationAction(Document):
             self.clean()
 
 
+@push_notification.apply
 class EmailActionConfig(Document):
     action_name = StringField(required=True)
     smtp_url = StringField(required=True)
@@ -182,24 +188,24 @@ class EmailActionConfig(Document):
             raise ValidationError("Action name cannot be empty")
         if self.smtp_url is None or not self.smtp_url.strip():
             raise ValidationError("URL cannot be empty")
-        if not Utility.validate_smtp(self.smtp_url):
+        if not Utility.validate_smtp(self.smtp_url, self.smtp_port):
             raise ValidationError("Invalid SMTP url")
         elif isinstance(email(self.from_email), ValidationFailure) or isinstance(email(self.to_email), ValidationFailure):
             raise ValidationError("Invalid From or To email address")
 
-        self.preprocess()
-
     def clean(self):
         self.action_name = self.action_name.strip().lower()
 
-    def preprocess(self):
-        self.smtp_url = Utility.encrypt_message(self.smtp_url)
-        self.smtp_password = Utility.encrypt_message(self.smtp_password)
-        if not Utility.check_empty_string(self.smtp_userid):
-            self.smtp_userid = Utility.encrypt_message(self.smtp_userid)
-        self.from_email = Utility.encrypt_message(self.from_email)
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        document.smtp_url = Utility.encrypt_message(document.smtp_url)
+        document.smtp_password = Utility.encrypt_message(document.smtp_password)
+        if not Utility.check_empty_string(document.smtp_userid):
+            document.smtp_userid = Utility.encrypt_message(document.smtp_userid)
+        document.from_email = Utility.encrypt_message(document.from_email)
 
 
+@push_notification.apply
 class GoogleSearchAction(Document):
     name = StringField(required=True)
     api_key = StringField(required=True)
@@ -215,10 +221,9 @@ class GoogleSearchAction(Document):
         if clean:
             self.clean()
 
-        self.preprocess()
-
     def clean(self):
         self.name = self.name.strip().lower()
 
-    def preprocess(self):
-        self.api_key = Utility.encrypt_message(self.api_key)
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        document.api_key = Utility.encrypt_message(document.api_key)

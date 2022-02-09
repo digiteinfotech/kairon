@@ -38,6 +38,7 @@ RUN python -m pip install nltk==3.6.6
 RUN python -m pip install pytest
 RUN python -m pip install fastapi_sso
 RUN python -m pip install json2html
+RUN python -m pip install blinker
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install numpy==1.22.0
@@ -55,7 +56,8 @@ COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
 
+ENV WORKER_TIMEOUT=240
 ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "kairon.api.app.main:app", "--bind", "0.0.0.0:80"]
+CMD gunicorn -k uvicorn.workers.UvicornWorker ${APP_MODULE} --bind 0.0.0.0:80 --timeout ${WORKER_TIMEOUT}

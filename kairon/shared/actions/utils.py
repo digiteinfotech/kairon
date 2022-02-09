@@ -6,7 +6,6 @@ from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
 import requests
-from googleapiclient.discovery import build
 from loguru import logger
 from mongoengine import DoesNotExist
 from pymongo.common import _CaseInsensitiveDictionary
@@ -27,9 +26,7 @@ from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
-from json2html import *
-
-from ... import Utility
+from ..utils import Utility
 
 
 class ActionUtility:
@@ -332,6 +329,8 @@ class ActionUtility:
 
     @staticmethod
     def perform_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
+        from googleapiclient.discovery import build
+
         results = []
         try:
             service = build("customsearch", "v1", developerKey=api_key)
@@ -416,9 +415,23 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
-    def prepare_email_body(tracker_events):
+    def prepare_email_body(tracker_events, subject: str, user_email: str):
+        html_output = ""
+        conversation_mail_template = Utility.email_conf['email']['templates']['conversation']
+        bot_msg_template = Utility.email_conf['email']['templates']['bot_msg_conversation']
+        user_msg_template = Utility.email_conf['email']['templates']['user_msg_conversation']
         iat, msgtrail = ActionUtility.prepare_message_trail(tracker_events)
-        return json2html.convert(msgtrail)
+        for event in msgtrail:
+            msg = ""
+            if list(event.keys())[0] == 'bot':
+                msg = bot_msg_template.replace('BOT_MESSAGE', event['bot'])
+            elif list(event.keys())[0] == 'user':
+                msg = user_msg_template.replace('USER_MESSAGE', event['user'])
+            html_output = f"{html_output}{msg}"
+        conversation_mail_template = conversation_mail_template.replace('SUBJECT', subject)
+        conversation_mail_template = conversation_mail_template.replace('USER_EMAIL', user_email)
+        conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
+        return conversation_mail_template
 
 
 class ExpressionEvaluator:

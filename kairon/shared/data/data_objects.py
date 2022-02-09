@@ -25,7 +25,7 @@ from rasa.shared.core.slots import (
     BooleanSlot, AnySlot,
 )
 from validators import url, ValidationFailure
-
+from kairon.shared.data.signals import push_notification
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
@@ -52,6 +52,7 @@ class Entity(EmbeddedDocument):
             self.entity = self.entity.strip().lower()
 
 
+@push_notification.apply
 class TrainingExamples(Document):
     intent = StringField(required=True)
     text = StringField(required=True)
@@ -94,6 +95,7 @@ class TrainingExamples(Document):
                 ent.clean()
 
 
+@push_notification.apply
 class EntitySynonyms(Document):
     bot = StringField(required=True)
     name = StringField(required=True)
@@ -120,6 +122,7 @@ class EntitySynonyms(Document):
         self.value = self.value.strip()
 
 
+@push_notification.apply
 class LookupTables(Document):
     name = StringField(required=True)
     value = StringField(required=True)
@@ -145,6 +148,7 @@ class LookupTables(Document):
         self.name = self.name.strip().lower()
 
 
+@push_notification.apply
 class RegexFeatures(Document):
     name = StringField(required=True)
     pattern = StringField(required=True)
@@ -175,6 +179,7 @@ class RegexFeatures(Document):
                 raise AppException("invalid regular expression " + self.pattern)
 
 
+@push_notification.apply
 class Intents(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
@@ -195,6 +200,7 @@ class Intents(Document):
         self.name = self.name.strip().lower()
 
 
+@push_notification.apply
 class Entities(Document):
     name = StringField(required=True)
     bot = StringField(required=True)
@@ -213,6 +219,7 @@ class Entities(Document):
             raise ValidationError("Entity Name cannot be empty or blank spaces")
 
 
+@push_notification.apply
 class Forms(Document):
     name = StringField(required=True)
     ignored_intents = ListField(StringField(), default=None)
@@ -235,6 +242,7 @@ class Forms(Document):
             self.required_slots[i] = self.required_slots[i].lower()
 
 
+@push_notification.apply
 class SlotMapping(Document):
     slot = StringField(required=True)
     mapping = ListField(required=True)
@@ -269,11 +277,13 @@ class SlotMapping(Document):
     def validate(self, clean=True):
         from rasa.shared.core.domain import _validate_slot_mappings
 
-        if clean:
-            self.clean()
-
+        if not self.mapping or self.mapping == [{}]:
+            raise ValueError("At least one mapping is required")
         if Utility.check_empty_string(self.slot):
             raise ValueError("Slot name cannot be empty or blank spaces")
+
+        if clean:
+            self.clean()
 
         try:
             _validate_slot_mappings({'form_name': {self.slot: self.mapping}})
@@ -281,6 +291,7 @@ class SlotMapping(Document):
             raise ValidationError(e)
 
 
+@push_notification.apply
 class Utterances(Document):
     name = StringField(required=True)
     form_attached = StringField(default=None)
@@ -331,6 +342,7 @@ class ResponseCustom(EmbeddedDocument):
     custom = DictField(required=True)
 
 
+@push_notification.apply
 class Responses(Document):
     name = StringField(required=True)
     text = EmbeddedDocumentField(ResponseText)
@@ -358,6 +370,7 @@ class Responses(Document):
         self.name = self.name.strip().lower()
 
 
+@push_notification.apply
 class SessionConfigs(Document):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
@@ -366,6 +379,7 @@ class SessionConfigs(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
 
+@push_notification.apply
 class Slots(Document):
     name = StringField(required=True)
     type = StringField(
@@ -443,6 +457,7 @@ class StoryEvents(EmbeddedDocument):
                 entity.clean()
 
 
+@push_notification.apply
 class Stories(Document):
     block_name = StringField(required=True)
     start_checkpoints = ListField(StringField(), required=True)
@@ -471,6 +486,7 @@ class Stories(Document):
             event.clean()
 
 
+@push_notification.apply
 class Rules(Document):
     block_name = StringField(required=True)
     condition_events_indices = ListField(IntField(), default=[])
@@ -498,6 +514,7 @@ class Rules(Document):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
+@push_notification.apply
 class Configs(Document):
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)
@@ -535,6 +552,7 @@ class EndPointBot(EmbeddedDocument):
             raise AppException("Invalid Bot server url")
 
 
+@push_notification.apply
 class Endpoints(Document):
     bot_endpoint = EmbeddedDocumentField(EndPointBot)
     action_endpoint = EmbeddedDocumentField(EndPointAction)
@@ -554,6 +572,7 @@ class Endpoints(Document):
             self.action_endpoint.validate()
 
 
+@push_notification.apply
 class ModelTraining(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -564,6 +583,7 @@ class ModelTraining(Document):
     exception = StringField(default=None)
 
 
+@push_notification.apply
 class ModelDeployment(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -584,6 +604,7 @@ class TrainingDataGeneratorResponse(EmbeddedDocument):
     response = StringField(required=True)
 
 
+@push_notification.apply
 class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -596,6 +617,7 @@ class TrainingDataGenerator(Document):
     exception = StringField(default=None)
 
 
+@push_notification.apply
 class BotSettings(Document):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
@@ -605,6 +627,7 @@ class BotSettings(Document):
     status = BooleanField(default=True)
 
 
+@push_notification.apply
 class ChatClientConfig(Document):
     config = DictField(required=True)
     bot = StringField(required=True)

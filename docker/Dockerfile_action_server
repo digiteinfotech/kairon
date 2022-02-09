@@ -27,8 +27,7 @@ RUN python -m pip install json2html
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install Pillow==9.0.0
-
-
+RUN python -m pip install blinker
 RUN python -m pip install google-api-python-client
 RUN python -m pip install cryptography
 
@@ -41,6 +40,7 @@ COPY kairon/shared/models.py /app/kairon/shared/
 COPY kairon/shared/constants.py /app/kairon/shared/
 COPY kairon/shared/data/constant.py /app/kairon/shared/data/constant.py
 COPY kairon/shared/data/data_objects.py /app/kairon/shared/data/data_objects.py
+COPY kairon/shared/data/signals.py /app/kairon/shared/data/signals.py
 COPY kairon/exceptions.py /app/kairon/exceptions.py
 COPY system.yaml /app/
 COPY email.yaml /app/

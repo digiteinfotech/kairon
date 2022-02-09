@@ -10,6 +10,8 @@ class StoryStepType(str, Enum):
     action = "ACTION"
     slot_set_action = "SLOT_SET_ACTION"
     form_action = "FORM_ACTION"
+    google_search_action = "GOOGLE_SEARCH_ACTION"
+    email_action = "EMAIL_ACTION"
 
 
 class StoryType(str, Enum):
