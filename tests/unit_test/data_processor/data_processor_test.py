@@ -3606,7 +3606,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
 
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3621,7 +3625,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
 
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3637,7 +3645,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com'}
 
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
@@ -3651,7 +3663,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
 
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         actual_config = processor.get_chat_client_config('test')
         assert actual_config.config['headers']['authorization']
@@ -3664,7 +3680,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
 
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         monkeypatch.setattr(os.path, 'exists', _mock_exception)
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Config not found'):
