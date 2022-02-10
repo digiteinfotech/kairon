@@ -7,6 +7,7 @@ import pytest
 from fastapi import UploadFile
 from mongoengine import connect
 from websockets import InvalidStatusCode
+from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
 from kairon.shared.data.utils import DataUtility
@@ -704,10 +705,10 @@ class TestUtility:
         url = 'ws://localhost/events/bot_id'
         msg = 'hello'
 
-        def __mock_websocket_connect_exception(*args, **kwargs):
-            raise InvalidStatusCode(404)
+        def _mock_websocket_connect_exception(*args, **kwargs):
+            raise InvalidStatusCode(404, Headers())
 
         with patch('kairon.shared.utils.connect', autospec=True) as mock:
-            mock.side_effect = __mock_websocket_connect_exception
+            mock.side_effect = _mock_websocket_connect_exception
             with pytest.raises(InvalidStatusCode):
                 await Utility.websocket_request(url, msg)
