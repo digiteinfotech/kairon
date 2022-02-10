@@ -53,17 +53,10 @@ async def update_integration_token(
     """
     Generates an access token for api integration
     """
-    access_token = Authentication.update_integration_token(
+    Authentication.update_integration_token(
         request.name, current_user.get_bot(), current_user.get_user(), int_status=request.status
     )
-    if access_token:
-        return {
-            "data": {"access_token": access_token, "token_type": "bearer"},
-            "message": """This token will be shown only once. Please copy this somewhere safe. 
-            It is your responsibility to keep the token secret. If leaked, others may have access to your system.""",
-        }
-    else:
-        return {"message": "Integration status updated!"}
+    return {"message": "Integration status updated!"}
 
 
 @router.get("/{bot}/integration/token/list", response_model=Response)

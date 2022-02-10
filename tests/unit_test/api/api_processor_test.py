@@ -21,7 +21,7 @@ from starlette.responses import RedirectResponse
 
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess
-from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.account.processor import AccountProcessor, IntegrationProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.data_objects import Configs, Rules, Responses
