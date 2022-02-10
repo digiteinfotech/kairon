@@ -219,7 +219,9 @@ class Authentication:
     def update_integration_token(
             name: Text, bot: Text, user: Text, int_status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value
     ):
-        """ Generates a new access token for an existing integration. """
+        """
+        Generates a new access token for an existing integration.
+        """
         IntegrationProcessor.update_integration(name, bot, user, int_status)
 
     @staticmethod

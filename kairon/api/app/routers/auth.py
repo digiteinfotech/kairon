@@ -32,7 +32,7 @@ async def generate_integration_token(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
-    Generates an access token for api integration
+    Generates an access token for api integration.
     """
     access_token = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.get_user(), expiry=request.expiry_seconds, name=request.name,
@@ -40,8 +40,9 @@ async def generate_integration_token(
     )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
-        "message": """This token will be shown only once. Please copy this somewhere safe. 
-        It is your responsibility to keep the token secret. If leaked, others may have access to your system.""",
+        "message":
+            """This token will be shown only once. Please copy this somewhere safe. 
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     }
 
 
@@ -51,7 +52,7 @@ async def update_integration_token(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
-    Generates an access token for api integration
+    Enable/disable/delete an integration.
     """
     Authentication.update_integration_token(
         request.name, current_user.get_bot(), current_user.get_user(), int_status=request.status

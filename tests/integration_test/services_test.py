@@ -1700,7 +1700,7 @@ def test_integration_token():
     assert (
             token["message"]
             == """This token will be shown only once. Please copy this somewhere safe. 
-        It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -1749,7 +1749,7 @@ def test_integration_token_missing_x_user():
     assert (
             actual["message"]
             == """This token will be shown only once. Please copy this somewhere safe. 
-        It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
