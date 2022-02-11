@@ -386,37 +386,6 @@ class AccountProcessor:
         return user
 
     @staticmethod
-    def get_integration_user(bot: str, account: int):
-        """
-        creates integration user if it does not exist
-
-        :param bot: bot id
-        :param account: account id
-        :return: dict
-        """
-        email = f"{bot}@integration.com"
-        if not Utility.is_exist(
-            User, raise_error=False, email=email, is_integration_user=True, status=True
-        ):
-            password = Utility.generate_password()
-            user_details = AccountProcessor.add_user(
-                email=email,
-                password=password,
-                first_name=bot,
-                last_name=bot,
-                account=account,
-                user="auto_gen",
-                is_integration_user=True,
-            )
-            AccountProcessor.allow_access_to_bot(bot, email.strip(), "auto_gen", account,
-                                                 ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
-            return user_details
-        else:
-            return (
-                User.objects(email=email).get(is_integration_user=True).to_mongo().to_dict()
-            )
-
-    @staticmethod
     async def account_setup(account_setup: Dict, user: Text):
         """
         create new account

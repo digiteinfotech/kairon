@@ -53,7 +53,8 @@ from .constant import (
     ENTITY,
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
-    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE
+    DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
+    TOKEN_TYPE
 )
 from .data_objects import (
     Responses,
@@ -79,7 +80,6 @@ from .data_objects import (
     Utterances, BotSettings, ChatClientConfig, SlotMapping
 )
 from .utils import DataUtility
-from ..constants import DEFAULT_ACTIONS
 
 
 class MongoProcessor:
@@ -3285,20 +3285,22 @@ class MongoProcessor:
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
 
-        bot_info = AccountProcessor.get_bot(bot)
+        AccountProcessor.get_bot(bot)
+        bot_accessor = next(AccountProcessor.list_bot_accessors(bot))['accessor_email']
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
         except DoesNotExist as e:
             logging.error(e)
             config = Utility.load_json_file("./template/chat-client/default-config.json")
-            client_config = ChatClientConfig(config=config, bot=bot, user=bot_info['user'])
+            client_config = ChatClientConfig(config=config, bot=bot, user=bot_accessor)
         if not client_config.config.get('headers'):
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
-            client_config.config['headers']['X-USER'] = bot_info['user']
-        token = Authentication.generate_integration_token(bot, bot_info['account'], expiry=1440,
-                                                          access_limit=['/api/bot/.+/chat'])
-        client_config.config['headers']['authorization'] = 'Bearer ' + token
+            client_config.config['headers']['X-USER'] = bot_accessor
+        token = Authentication.generate_integration_token(
+            bot, bot_accessor, expiry=1440, access_limit=['/api/bot/.+/chat'], token_type=TOKEN_TYPE.DYNAMIC.value
+        )
+        client_config.config['headers']['authorization'] = f'Bearer {token}'
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):

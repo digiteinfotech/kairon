@@ -1,6 +1,7 @@
 from typing import List, Any, Dict
 import validators
-from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
+    INTEGRATION_STATUS
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -470,3 +471,10 @@ class EmailActionRequest(BaseModel):
     to_email: str
     response: str
     tls: bool = False
+
+
+class IntegrationRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    expiry_seconds: int = 0
+    access_list: list = None
+    status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value
