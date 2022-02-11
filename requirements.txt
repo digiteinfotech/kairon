@@ -34,7 +34,7 @@ mock
 elastic-apm
 ElasticMock
 elasticsearch==7.17.0
-pymongo==3.12.0
+pymongo==4.0.1
 cryptography
 pyparsing==2.4.7
 nlpaug
