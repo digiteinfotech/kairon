@@ -68,4 +68,4 @@ history_server:
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
-  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8082/events/"}
+  server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}

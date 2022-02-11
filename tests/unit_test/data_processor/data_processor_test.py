@@ -5050,84 +5050,78 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
-    @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
         Utility.environment['notifications']['enable'] = True
         bot = 'test_notifications'
         user = 'test'
-        server_endpoint = f"http://localhost/events/{bot}"
+        server_endpoint = f"ws://localhost/events/"
         Utility.environment['notifications']['server_endpoint'] = server_endpoint
-        responses.add(
-            responses.POST,
-            server_endpoint,
-            status=200,
-            body=''
-        )
-        processor = MongoProcessor()
-        processor.add_intent('greet', bot, user, False)
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.body
-        request_body = json.loads(responses.calls[0].request.body)
-        assert request_body['event_type'] == "create"
-        assert request_body['event']['entity_type'] == "Intents"
-        assert request_body['event']['data']['name'] == 'greet'
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-        assert request_body['event']['data']['status']
-        assert not request_body['event']['data']['is_integration']
-        assert not request_body['event']['data']['use_entities']
 
-    @responses.activate
+        def _mock_websocket_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
+            mock.side_effect = _mock_websocket_response
+            processor = MongoProcessor()
+            processor.add_intent('greet', bot, user, False)
+            assert mock.call_args.args[0] == 'ws://localhost/events/test_notifications'
+            request_body = json.loads(mock.call_args.args[1])
+            assert request_body['event_type'] == "create"
+            assert request_body['event']['entity_type'] == "Intents"
+            assert request_body['event']['data']['name'] == 'greet'
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+            assert request_body['event']['data']['status']
+            assert not request_body['event']['data']['is_integration']
+            assert not request_body['event']['data']['use_entities']
+
     def test_push_notifications_enabled_update_type_event(self):
         bot = "tests"
         user = 'testUser'
-        server_endpoint = f"http://localhost/events/{bot}"
+        server_endpoint = f"ws://localhost/events/"
         Utility.environment['notifications']['server_endpoint'] = server_endpoint
-        responses.add(
-            responses.POST,
-            server_endpoint,
-            status=200,
-            body=''
-        )
-        processor = MongoProcessor()
-        examples = list(processor.get_training_examples("greet", bot))
-        processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
-                                        bot=bot, user=user)
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.body
-        request_body = json.loads(responses.calls[0].request.body)
-        assert request_body['event_type'] == "update"
-        assert request_body['event']['entity_type'] == "TrainingExamples"
-        assert request_body['event']['data']['intent'] == 'greet'
-        assert not Utility.check_empty_string(request_body['event']['data']['text'])
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-        assert request_body['event']['data']['status']
 
-    @responses.activate
+        def _mock_websocket_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
+            mock.side_effect = _mock_websocket_response
+            processor = MongoProcessor()
+            examples = list(processor.get_training_examples("greet", bot))
+            processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
+                                            bot=bot, user=user)
+            assert mock.call_args.args[0] == 'ws://localhost/events/tests'
+            request_body = json.loads(mock.call_args.args[1])
+            assert request_body['event_type'] == "update"
+            assert request_body['event']['entity_type'] == "TrainingExamples"
+            assert request_body['event']['data']['intent'] == 'greet'
+            assert not Utility.check_empty_string(request_body['event']['data']['text'])
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+            assert request_body['event']['data']['status']
+
     def test_push_notifications_enabled_delete_type_event(self):
         bot = "test"
         user = 'test'
-        server_endpoint = f"http://localhost/events/{bot}"
+        server_endpoint = f"ws://localhost/events/"
         Utility.environment['notifications']['server_endpoint'] = server_endpoint
-        responses.add(
-            responses.POST,
-            server_endpoint,
-            status=200,
-            body=''
-        )
-        processor = MongoProcessor()
-        processor.delete_complex_story('story with slot_set_action', 'STORY', bot, user)
-        with pytest.raises(DoesNotExist):
-            Stories.objects(block_name="story with slot_set_action", bot=bot, status=True).get()
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.body
-        request_body = json.loads(responses.calls[0].request.body)
-        assert request_body['event_type'] == "delete"
-        assert request_body['event']['entity_type'] == "Stories"
-        assert request_body['event']['data'][0]['_id']
+
+        def _mock_websocket_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
+            mock.side_effect = _mock_websocket_response
+            processor = MongoProcessor()
+            processor.delete_complex_story('story with slot_set_action', 'STORY', bot, user)
+            with pytest.raises(DoesNotExist):
+                Stories.objects(block_name="story with slot_set_action", bot=bot, status=True).get()
+            assert mock.call_args.args[0] == 'ws://localhost/events/test'
+            request_body = json.loads(mock.call_args.args[1])
+            assert request_body['event_type'] == "delete"
+            assert request_body['event']['entity_type'] == "Stories"
+            assert request_body['event']['data'][0]['_id']
 
     def test_push_notifications_enabled_update_type_event_connection_error(self):
         bot = "test"
@@ -5277,29 +5271,27 @@ class TestModelProcessor:
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
 
-    @responses.activate
     def test_push_notifications_enabled_message_type_event(self):
         bot = "test"
         user = 'test'
-        server_endpoint = f"http://localhost/events/{bot}"
+        server_endpoint = f"ws://localhost/events/"
         Utility.environment['notifications']['enable'] = True
         Utility.environment['notifications']['server_endpoint'] = server_endpoint
-        responses.add(
-            responses.POST,
-            server_endpoint,
-            status=200,
-            body=''
-        )
-        ModelProcessor.set_training_status(bot, user, "Inprogress")
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.body
-        request_body = json.loads(responses.calls[0].request.body)
-        assert request_body['event_type'] == "message"
-        assert request_body['event']['entity_type'] == "ModelTraining"
-        assert request_body['event']['data']['status'] == 'Inprogress'
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
+
+        def _mock_websocket_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
+            mock.side_effect = _mock_websocket_response
+            ModelProcessor.set_training_status(bot, user, "Inprogress")
+            assert mock.call_args.args[0] == 'ws://localhost/events/test'
+            request_body = json.loads(mock.call_args.args[1])
+            assert request_body['event_type'] == "message"
+            assert request_body['event']['entity_type'] == "ModelTraining"
+            assert request_body['event']['data']['status'] == 'Inprogress'
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
 
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
