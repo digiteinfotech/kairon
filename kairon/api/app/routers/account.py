@@ -97,7 +97,7 @@ async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_c
     """
     Deletes bot.
     """
-    AccountProcessor.delete_bot(bot, current_user.get_user())
+    AccountProcessor.delete_bot(bot)
     return {'message': 'Bot removed'}
 
 

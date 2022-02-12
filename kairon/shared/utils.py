@@ -362,7 +362,7 @@ class Utility:
                 push_bulk_update_notification(document, fetched_documents, **kwargs)
 
     @staticmethod
-    def hard_delete_document(documents: List[Document], bot: Text, user: Text, **kwargs):
+    def hard_delete_document(documents: List[Document], bot: Text, **kwargs):
         """
         perform hard delete on list of mongo collections
 

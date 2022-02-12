@@ -279,7 +279,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document(
-            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], user=user, bot=bot
+            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], bot=bot
         )
 
     def load_nlu(self, bot: Text) -> TrainingData:
@@ -329,7 +329,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             Intents, Entities, Forms, FormValidationAction, EmailActionConfig, SlotSetAction, Actions, Responses,
-            Slots, SlotMapping, Utterances], bot=bot, user=user
+            Slots, SlotMapping, Utterances], bot=bot
         )
 
     def load_domain(self, bot: Text) -> Domain:
@@ -371,7 +371,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Stories], bot=bot, user=user)
+        Utility.hard_delete_document([Stories], bot=bot)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """
@@ -1200,7 +1200,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Configs], bot=bot, user=user)
+        Utility.hard_delete_document([Configs], bot=bot)
 
     def fetch_configs(self, bot: Text):
         """
@@ -2835,7 +2835,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Rules], bot=bot, user=user)
+        Utility.hard_delete_document([Rules], bot=bot)
 
     def delete_http_action(self, bot: Text, user: Text):
         """
@@ -2845,7 +2845,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([HttpActionConfig], bot=bot, user=user)
+        Utility.hard_delete_document([HttpActionConfig], bot=bot)
 
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):

@@ -3,6 +3,7 @@ from abc import ABC
 from tornado.web import RequestHandler
 from tornado.httputil import HTTPServerRequest
 from ..auth import TornadoAuthenticate
+from typing import Text
 
 
 class BaseHandler(RequestHandler, ABC):
@@ -19,3 +20,6 @@ class BaseHandler(RequestHandler, ABC):
 
     def authenticate(self, request: HTTPServerRequest, **kwargs):
         return TornadoAuthenticate.get_current_user_and_bot(request, **kwargs)
+
+    def authenticate_channel(self, token: Text, bot: Text, request: HTTPServerRequest):
+        return TornadoAuthenticate.get_current_user_and_bot_for_channel(token, bot, request)

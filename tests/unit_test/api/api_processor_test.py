@@ -305,7 +305,7 @@ class TestAccountProcessor:
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
         pytest.deleted_bot = bot[1]['_id']
-        AccountProcessor.delete_bot(pytest.deleted_bot, 'testAdmin')
+        AccountProcessor.delete_bot(pytest.deleted_bot)
         with pytest.raises(DoesNotExist):
             Bot.objects(id=pytest.deleted_bot, status=True).get()
         bots = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")
@@ -315,7 +315,7 @@ class TestAccountProcessor:
 
     def test_delete_bot_not_exists(self):
         with pytest.raises(AppException):
-            AccountProcessor.delete_bot(pytest.deleted_bot, 'testAdmin')
+            AccountProcessor.delete_bot(pytest.deleted_bot)
 
     def test_add_bot_to_user_not_present(self):
         assert AccountProcessor.allow_access_to_bot(pytest.deleted_bot, "fshaikh", 'testAdmin',

@@ -48,6 +48,8 @@ RUN python -m pip install ujson==5.1.0
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN mkdir training_data
+RUN mkdir testing_data
+RUN mkdir models
 RUN chmod 777 -R /tmp
 
 COPY kairon ${RASA_NLU_HOME}/kairon

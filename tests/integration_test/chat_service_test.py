@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 
-from mock import patch
+from mock import patch, AsyncMock
 from mongoengine import connect
 from tornado.test.testing_test import AsyncHTTPTestCase
 
@@ -13,6 +13,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
+from kairon.shared.chat.processor import ChatDataProcessor
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -39,6 +40,11 @@ loop.run_until_complete(MongoProcessor().save_from_path(
 ))
 start_training(bot2, "test@chat.com")
 bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
+ChatDataProcessor.save_channel_config({"connector_type": "slack",
+                                       "config": {
+                                           "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                           "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
+                                      bot, user=user)
 
 
 class TestChatServer(AsyncHTTPTestCase):
@@ -224,3 +230,57 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["error_code"] == 0
         assert actual["data"] is None
         assert actual["message"] == "Reloading Model!"
+
+    @patch('kairon.chat.handlers.channels.slack.SlackHandler.is_request_from_slack_authentic')
+    @patch('kairon.shared.utils.Utility.get_local_mongo_store')
+    def test_slack_auth_bot_challenge(self, mock_store, mock_slack):
+        mock_store.return_value = self.empty_store
+        mock_slack.return_value = True
+        headers = {'User-Agent': 'Slackbot 1.0 (+https://api.slack.com/robots)',
+                   'Content-Length': 826,
+                   'Accept': '*/*',
+                   'Accept-Encoding': 'gzip,deflate',
+                   'Cache-Control': 'max-age=259200',
+                   'Content-Type': 'application/json',
+                   'X-Forwarded-For': '3.237.67.113',
+                   'X-Forwarded-Proto': 'http',
+                   'X-Slack-Request-Timestamp': '1644676934',
+                   'X-Slack-Retry-Reason': 'http_error',
+                   'X-Slack-Signature': 'v0=65e62a2a81ebac3825a7aeec1f7033977e31f6ccff988ec11aaf06884553834a'}
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/slack/{bot}/{token}",
+            method="POST",
+            headers=headers,
+            body=json.dumps({"token": "RrNd3SaNJNaP28TTauAYCmJw",
+                             "challenge": "sjYDB2ccaT5wpcGyawz6BTDbiujZCBiVwSQR87t3Q3yqgoHFkkTy",
+                             "type": "url_verification"},
+                            )
+        )
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == "sjYDB2ccaT5wpcGyawz6BTDbiujZCBiVwSQR87t3Q3yqgoHFkkTy"
+
+    def test_slack_invalid_auth(self):
+        headers = {'User-Agent': 'Slackbot 1.0 (+https://api.slack.com/robots)',
+                   'Content-Length': 826,
+                   'Accept': '*/*',
+                   'Accept-Encoding': 'gzip,deflate',
+                   'Cache-Control': 'max-age=259200',
+                   'Content-Type': 'application/json',
+                   'X-Forwarded-For': '3.237.67.113',
+                   'X-Forwarded-Proto': 'http',
+                   'X-Slack-Request-Timestamp': '1644676934',
+                   'X-Slack-Retry-Num': '1',
+                   'X-Slack-Retry-Reason': 'http_error',
+                   'X-Slack-Signature': 'v0=65e62a2a81ebac3825a7aeec1f7033977e31f6ccff988ec11aaf06884553834a'}
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/slack/{bot}/123",
+            method="POST",
+            headers=headers,
+            body=json.dumps({"token":"RrNd3SaNJNaP28TTauAYCmJw","team_id":"TPKTMACSU","api_app_id":"APKTXRPMK","event":{"client_msg_id":"77eafc15-4e7a-46d1-b03f-bf953fa801dc","type":"message","text":"Hi","user":"UPKTMK5BJ","ts":"1644670603.521219","team":"TPKTMACSU","blocks":[{"type":"rich_text","block_id":"ssu6","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"Hi"}]}]}],"channel":"DPKTY81UM","event_ts":"1644670603.521219","channel_type":"im"},"type":"event_callback","event_id":"Ev032U6W5N1G","event_time":1644670603,"authed_users":["UPKE20JE8"],"authorizations":[{"enterprise_id":None,"team_id":"TPKTMACSU","user_id":"UPKE20JE8","is_bot":True,"is_enterprise_install":False}],"is_ext_shared_channel":False,"event_context":"4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUEtUTUFDU1UiLCJhaWQiOiJBUEtUWFJQTUsiLCJjaWQiOiJEUEtUWTgxVU0ifQ"})
+        )
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 500)
+        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"

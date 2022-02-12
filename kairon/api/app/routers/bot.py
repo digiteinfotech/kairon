@@ -34,6 +34,8 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.models import ChannelsRequest
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -48,7 +50,8 @@ async def get_intents(current_user: User = Security(Authentication.get_current_u
 
 
 @router.get("/intents/all", response_model=Response)
-async def get_intents_with_training_examples(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_intents_with_training_examples(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches list of existing intents and associated training examples for particular bot
     """
@@ -57,7 +60,8 @@ async def get_intents_with_training_examples(current_user: User = Security(Authe
 
 @router.post("/intents", response_model=Response)
 async def add_intents(
-        request_data: TextDataLowerCase, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: TextDataLowerCase,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Adds a new intent to the bot
@@ -92,7 +96,8 @@ async def delete_intent(
 
 @router.post("/intents/search", response_model=Response)
 async def search_training_examples(
-        request_data: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Searches existing training examples
@@ -120,7 +125,8 @@ async def get_training_examples(
 
 
 @router.get("/training_examples", response_model=Response)
-async def get_all_training_examples_for_bot(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_all_training_examples_for_bot(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches all training examples against a bot.
     """
@@ -182,7 +188,8 @@ async def edit_training_examples(
 
 @router.delete("/training_examples", response_model=Response)
 async def remove_training_examples(
-        request_data: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Deletes existing training example
@@ -281,7 +288,8 @@ async def remove_responses(
 
 @router.post("/stories", response_model=Response)
 async def add_story(
-        story: StoryRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        story: StoryRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Adds a story (conversational flow) in the particular bot
@@ -300,7 +308,8 @@ async def add_story(
 
 @router.put("/stories", response_model=Response)
 async def update_story(
-        story: StoryRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        story: StoryRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Updates a story (conversational flow) in the particular bot
@@ -329,7 +338,7 @@ async def get_stories(current_user: User = Security(Authentication.get_current_u
 async def delete_stories(story: str = Path(default=None, description="Story name", example="happy_path"),
                          type: str = StoryType,
                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
+                         ):
     """
     Updates a story (conversational flow) in the particular bot
     """
@@ -395,7 +404,8 @@ async def train(
     """
     Trains the chatbot
     """
-    DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email, 'train')
+    DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email,
+                            'train')
     return {"message": "Model training started."}
 
 
@@ -436,7 +446,8 @@ async def deploy(current_user: User = Security(Authentication.get_current_user_a
 
 
 @router.get("/deploy/history", response_model=Response)
-async def deployment_history(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def deployment_history(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches model deployment history, when and who deployed the model
     """
@@ -470,9 +481,9 @@ async def upload_files(
 
 @router.post("/upload/data_generation/file", response_model=Response)
 async def upload_data_generation_file(
-    background_tasks: BackgroundTasks,
-    doc: UploadFile = File(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        background_tasks: BackgroundTasks,
+        doc: UploadFile = File(...),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Uploads document for training data generation and triggers event for intent creation
@@ -547,7 +558,8 @@ async def test_model(
 
 
 @router.get("/logs/test", response_model=Response)
-async def model_testing_logs(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def model_testing_logs(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     List model testing logs.
     """
@@ -555,7 +567,7 @@ async def model_testing_logs(current_user: User = Security(Authentication.get_cu
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),):
+async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS), ):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -610,7 +622,8 @@ async def get_config(current_user: User = Security(Authentication.get_current_us
 
 @router.put("/config", response_model=Response)
 async def set_config(
-        config: RasaConfig, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        config: RasaConfig,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Saves or Updates the bot pipeline and policies configurations
@@ -622,7 +635,9 @@ async def set_config(
 
 
 @router.put("/config/properties", response_model=Response)
-async def set_epoch_and_fallback_properties(config: ComponentConfig, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def set_epoch_and_fallback_properties(config: ComponentConfig,
+                                            current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                          scopes=DESIGNER_ACCESS)):
     """
     Set properties (epoch and fallback) in the bot pipeline and policies configurations
     """
@@ -631,7 +646,8 @@ async def set_epoch_and_fallback_properties(config: ComponentConfig, current_use
 
 
 @router.get("/config/properties", response_model=Response)
-async def list_epoch_and_fallback_properties(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_epoch_and_fallback_properties(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     List properties (epoch and fallback) in the bot pipeline and policies configurations
     """
@@ -649,7 +665,8 @@ async def get_templates(current_user: User = Security(Authentication.get_current
 
 @router.post("/templates/use-case", response_model=Response)
 async def set_templates(
-        request_data: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Applies the use-case template
@@ -661,7 +678,8 @@ async def set_templates(
 
 
 @router.get("/templates/config", response_model=Response)
-async def get_config_template(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_config_template(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches config templates
     """
@@ -670,7 +688,8 @@ async def get_config_template(current_user: User = Security(Authentication.get_c
 
 @router.post("/templates/config", response_model=Response)
 async def set_config_template(
-        request_data: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Applies the config template
@@ -682,7 +701,9 @@ async def set_config_template(
 
 
 @router.post("/action/httpaction", response_model=Response)
-async def add_http_action(request_data: HttpActionConfigRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def add_http_action(request_data: HttpActionConfigRequest,
+                          current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                        scopes=DESIGNER_ACCESS)):
     """
     Stores the http action config and story event
     """
@@ -704,7 +725,8 @@ async def get_http_action(action: str = Path(default=None, description="action n
 
 
 @router.get("/action/httpaction", response_model=Response)
-async def list_http_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_http_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns list of http actions for bot.
     """
@@ -723,7 +745,8 @@ async def list_actions(current_user: User = Security(Authentication.get_current_
 
 @router.put("/action/httpaction", response_model=Response)
 async def update_http_action(request_data: HttpActionConfigRequest,
-                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                             current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                           scopes=DESIGNER_ACCESS)):
     """
     Updates the http action config and related story event
     """
@@ -736,7 +759,8 @@ async def update_http_action(request_data: HttpActionConfigRequest,
 
 @router.delete("/action/httpaction/{action}", response_model=Response)
 async def delete_http_action(action: str = Path(default=None, description="action name", example="http_action"),
-                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                             current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                           scopes=DESIGNER_ACCESS)):
     """
     Deletes the http action config and story event
     """
@@ -746,7 +770,8 @@ async def delete_http_action(action: str = Path(default=None, description="actio
 
 @router.post("/action/slotset", response_model=Response)
 async def add_slot_set_action(request_data: SlotSetActionRequest,
-                              current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
     """
     Stores the slot set action config.
     """
@@ -755,7 +780,8 @@ async def add_slot_set_action(request_data: SlotSetActionRequest,
 
 
 @router.get("/action/slotset", response_model=Response)
-async def list_slot_set_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_slot_set_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns list of slot set actions for bot.
     """
@@ -765,7 +791,8 @@ async def list_slot_set_actions(current_user: User = Security(Authentication.get
 
 @router.put("/action/slotset", response_model=Response)
 async def edit_slot_set_action(request_data: SlotSetActionRequest,
-                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                               current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                             scopes=DESIGNER_ACCESS)):
     """
     Edits the slot set action config.
     """
@@ -836,7 +863,9 @@ async def delete_google_search_action(
 
 
 @router.get("/actions/logs", response_model=Response)
-async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
+                                 current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                               scopes=TESTER_ACCESS)):
     """
     Retrieves action server logs for the bot.
     """
@@ -851,7 +880,8 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10, curren
 
 @router.post("/data/bulk", response_model=Response)
 async def add_training_data(
-        request_data: BulkTrainingDataAddRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: BulkTrainingDataAddRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Adds intents, training examples and responses along with story against the responses
@@ -872,7 +902,8 @@ async def add_training_data(
 
 @router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
-        request_data: TrainingDataGeneratorStatusModel, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        request_data: TrainingDataGeneratorStatusModel,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Update training data generator status
@@ -903,7 +934,8 @@ async def get_latest_data_generation_status(
     """
     Fetches status for latest data generation request
     """
-    latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(), current_user.get_user())
+    latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(),
+                                                                                          current_user.get_user())
     return {"data": latest_data_generation_status}
 
 
@@ -931,7 +963,8 @@ async def add_slots(
     """
     try:
         slot_value = request_data.dict()
-        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=True)
+        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(),
+                                           user=current_user.get_bot(), raise_exception_if_exists=True)
     except AppException as ae:
         raise AppException(str(ae))
 
@@ -967,7 +1000,8 @@ async def edit_slots(
     """
     try:
         slot_value = request_data.dict()
-        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(), raise_exception_if_exists=False)
+        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(),
+                                 raise_exception_if_exists=False)
     except Exception as e:
         raise AppException(e)
 
@@ -975,7 +1009,8 @@ async def edit_slots(
 
 
 @router.get("/importer/logs", response_model=Response)
-async def get_data_importer_logs(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_data_importer_logs(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Get data importer event logs.
     """
@@ -1036,7 +1071,8 @@ async def add_synonyms(
     :return: Success message
     """
 
-    mongo_processor.add_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+    mongo_processor.add_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(),
+                                user=current_user.get_user())
 
     return {"message": "Synonym and values added successfully!"}
 
@@ -1086,7 +1122,8 @@ async def delete_synonym_value(
 
 
 @router.post("/utterance", response_model=Response)
-async def add_utterance(request: TextDataLowerCase, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def add_utterance(request: TextDataLowerCase,
+                        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
                                        raise_error_if_exists=True)
     return {'message': 'Utterance added!'}
@@ -1098,13 +1135,15 @@ async def get_utterance(current_user: User = Security(Authentication.get_current
 
 
 @router.get("/data/count", response_model=Response)
-async def get_training_data_count(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_training_data_count(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     count = mongo_processor.get_training_data_count(current_user.get_bot())
     return Response(data=count)
 
 
 @router.get("/chat/client/config/url", response_model=Response)
-async def get_chat_client_config_url(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_chat_client_config_url(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     access_token = Authentication.create_access_token(
         data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']}, is_integration=True
     )
@@ -1122,14 +1161,16 @@ async def get_client_config_using_uid(uid: str):
 
 
 @router.get("/chat/client/config", response_model=Response)
-async def get_client_config(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_client_config(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot())
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
 
 
 @router.post("/chat/client/config", response_model=Response)
-async def set_client_config(request: DictData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def set_client_config(request: DictData, current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
     mongo_processor.save_chat_client_config(request.data, current_user.get_bot(), current_user.get_user())
     return {"message": "Config saved"}
 
@@ -1157,7 +1198,8 @@ async def add_regex(
     :return: Success message
     """
 
-    regex_id = mongo_processor.add_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+    regex_id = mongo_processor.add_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(),
+                                         user=current_user.get_user())
 
     return {"message": "Regex pattern added successfully!", "data": {"_id": regex_id}}
 
@@ -1230,7 +1272,8 @@ async def add_lookup(
     :return: Success message
     """
 
-    mongo_processor.add_lookup(lookup_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+    mongo_processor.add_lookup(lookup_dict=request_data.dict(), bot=current_user.get_bot(),
+                               user=current_user.get_user())
 
     return {"message": "Lookup table and values added successfully!"}
 
@@ -1280,7 +1323,9 @@ async def delete_lookup_value(
 
 
 @router.post("/slots/mapping", response_model=Response)
-async def add_slot_mapping(request: SlotMappingRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def add_slot_mapping(request: SlotMappingRequest,
+                           current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                         scopes=DESIGNER_ACCESS)):
     """
     Adds slot mapping.
     """
@@ -1289,7 +1334,9 @@ async def add_slot_mapping(request: SlotMappingRequest, current_user: User = Sec
 
 
 @router.put("/slots/mapping", response_model=Response)
-async def update_slot_mapping(request: SlotMappingRequest, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+async def update_slot_mapping(request: SlotMappingRequest,
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
     """
     Updates slot mapping.
     """
@@ -1298,7 +1345,8 @@ async def update_slot_mapping(request: SlotMappingRequest, current_user: User = 
 
 
 @router.get("/slots/mapping", response_model=Response)
-async def get_slot_mapping(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_slot_mapping(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Retrieves slot mapping.
     """
@@ -1307,7 +1355,8 @@ async def get_slot_mapping(current_user: User = Security(Authentication.get_curr
 
 @router.delete("/slots/mapping/{name}", response_model=Response)
 async def delete_slot_mapping(name: str = Path(default=None, description="Name of the mapping"),
-                              current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
     """
     Deletes a slot mapping.
     """
@@ -1322,7 +1371,8 @@ async def add_form(
     """
     Adds a new form.
     """
-    form = mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
+    form = mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(),
+                                    current_user.get_user())
     return Response(data=form, message='Form added')
 
 
@@ -1360,7 +1410,8 @@ async def edit_form(
 
 @router.delete("/forms", response_model=Response)
 async def delete_form(
-        request: TextData, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Deletes a form and its associated utterances.
@@ -1389,18 +1440,20 @@ async def list_entities(current_user: User = Security(Authentication.get_current
 
 @router.post("/action/email", response_model=Response)
 async def add_slot_set_action(request_data: EmailActionRequest,
-                              current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
     """
-    Stores the slot set action config.
+    Stores the email action config.
     """
     mongo_processor.add_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
 @router.get("/action/email", response_model=Response)
-async def list_email_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_email_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
-    Returns list of slot set actions for bot.
+    Returns list of email actions for bot.
     """
     actions = list(mongo_processor.list_email_action(current_user.get_bot()))
     return Response(data=actions)
@@ -1408,9 +1461,10 @@ async def list_email_actions(current_user: User = Security(Authentication.get_cu
 
 @router.put("/action/email", response_model=Response)
 async def edit_email_action(request_data: EmailActionRequest,
-                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+                            current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                          scopes=DESIGNER_ACCESS)):
     """
-    Edits the slot set action config.
+    Edits the email action config.
     """
     mongo_processor.edit_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
@@ -1421,7 +1475,40 @@ async def delete_email_action(
         action: str = Path(default=None, description="action name", example="action_email"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
-    Deletes the slot set action config.
+    Deletes the email action config.
     """
     mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
     return Response(message='Action deleted')
+
+
+@router.post("/channels", response_model=Response)
+async def add_channel_config(request_data: ChannelsRequest,
+                             current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                           scopes=DESIGNER_ACCESS)):
+    """
+    Stores the channel config.
+    """
+    print(request_data.dict())
+    ChatDataProcessor.save_channel_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Channel added')
+
+
+@router.get("/channels", response_model=Response)
+async def list_channel_config(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of channels for bot.
+    """
+    config = list(ChatDataProcessor.list_channel_config(current_user.get_bot()))
+    return Response(data=config)
+
+
+@router.delete("/channels/{name}", response_model=Response)
+async def delete_channel_config(
+        name: str = Path(default=None, description="channel name", example="slack"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    """
+    Deletes the channel config.
+    """
+    ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
+    return Response(message='Channel deleted')

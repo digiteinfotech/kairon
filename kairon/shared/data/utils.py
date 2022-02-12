@@ -10,10 +10,6 @@ from fastapi.background import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from mongoengine.errors import ValidationError
-from rasa.shared.constants import DEFAULT_DATA_PATH
-from rasa.shared.nlu.constants import TEXT
-from rasa.shared.nlu.training_data import entities_parser
-from rasa.shared.nlu.training_data.formats.markdown import MarkdownReader
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
@@ -30,7 +26,6 @@ class DataUtility:
 
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
     oauth2_scheme_non_strict = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
-    markdown_reader = MarkdownReader()
 
     @staticmethod
     def prepare_nlu_text(example: Text, entities: List[Dict]):
@@ -49,6 +44,7 @@ class DataUtility:
 
     @staticmethod
     async def save_uploaded_data(bot: Text, training_files: [File]):
+        from rasa.shared.constants import DEFAULT_DATA_PATH
         if not training_files:
             raise AppException("No files received!")
 
@@ -72,6 +68,7 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files_as_zip(bot: Text, training_file: File):
+        from rasa.shared.constants import DEFAULT_DATA_PATH
         tmp_dir = tempfile.mkdtemp()
         try:
             zipped_file = os.path.join(tmp_dir, training_file.filename)
@@ -87,6 +84,7 @@ class DataUtility:
 
     @staticmethod
     def validate_and_get_requirements(bot_data_home_dir: Text, delete_dir_on_exception: bool = False):
+        from rasa.shared.constants import DEFAULT_DATA_PATH
         """
         Checks whether at least one of the required files are present and
         finds other files required for validation during import.
@@ -136,6 +134,7 @@ class DataUtility:
         :param http_action: http actions data
         :return: files path
         """
+        from rasa.shared.constants import DEFAULT_DATA_PATH
         training_file_loc = {}
         tmp_dir = tempfile.mkdtemp()
         data_path = os.path.join(tmp_dir, DEFAULT_DATA_PATH)
@@ -200,6 +199,8 @@ class DataUtility:
         :param text: markdown intent example
         :return: plain intent, list of extracted entities
         """
+        from rasa.shared.nlu.constants import TEXT
+        from rasa.shared.nlu.training_data import entities_parser
         example = entities_parser.parse_training_example(text)
         return example.get(TEXT), example.get('entities', None)
 

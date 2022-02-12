@@ -33,7 +33,6 @@ from kairon.shared.utils import Utility
 import json
 from unittest.mock import patch
 
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
@@ -1309,7 +1308,8 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
+                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -1356,7 +1356,8 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
+                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -4176,7 +4177,8 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
+                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -4221,7 +4223,8 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
+                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -5357,7 +5360,8 @@ def test_add_form_invalid_parameters():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'settings', 0, 'slot'], 'msg': 'Slot is required', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'settings', 0, 'slot'], 'msg': 'Slot is required', 'type': 'value_error'}]
 
 
 def test_get_slot_mapping_empty():
@@ -5403,7 +5407,8 @@ def test_add_empty_slot_mapping():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', 'mapping'], 'msg': 'At least one mapping is required', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'mapping'], 'msg': 'At least one mapping is required', 'type': 'value_error'}]
 
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
@@ -5413,7 +5418,8 @@ def test_add_empty_slot_mapping():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
 
 
 def test_add_form():
@@ -5563,7 +5569,8 @@ def test_get_form_with_no_validations():
     assert form['settings'][2]['ask_questions'][0]['value']['text'] == 'type of cuisine?'
     assert form['settings'][3]['ask_questions'][0]['value']['text'] == 'outdoor seating required?'
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
-    assert form['settings'][5]['ask_questions'][0]['value']['text'] == 'Please give your feedback on your experience so far'
+    assert form['settings'][5]['ask_questions'][0]['value'][
+               'text'] == 'Please give your feedback on your experience so far'
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -5824,7 +5831,8 @@ def test_list_form():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"][0]['name'] == 'restaurant_form'
-    assert actual["data"][0]['required_slots'] == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']
+    assert actual["data"][0]['required_slots'] == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences',
+                                                   'feedback']
     assert actual["data"][1]['name'] == 'know_user_form'
     assert actual["data"][1]['required_slots'] == ['name', 'age', 'location', 'occupation']
 
@@ -6618,10 +6626,10 @@ def test_list_sso_not_enabled():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': False,
-            'google': False
-        }
+        'facebook': False,
+        'linkedin': False,
+        'google': False
+    }
 
 
 def test_sso_redirect_url_not_enabled():
@@ -6693,10 +6701,10 @@ def test_list_sso_enabled():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': True,
-            'google': True
-        }
+        'facebook': False,
+        'linkedin': True,
+        'google': True
+    }
 
 
 def test_sso_get_login_token_invalid_type():
@@ -6810,7 +6818,10 @@ def test_list_email_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
+    assert actual["data"] == [
+        {'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***',
+         'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com',
+         'response': 'Test Response', 'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -7002,3 +7013,90 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_add_channel_config_error():
+    data = {"connector_type": "custom",
+            "config": {
+                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'connector_type'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
+
+    data = {"connector_type": "slack",
+            "config": {
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'config'], 'msg': 'Missing slack_token or slack_signing_secret in config',
+         'type': 'value_error'}]
+
+    data = {"connector_type": "slack",
+            "config": {
+                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"}}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'config'], 'msg': 'Missing slack_token or slack_signing_secret in config',
+         'type': 'value_error'}]
+
+
+def test_add_channel_config():
+    data = {"connector_type": "slack",
+            "config": {
+                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel added"
+
+
+def test_get_channels_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    assert len(actual['data']) == 1
+
+
+def test_delete_channels_config():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/slack",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel deleted"

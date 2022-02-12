@@ -112,7 +112,7 @@ class AccountProcessor:
             raise AppException('Bot not found')
 
     @staticmethod
-    def delete_bot(bot: Text, user: Text):
+    def delete_bot(bot: Text):
         from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
             EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, \
             Slots, TrainingDataGenerator, TrainingExamples
@@ -129,7 +129,7 @@ class AccountProcessor:
                 EntitySynonyms, Forms, FormValidationAction, HttpActionConfig, Intents, LookupTables, RegexFeatures,
                 Responses, Rules, SlotMapping, SlotSetAction, SessionConfigs, Slots, Stories, TrainingDataGenerator,
                 TrainingExamples, ActionServerLogs, ModelTraining, ModelTestingLogs, ModelDeployment, ValidationLogs
-            ], bot, user=user)
+            ], bot)
             AccountProcessor.remove_bot_access(bot)
         except DoesNotExist:
             raise AppException('Bot not found')
