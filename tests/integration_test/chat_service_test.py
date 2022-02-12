@@ -10,6 +10,7 @@ from kairon.api.models import RegisterAccount
 from kairon.chat.server import make_app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
+from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
@@ -169,7 +170,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_chat_with_limited_access(self):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
-            is_integration=True
+            token_type=TOKEN_TYPE.INTEGRATION.value
         )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -186,7 +187,6 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_chat_with_limited_access_without_integration(self):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
-            is_integration=False
         )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -203,7 +203,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_chat_limited_access_prevent_chat(self):
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/intent']},
-            is_integration=True
+            token_type=TOKEN_TYPE.INTEGRATION.value
         )
         response = self.fetch(
             f"/api/bot/{bot}/chat",

@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import json
 import os
 import re
@@ -40,6 +41,7 @@ from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from smart_config import ConfigLoader
 from validators import ValidationFailure
 from validators import email as mail_check
+from websockets import connect
 
 from ..exceptions import AppException
 
@@ -547,6 +549,14 @@ class Utility:
             response = requests.request(method, url, headers=headers, json=json_dict)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
+
+    @staticmethod
+    async def websocket_request(uri: Text, msg: Text):
+        logger.info(f'initiating websocket connection: {uri}')
+        async with connect(uri) as web_socket:
+            await web_socket.send(msg)
+            await web_socket.close()
+        logger.info("websocket request completed")
 
     @staticmethod
     async def upload_document(doc):
@@ -1181,11 +1191,12 @@ class Utility:
     def push_notification(channel: Text, event_type: Text, collection: Text, metadata: dict):
         push_server_endpoint = Utility.environment['notifications']['server_endpoint']
         push_server_endpoint = urljoin(push_server_endpoint, channel)
-        request_body = {
+        payload = {
             'event_type': event_type,
             'event': {
                 'entity_type': collection,
                 'data': metadata
             }
         }
-        Utility.http_request('POST', push_server_endpoint, None, json_dict=request_body)
+        payload = json.dumps(payload)
+        asyncio.run(Utility.websocket_request(push_server_endpoint, payload))

@@ -22,7 +22,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -1145,7 +1145,8 @@ async def get_training_data_count(
 async def get_chat_client_config_url(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     access_token = Authentication.create_access_token(
-        data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']}, is_integration=True
+        data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']},
+        token_type=TOKEN_TYPE.DYNAMIC.value
     )
     url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
     url = urljoin(url, access_token)

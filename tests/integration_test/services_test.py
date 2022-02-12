@@ -5831,8 +5831,7 @@ def test_list_form():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"][0]['name'] == 'restaurant_form'
-    assert actual["data"][0]['required_slots'] == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences',
-                                                   'feedback']
+    assert actual["data"][0]['required_slots'] == ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback']
     assert actual["data"][1]['name'] == 'know_user_form'
     assert actual["data"][1]['required_slots'] == ['name', 'age', 'location', 'occupation']
 
@@ -6626,10 +6625,10 @@ def test_list_sso_not_enabled():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-        'facebook': False,
-        'linkedin': False,
-        'google': False
-    }
+            'facebook': False,
+            'linkedin': False,
+            'google': False
+        }
 
 
 def test_sso_redirect_url_not_enabled():
@@ -6701,10 +6700,10 @@ def test_list_sso_enabled():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-        'facebook': False,
-        'linkedin': True,
-        'google': True
-    }
+            'facebook': False,
+            'linkedin': True,
+            'google': True
+        }
 
 
 def test_sso_get_login_token_invalid_type():
@@ -6818,10 +6817,7 @@ def test_list_email_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"] == [
-        {'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***',
-         'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com',
-         'response': 'Test Response', 'tls': False}]
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -7013,6 +7009,167 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_disable_integration_token():
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 3', 'status': 'inactive'},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['message'] == 'Integration status updated!'
+
+
+def test_list_integrations_after_disable():
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]['name'] == 'integration 1'
+    assert actual["data"][0]['user'] == 'integ1@gmail.com'
+    assert actual["data"][0]['iat']
+    assert actual["data"][0]['status'] == 'active'
+    assert actual["data"][1]['name'] == 'integration 3'
+    assert actual["data"][1]['user'] == 'integ1@gmail.com'
+    assert actual["data"][1]['iat']
+    assert actual["data"][1]['status'] == 'inactive'
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_use_inactive_token():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={
+            "Authorization": pytest.disable_token,
+            "X-USER": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == 'Access to bot is denied'
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 3', 'status': 'active'},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={
+            "Authorization": pytest.disable_token,
+            "X-USER": "integration",
+        },
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']
+
+
+def test_delete_integration_token():
+    response = client.put(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 3', 'status': 'deleted'},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['message'] == 'Integration status updated!'
+
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 1
+
+
+def test_integration_token_from_one_bot_on_another_bot():
+    response = client.post(
+        "/api/account/bot",
+        json={"data": "demo-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['message'] == 'Bot created'
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['account_owned']) == 2
+    bot1 = response['data']['account_owned'][0]['_id']
+    bot2 = response['data']['account_owned'][1]['_id']
+
+    response = client.post(
+        f"/api/auth/{bot1}/integration/token",
+        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    token = response.json()
+    assert token["success"]
+    assert token["error_code"] == 0
+    assert token["data"]["access_token"]
+    assert token["data"]["token_type"]
+
+    response = client.get(
+        f"/api/bot/{bot2}/intents",
+        headers={
+            "Authorization": token["data"]["token_type"]
+                             + " "
+                             + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == 'Access to bot is denied'
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+
+
+def test_integration_limit_reached():
+    response = client.post(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    token = response.json()
+    assert not token["success"]
+    assert token["error_code"] == 422
+    assert token['message'] == 'Integrations limit reached!'
+    assert not token["data"]
+
+
+def test_list_integrations():
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"][0]['name'] == 'integration 1'
+    assert actual["data"][0]['user'] == 'integ1@gmail.com'
+    assert actual["data"][0]['iat']
+    assert actual["data"][0]['status'] == 'active'
+    assert actual["data"][1]['name'] == 'integration 4'
+    assert actual["data"][1]['user'] == 'integ1@gmail.com'
+    assert actual["data"][1]['iat']
+    assert actual["data"][1]['expiry']
+    assert actual["data"][1]['status'] == 'active'
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_add_channel_config_error():

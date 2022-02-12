@@ -10,6 +10,7 @@ security:
   algorithm: "HS256"
   token_expire: ${TOKEN_EXPIRE:10080}
   fernet_key: ${FERNET_KEY:"gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="}
+  integrations_per_user: ${INTEGRATIONS_PER_USER:2}
 
 sso:
   google:
@@ -67,4 +68,4 @@ history_server:
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
-  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8082/events/"}
+  server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}
