@@ -1308,8 +1308,7 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
-                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -1356,8 +1355,7 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
-                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -1687,8 +1685,9 @@ def test_deploy_server_error(mock_endpoint):
 
 
 def test_integration_token():
-    response = client.get(
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 1', 'expiry_seconds': 1440},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1699,8 +1698,8 @@ def test_integration_token():
     assert token["data"]["token_type"]
     assert (
             token["message"]
-            == """It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system."""
+            == """This token will be shown only once. Please copy this somewhere safe. 
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -1735,8 +1734,9 @@ def test_integration_token():
 
 
 def test_integration_token_missing_x_user():
-    response = client.get(
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 2'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1747,8 +1747,8 @@ def test_integration_token_missing_x_user():
     assert actual["data"]["token_type"]
     assert (
             actual["message"]
-            == """It is your responsibility to keep the token secret.
-        If leaked then other may have access to your system."""
+            == """This token will be shown only once. Please copy this somewhere safe. 
+            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -2816,8 +2816,9 @@ def test_overwrite_password_for_non_matching_passwords():
 
 
 def test_add_and_delete_intents_by_integration_user():
-    response = client.get(
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 1'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2860,9 +2861,10 @@ def test_add_and_delete_intents_by_integration_user():
     assert actual['success']
 
 
-def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
-    response = client.get(
+def test_add_non_integration_intent_and_delete_intent_by_integration_user():
+    response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
+        json={'name': 'integration 3'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2871,6 +2873,7 @@ def test_add_non_Integration_Intent_and_delete_intent_by_integration_user():
     assert token["error_code"] == 0
     assert token["data"]["access_token"]
     assert token["data"]["token_type"]
+    pytest.disable_token = f'{token["data"]["token_type"]} {token["data"]["access_token"]}'
 
     response = client.post(
         f"/api/bot/{pytest.bot}/intents",
@@ -4177,8 +4180,7 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
-                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -4223,8 +4225,7 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
-                                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
                  'type': 'type_error.enum'}]
@@ -5360,8 +5361,7 @@ def test_add_form_invalid_parameters():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [
-        {'loc': ['body', 'settings', 0, 'slot'], 'msg': 'Slot is required', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'settings', 0, 'slot'], 'msg': 'Slot is required', 'type': 'value_error'}]
 
 
 def test_get_slot_mapping_empty():
@@ -5407,8 +5407,7 @@ def test_add_empty_slot_mapping():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [
-        {'loc': ['body', 'mapping'], 'msg': 'At least one mapping is required', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'mapping'], 'msg': 'At least one mapping is required', 'type': 'value_error'}]
 
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
@@ -5418,8 +5417,7 @@ def test_add_empty_slot_mapping():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [
-        {'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
 
 
 def test_add_form():
@@ -5569,8 +5567,7 @@ def test_get_form_with_no_validations():
     assert form['settings'][2]['ask_questions'][0]['value']['text'] == 'type of cuisine?'
     assert form['settings'][3]['ask_questions'][0]['value']['text'] == 'outdoor seating required?'
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
-    assert form['settings'][5]['ask_questions'][0]['value'][
-               'text'] == 'Please give your feedback on your experience so far'
+    assert form['settings'][5]['ask_questions'][0]['value']['text'] == 'Please give your feedback on your experience so far'
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
