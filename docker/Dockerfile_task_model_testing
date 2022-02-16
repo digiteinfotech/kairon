@@ -30,7 +30,9 @@ RUN python -m pip install nltk==3.6.6
 RUN python -m pip install pytest
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
+RUN python -m nltk.downloader omw-1.4
 RUN python -m pip install websockets==10.1
+RUN python -m pip install blinker
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
