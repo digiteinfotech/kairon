@@ -50,3 +50,4 @@ google-api-python-client
 nltk==3.6.6
 blinker
 jira
+pyjwt==2.3.0
