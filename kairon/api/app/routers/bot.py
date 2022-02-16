@@ -18,7 +18,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase, SlotMappingRequest, EmailActionRequest, GoogleSearchActionRequest
+    TextDataLowerCase, SlotMappingRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -1513,3 +1513,48 @@ async def delete_channel_config(
     """
     ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
     return Response(message='Channel deleted')
+
+
+@router.post("/action/jira", response_model=Response)
+async def add_jira_action(
+        request_data: JiraActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores Jira action config.
+    """
+    mongo_processor.add_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/action/jira", response_model=Response)
+async def list_jira_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of Jira actions for bot.
+    """
+    actions = list(mongo_processor.list_jira_actions(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/action/jira", response_model=Response)
+async def edit_jira_action(
+        request_data: JiraActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the Jira action config.
+    """
+    mongo_processor.edit_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/action/jira/{action}", response_model=Response)
+async def delete_jira_action(
+        action: str = Path(default=None, description="action name", example="action_email"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the Jira action config.
+    """
+    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')

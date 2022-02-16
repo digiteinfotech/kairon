@@ -16,7 +16,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction
+    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2022,6 +2022,184 @@ class TestActions:
         Actions(name='custom_search_action', type=ActionType.google_search_action.value, bot=bot, user=user).save()
         with pytest.raises(ActionFailure, match='Google search action not found'):
             ActionUtility.get_action_config(bot, 'custom_search_action')
+
+    def test_get_jira_action_not_exists(self):
+        bot = 'test_action_server'
+        with pytest.raises(ActionFailure, match='No action found for bot'):
+            ActionUtility.get_action_config(bot, 'jira_action')
+
+    def test_get_jira_action_not_found(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='jira_action', type=ActionType.jira_action.value, bot=bot, user=user).save()
+        with pytest.raises(ActionFailure, match='Jira action not found'):
+            ActionUtility.get_action_config(bot, 'jira_action')
+
+    @responses.activate
+    def test_create_jira_issue(self):
+        url = 'https://test-digite.atlassian.net'
+        username = 'test@digite.com'
+        api_token = 'ASDFGHJKL'
+        project_key = 'HEL'
+        issue_type = 'Bug'
+        summary = 'Successfully created'
+        description = json.dumps([{'bot': 'hi'}, {'user': 'hello'}, {'bot': 'whatup'}, {'user': 'cool'}])
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}},
+        )
+        responses.add(
+            'POST',
+            f'{url}/rest/api/2/issue',
+            json={'id': '10006', 'key': 'HEL-7', 'self': f'{url}/rest/api/2/issue/10006'}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issue/HEL-7',
+            json={
+                'expand': 'renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations,customfield_10010.requestTypePractice',
+                'id': '10007', 'self': 'https://udit-pandey.atlassian.net/rest/api/2/issue/10007', 'key': 'HEL-8',
+                'fields': {'statuscategorychangedate': '2022-02-15T20:43:38.025+0530',
+                           'issuetype': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003',
+                                         'id': '10003',
+                                         'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                                         'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                                         'name': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                                         'entityId': 'd603fd3f-d368-46a6-b4c4-9fcffc1dc23b',
+                                         'hierarchyLevel': -1}, 'parent': {'id': '10003', 'key': 'HEL-4',
+                                                                           'self': 'https://udit-pandey.atlassian.net/rest/api/2/issue/10003',
+                                                                           'fields': {'summary': 'order for apache',
+                                                                                      'status': {
+                                                                                          'self': 'https://udit-pandey.atlassian.net/rest/api/2/status/10000',
+                                                                                          'description': '',
+                                                                                          'iconUrl': 'https://udit-pandey.atlassian.net/',
+                                                                                          'name': 'To Do',
+                                                                                          'id': '10000',
+                                                                                          'statusCategory': {
+                                                                                              'self': 'https://udit-pandey.atlassian.net/rest/api/2/statuscategory/2',
+                                                                                              'id': 2, 'key': 'new',
+                                                                                              'colorName': 'blue-gray',
+                                                                                              'name': 'To Do'}},
+                                                                                      'priority': {
+                                                                                          'self': 'https://udit-pandey.atlassian.net/rest/api/2/priority/3',
+                                                                                          'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/priorities/medium.svg',
+                                                                                          'name': 'Medium', 'id': '3'},
+                                                                                      'issuetype': {
+                                                                                          'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001',
+                                                                                          'id': '10001',
+                                                                                          'description': 'A small, distinct piece of work.',
+                                                                                          'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                                                                                          'name': 'Task',
+                                                                                          'subtask': False,
+                                                                                          'avatarId': 10318,
+                                                                                          'entityId': 'df701898-8426-493f-b0c4-51b30dddf1b2',
+                                                                                          'hierarchyLevel': 0}}},
+                           'timespent': None,
+                           'project': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000',
+                                       'id': '10000', 'key': 'HEL', 'name': 'helicopter', 'projectTypeKey': 'software',
+                                       'simplified': True, 'avatarUrls': {
+                                   '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                                   '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                                   '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                                   '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'}},
+                           'fixVersions': [], 'aggregatetimespent': None, 'resolution': None, 'resolutiondate': None,
+                           'workratio': -1, 'issuerestriction': {'issuerestrictions': {}, 'shouldDisplay': True},
+                           'lastViewed': None,
+                           'watches': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issue/HEL-8/watchers',
+                                       'watchCount': 1, 'isWatching': True}, 'created': '2022-02-15T20:43:37.691+0530',
+                           'customfield_10020': None, 'customfield_10021': None, 'customfield_10022': None,
+                           'priority': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/priority/3',
+                                        'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/priorities/medium.svg',
+                                        'name': 'Medium', 'id': '3'}, 'customfield_10023': None,
+                           'customfield_10024': None, 'customfield_10025': None, 'labels': [],
+                           'customfield_10016': None, 'customfield_10017': None,
+                           'customfield_10018': {'hasEpicLinkFieldDependency': False, 'showField': False,
+                                                 'nonEditableReason': {'reason': 'PLUGIN_LICENSE_ERROR',
+                                                                       'message': 'The Parent Link is only available to Jira Premium users.'}},
+                           'customfield_10019': '0|i0001j:', 'aggregatetimeoriginalestimate': None,
+                           'timeestimate': None, 'versions': [], 'issuelinks': [], 'assignee': None,
+                           'updated': '2022-02-15T20:43:37.960+0530',
+                           'status': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/status/10000',
+                                      'description': '', 'iconUrl': 'https://udit-pandey.atlassian.net/',
+                                      'name': 'To Do', 'id': '10000', 'statusCategory': {
+                                   'self': 'https://udit-pandey.atlassian.net/rest/api/2/statuscategory/2', 'id': 2,
+                                   'key': 'new', 'colorName': 'blue-gray', 'name': 'To Do'}}, 'components': [],
+                           'timeoriginalestimate': None,
+                           'description': 'Creating of an issue using project keys and issue type names using the REST API',
+                           'customfield_10010': None, 'customfield_10014': None, 'timetracking': {},
+                           'customfield_10015': None, 'customfield_10005': None, 'customfield_10006': None,
+                           'customfield_10007': None, 'security': None, 'customfield_10008': None,
+                           'customfield_10009': None, 'aggregatetimeestimate': None, 'attachment': [],
+                           'summary': 'order for apache', 'creator': {
+                        'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                        'accountId': '6205e1585d18ad00729aa75f', 'emailAddress': 'udit.pandey@digite.com',
+                        'avatarUrls': {
+                            '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                            '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                            '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                            '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                        'displayName': 'Udit Pandey', 'active': True, 'timeZone': 'Asia/Calcutta',
+                        'accountType': 'atlassian'}, 'subtasks': [], 'reporter': {
+                        'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                        'accountId': '6205e1585d18ad00729aa75f', 'emailAddress': 'udit.pandey@digite.com',
+                        'avatarUrls': {
+                            '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                        'displayName': 'Udit Pandey', 'active': True, 'timeZone': 'Asia/Calcutta',
+                        'accountType': 'atlassian'}, 'aggregateprogress': {'progress': 0, 'total': 0},
+                           'customfield_10000': '{}', 'customfield_10001': None, 'customfield_10002': None,
+                           'customfield_10003': None, 'customfield_10004': None, 'environment': None, 'duedate': None,
+                           'progress': {'progress': 0, 'total': 0},
+                           'votes': {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issue/HEL-8/votes',
+                                     'votes': 0, 'hasVoted': False}, 'comment': {'comments': [],
+                                                                                 'self': 'https://udit-pandey.atlassian.net/rest/api/2/issue/10007/comment',
+                                                                                 'maxResults': 0, 'total': 0,
+                                                                                 'startAt': 0},
+                           'worklog': {'startAt': 0, 'maxResults': 20, 'total': 0, 'worklogs': []}}}
+        )
+        assert not ActionUtility.create_jira_issue(url, username, api_token, project_key, issue_type, summary, description)
+
+    def test_create_jira_issue_failure(self):
+        url = 'https://test-digite.atlassian.net'
+        username = 'test@digite.com'
+        api_token = 'ASDFGHJKL'
+        project_key = 'HEL'
+        issue_type = 'Bug'
+        summary = 'Successfully created'
+        description = json.dumps([{'bot': 'hi'}, {'user': 'hello'}, {'bot': 'whatup'}, {'user': 'cool'}])
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            status=500
+        )
+        with pytest.raises(Exception):
+            ActionUtility.create_jira_issue(url, username, api_token, project_key, issue_type, summary, description)
+
+    def test_get_jira_action(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+
+        def _mock_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_response):
+            JiraAction(
+                name='jira_action', bot=bot, user=user, url='https://test-digite.atlassian.net', user_name='test@digite.com',
+                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
+                response='Successfully created').save()
+        action, a_type = ActionUtility.get_action_config(bot, 'jira_action')
+        assert a_type == 'jira_action'
+        action.pop('_id')
+        action.pop('timestamp')
+        assert action == {
+            'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'fallback',
+            'response': 'Successfully created', 'bot': 'test_action_server', 'user': 'test_user', 'status': True
+        }
 
     def test_google_search_action(self, monkeypatch):
         def _run_action(*arge, **kwargs):

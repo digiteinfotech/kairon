@@ -13,6 +13,7 @@ import pytest
 import responses
 from elasticmock import elasticmock
 from fastapi import UploadFile
+from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
@@ -5145,6 +5146,433 @@ class TestMongoProcessor:
         processor.delete_complex_story(story_name, 'STORY', bot, user)
         with pytest.raises(DoesNotExist):
             Stories.objects(block_name=story_name, bot=bot, status=True).get()
+        Utility.environment['notifications']['enable'] = False
+
+    @responses.activate
+    def test_add_jira_action(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+                   'avatarUrls': {'48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issuetype',
+            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                   'description': 'A small, distinct piece of work.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+        )
+        processor = MongoProcessor()
+        assert processor.add_jira_action(action, bot, user)
+
+    def test_add_jira_action_already_exists(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_jira_action(action, bot, user)
+
+    @responses.activate
+    def test_add_jira_action_different_bot(self):
+        bot = 'test_2'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+                   'avatarUrls': {
+                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issuetype',
+            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                   'description': 'A small, distinct piece of work.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+        )
+        processor = MongoProcessor()
+        assert processor.add_jira_action(action, bot, user)
+
+    def test_add_jira_action_invalid_url(self, monkeypatch):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+
+        def _mock_error(*args, **kwargs):
+            raise JIRAError(status_code=404, url=url)
+
+        monkeypatch.setattr(JIRA, '_create_http_basic_session', _mock_error)
+
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError, match='Could not connect to url: *'):
+            processor.add_jira_action(action, bot, user)
+
+    def test_add_jira_action_invalid_url_runtime_error(self, monkeypatch):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+
+        def _mock_error(*args, **kwargs):
+            raise RuntimeError()
+
+        monkeypatch.setattr(JIRA, '_create_http_basic_session', _mock_error)
+
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError, match='Could not connect to url: *'):
+            processor.add_jira_action(action, bot, user)
+
+    @responses.activate
+    def test_add_jira_action_invalid_project_key(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{}]
+        )
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError, match='Invalid project key'):
+            processor.add_jira_action(action, bot, user)
+
+    @responses.activate
+    def test_add_jira_action_invalid_issue_type(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        issue_type = 'ProdIssue'
+        action = {
+            'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': issue_type, 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+                   'avatarUrls': {
+                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issuetype',
+            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                   'description': 'A small, distinct piece of work.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+        )
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError, match=f"No issue type '{issue_type}' exists"):
+            processor.add_jira_action(action, bot, user)
+
+    @responses.activate
+    def test_add_jira_action_parent_key_not_given_for_subtask(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+                   'avatarUrls': {
+                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issuetype',
+            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                   'description': 'A small, distinct piece of work.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+        )
+        processor = MongoProcessor()
+        with pytest.raises(ValidationError, match="parent key is required for issues of type 'Subtask'"):
+            processor.add_jira_action(action, bot, user)
+
+    def test_list_jira_actions(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        jira_actions = list(processor.list_jira_actions(bot))
+        assert jira_actions == [
+            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'response': 'We have logged a ticket'}]
+
+        jira_actions = list(processor.list_jira_actions(bot, False))
+        assert jira_actions == [
+            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'response': 'We have logged a ticket'}]
+
+    @responses.activate
+    def test_edit_jira_action(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/serverInfo',
+            json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+                  'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+                  'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+                  'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+                  'defaultLocale': {'locale': 'en_US'}}
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/project',
+            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+                   'avatarUrls': {
+                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+        )
+        responses.add(
+            'GET',
+            f'{url}/rest/api/2/issuetype',
+            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                   'description': 'A small, distinct piece of work.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                   'description': 'A collection of related bugs, stories, and tasks.',
+                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+        )
+        processor = MongoProcessor()
+        assert not processor.edit_jira_action(action, bot, user)
+
+    def test_edit_jira_action_not_exists(self):
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'jira_action_not_exists', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+            'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match=f'Action with name "{action.get("name")}" not found'):
+            processor.edit_jira_action(action, bot, user)
+
+    def test_list_jira_actions_after_update(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        jira_actions = list(processor.list_jira_actions(bot))
+        assert jira_actions == [
+            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'summary': 'new user', 'response': 'We have logged a ticket'}
+        ]
+
+        jira_actions = list(processor.list_jira_actions(bot, False))
+        assert jira_actions == [
+            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'summary': 'new user', 'response': 'We have logged a ticket'}
+        ]
+
+    def test_add_jira_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "jira_action", "type": "JIRA_ACTION"},
+        ]
+        story_dict = {'name': "story with jira action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with jira action", bot=bot, events__name='jira_action', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with jira action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'jira_action', 'type': 'JIRA_ACTION'},
+        ]
 
 
 # pylint: disable=R0201
@@ -5793,7 +6221,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [],
+        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
                            'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story_with_action(self):
@@ -5813,7 +6241,7 @@ class TestModelProcessor:
         actions = processor.list_actions("test_with_action")
         assert actions == {
             'actions': ['action_check'],
-            'http_action': [],
+            'http_action': [], 'jira_action': [],
             'slot_set_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
@@ -5833,7 +6261,7 @@ class TestModelProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert actions == {'actions': [],
-                           'http_action': [], 'google_search_action': [],
+                           'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -6109,7 +6537,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {'actions': ['reset_slot'], 'google_search_action': [],
+        assert actions == {'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [],
                            'http_action': ['action_performanceuser1000@digite.com'],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_offer_help',
@@ -6383,7 +6811,7 @@ class TestTrainingDataProcessor:
         assert actions == {
             'actions': [],
             'http_action': [], 'google_search_action': [],
-            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',

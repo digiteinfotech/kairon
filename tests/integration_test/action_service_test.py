@@ -1,7 +1,9 @@
+from _pytest.monkeypatch import MonkeyPatch
+from jira import JIRAError
 from tornado.test.testing_test import AsyncHTTPTestCase
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
-    EmailActionConfig, ActionServerLogs, GoogleSearchAction
+    EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.data_objects import Slots
@@ -1462,3 +1464,214 @@ class TestActionServer(AsyncHTTPTestCase):
                                              'responses': [{'text': 'I have failed to process your request.', 'buttons': [], 'elements': [],
                                                             'custom': {}, 'template': None, 'response': None,
                                                             'image': None, 'attachment': None}]})
+
+    def test_process_jira_action(self):
+        action_name = "jira_action"
+        bot = "5f50fd0a56b698ca10d35d2e"
+        user = 'test_user'
+
+        def _mock_response(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_response):
+            Actions(name=action_name, type=ActionType.jira_action.value, bot=bot, user=user).save()
+            JiraAction(
+                name=action_name, bot=bot, user=user, url='https://test-digite.atlassian.net',
+                user_name='test@digite.com',
+                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
+                response='Successfully created').save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        with patch.object(ActionUtility, "create_jira_issue") as mocked:
+            mocked.side_effect = _mock_response
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'events': [
+                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                 'value': 'Successfully created'}], 'responses': [
+                {'text': 'Successfully created', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+                 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_process_jira_action_failure(self):
+        action_name = "jira_action_failure"
+        bot = "5f50fd0a56b698ca10d35d2e"
+        user = 'test_user'
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        def _mock_response(*args, **kwargs):
+            raise JIRAError(status_code=404, url='https://test-digite.atlassian.net')
+
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
+            Actions(name=action_name, type=ActionType.jira_action.value, bot=bot, user='test_user').save()
+            JiraAction(
+                name=action_name, bot=bot, user=user, url='https://test-digite.atlassian.net',
+                user_name='test@digite.com',
+                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
+                response='Successfully created').save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        with patch.object(ActionUtility, "create_jira_issue") as mocked:
+            mocked.side_effect = _mock_response
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'events': [
+                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                 'value': 'Successfully created'}], 'responses': [
+                {'text': 'Successfully created', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+                 'response': None, 'image': None, 'attachment': None}]})
