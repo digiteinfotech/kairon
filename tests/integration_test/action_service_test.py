@@ -1672,6 +1672,6 @@ class TestActionServer(AsyncHTTPTestCase):
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [
                 {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
-                 'value': 'Successfully created'}], 'responses': [
-                {'text': 'Successfully created', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+                 'value': 'I have failed to create issue for you'}], 'responses': [
+                {'text': 'I have failed to create issue for you', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                  'response': None, 'image': None, 'attachment': None}]})

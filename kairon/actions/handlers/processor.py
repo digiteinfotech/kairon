@@ -283,6 +283,7 @@ class ActionProcessor:
             logger.debug(e)
             exception = str(e)
             status = "FAILURE"
+            bot_response = "I have failed to create issue for you"
         finally:
             ActionServerLogs(
                 type=ActionType.jira_action.value,
