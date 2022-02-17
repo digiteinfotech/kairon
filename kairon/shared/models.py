@@ -12,6 +12,7 @@ class StoryStepType(str, Enum):
     form_action = "FORM_ACTION"
     google_search_action = "GOOGLE_SEARCH_ACTION"
     email_action = "EMAIL_ACTION"
+    jira_action = "JIRA_ACTION"
 
 
 class StoryType(str, Enum):

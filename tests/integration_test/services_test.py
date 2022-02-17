@@ -10,6 +10,7 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from fastapi_sso.sso.google import GoogleSSO
+from jira import JIRAError, JIRA
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
 from pydantic import SecretStr
@@ -17,6 +18,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
 from kairon.exceptions import AppException
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
@@ -33,13 +35,14 @@ from kairon.shared.utils import Utility
 import json
 from unittest.mock import patch
 
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 token_type = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope='class')
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
@@ -1308,9 +1311,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1355,9 +1358,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3511,7 +3514,7 @@ def test_list_actions():
                         'test_update_http_action_6',
                         'test_update_http_action_non_existing',
                         'new_http_action4'],
-        'slot_set_action': [],
+        'slot_set_action': [], 'jira_action': [],
         'utterances': ['utter_greet',
                        'utter_cheer_up',
                        'utter_did_that_help',
@@ -4180,9 +4183,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4225,9 +4228,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -7254,3 +7257,214 @@ def test_delete_channels_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Channel deleted"
+
+
+def _mock_error(*args, **kwargs):
+    raise JIRAError(status_code=404, url='https://test1-digite.atlassian.net')
+
+
+def test_add_jira_action_invalid_config(monkeypatch):
+    url = 'https://test_add_jira_action_invalid_config.net'
+    action = {
+        'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'response': 'We have logged a ticket'
+    }
+    monkeypatch.setattr(ActionUtility, 'get_jira_client', _mock_error)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
+
+
+def test_list_jira_action_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/jira",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+@responses.activate
+def test_add_jira_action():
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com', 'api_token': 'ASDFGHJKL',
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/serverInfo',
+        json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+              'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+              'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+              'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+              'defaultLocale': {'locale': 'en_US'}}
+    )
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/project',
+        json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+               'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+               'avatarUrls': {
+                   '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+               'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+               'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+               'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+    )
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/issuetype',
+        json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+               'description': 'Subtasks track small pieces of work that are part of a larger task.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+               'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+               'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+               'description': 'A small, distinct piece of work.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+               'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+               'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+               'description': 'A collection of related bugs, stories, and tasks.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+               'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+               'description': 'A collection of related bugs, stories, and tasks.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+               'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+               'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_list_jira_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/jira",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [
+            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'response': 'We have logged a ticket'}]
+
+
+@responses.activate
+def test_edit_jira_action():
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+        'summary': 'new user',
+        'response': 'We have logged a ticket'
+    }
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/serverInfo',
+        json={'baseUrl': 'https://udit-pandey.atlassian.net', 'version': '1001.0.0-SNAPSHOT',
+              'versionNumbers': [1001, 0, 0], 'deploymentType': 'Cloud', 'buildNumber': 100191,
+              'buildDate': '2022-02-11T05:35:40.000+0530', 'serverTime': '2022-02-15T10:54:09.906+0530',
+              'scmInfo': '831671b3b59f40b5108ef3f9491df89a1317ecaa', 'serverTitle': 'Jira',
+              'defaultLocale': {'locale': 'en_US'}}
+    )
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/project',
+        json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+               'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
+               'avatarUrls': {
+                   '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+               'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+               'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+               'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
+    )
+    responses.add(
+        'GET',
+        f'{url}/rest/api/2/issuetype',
+        json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+               'description': 'Subtasks track small pieces of work that are part of a larger task.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+               'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
+               'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+               'description': 'A small, distinct piece of work.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+               'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
+               'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
+               'description': 'A collection of related bugs, stories, and tasks.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
+               'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
+              {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+               'description': 'A collection of related bugs, stories, and tasks.',
+               'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+               'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
+               'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+    )
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+def test_edit_jira_action_invalid_config(monkeypatch):
+    url = 'https://test_edit_jira_action_invalid_config.net'
+    action = {
+        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'response': 'We have logged a ticket'
+    }
+
+    monkeypatch.setattr(ActionUtility, 'get_jira_client', _mock_error)
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
+
+
+def test_edit_jira_action_not_found():
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "jira_action_new" not found'

@@ -473,6 +473,18 @@ class EmailActionRequest(BaseModel):
     tls: bool = False
 
 
+class JiraActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    url: str
+    user_name: str
+    api_token: str
+    project_key: str
+    issue_type: str
+    parent_key: str = None
+    summary: str
+    response: str
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_seconds: int = 0
