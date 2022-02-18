@@ -30,6 +30,7 @@ RUN python -m pip install Pillow==9.0.0
 RUN python -m pip install blinker
 RUN python -m pip install google-api-python-client
 RUN python -m pip install cryptography
+RUN python -m pip install jira
 
 COPY kairon/actions /app/kairon/actions/
 COPY kairon/shared/actions /app/kairon/shared/actions

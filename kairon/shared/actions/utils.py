@@ -6,6 +6,7 @@ from typing import Any, List
 from urllib.parse import urlencode, quote_plus, unquote_plus
 
 import requests
+from jira import JIRA
 from loguru import logger
 from mongoengine import DoesNotExist
 from pymongo.common import _CaseInsensitiveDictionary
@@ -21,7 +22,7 @@ from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
 from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
-    EmailActionConfig, GoogleSearchAction
+    EmailActionConfig, GoogleSearchAction, JiraAction
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
@@ -249,6 +250,8 @@ class ActionUtility:
                 config = ActionUtility.get_email_action_config(bot, name)
             elif action.get('type') == ActionType.google_search_action.value:
                 config = ActionUtility.get_google_search_action_config(bot, name)
+            elif action.get('type') == ActionType.jira_action.value:
+                config = ActionUtility.get_jira_action_config(bot, name)
             else:
                 raise ActionFailure(f'{action.get("type")} action is not supported with action server')
         except DoesNotExist as e:
@@ -316,6 +319,18 @@ class ActionUtility:
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("Google search action not found")
+        return action
+
+    @staticmethod
+    def get_jira_action_config(bot: str, name: str):
+        try:
+            action = JiraAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("jira_action_config: " + str(action))
+            action['user_name'] = Utility.decrypt_message(action['user_name'])
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Jira action not found")
         return action
 
     @staticmethod
@@ -432,6 +447,69 @@ class ActionUtility:
         conversation_mail_template = conversation_mail_template.replace('USER_EMAIL', user_email)
         conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
         return conversation_mail_template
+
+    @staticmethod
+    def get_jira_client(url: str, username: str, api_token: str):
+        try:
+            return JIRA(
+                server=url,
+                basic_auth=(username, api_token),
+            )
+        except Exception as e:
+            raise ActionFailure(f'Could not connect to url: {e}')
+        except:
+            raise ActionFailure(f"Could not connect to url: '{url}' using given credentials")
+
+    @staticmethod
+    def validate_jira_action(url: str, username: str, api_token: str, project_key: str, issue_type: str, parent_key: str = None):
+        is_valid_proj = False
+        project_id = None
+        try:
+            jira = ActionUtility.get_jira_client(url, username, api_token)
+            projects = jira.projects()
+            for proj in projects:
+                if proj.raw and proj.raw.get('key') == project_key:
+                    is_valid_proj = True
+                    project_id = proj.id
+                    break
+            if not is_valid_proj:
+                raise ActionFailure('Invalid project key')
+            issue_types = jira.issue_types()
+            issue_types = {
+                i_type.name for i_type in issue_types
+                if i_type.raw and i_type.raw.get('scope', {}).get('type') == 'PROJECT' and
+                   i_type.raw.get('scope', {}).get('project', {}).get('id', None) == project_id
+            }
+            if issue_type not in issue_types:
+                raise ActionFailure(f"No issue type '{issue_type}' exists")
+            if issue_type == 'Subtask' and parent_key is None:
+                raise ActionFailure("parent key is required for issues of type 'Subtask'")
+        except Exception as e:
+            raise ActionFailure(e)
+        except:
+            raise ActionFailure('Run time error while trying to validate configuration')
+
+    @staticmethod
+    def create_jira_issue(
+            url: str, username: str, api_token: str, project_key: str, issue_type: str, summary: str,
+            description, parent_key: str = None
+    ):
+        try:
+            jira = ActionUtility.get_jira_client(url, username, api_token)
+            fields = {
+                "project": {'key': project_key},
+                'issuetype': {"name": issue_type},
+                "summary": summary,
+                "description": description
+            }
+            if parent_key:
+                fields.update({'parent': {'key': parent_key}})
+            jira.create_issue(fields)
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        except:
+            raise ActionFailure('Run time error while trying to create JIRA issue')
 
 
 class ExpressionEvaluator:

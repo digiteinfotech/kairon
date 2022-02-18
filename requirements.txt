@@ -49,4 +49,4 @@ numpy==1.22.0
 google-api-python-client
 nltk==3.6.6
 blinker
-pyjwt==2.3.0
+jira

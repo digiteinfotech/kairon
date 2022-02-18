@@ -51,6 +51,8 @@ class ActionProcessor:
                 slots = await ActionProcessor.__process_email_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.google_search_action.value:
                 slots = await ActionProcessor.__process_google_search_action(dispatcher, tracker, action_config)
+            elif action_type == ActionType.jira_action.value:
+                slots = await ActionProcessor.__process_jira_action(dispatcher, tracker, action_config)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
@@ -250,6 +252,43 @@ class ActionProcessor:
                 intent=tracker.get_intent_of_latest_message(),
                 action=action_config['name'],
                 bot_response=bot_response,
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+
+    @staticmethod
+    async def __process_jira_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        status = "SUCCESS"
+        exception = None
+        bot_response = action_config.get("response")
+        summary = f"{tracker.sender_id} {action_config['summary']}"
+        try:
+            _, msgtrail = ActionUtility.prepare_message_trail(tracker.events)
+            ActionUtility.create_jira_issue(
+                url=action_config['url'],
+                username=action_config['user_name'],
+                api_token=action_config['api_token'],
+                project_key=action_config['project_key'],
+                issue_type=action_config['issue_type'],
+                summary=summary,
+                description=msgtrail,
+                parent_key=action_config.get('parent_key')
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = str(e)
+            status = "FAILURE"
+            bot_response = "I have failed to create issue for you"
+        finally:
+            ActionServerLogs(
+                type=ActionType.jira_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=action_config['name'],
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,

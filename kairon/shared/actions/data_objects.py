@@ -227,3 +227,39 @@ class GoogleSearchAction(Document):
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
         document.api_key = Utility.encrypt_message(document.api_key)
+
+
+@push_notification.apply
+class JiraAction(Document):
+    name = StringField(required=True)
+    url = StringField(required=True)
+    user_name = StringField(required=True)
+    api_token = StringField(required=True)
+    project_key = StringField(required=True)
+    issue_type = StringField(required=True)
+    parent_key = StringField(default=None)
+    summary = StringField(required=True)
+    response = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        try:
+            ActionUtility.get_jira_client(self.url, self.user_name, self.api_token)
+            ActionUtility.validate_jira_action(self.url, self.user_name, self.api_token, self.project_key, self.issue_type, self.parent_key)
+        except Exception as e:
+            raise ValidationError(e)
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        document.user_name = Utility.encrypt_message(document.user_name)
+        document.api_token = Utility.encrypt_message(document.api_token)

@@ -189,23 +189,22 @@ class Authentication:
 
     @staticmethod
     def generate_integration_token(
-            bot: Text, user: Text, iat: datetime = datetime.now(tz=timezone.utc), expiry: int = 0, access_limit: list = None,
-            name: Text = None, token_type: TOKEN_TYPE = TOKEN_TYPE.INTEGRATION.value
+            bot: Text, user: Text, expiry: int = 0, access_limit: list = None, name: Text = None,
+            token_type: TOKEN_TYPE = TOKEN_TYPE.INTEGRATION.value
     ):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
         if token_type == TOKEN_TYPE.LOGIN.value:
             raise NotImplementedError
+        iat: datetime = datetime.now(tz=timezone.utc)
         iat = iat.replace(microsecond=0)
-        iat_timestamp = iat.timestamp()
-        data = {'bot': bot, "sub": user, 'iat': iat_timestamp, 'type': token_type}
+        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type}
         if not Utility.check_empty_string(name):
             data.update({"name": name})
         if expiry > 0:
             expiry = iat + timedelta(minutes=expiry)
             expiry = expiry.replace(microsecond=0)
-            expire_timestamp = expiry.timestamp()
-            data.update({"exp": expire_timestamp})
+            data.update({"exp": expiry})
         else:
             expiry = None
         if access_limit:

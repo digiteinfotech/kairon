@@ -38,9 +38,9 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
-    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction
+    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
-from kairon.shared.models import StoryEventType, TemplateType
+from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
 from .constant import (
     DOMAIN,
@@ -1929,21 +1929,20 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=RULE_SNIPPET_ACTION_NAME,
                     type=ActionExecuted.type_name))
+        action_step_types = {s_type.value for s_type in StoryStepType}.difference(StoryStepType.intent.value)
         for step in steps:
-            if step['type'] == "INTENT":
+            if step['type'] == StoryStepType.intent.value:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type="user"))
-            elif step['type'] in {
-                "BOT", "HTTP_ACTION", "ACTION", "SLOT_SET_ACTION", "GOOGLE_SEARCH_ACTION", "EMAIL_ACTION", "FORM_ACTION"
-            }:
+            elif step['type'] in action_step_types:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
                                  bot=bot, name__iexact=step['name'], form_attached__ne=None)
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type=ActionExecuted.type_name))
-                if step['type'] == "ACTION":
+                if step['type'] == StoryStepType.action.value:
                     self.add_action(step['name'], bot, user, raise_exception=False)
             else:
                 raise AppException("Invalid event type!")
@@ -2081,6 +2080,7 @@ class MongoProcessor:
         http_actions = self.list_http_action_names(bot)
         reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
+        jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
@@ -2105,23 +2105,25 @@ class MongoProcessor:
                     continue
                 if event['type'] == 'user':
                     step['name'] = event['name']
-                    step['type'] = 'INTENT'
+                    step['type'] = StoryStepType.intent.value
                 elif event['type'] == 'action':
                     step['name'] = event['name']
                     if event['name'] in http_actions:
-                        step['type'] = 'HTTP_ACTION'
+                        step['type'] = StoryStepType.http_action.value
                     elif event['name'] in reset_slot_actions:
-                        step['type'] = 'SLOT_SET_ACTION'
+                        step['type'] = StoryStepType.slot_set_action.value
                     elif event['name'] in google_search_actions:
-                        step['type'] = 'GOOGLE_SEARCH_ACTION'
+                        step['type'] = StoryStepType.google_search_action.value
+                    elif event['name'] in jira_actions:
+                        step['type'] = StoryStepType.jira_action.value
                     elif event['name'] in email_actions:
-                        step['type'] = 'EMAIL_ACTION'
+                        step['type'] = StoryStepType.email_action.value
                     elif event['name'] in forms:
-                        step['type'] = 'FORM_ACTION'
+                        step['type'] = StoryStepType.form_action.value
                     elif str(event['name']).startswith("utter_"):
-                        step['type'] = 'BOT'
+                        step['type'] = StoryStepType.bot.value
                     else:
-                        step['type'] = 'ACTION'
+                        step['type'] = StoryStepType.action.value
                 if step:
                     steps.append(step)
 
@@ -3717,30 +3719,27 @@ class MongoProcessor:
 
     def edit_email_action(self, action: dict, bot: Text, user: Text):
         """
-        update a new Email Action
+        update an Email Action
         :param action: email action configuration
         :param bot: bot id
         :param user: user id
         :return: None
         """
-        try:
-            if not Utility.is_exist(EmailActionConfig, raise_error=False, action_name=action.get('action_name'), bot=bot, status=True):
-                raise AppException(f'Action with name "{action.get("action_name")}" not found')
-            email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
-            email_action.smtp_url = action['smtp_url']
-            email_action.smtp_port = action['smtp_port']
-            email_action.smtp_userid = action['smtp_userid']
-            email_action.smtp_password = action['smtp_password']
-            email_action.from_email = action['from_email']
-            email_action.subject = action['subject']
-            email_action.to_email = action['to_email']
-            email_action.response = action['response']
-            email_action.tls = action['tls']
-            email_action.user = user
-            email_action.timestamp = datetime.utcnow()
-            email_action.save()
-        except DoesNotExist:
-            raise AppException(f'Email action with name "{action.get("action_name")}" not found')
+        if not Utility.is_exist(EmailActionConfig, raise_error=False, action_name=action.get('action_name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("action_name")}" not found')
+        email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
+        email_action.smtp_url = action['smtp_url']
+        email_action.smtp_port = action['smtp_port']
+        email_action.smtp_userid = action['smtp_userid']
+        email_action.smtp_password = action['smtp_password']
+        email_action.from_email = action['from_email']
+        email_action.subject = action['subject']
+        email_action.to_email = action['to_email']
+        email_action.response = action['response']
+        email_action.tls = action['tls']
+        email_action.user = user
+        email_action.timestamp = datetime.utcnow()
+        email_action.save()
 
     def list_email_action(self, bot: Text, mask_characters: bool = True):
         """
@@ -3762,4 +3761,70 @@ class MongoProcessor:
             action.pop('bot')
             action.pop('timestamp')
             action.pop('status')
+            yield action
+
+    def add_jira_action(self, action: Dict, bot: str, user: str):
+        """
+        Add a new Jira Action
+        :param action: Jira action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        action['bot'] = bot
+        action['user'] = user
+        Utility.is_exist(
+            JiraAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+
+        jira_action = JiraAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
+        )
+        self.add_slot(
+            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
+             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+        )
+        return jira_action
+
+    def edit_jira_action(self, action: dict, bot: Text, user: Text):
+        """
+        Update a Jira Action
+        :param action: email action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(JiraAction, raise_error=False, name=action.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        jira_action = JiraAction.objects(name=action.get('name'), bot=bot, status=True).get()
+        jira_action.url = action['url']
+        jira_action.user_name = action['user_name']
+        jira_action.api_token = action['api_token']
+        jira_action.project_key = action['project_key']
+        jira_action.issue_type = action['issue_type']
+        jira_action.parent_key = action['parent_key']
+        jira_action.summary = action['summary']
+        jira_action.response = action['response']
+        jira_action.user = user
+        jira_action.timestamp = datetime.utcnow()
+        jira_action.save()
+
+    def list_jira_actions(self, bot: Text, mask_characters: bool = True):
+        """
+        List Email Action
+        :param bot: bot id
+        :param mask_characters: masks last 3 characters of the password if True
+        """
+        for action in JiraAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action['user_name'] = Utility.decrypt_message(action['user_name'])
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+            if mask_characters:
+                action['api_token'] = action['api_token'][:-3] + '***'
+            action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
             yield action
