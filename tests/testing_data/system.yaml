@@ -68,3 +68,17 @@ history_server:
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT}
+
+
+channels:
+  slack:
+    required_fields:
+      - slack_token
+      - slack_signing_secret
+    optional_fields:
+      - slack_channel
+  telegram:
+    required_fields:
+      - access_token
+      - webhook_url
+      - bot_name

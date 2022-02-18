@@ -35,7 +35,6 @@ from kairon.shared.utils import Utility
 import json
 from unittest.mock import patch
 
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
@@ -7201,7 +7200,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': 'Missing slack_token or slack_signing_secret in config',
+        {'loc': ['body', 'config'], 'msg': "Missing ['slack_token', 'slack_signing_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
@@ -7216,7 +7215,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': 'Missing slack_token or slack_signing_secret in config',
+        {'loc': ['body', 'config'], 'msg': "Missing ['slack_token', 'slack_signing_secret'] all or any in config",
          'type': 'value_error'}]
 
 
@@ -7468,3 +7467,16 @@ def test_edit_jira_action_not_found():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "jira_action_new" not found'
+
+
+def test_channels_params():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "slack" in list(actual['data'].keys())
+    assert ["slack_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
+    assert ["slack_channel"] == actual['data']['slack']['optional_fields']

@@ -1200,3 +1200,23 @@ class Utility:
         }
         payload = json.dumps(payload)
         asyncio.run(Utility.websocket_request(push_server_endpoint, payload))
+
+    @staticmethod
+    def validate_channel_config(channel, config, error, encrypt=True):
+        if channel in list(Utility.environment['channels'].keys()):
+            for required_field in Utility.environment['channels'][channel]['required_fields']:
+                if required_field not in config:
+                    raise error(
+                        f"Missing {Utility.environment['channels'][channel]['required_fields']} all or any in config")
+                else:
+                    if encrypt:
+                        config[required_field] = Utility.encrypt_message(config[required_field])
+        else:
+            raise error(f"Invalid channel type {channel}")
+
+    @staticmethod
+    def get_channels():
+        if Utility.environment.get("channels"):
+            return list(Utility.environment['channels'].keys())
+        else:
+            return []

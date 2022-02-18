@@ -3,6 +3,7 @@ import pytest
 import os
 from mongoengine import connect, ValidationError
 from kairon.shared.chat.processor import ChatDataProcessor
+from re import escape
 
 
 class TestChat:
@@ -25,14 +26,14 @@ class TestChat:
                                                   "test",
                                                   "test")
 
-        with pytest.raises(ValidationError, match="Missing slack_token or slack_signing_secret in config"):
+        with pytest.raises(ValidationError, match=escape("Missing ['slack_token', 'slack_signing_secret'] all or any in config")):
             ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                    "config": {
                                                        "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                                   "test",
                                                   "test")
 
-        with pytest.raises(ValidationError, match="Missing slack_token or slack_signing_secret in config"):
+        with pytest.raises(ValidationError, match=escape("Missing ['slack_token', 'slack_signing_secret'] all or any in config")):
             ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                    "config": {
                                                        "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
@@ -57,7 +58,7 @@ class TestChat:
                                               "test")
         slack = ChatDataProcessor.get_channel_config("slack", "test", mask_characters=False)
         assert slack.get("connector_type") == "slack"
-        assert not str(slack["config"].get("slack_token")).startswith("Test")
+        assert str(slack["config"].get("slack_token")).startswith("Test")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
     def test_list_channel_config(self):

@@ -2,7 +2,6 @@ from typing import Dict, Text
 from .data_objects import Channels
 from datetime import datetime
 from kairon.shared.utils import Utility
-from .constant import SLACKCONSTANT
 
 
 class ChatDataProcessor:
@@ -47,14 +46,11 @@ class ChatDataProcessor:
         for channel in Channels.objects(bot=bot).exclude("user", "timestamp", "id"):
             data = channel.to_mongo().to_dict()
             data.pop("timestamp")
-            if data['connector_type'] == SLACKCONSTANT.slack_connector.value:
-                data['config'][SLACKCONSTANT.slack_token.value] = Utility.decrypt_message(
-                    data['config'][SLACKCONSTANT.slack_token.value])
-                data['config'][SLACKCONSTANT.slack_signing_secret.value] = Utility.decrypt_message(
-                    data['config'][SLACKCONSTANT.slack_signing_secret.value])
+            channel_params = Utility.environment['channels'][data['connector_type']]
+            for require_field in channel_params['required_fields']:
+                data['config'][require_field] = Utility.decrypt_message(data['config'][require_field])
                 if mask_characters:
-                    data['config'][SLACKCONSTANT.slack_token.value] = data['config'][SLACKCONSTANT.slack_token.value][:-5] + '*****'
-                    data['config'][SLACKCONSTANT.slack_signing_secret.value] = data['config'][SLACKCONSTANT.slack_signing_secret.value][:-5] + '*****'
+                    data['config'][require_field] = data['config'][require_field][:-5] + '*****'
             yield data
 
     @staticmethod
@@ -68,11 +64,10 @@ class ChatDataProcessor:
         """
         config = Channels.objects(bot=bot, connector_type=connector_type).exclude("user").get().to_mongo().to_dict()
         config.pop("timestamp")
-        if mask_characters:
-            config['config'][SLACKCONSTANT.slack_token.value] = config['config'][SLACKCONSTANT.slack_token.value][
-                                                              :-5] + '*****'
-            config['config'][SLACKCONSTANT.slack_signing_secret.value] = config['config'][
-                                                                           SLACKCONSTANT.slack_signing_secret.value][
-                                                                       :-5] + '*****'
+        channel_params = Utility.environment['channels'][config['connector_type']]
+        for require_field in channel_params['required_fields']:
+            config['config'][require_field] = Utility.decrypt_message(config['config'][require_field])
+            if mask_characters:
+                config['config'][require_field] = config['config'][require_field][:-5] + '*****'
 
         return config

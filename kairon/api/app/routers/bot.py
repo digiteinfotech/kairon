@@ -35,7 +35,7 @@ from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.chat.models import ChannelsRequest
+from kairon.shared.chat.models import ChannelRequest
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -1483,15 +1483,23 @@ async def delete_email_action(
 
 
 @router.post("/channels", response_model=Response)
-async def add_channel_config(request_data: ChannelsRequest,
+async def add_channel_config(request_data: ChannelRequest,
                              current_user: User = Security(Authentication.get_current_user_and_bot,
                                                            scopes=DESIGNER_ACCESS)):
     """
     Stores the channel config.
     """
-    print(request_data.dict())
     ChatDataProcessor.save_channel_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Channel added')
+
+
+@router.get("/channels/params", response_model=Response)
+async def channels_params(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                           scopes=DESIGNER_ACCESS)):
+    """
+    Stores the channel config.
+    """
+    return Response(data=Utility.environment['channels'])
 
 
 @router.get("/channels", response_model=Response)
