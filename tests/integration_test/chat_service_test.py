@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 
-from mock import patch, AsyncMock
+from mock import patch
 from mongoengine import connect
 from tornado.test.testing_test import AsyncHTTPTestCase
 
@@ -10,11 +10,13 @@ from kairon.api.models import RegisterAccount
 from kairon.chat.server import make_app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
+from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
-from kairon.shared.chat.processor import ChatDataProcessor
+import responses
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -46,7 +48,17 @@ ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                            "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                       bot, user=user)
-
+responses.start()
+responses.add("GET",
+              json={"result": True},
+              url="https://api.telegram.org/botxoxb-801939352912-801478018484/setWebhook?url=https://test@test.com/api/bot/telegram/tests/test")
+ChatDataProcessor.save_channel_config({"connector_type": "telegram",
+                                       "config": {
+                                           "access_token": "xoxb-801939352912-801478018484",
+                                           "webhook_url": "https://test@test.com/api/bot/telegram/tests/test",
+                                           "bot_name": "test"}},
+                                      bot, user=user)
+responses.stop()
 
 class TestChatServer(AsyncHTTPTestCase):
 
@@ -280,6 +292,32 @@ class TestChatServer(AsyncHTTPTestCase):
             method="POST",
             headers=headers,
             body=json.dumps({"token":"RrNd3SaNJNaP28TTauAYCmJw","team_id":"TPKTMACSU","api_app_id":"APKTXRPMK","event":{"client_msg_id":"77eafc15-4e7a-46d1-b03f-bf953fa801dc","type":"message","text":"Hi","user":"UPKTMK5BJ","ts":"1644670603.521219","team":"TPKTMACSU","blocks":[{"type":"rich_text","block_id":"ssu6","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"Hi"}]}]}],"channel":"DPKTY81UM","event_ts":"1644670603.521219","channel_type":"im"},"type":"event_callback","event_id":"Ev032U6W5N1G","event_time":1644670603,"authed_users":["UPKE20JE8"],"authorizations":[{"enterprise_id":None,"team_id":"TPKTMACSU","user_id":"UPKE20JE8","is_bot":True,"is_enterprise_install":False}],"is_ext_shared_channel":False,"event_context":"4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUEtUTUFDU1UiLCJhaWQiOiJBUEtUWFJQTUsiLCJjaWQiOiJEUEtUWTgxVU0ifQ"})
+        )
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 500)
+        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
+
+    @patch('kairon.chat.handlers.channels.telegram.TelegramOutput')
+    @patch('kairon.shared.utils.Utility.get_local_mongo_store')
+    def test_telegram_auth_failed_telegram_verify(self, mock_store, mock_telegram_out):
+        mock_store.return_value = self.empty_store
+        mock_telegram_out.get_me.return_value = "test"
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/telegram/{bot}/{token}",
+            method="POST",
+            body=json.dumps({"update_id":483117514, "message": {"message_id":14,"from":{"id":1422280657,"is_bot":False,"first_name":"Fahad Ali","language_code":"en"},"chat":{"id":1422280657,"first_name":"Fahad Ali","type":"private"},"date":1645433258,"text":"hi"}})
+        )
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == "failed"
+
+    def test_telegram_invalid_auth(self):
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/telegram/{bot}/123",
+            method="POST",
+            body=json.dumps({"update_id":483117514, "message": {"message_id":14,"from":{"id":1422280657,"is_bot":False,"first_name":"Fahad Ali","language_code":"en"},"chat":{"id":1422280657,"first_name":"Fahad Ali","type":"private"},"date":1645433258,"text":"hi"}})
         )
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)

@@ -536,7 +536,7 @@ class Utility:
         return config
 
     @staticmethod
-    def http_request(method: str, url: str, token: str, user: str = None, json_dict: Dict = None):
+    def http_request(method: str, url: str, token: str = None, user: str = None, json_dict: Dict = None):
         logger.info("agent event started " + url)
         headers = {'content-type': 'application/json'}
         if user:
@@ -1220,3 +1220,11 @@ class Utility:
             return list(Utility.environment['channels'].keys())
         else:
             return []
+
+    @staticmethod
+    def register_telegram_webhook(access_token, webhook_url):
+        api = Utility.environment['channels']['telegram']['api']['url']
+        response = Utility.http_request("GET", url=f"{api}/bot{access_token}/setWebhook", json_dict={"url": webhook_url})
+        response_json = json.loads(response)
+        if 'error_code' in response_json:
+            raise ValidationError(response_json['description'])
