@@ -4064,6 +4064,115 @@ class TestMongoProcessor:
         assert resp[0].text.text == 'what is your occupation?'
         assert resp[1].text.text == 'occupation?'
 
+    def test_add_utterance_to_form(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        assert processor.add_text_response('your occupation?', 'utter_ask_know_user_occupation', bot, user, 'know_user')
+
+    def test_delete_utterance_from_form_2(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        resp = list(Responses.objects(name='utter_ask_know_user_occupation', bot=bot, status=True))
+        assert resp[0].text.text == 'what is your occupation?'
+        assert resp[1].text.text == 'occupation?'
+        assert resp[2].text.text == 'your occupation?'
+        assert not processor.delete_response(str(resp[2].id), bot, user)
+
+    def test_add_utterance_to_form_not_exists(self):
+        bot = 'test'
+        user = 'user'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Form 'know_user_here' does not exists"):
+            processor.add_text_response('give occupation', 'utter_ask_know_user_occupation', bot, user, 'know_user_here')
+
+    def test_create_flow_with_empty_step_name(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+        story_dict = {'name': "activate form", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        with pytest.raises(ValidationError, match="Empty name is allowed only for active_loop"):
+            processor.add_complex_story(story_dict, bot, user)
+
+    def test_create_form_activation_and_deactivation_rule(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "know_user", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+        story_dict = {'name': "activate form", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        rule = Rules.objects(block_name="activate form", bot=bot, events__name='know_user', status=True).get()
+        assert rule.events[2].type == 'action'
+        assert rule.events[3].name == 'know_user'
+        assert rule.events[3].type == 'active_loop'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'activate form']
+        assert story_with_form[0]['steps'] == steps
+
+    def test_create_unhappy_path_form_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "know_user", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"name": "deny", "type": "INTENT"},
+            {"name": "utter_ask_continue", "type": "BOT"},
+            {"name": "affirm", "type": "INTENT"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+        story_dict = {'name': "stop form + continue", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        stories = Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user', status=True).get()
+        assert stories.events[1].type == 'action'
+        assert stories.events[2].type == 'active_loop'
+        assert stories.events[2].name == 'know_user'
+        assert stories.events[6].type == 'active_loop'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'stop form + continue']
+        assert story_with_form[0]['steps'] == steps
+
+    def test_create_unhappy_path_form_story_to_breakout(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "know_user", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"name": "deny", "type": "INTENT"},
+            {"name": "utter_ask_continue", "type": "BOT"},
+            {"name": "deny", "type": "INTENT"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+        story_dict = {'name': "stop form + stop", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        stories = Stories.objects(block_name="stop form + stop", bot=bot, events__name='know_user', status=True).get()
+        assert stories.events[1].type == 'action'
+        assert stories.events[2].type == 'active_loop'
+        assert stories.events[2].name == 'know_user'
+        assert stories.events[6].type == 'active_loop'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'stop form + stop']
+        assert story_with_form[0]['steps'] == steps
+
     def test_delete_slot_mapping_attached_to_form(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -4696,7 +4805,7 @@ class TestMongoProcessor:
     def test_delete_utterance_linked_to_form(self):
         processor = MongoProcessor()
         bot = 'test'
-        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+        with pytest.raises(AppException, match='At least one question is required for utterance linked to form: restaurant_form'):
             processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test")
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
@@ -4706,7 +4815,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
-        with pytest.raises(AppException, match='Cannot delete utterance attached to a form: restaurant_form'):
+        with pytest.raises(AppException, match='At least one question is required for utterance linked to form: restaurant_form'):
             processor.delete_response(str(response.id), bot, user)
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
@@ -4747,7 +4856,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match="Cannot remove intent linked to flow"):
+        with pytest.raises(AppException, match='Cannot remove intent "greet" linked to flow "greet"'):
             processor.delete_intent('greet', bot, user, False)
 
     def test_add_story_with_form(self):
@@ -4788,7 +4897,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match='Cannot remove form "restaurant_form" linked to story "story with form"'):
+        with pytest.raises(AppException, match='Cannot remove action "restaurant_form" linked to flow "story with form"'):
             processor.delete_form("restaurant_form", bot, user)
 
     def test_delete_story_with_form(self):
@@ -5034,7 +5143,7 @@ class TestMongoProcessor:
         story_dict = {'name': "story with slot set action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict, bot, user)
         with pytest.raises(AppException,
-                           match=f'Cannot remove action "action_set_age_slot" linked to story "story with slot set action"'):
+                           match=f'Cannot remove action "action_set_age_slot" linked to flow "story with slot set action"'):
             processor.delete_action('action_set_age_slot', bot, user)
 
     def test_delete_action(self):
@@ -5966,6 +6075,7 @@ class TestModelProcessor:
         user = 'test_user'
         response = "json"
         request_method = 'GET'
+        Actions(name=action, type=ActionType.http_action.value, bot=bot, user=user).save()
         HttpActionConfig(
             action_name=action,
             response=response,
@@ -5974,7 +6084,7 @@ class TestModelProcessor:
             bot=bot,
             user=user
         ).save().to_mongo()
-        processor.delete_http_action_config(action=action, user=user, bot=bot)
+        processor.delete_action(action, user=user, bot=bot)
         try:
             HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
                 action_name__iexact=action)
@@ -5999,12 +6109,11 @@ class TestModelProcessor:
             user=user
         ).save().to_mongo()
         try:
-            processor.delete_http_action_config(action="test_delete_http_action_config_non_existing_non_existing",
-                                                user=user, bot=bot)
+            processor.delete_action("test_delete_http_action_config_non_existing_non_existing", user=user, bot=bot)
             assert False
         except AppException as e:
             assert str(e).__contains__(
-                'No HTTP action found for bot test_bot and action test_delete_http_action_config_non_existing_non_existing')
+                'Action with name "test_delete_http_action_config_non_existing_non_existing" not found')
 
     def test_get_http_action_config(self):
         processor = MongoProcessor()

@@ -1056,7 +1056,7 @@ def test_remove_utterance_attached_to_story():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Cannot remove utterance linked to story"
+    assert actual["message"] == 'Cannot remove action "utter_greet" linked to flow "greet again"'
 
 
 def test_remove_utterance():
@@ -5531,6 +5531,102 @@ def test_add_form():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Form added"
+
+
+def test_add_utterance_to_form():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/utter_ask_restaurant_form_num_people?form_attached=restaurant_form",
+        json={"data": "num people?"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Response added!"
+
+
+def test_delete_utterance_in_form():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_ask_restaurant_form_num_people",
+        json={"data": "num people?"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/response/False",
+        json={"data": actual["data"][0]["_id"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance removed!"
+
+
+def test_create_rule_with_form():
+    steps = [
+        {"name": "greet", "type": "INTENT"},
+        {"name": "know_user", "type": "FORM_ACTION"},
+        {"name": "know_user", "type": "FORM_START"},
+        {"type": "FORM_END"},
+        {"name": "utter_submit", "type": "BOT"},
+    ]
+    story_dict = {'name': "activate form", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json=story_dict,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_create_stories_with_form():
+    steps = [
+        {"name": "greet", "type": "INTENT"},
+        {"name": "know_user", "type": "FORM_ACTION"},
+        {"name": "know_user", "type": "FORM_START"},
+        {"name": "deny", "type": "INTENT"},
+        {"name": "utter_ask_continue", "type": "BOT"},
+        {"name": "affirm", "type": "INTENT"},
+        {"type": "FORM_END"},
+        {"name": "utter_submit", "type": "BOT"},
+    ]
+    story_dict = {'name': "stop form + continue", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json=story_dict,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_get_form_with_no_validations():
