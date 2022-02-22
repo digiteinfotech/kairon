@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class StoryStepType(str, Enum):
     intent = "INTENT"
+    form_start = "FORM_START"
+    form_end = "FORM_END"
     bot = "BOT"
     http_action = "HTTP_ACTION"
     action = "ACTION"

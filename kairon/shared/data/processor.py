@@ -1932,12 +1932,14 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=RULE_SNIPPET_ACTION_NAME,
                     type=ActionExecuted.type_name))
-        action_step_types = {s_type.value for s_type in StoryStepType}.difference(StoryStepType.intent.value)
+        action_step_types = {s_type.value for s_type in StoryStepType}.difference({
+            StoryStepType.intent.value, StoryStepType.form_start.value, StoryStepType.form_end.value
+        })
         for step in steps:
             if step['type'] == StoryStepType.intent.value:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
-                    type="user"))
+                    type=UserUttered.type_name))
             elif step['type'] in action_step_types:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
@@ -1947,6 +1949,14 @@ class MongoProcessor:
                     type=ActionExecuted.type_name))
                 if step['type'] == StoryStepType.action.value:
                     self.add_action(step['name'], bot, user, raise_exception=False)
+            elif step['type'] == StoryStepType.form_start.value:
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type=ActiveLoop.type_name))
+            elif step['type'] == StoryStepType.form_end.value:
+                events.append(StoryEvents(
+                    name=None,
+                    type=ActiveLoop.type_name))
             else:
                 raise AppException("Invalid event type!")
         return events
@@ -2104,12 +2114,12 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
+                if isinstance(value, Rules) and event.get('name') == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
                     continue
-                if event['type'] == 'user':
+                if event['type'] == UserUttered.type_name:
                     step['name'] = event['name']
                     step['type'] = StoryStepType.intent.value
-                elif event['type'] == 'action':
+                elif event['type'] == ActionExecuted.type_name:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
                         step['type'] = StoryStepType.http_action.value
@@ -2127,6 +2137,11 @@ class MongoProcessor:
                         step['type'] = StoryStepType.bot.value
                     else:
                         step['type'] = StoryStepType.action.value
+                elif event['type'] == ActiveLoop.type_name:
+                    step['type'] = StoryStepType.form_end.value
+                    if not Utility.check_empty_string(event.get('name')):
+                        step['name'] = event['name']
+                        step['type'] = StoryStepType.form_start.value
                 if step:
                     steps.append(step)
 

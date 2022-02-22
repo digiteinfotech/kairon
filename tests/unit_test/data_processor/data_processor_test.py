@@ -4783,6 +4783,34 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Form " " does not exists'):
             processor.delete_form(' ', bot, user)
 
+    def test_delete_form_attached_to_rule(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        form_name = 'know_user'
+        story_name = "stop form + continue"
+        with pytest.raises(AppException, match=re.escape(f'Cannot remove action "{form_name}" linked to flow "{story_name}"')):
+            processor.delete_form(form_name, bot, user)
+
+    def test_delete_rule_with_form(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        processor.delete_complex_story("activate form", 'RULE', bot, user)
+        with pytest.raises(DoesNotExist):
+            Rules.objects(block_name="activate form", bot=bot, events__name='know_user', status=True).get()
+
+    def test_delete_rule_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        processor.delete_complex_story("stop form + continue", 'STORY', bot, user)
+        processor.delete_complex_story("stop form + stop", 'STORY', bot, user)
+        with pytest.raises(DoesNotExist):
+            Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user', status=True).get()
+        with pytest.raises(DoesNotExist):
+            Stories.objects(block_name="stop form + stop", bot=bot, events__name='know_user', status=True).get()
+
     def test_delete_form_utterance_deleted(self):
         processor = MongoProcessor()
         bot = 'test'
