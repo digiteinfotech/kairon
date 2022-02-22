@@ -229,7 +229,7 @@ class TrainingDataGeneratorStatusModel(BaseModel):
 
 
 class StoryStepRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: constr(to_lower=True, strip_whitespace=True) = None
     type: StoryStepType
 
 
@@ -247,6 +247,8 @@ class StoryRequest(BaseModel):
 
     @validator("steps")
     def validate_request_method(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
         if not v:
             raise ValueError("Steps are required to form Flow")
 
@@ -262,6 +264,8 @@ class StoryRequest(BaseModel):
                 intents = intents + 1
             if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.intent:
                 raise ValueError("Found 2 consecutive intents")
+            if Utility.check_empty_string(v[i].name) and v[i].type != StoryStepType.form_end:
+                raise ValueError(f"Only {StoryStepType.form_end} step type can have empty name")
         if 'type' in values:
             if values['type'] == StoryType.rule and intents > 1:
                 raise ValueError(f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
