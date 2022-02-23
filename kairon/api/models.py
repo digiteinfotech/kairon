@@ -489,6 +489,15 @@ class JiraActionRequest(BaseModel):
     response: str
 
 
+class ZendeskActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    subdomain: str
+    user_name: str
+    api_token: str
+    subject: str
+    response: str
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_seconds: int = 0

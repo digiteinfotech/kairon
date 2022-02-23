@@ -16,7 +16,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction
+    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2326,3 +2326,88 @@ class TestActions:
     def test_google_search_action_error(self):
         with pytest.raises(ActionFailure):
             ActionUtility.perform_google_search('123459876', 'asdfg::567890', 'what is kanban')
+
+    def test_get_zendesk_action_not_found(self):
+        bot = 'test_action_server'
+        with pytest.raises(ActionFailure, match='No action found for bot'):
+            ActionUtility.get_action_config(bot, 'zendesk_action')
+
+    def test_get_zendesk_action_config_not_found(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='zendesk_action', type=ActionType.zendesk_action.value, bot=bot, user=user).save()
+        with pytest.raises(ActionFailure, match='Zendesk action not found'):
+            ActionUtility.get_action_config(bot, 'zendesk_action')
+
+    def test_get_zendesk_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+
+        with patch('zenpy.Zenpy'):
+            ZendeskAction(
+                name='zendesk_action', bot=bot, user=user, subdomain='digite751', user_name='test@digite.com',
+                api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
+        action, a_type = ActionUtility.get_action_config(bot, 'zendesk_action')
+        assert a_type == 'zendesk_action'
+        action.pop('_id')
+        action.pop('timestamp')
+        assert action == {
+            'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'subject': 'new user detected',
+            'response': 'Successfully created', 'bot': 'test_action_server', 'user': 'test_user', 'status': True
+        }
+
+    def test_validate_zendesk_credentials_valid(self):
+        with patch('zenpy.Zenpy'):
+            ActionUtility.validate_zendesk_credentials('digite751', 'test@digite.com', 'ASDFGHJKL')
+
+    def test_validate_zendesk_credentials_invalid(self):
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ActionFailure):
+                ActionUtility.validate_zendesk_credentials('digite751', 'test@digite.com', 'ASDFGHJKL')
+
+    @responses.activate
+    def test_create_zendesk_ticket_valid_credentials(self):
+        responses.add(
+            'POST',
+            'https://digite751.zendesk.com/api/v2/tickets.json',
+            json={'count': 1},
+            match=[responses.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
+        )
+        ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
+
+        responses.add(
+            'POST',
+            'https://digite751.zendesk.com/api/v2/tickets.json',
+            json={'count': 1},
+            match=[responses.json_params_matcher(
+                {'ticket': {'description': 'ticket described', 'id': None, 'subject': 'new ticket',
+                            'tags': ['kairon', 'bot'], 'comment': {'id': None, 'html_body': 'html comment'}}})]
+        )
+        ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket',
+                                            'ticket described', 'html comment', ['kairon', 'bot'])
+
+    def test_create_zendesk_ticket_invalid_credentials(self):
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ActionFailure):
+                ActionUtility.validate_zendesk_credentials('digite751', 'test@digite.com', 'ASDFGHJKL')
+
+    def test_create_zendesk_ticket_failure(self):
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": {"title": "Failed to create ticket"}})
+
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ActionFailure):
+                ActionUtility.validate_zendesk_credentials('digite751', 'test@digite.com', 'ASDFGHJKL')
