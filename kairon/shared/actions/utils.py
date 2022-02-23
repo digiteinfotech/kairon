@@ -22,7 +22,7 @@ from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
 from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
-    EmailActionConfig, GoogleSearchAction, JiraAction
+    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
@@ -252,6 +252,8 @@ class ActionUtility:
                 config = ActionUtility.get_google_search_action_config(bot, name)
             elif action.get('type') == ActionType.jira_action.value:
                 config = ActionUtility.get_jira_action_config(bot, name)
+            elif action.get('type') == ActionType.zendesk_action.value:
+                config = ActionUtility.get_zendesk_action_config(bot, name)
             else:
                 raise ActionFailure(f'{action.get("type")} action is not supported with action server')
         except DoesNotExist as e:
@@ -331,6 +333,18 @@ class ActionUtility:
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("Jira action not found")
+        return action
+
+    @staticmethod
+    def get_zendesk_action_config(bot: str, name: str):
+        try:
+            action = ZendeskAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("zendesk_action_config: " + str(action))
+            action['user_name'] = Utility.decrypt_message(action['user_name'])
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Zendesk action not found")
         return action
 
     @staticmethod
@@ -430,7 +444,7 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
-    def prepare_email_body(tracker_events, subject: str, user_email: str):
+    def prepare_email_body(tracker_events, subject: str, user_email: str = None):
         html_output = ""
         conversation_mail_template = Utility.email_conf['email']['templates']['conversation']
         bot_msg_template = Utility.email_conf['email']['templates']['bot_msg_conversation']
@@ -444,7 +458,9 @@ class ActionUtility:
                 msg = user_msg_template.replace('USER_MESSAGE', event['user'])
             html_output = f"{html_output}{msg}"
         conversation_mail_template = conversation_mail_template.replace('SUBJECT', subject)
-        conversation_mail_template = conversation_mail_template.replace('USER_EMAIL', user_email)
+        if not ActionUtility.is_empty(user_email):
+            conversation_mail_template = conversation_mail_template.replace('USER_EMAIL', user_email)
+        conversation_mail_template.replace('This email was sent to USER_EMAIL', '')
         conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
         return conversation_mail_template
 
@@ -510,6 +526,34 @@ class ActionUtility:
             raise ActionFailure(e)
         except:
             raise ActionFailure('Run time error while trying to create JIRA issue')
+
+    @staticmethod
+    def validate_zendesk_credentials(subdomain: str, user_name: str, api_token: str):
+        from zenpy import Zenpy
+        from zenpy.lib.exception import APIException
+
+        try:
+            zendesk_client = Zenpy(subdomain=subdomain, email=user_name, token=api_token)
+            list(zendesk_client.search(assignee='test'))
+        except APIException as e:
+            raise ActionFailure(e)
+
+    @staticmethod
+    def create_zendesk_ticket(
+            subdomain: str, user_name: str, api_token: str, subject: str, description: str = None,
+            comment: str = None, tags: list = None
+    ):
+        from zenpy import Zenpy
+        from zenpy.lib.exception import APIException
+        from zenpy.lib.api_objects import Comment
+        from zenpy.lib.api_objects import Ticket
+
+        try:
+            zendesk_client = Zenpy(subdomain=subdomain, email=user_name, token=api_token)
+            comment = Comment(html_body=comment)
+            zendesk_client.tickets.create(Ticket(subject=subject, description=description, tags=tags, comment=comment))
+        except APIException as e:
+            raise ActionFailure(e)
 
 
 class ExpressionEvaluator:

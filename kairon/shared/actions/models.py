@@ -27,6 +27,7 @@ class ActionType(str, Enum):
     email_action = "email_action"
     google_search_action = "google_search_action"
     jira_action = "jira_action"
+    zendesk_action = "zendesk_action"
 
 
 class LogicalOperators(str, Enum):

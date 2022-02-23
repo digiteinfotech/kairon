@@ -15,10 +15,10 @@ from kairon.api.models import (
     Response,
     Endpoint,
     RasaConfig,
-    HttpActionConfigRequest, BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
+    BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
-    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms, SlotSetActionRequest,
-    TextDataLowerCase, SlotMappingRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest
+    StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
+    TextDataLowerCase, SlotMappingRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -701,40 +701,6 @@ async def set_config_template(
     return {"message": "Config applied!"}
 
 
-@router.post("/action/httpaction", response_model=Response)
-async def add_http_action(request_data: HttpActionConfigRequest,
-                          current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                        scopes=DESIGNER_ACCESS)):
-    """
-    Stores the http action config and story event
-    """
-    http_config_id = mongo_processor.add_http_action_config(request_data.dict(), current_user.get_user(),
-                                                            current_user.get_bot())
-    response = {"http_config_id": http_config_id}
-    message = "Http action added!"
-    return Response(data=response, message=message)
-
-
-@router.get("/action/httpaction/{action}", response_model=Response)
-async def get_http_action(action: str = Path(default=None, description="action name", example="http_action"),
-                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Returns configuration set for the HTTP action
-    """
-    http_action_config = mongo_processor.get_http_action_config(action_name=action, bot=current_user.get_bot())
-    return Response(data=http_action_config)
-
-
-@router.get("/action/httpaction", response_model=Response)
-async def list_http_actions(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Returns list of http actions for bot.
-    """
-    actions = mongo_processor.list_http_actions(bot=current_user.get_bot())
-    return Response(data=actions)
-
-
 @router.get("/actions", response_model=Response)
 async def list_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -742,125 +708,6 @@ async def list_actions(current_user: User = Security(Authentication.get_current_
     """
     actions = mongo_processor.list_actions(bot=current_user.get_bot())
     return Response(data=actions)
-
-
-@router.put("/action/httpaction", response_model=Response)
-async def update_http_action(request_data: HttpActionConfigRequest,
-                             current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                           scopes=DESIGNER_ACCESS)):
-    """
-    Updates the http action config and related story event
-    """
-    http_config_id = mongo_processor.update_http_config(request_data=request_data, user=current_user.get_user(),
-                                                        bot=current_user.get_bot())
-    response = {"http_config_id": http_config_id}
-    message = "Http action updated!"
-    return Response(data=response, message=message)
-
-
-@router.delete("/action/httpaction/{action}", response_model=Response)
-async def delete_http_action(action: str = Path(default=None, description="action name", example="http_action"),
-                             current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                           scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the http action config and story event
-    """
-    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
-    return Response(message="HTTP action deleted")
-
-
-@router.post("/action/slotset", response_model=Response)
-async def add_slot_set_action(request_data: SlotSetActionRequest,
-                              current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                            scopes=DESIGNER_ACCESS)):
-    """
-    Stores the slot set action config.
-    """
-    mongo_processor.add_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action added')
-
-
-@router.get("/action/slotset", response_model=Response)
-async def list_slot_set_actions(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Returns list of slot set actions for bot.
-    """
-    actions = mongo_processor.list_slot_set_actions(current_user.get_bot())
-    return Response(data=actions)
-
-
-@router.put("/action/slotset", response_model=Response)
-async def edit_slot_set_action(request_data: SlotSetActionRequest,
-                               current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                             scopes=DESIGNER_ACCESS)):
-    """
-    Edits the slot set action config.
-    """
-    mongo_processor.edit_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action updated')
-
-
-@router.delete("/action/slotset/{action}", response_model=Response)
-async def delete_slot_set_action(
-        action: str = Path(default=None, description="action name", example="action_reset_slot"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the slot set action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')
-
-
-@router.post("/action/googlesearch", response_model=Response)
-async def add_google_search_action(
-        request_data: GoogleSearchActionRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Stores the google search action config.
-    """
-    action_id = mongo_processor.add_google_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
-    )
-    return Response(data=action_id, message='Action added')
-
-
-@router.get("/action/googlesearch", response_model=Response)
-async def list_google_search_actions(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
-):
-    """
-    Returns list of google search actions for bot.
-    """
-    actions = list(mongo_processor.list_google_search_actions(bot=current_user.get_bot()))
-    return Response(data=actions)
-
-
-@router.put("/action/googlesearch", response_model=Response)
-async def update_google_search_action(
-        request_data: GoogleSearchActionRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Updates the google search action configuration.
-    """
-    mongo_processor.edit_google_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
-    )
-    return Response(message='Action updated')
-
-
-@router.delete("/action/googlesearch/{action}", response_model=Response)
-async def delete_google_search_action(
-        action: str = Path(default=None, description="action name", example="action_google_search"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Deletes the google search action.
-    """
-    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
-    return Response(message="Action deleted")
 
 
 @router.get("/actions/logs", response_model=Response)
@@ -1441,49 +1288,6 @@ async def list_entities(current_user: User = Security(Authentication.get_current
     return Response(data=mongo_processor.get_entities(current_user.get_bot()))
 
 
-@router.post("/action/email", response_model=Response)
-async def add_slot_set_action(request_data: EmailActionRequest,
-                              current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                            scopes=DESIGNER_ACCESS)):
-    """
-    Stores the email action config.
-    """
-    mongo_processor.add_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action added')
-
-
-@router.get("/action/email", response_model=Response)
-async def list_email_actions(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Returns list of email actions for bot.
-    """
-    actions = list(mongo_processor.list_email_action(current_user.get_bot()))
-    return Response(data=actions)
-
-
-@router.put("/action/email", response_model=Response)
-async def edit_email_action(request_data: EmailActionRequest,
-                            current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                          scopes=DESIGNER_ACCESS)):
-    """
-    Edits the email action config.
-    """
-    mongo_processor.edit_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action updated')
-
-
-@router.delete("/action/email/{action}", response_model=Response)
-async def delete_email_action(
-        action: str = Path(default=None, description="action name", example="action_email"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the email action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')
-
-
 @router.post("/channels", response_model=Response)
 async def add_channel_config(request_data: ChannelRequest,
                              current_user: User = Security(Authentication.get_current_user_and_bot,
@@ -1523,48 +1327,3 @@ async def delete_channel_config(
     """
     ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
     return Response(message='Channel deleted')
-
-
-@router.post("/action/jira", response_model=Response)
-async def add_jira_action(
-        request_data: JiraActionRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Stores Jira action config.
-    """
-    mongo_processor.add_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action added')
-
-
-@router.get("/action/jira", response_model=Response)
-async def list_jira_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Returns list of Jira actions for bot.
-    """
-    actions = list(mongo_processor.list_jira_actions(current_user.get_bot()))
-    return Response(data=actions)
-
-
-@router.put("/action/jira", response_model=Response)
-async def edit_jira_action(
-        request_data: JiraActionRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Edits the Jira action config.
-    """
-    mongo_processor.edit_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Action updated')
-
-
-@router.delete("/action/jira/{action}", response_model=Response)
-async def delete_jira_action(
-        action: str = Path(default=None, description="action name", example="action_email"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Deletes the Jira action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')

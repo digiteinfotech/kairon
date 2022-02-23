@@ -38,7 +38,7 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
-    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction
+    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
@@ -3786,7 +3786,7 @@ class MongoProcessor:
     def edit_jira_action(self, action: dict, bot: Text, user: Text):
         """
         Update a Jira Action
-        :param action: email action configuration
+        :param action: Jira action configuration
         :param bot: bot id
         :param user: user id
         :return: None
@@ -3813,6 +3813,69 @@ class MongoProcessor:
         :param mask_characters: masks last 3 characters of the password if True
         """
         for action in JiraAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action['user_name'] = Utility.decrypt_message(action['user_name'])
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+            if mask_characters:
+                action['api_token'] = action['api_token'][:-3] + '***'
+            action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
+
+    def add_zendesk_action(self, action: Dict, bot: str, user: str):
+        """
+        Add a new Zendesk Action
+        :param action: Zendesk action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        action['bot'] = bot
+        action['user'] = user
+        Utility.is_exist(
+            ZendeskAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+
+        zendesk_action = ZendeskAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
+        )
+        self.add_slot(
+            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
+             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+        )
+        return zendesk_action
+
+    def edit_zendesk_action(self, action: dict, bot: Text, user: Text):
+        """
+        Update a Zendesk Action
+        :param action: Zendesk action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(ZendeskAction, raise_error=False, name=action.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        zendesk_action = ZendeskAction.objects(name=action.get('name'), bot=bot, status=True).get()
+        zendesk_action.subdomain = action['subdomain']
+        zendesk_action.user_name = action['user_name']
+        zendesk_action.api_token = action['api_token']
+        zendesk_action.subject = action['subject']
+        zendesk_action.response = action['response']
+        zendesk_action.user = user
+        zendesk_action.timestamp = datetime.utcnow()
+        zendesk_action.save()
+
+    def list_zendesk_actions(self, bot: Text, mask_characters: bool = True):
+        """
+        List Zendesk Action
+        :param bot: bot id
+        :param mask_characters: masks last 3 characters of the password if True
+        """
+        for action in ZendeskAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             action['user_name'] = Utility.decrypt_message(action['user_name'])
             action['api_token'] = Utility.decrypt_message(action['api_token'])

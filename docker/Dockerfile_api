@@ -45,6 +45,7 @@ RUN python -m nltk.downloader omw-1.4
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
+RUN python -m pip install zenpy
 
 RUN mkdir ssl
 RUN mkdir data_generator

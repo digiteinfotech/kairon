@@ -31,6 +31,7 @@ RUN python -m pip install blinker
 RUN python -m pip install google-api-python-client
 RUN python -m pip install cryptography
 RUN python -m pip install jira
+RUN python -m pip install zenpy
 
 COPY kairon/actions /app/kairon/actions/
 COPY kairon/shared/actions /app/kairon/shared/actions
