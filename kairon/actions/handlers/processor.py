@@ -53,6 +53,8 @@ class ActionProcessor:
                 slots = await ActionProcessor.__process_google_search_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.jira_action.value:
                 slots = await ActionProcessor.__process_jira_action(dispatcher, tracker, action_config)
+            elif action_type == ActionType.zendesk_action.value:
+                slots = await ActionProcessor.__process_zendesk_action(dispatcher, tracker, action_config)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
@@ -287,6 +289,41 @@ class ActionProcessor:
         finally:
             ActionServerLogs(
                 type=ActionType.jira_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=action_config['name'],
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+
+    @staticmethod
+    async def __process_zendesk_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        status = "SUCCESS"
+        exception = None
+        bot_response = action_config.get("response")
+        subject = f"{tracker.sender_id} {action_config['subject']}"
+        try:
+            comment = ActionUtility.prepare_email_body(tracker.events, action_config['subject'])
+            ActionUtility.create_zendesk_ticket(
+                subdomain=action_config['subdomain'],
+                user_name=action_config['user_name'],
+                api_token=action_config['api_token'],
+                subject=subject,
+                comment=comment,
+                tags=action_config.get('tags')
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = str(e)
+            status = "FAILURE"
+            bot_response = "I have failed to create issue for you"
+        finally:
+            ActionServerLogs(
+                type=ActionType.zendesk_action.value,
                 intent=tracker.get_intent_of_latest_message(),
                 action=action_config['name'],
                 sender=tracker.sender_id,

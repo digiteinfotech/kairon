@@ -24,7 +24,7 @@ from pymongo.errors import PyMongoError
 from secure import SecureHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.api.app.routers import auth, bot, augment, history, user, account
+from kairon.api.app.routers import auth, bot, augment, history, user, account, action
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -242,5 +242,6 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(account.router, prefix="/api/account", tags=["Account"])
 app.include_router(user.router, prefix="/api/user", tags=["User"])
 app.include_router(bot.router, prefix="/api/bot/{bot}", tags=["Bot"])
+app.include_router(action.router, prefix="/api/bot/{bot}/action", tags=["Action"])
 app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])

@@ -4085,7 +4085,8 @@ class TestMongoProcessor:
         user = 'user'
         processor = MongoProcessor()
         with pytest.raises(AppException, match="Form 'know_user_here' does not exists"):
-            processor.add_text_response('give occupation', 'utter_ask_know_user_occupation', bot, user, 'know_user_here')
+            processor.add_text_response('give occupation', 'utter_ask_know_user_occupation', bot, user,
+                                        'know_user_here')
 
     def test_create_flow_with_empty_step_name(self):
         processor = MongoProcessor()
@@ -4139,7 +4140,8 @@ class TestMongoProcessor:
         ]
         story_dict = {'name': "stop form + continue", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         assert processor.add_complex_story(story_dict, bot, user)
-        stories = Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user', status=True).get()
+        stories = Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user',
+                                  status=True).get()
         assert stories.events[1].type == 'action'
         assert stories.events[2].type == 'active_loop'
         assert stories.events[2].name == 'know_user'
@@ -4450,14 +4452,14 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['value']['text']
         assert form['settings'][2]['ask_questions'][1]['value']['text']
         assert form['settings'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                         {'operator': 'has_no_whitespace'}]}
+                                                             {'operator': 'has_no_whitespace'}]}
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
         assert form['settings'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                         {'operator': 'is_less_than', 'value': 70},
-                                                         {'operator': 'starts_with', 'value': 'valid'},
-                                                         {'operator': 'ends_with', 'value': 'value'},
-                                                         ]}
+                                                             {'operator': 'is_less_than', 'value': 70},
+                                                             {'operator': 'starts_with', 'value': 'valid'},
+                                                             {'operator': 'ends_with', 'value': 'value'},
+                                                             ]}
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
         assert form['settings'][2]['validation'] == {'and': [
@@ -4789,7 +4791,8 @@ class TestMongoProcessor:
         user = 'user'
         form_name = 'know_user'
         story_name = "stop form + continue"
-        with pytest.raises(AppException, match=re.escape(f'Cannot remove action "{form_name}" linked to flow "{story_name}"')):
+        with pytest.raises(AppException,
+                           match=re.escape(f'Cannot remove action "{form_name}" linked to flow "{story_name}"')):
             processor.delete_form(form_name, bot, user)
 
     def test_delete_rule_with_form(self):
@@ -4833,7 +4836,8 @@ class TestMongoProcessor:
     def test_delete_utterance_linked_to_form(self):
         processor = MongoProcessor()
         bot = 'test'
-        with pytest.raises(AppException, match='At least one question is required for utterance linked to form: restaurant_form'):
+        with pytest.raises(AppException,
+                           match='At least one question is required for utterance linked to form: restaurant_form'):
             processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test")
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
@@ -4843,7 +4847,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
-        with pytest.raises(AppException, match='At least one question is required for utterance linked to form: restaurant_form'):
+        with pytest.raises(AppException,
+                           match='At least one question is required for utterance linked to form: restaurant_form'):
             processor.delete_response(str(response.id), bot, user)
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
@@ -4899,7 +4904,7 @@ class TestMongoProcessor:
         story_dict = {'name': "story with form", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         assert processor.add_complex_story(story_dict, bot, user)
         story = Stories.objects(block_name="story with form", bot=bot,
-                               events__name='restaurant_form', status=True).get()
+                                events__name='restaurant_form', status=True).get()
         assert story.events[1].type == 'action'
         stories = list(processor.get_stories(bot))
         story_with_form = [s for s in stories if s['name'] == 'story with form']
@@ -4925,7 +4930,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        with pytest.raises(AppException, match='Cannot remove action "restaurant_form" linked to flow "story with form"'):
+        with pytest.raises(AppException,
+                           match='Cannot remove action "restaurant_form" linked to flow "story with form"'):
             processor.delete_form("restaurant_form", bot, user)
 
     def test_delete_story_with_form(self):
@@ -5309,7 +5315,8 @@ class TestMongoProcessor:
             f'{url}/rest/api/2/project',
             json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
                    'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {'48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
+                   'avatarUrls': {
+                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
                    'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
                    'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
                    'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
@@ -5612,7 +5619,8 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4', 'summary': 'new user',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+            'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5702,7 +5710,8 @@ class TestMongoProcessor:
         ]
         story_dict = {'name': "story with jira action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         assert processor.add_complex_story(story_dict, bot, user)
-        story = Stories.objects(block_name="story with jira action", bot=bot, events__name='jira_action', status=True).get()
+        story = Stories.objects(block_name="story with jira action", bot=bot, events__name='jira_action',
+                                status=True).get()
         assert story.events[1].type == 'action'
         stories = list(processor.get_stories(bot))
         story_with_form = [s for s in stories if s['name'] == 'story with jira action']
@@ -5721,6 +5730,117 @@ class TestMongoProcessor:
             JiraAction.objects(name='jira_action', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             Actions.objects(name='jira_action', status=True, bot=bot).get()
+
+    def test_list_zendesk_actions_empty(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        assert list(processor.list_zendesk_actions(bot)) == []
+
+    def test_add_zendesk_action(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        processor = MongoProcessor()
+        with patch('zenpy.Zenpy'):
+            assert processor.add_zendesk_action(action, bot, user)
+
+    def test_add_zendesk_action_invalid_subdomain(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+                  'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+        processor = MongoProcessor()
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ValidationError):
+                assert processor.add_zendesk_action(action, bot, user)
+
+    def test_add_zendesk_action_invalid_credentials(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+                  'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": "Couldn't authenticate you"})
+
+        processor = MongoProcessor()
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ValidationError):
+                assert processor.add_zendesk_action(action, bot, user)
+
+    def test_add_zendesk_action_already_exists(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action exists!'):
+            assert processor.add_zendesk_action(action, bot, user)
+
+    def test_edit_zendesk_action(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+                  'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
+        processor = MongoProcessor()
+        with patch('zenpy.Zenpy'):
+            processor.edit_zendesk_action(action, bot, user)
+
+    def test_edit_zendesk_action_invalid_subdomain(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+                  'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com',
+                  'response': 'ticket filed'}
+
+        def __mock_zendesk_error(*args, **kwargs):
+            from zenpy.lib.exception import APIException
+            raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+        processor = MongoProcessor()
+        with patch('zenpy.Zenpy') as mock:
+            mock.side_effect = __mock_zendesk_error
+            with pytest.raises(ValidationError):
+                assert processor.edit_zendesk_action(action, bot, user)
+
+    def test_edit_zendesk_action_does_not_exists(self):
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+                  'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match=f'Action with name "{action.get("name")}" not found'):
+            assert processor.edit_zendesk_action(action, bot, user)
+
+    def test_list_zendesk_actions(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        assert list(processor.list_zendesk_actions(bot)) == [
+            {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
+             'api_token': '123456789***', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+        bot = 'test_1'
+        processor = MongoProcessor()
+        assert list(processor.list_zendesk_actions(bot)) == []
+
+    def test_list_zendesk_actions_unmasked(self):
+        bot = 'test'
+        processor = MongoProcessor()
+        assert list(processor.list_zendesk_actions(bot, False)) == [
+            {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
+             'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
 
 
 # pylint: disable=R0201
@@ -6370,7 +6490,7 @@ class TestModelProcessor:
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
         assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
-                           'email_action': [], 'form_validation_action': [], 'google_search_action': []}
+                           'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': []}
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -6390,7 +6510,7 @@ class TestModelProcessor:
         assert actions == {
             'actions': ['action_check'],
             'http_action': [], 'jira_action': [],
-            'slot_set_action': [],
+            'slot_set_action': [], 'zendesk_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story(self):
@@ -6408,7 +6528,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [],
+        assert actions == {'actions': [], 'zendesk_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
@@ -6686,7 +6806,7 @@ class TestModelProcessor:
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
         assert actions == {'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [],
-                           'http_action': ['action_performanceuser1000@digite.com'],
+                           'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_offer_help',
                                           'utter_default',
@@ -6957,7 +7077,7 @@ class TestTrainingDataProcessor:
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == {
-            'actions': [],
+            'actions': [], 'zendesk_action': [],
             'http_action': [], 'google_search_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',

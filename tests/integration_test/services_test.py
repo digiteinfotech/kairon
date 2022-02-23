@@ -3513,7 +3513,7 @@ def test_list_actions():
                         'test_update_http_action_6',
                         'test_update_http_action_non_existing',
                         'new_http_action4'],
-        'slot_set_action': [], 'jira_action': [],
+        'slot_set_action': [], 'jira_action': [], 'zendesk_action': [],
         'utterances': ['utter_greet',
                        'utter_cheer_up',
                        'utter_did_that_help',
@@ -7604,6 +7604,116 @@ def test_edit_jira_action_not_found():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "jira_action_new" not found'
+
+
+def test_add_zendesk_action_invalid_config(monkeypatch):
+    def __mock_zendesk_error(*args, **kwargs):
+        from zenpy.lib.exception import APIException
+        raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+              'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy') as mock:
+        mock.side_effect = __mock_zendesk_error
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["message"] == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
+
+
+def test_list_zendesk_action_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/zendesk",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_zendesk_action():
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_list_zendesk_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/zendesk",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [
+        {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456***', 'subject': 'new ticket',
+         'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}]
+
+
+def test_edit_zendesk_action():
+    action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+              'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_zendesk_action_invalid_config(monkeypatch):
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+              'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+
+    def __mock_zendesk_error(*args, **kwargs):
+        from zenpy.lib.exception import APIException
+        raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
+
+    with patch('zenpy.Zenpy') as mock:
+        mock.side_effect = __mock_zendesk_error
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["message"] == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
+
+
+def test_edit_zendesk_action_not_found():
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+              'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/zendesk",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "zendesk_action_1" not found'
 
 
 def test_channels_params():
