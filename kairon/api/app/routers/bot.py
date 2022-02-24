@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List
+from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security
 from fastapi import File, UploadFile
@@ -231,13 +231,14 @@ async def get_responses(
 async def add_responses(
         request_data: TextData,
         utterance: constr(to_lower=True, strip_whitespace=True),
+        form_attached: Optional[str] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Adds utterance value in particular utterance
     """
     utterance_id = mongo_processor.add_text_response(
-        request_data.data, utterance, current_user.get_bot(), current_user.get_user()
+        request_data.data, utterance, current_user.get_bot(), current_user.get_user(), form_attached
     )
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
@@ -764,7 +765,7 @@ async def delete_http_action(action: str = Path(default=None, description="actio
     """
     Deletes the http action config and story event
     """
-    mongo_processor.delete_http_action_config(action, user=current_user.get_user(), bot=current_user.get_bot())
+    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
     return Response(message="HTTP action deleted")
 
 
@@ -1124,8 +1125,9 @@ async def delete_synonym_value(
 @router.post("/utterance", response_model=Response)
 async def add_utterance(request: TextDataLowerCase,
                         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    mongo_processor.add_utterance_name(request.data, current_user.get_bot(), current_user.get_user(),
-                                       raise_error_if_exists=True)
+    mongo_processor.add_utterance_name(
+        request.data, current_user.get_bot(), current_user.get_user(), raise_error_if_exists=True
+    )
     return {'message': 'Utterance added!'}
 
 

@@ -1744,21 +1744,24 @@ class MongoProcessor:
         if slots:
             Slots.objects.insert(slots)
 
-    def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text):
+    def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text, form_attached: str = None):
         """
         saves bot text utterance
         :param utterance: text utterance
         :param name: utterance name
         :param bot: bot id
         :param user: user id
+        :param form_attached: form for which this utterance was created
         :return: bot utterance id
         """
         if Utility.check_empty_string(utterance):
             raise AppException("Utterance text cannot be empty or blank spaces")
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
+        if form_attached and not Utility.is_exist(Forms, raise_error=False, name=form_attached, bot=bot, status=True):
+            raise AppException(f"Form '{form_attached}' does not exists")
         return self.add_response(
-            utterances={"text": utterance}, name=name, bot=bot, user=user
+            utterances={"text": utterance}, name=name, bot=bot, user=user, form_attached=form_attached
         )
 
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text, form_attached: str = None):
@@ -1929,12 +1932,14 @@ class MongoProcessor:
                 events.append(StoryEvents(
                     name=RULE_SNIPPET_ACTION_NAME,
                     type=ActionExecuted.type_name))
-        action_step_types = {s_type.value for s_type in StoryStepType}.difference(StoryStepType.intent.value)
+        action_step_types = {s_type.value for s_type in StoryStepType}.difference({
+            StoryStepType.intent.value, StoryStepType.form_start.value, StoryStepType.form_end.value
+        })
         for step in steps:
             if step['type'] == StoryStepType.intent.value:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
-                    type="user"))
+                    type=UserUttered.type_name))
             elif step['type'] in action_step_types:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
@@ -1944,6 +1949,14 @@ class MongoProcessor:
                     type=ActionExecuted.type_name))
                 if step['type'] == StoryStepType.action.value:
                     self.add_action(step['name'], bot, user, raise_exception=False)
+            elif step['type'] == StoryStepType.form_start.value:
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type=ActiveLoop.type_name))
+            elif step['type'] == StoryStepType.form_end.value:
+                events.append(StoryEvents(
+                    name=None,
+                    type=ActiveLoop.type_name))
             else:
                 raise AppException("Invalid event type!")
         return events
@@ -2101,12 +2114,12 @@ class MongoProcessor:
             steps = []
             for event in events:
                 step = {}
-                if isinstance(value, Rules) and event['name'] == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
+                if isinstance(value, Rules) and event.get('name') == RULE_SNIPPET_ACTION_NAME and event['type'] == ActionExecuted.type_name:
                     continue
-                if event['type'] == 'user':
+                if event['type'] == UserUttered.type_name:
                     step['name'] = event['name']
                     step['type'] = StoryStepType.intent.value
-                elif event['type'] == 'action':
+                elif event['type'] == ActionExecuted.type_name:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
                         step['type'] = StoryStepType.http_action.value
@@ -2124,6 +2137,11 @@ class MongoProcessor:
                         step['type'] = StoryStepType.bot.value
                     else:
                         step['type'] = StoryStepType.action.value
+                elif event['type'] == ActiveLoop.type_name:
+                    step['type'] = StoryStepType.form_end.value
+                    if not Utility.check_empty_string(event.get('name')):
+                        step['name'] = event['name']
+                        step['type'] = StoryStepType.form_start.value
                 if step:
                     steps.append(step)
 
@@ -2413,10 +2431,7 @@ class MongoProcessor:
         try:
             # status to be filtered as Invalid Intent should not be fetched
             intent_obj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
-            stories_with_intent = Stories.objects(bot=bot, status=True, events__name__iexact=intent)
-            rules_with_intent = Rules.objects(bot=bot, status=True, events__name__iexact=intent)
-            if len(stories_with_intent) > 0 or len(rules_with_intent) > 0:
-                raise AppException('Cannot remove intent linked to flow')
+            MongoProcessor.get_attached_flows(bot, intent, 'user')
         except DoesNotExist as custEx:
             logging.exception(custEx)
             raise AppException(
@@ -2452,12 +2467,8 @@ class MongoProcessor:
                                                raise_exc=True)
                     return
                 raise DoesNotExist("Utterance does not exists")
-            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
-            if story:
-                raise AppException("Cannot remove utterance linked to story")
-
-            self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form,
-                                       raise_exc=True)
+            MongoProcessor.get_attached_flows(bot, utterance_name, 'action')
+            self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
             for response in responses:
                 response.status = False
                 response.save()
@@ -2472,7 +2483,7 @@ class MongoProcessor:
             if response is None:
                 raise DoesNotExist()
             utterance_name = response['name']
-            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=utterance_name))
+            story = MongoProcessor.get_attached_flows(bot, utterance_name, 'action', False)
             responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
 
             if story and len(responses) <= 1:
@@ -2552,21 +2563,6 @@ class MongoProcessor:
                        "influence_conversation": False}, bot, user,
                       raise_exception_if_exists=False)
         return doc_id
-
-    def delete_http_action_config(self, action: str, user: str, bot: str):
-        """
-        Soft deletes configuration for Http action.
-        :param action: Http action to be deleted.
-        :param user: user id
-        :param bot: bot id
-        :return:
-        """
-        is_exists = Utility.is_exist(HttpActionConfig, action_name__iexact=action, bot=bot, user=user,
-                                     raise_error=False)
-        if not is_exists:
-            raise AppException("No HTTP action found for bot " + bot + " and action " + action)
-        Utility.delete_document([HttpActionConfig], action_name__iexact=action, bot=bot, user=user)
-        Utility.delete_document([Actions], name__iexact=action, bot=bot, user=user)
 
     def get_http_action_config(self, bot: str, action_name: str):
         """
@@ -3236,7 +3232,7 @@ class MongoProcessor:
             utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()
             if validate_has_form and not Utility.check_empty_string(utterance.form_attached):
                 if raise_exc:
-                    raise AppException(f'Cannot delete utterance attached to a form: {utterance.form_attached}')
+                    raise AppException(f'At least one question is required for utterance linked to form: {utterance.form_attached}')
             else:
                 utterance.status = False
                 utterance.save()
@@ -3558,9 +3554,7 @@ class MongoProcessor:
     def delete_form(self, name: Text, bot: Text, user: Text):
         try:
             form = Forms.objects(name=name, bot=bot, status=True).get()
-            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=name, events__type__exact='action'))
-            if story:
-                raise AppException(f'Cannot remove form "{name}" linked to story "{story[0].block_name}"')
+            MongoProcessor.get_attached_flows(bot, name, 'action')
             for slot in form.required_slots:
                 try:
                     utterance_name = f'utter_ask_{name}_{slot}'
@@ -3677,9 +3671,7 @@ class MongoProcessor:
         """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
-            story = list(Stories.objects(bot=bot, status=True, events__name__iexact=name, events__type__exact='action'))
-            if story:
-                raise AppException(f'Cannot remove action "{name}" linked to story "{story[0].block_name}"')
+            MongoProcessor.get_attached_flows(bot, name, 'action')
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
@@ -3688,6 +3680,10 @@ class MongoProcessor:
                 Utility.delete_document([EmailActionConfig], action_name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.google_search_action.value:
                 Utility.delete_document([GoogleSearchAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.jira_action.value:
+                Utility.delete_document([JiraAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.http_action.value:
+                Utility.delete_document([HttpActionConfig], action_name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -3828,3 +3824,14 @@ class MongoProcessor:
             action.pop('status')
             action.pop('timestamp')
             yield action
+
+    @staticmethod
+    def get_attached_flows(bot: Text, event_name: Text, event_type: Text, raise_error: bool = True):
+        stories_with_event = list(Stories.objects(bot=bot, status=True, events__name__iexact=event_name, events__type__exact=event_type))
+        rules_with_event = list(Rules.objects(bot=bot, status=True, events__name__iexact=event_name, events__type__exact=event_type))
+        stories_with_event.extend(rules_with_event)
+        if stories_with_event and raise_error:
+            if event_type == 'user':
+                event_type = 'intent'
+            raise AppException(f'Cannot remove {event_type} "{event_name}" linked to flow "{stories_with_event[0].block_name}"')
+        return stories_with_event

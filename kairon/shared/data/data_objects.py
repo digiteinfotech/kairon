@@ -438,8 +438,8 @@ class Slots(Document):
 
 
 class StoryEvents(EmbeddedDocument):
-    name = StringField(required=True)
-    type = StringField(required=True, choices=["user", "action", "form", "slot"])
+    name = StringField(default=None)
+    type = StringField(required=True, choices=["user", "action", "form", "slot", "active_loop"])
     value = StringField()
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
 
@@ -448,6 +448,8 @@ class StoryEvents(EmbeddedDocument):
             self.clean()
         if not Utility.check_empty_string(self.value) and self.type != 'slot':
             raise ValidationError("Value is allowed only for slot")
+        if Utility.check_empty_string(self.name) and self.type != 'active_loop':
+            raise ValidationError("Empty name is allowed only for active_loop")
 
     def clean(self):
         if not Utility.check_empty_string(self.name):
