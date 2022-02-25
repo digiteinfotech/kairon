@@ -1,4 +1,15 @@
+# usertestkbot
+# 5250783188:AAGS8LczO2BDffTY_IC5ZP4ry1LOW2_SDmo
 
-text = "wrw blf hvv ozhg mrtsg'h vkrhlwv?"
-for item in text:
-    print(int(item))
+{
+    "type": "MESSAGE",
+    "message": {
+        "sender": {
+            "displayName": "Test"
+        },
+        "text": "Hello!"
+    },
+    "space": {
+        "type": "ROOM"
+    }
+}

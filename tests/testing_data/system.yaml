@@ -84,3 +84,6 @@ channels:
       - bot_name
     api:
       url: https://api.telegram.org
+  hangouts:
+    required_fields:
+      - project_id

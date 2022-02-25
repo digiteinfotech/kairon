@@ -17,7 +17,6 @@ from kairon.shared.utils import Utility
 from kairon.train import start_training
 import responses
 
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
 Utility.load_environment()
@@ -58,7 +57,13 @@ ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                            "webhook_url": "https://test@test.com/api/bot/telegram/tests/test",
                                            "bot_name": "test"}},
                                       bot, user=user)
+ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
+                                       "config": {
+                                           "project_id": "1234568"}
+                                       },
+                                      bot, user=user)
 responses.stop()
+
 
 class TestChatServer(AsyncHTTPTestCase):
 
@@ -291,7 +296,19 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/slack/{bot}/123",
             method="POST",
             headers=headers,
-            body=json.dumps({"token":"RrNd3SaNJNaP28TTauAYCmJw","team_id":"TPKTMACSU","api_app_id":"APKTXRPMK","event":{"client_msg_id":"77eafc15-4e7a-46d1-b03f-bf953fa801dc","type":"message","text":"Hi","user":"UPKTMK5BJ","ts":"1644670603.521219","team":"TPKTMACSU","blocks":[{"type":"rich_text","block_id":"ssu6","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"Hi"}]}]}],"channel":"DPKTY81UM","event_ts":"1644670603.521219","channel_type":"im"},"type":"event_callback","event_id":"Ev032U6W5N1G","event_time":1644670603,"authed_users":["UPKE20JE8"],"authorizations":[{"enterprise_id":None,"team_id":"TPKTMACSU","user_id":"UPKE20JE8","is_bot":True,"is_enterprise_install":False}],"is_ext_shared_channel":False,"event_context":"4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUEtUTUFDU1UiLCJhaWQiOiJBUEtUWFJQTUsiLCJjaWQiOiJEUEtUWTgxVU0ifQ"})
+            body=json.dumps({"token": "RrNd3SaNJNaP28TTauAYCmJw", "team_id": "TPKTMACSU", "api_app_id": "APKTXRPMK",
+                             "event": {"client_msg_id": "77eafc15-4e7a-46d1-b03f-bf953fa801dc", "type": "message",
+                                       "text": "Hi", "user": "UPKTMK5BJ", "ts": "1644670603.521219",
+                                       "team": "TPKTMACSU", "blocks": [{"type": "rich_text", "block_id": "ssu6",
+                                                                        "elements": [{"type": "rich_text_section",
+                                                                                      "elements": [{"type": "text",
+                                                                                                    "text": "Hi"}]}]}],
+                                       "channel": "DPKTY81UM", "event_ts": "1644670603.521219", "channel_type": "im"},
+                             "type": "event_callback", "event_id": "Ev032U6W5N1G", "event_time": 1644670603,
+                             "authed_users": ["UPKE20JE8"], "authorizations": [
+                    {"enterprise_id": None, "team_id": "TPKTMACSU", "user_id": "UPKE20JE8", "is_bot": True,
+                     "is_enterprise_install": False}], "is_ext_shared_channel": False,
+                             "event_context": "4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUEtUTUFDU1UiLCJhaWQiOiJBUEtUWFJQTUsiLCJjaWQiOiJEUEtUWTgxVU0ifQ"})
         )
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
@@ -306,19 +323,58 @@ class TestChatServer(AsyncHTTPTestCase):
         response = self.fetch(
             f"/api/bot/telegram/{bot}/{token}",
             method="POST",
-            body=json.dumps({"update_id":483117514, "message": {"message_id":14,"from":{"id":1422280657,"is_bot":False,"first_name":"Fahad Ali","language_code":"en"},"chat":{"id":1422280657,"first_name":"Fahad Ali","type":"private"},"date":1645433258,"text":"hi"}})
+            body=json.dumps({"update_id": 483117514, "message": {"message_id": 14,
+                                                                 "from": {"id": 1422280657, "is_bot": False,
+                                                                          "first_name": "Fahad Ali",
+                                                                          "language_code": "en"},
+                                                                 "chat": {"id": 1422280657, "first_name": "Fahad Ali",
+                                                                          "type": "private"}, "date": 1645433258,
+                                                                 "text": "hi"}})
         )
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == "failed"
 
-    def test_telegram_invalid_auth(self):
+    def test_hangout_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
-            f"/api/bot/telegram/{bot}/123",
+            f"/api/bot/hangout/{bot}/123",
             method="POST",
-            body=json.dumps({"update_id":483117514, "message": {"message_id":14,"from":{"id":1422280657,"is_bot":False,"first_name":"Fahad Ali","language_code":"en"},"chat":{"id":1422280657,"first_name":"Fahad Ali","type":"private"},"date":1645433258,"text":"hi"}})
-        )
+            body=json.dumps({
+                "type": "MESSAGE",
+                "message": {
+                    "sender": {
+                        "displayName": "Test"
+                    },
+                    "text": "Hello!"
+                },
+                "space": {
+                    "type": "ROOM"
+                }
+            }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
         assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
+
+    @patch('kairon.shared.utils.Utility.get_local_mongo_store')
+    def test_hangout_auth_failed_hangout_verify(self, mock_store):
+        mock_store.return_value = self.empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/hangout/{bot}/{token}",
+            method="POST",
+            headers={"Authorization": "Bearer Test"},
+            body=json.dumps({
+                "type": "MESSAGE",
+                "message": {
+                    "sender": {
+                        "displayName": "Test"
+                    },
+                    "text": "Hello!"
+                },
+                "space": {
+                    "type": "ROOM"
+                }
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 500)

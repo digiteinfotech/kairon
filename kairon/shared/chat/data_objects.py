@@ -2,6 +2,7 @@ from mongoengine import Document, StringField, DictField, DateTimeField, Validat
 from datetime import datetime
 from kairon.shared.utils import Utility
 
+
 class Channels(Document):
     bot = StringField(required=True)
     connector_type = StringField(required=True, choices=Utility.get_channels)
