@@ -908,7 +908,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, http_action: dict = None):
+                            stories, rules=None, actions: dict = None):
         """
         convert mongo data  to individual files
 
@@ -917,7 +917,7 @@ class Utility:
         :param stories: stories data
         :param config: config data
         :param rules: rules data
-        :param http_action: http actions data
+        :param actions: action configuration data
         :return: files path
         """
         from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
@@ -932,7 +932,7 @@ class Utility:
         stories_path = os.path.join(data_path, "stories.yml")
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
         rules_path = os.path.join(data_path, "rules.yml")
-        http_path = os.path.join(temp_path, "http_action.yml")
+        actions_path = os.path.join(temp_path, "actions.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
@@ -947,9 +947,9 @@ class Utility:
         YAMLStoryWriter().dump(stories_path, stories.story_steps)
         if rules:
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
-        if http_action:
-            http_as_str = yaml.dump(http_action).encode()
-            Utility.write_to_file(http_path, http_as_str)
+        if actions:
+            actions_as_str = yaml.dump(actions).encode()
+            Utility.write_to_file(actions_path, actions_as_str)
         return temp_path
 
     @staticmethod
@@ -964,7 +964,7 @@ class Utility:
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            http_action: Dict = None
+            actions: Dict = None
     ):
         """
         adds training files to zip
@@ -975,7 +975,7 @@ class Utility:
         :param config: config data
         :param bot: bot id
         :param rules: rules data
-        :param http_action: http actions data
+        :param actions: action configurations
         :return: None
         """
         directory = Utility.write_training_data(
@@ -984,7 +984,7 @@ class Utility:
             config,
             stories,
             rules,
-            http_action
+            actions
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

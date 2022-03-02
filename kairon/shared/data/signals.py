@@ -69,10 +69,3 @@ def push_bulk_update_notification(sender, documents, **kwargs):
                 Utility.push_notification(channel, event_type, sender.__name__, metadata)
         except Exception as e:
             logger.exception(e)
-
-
-from kairon.shared.actions.data_objects import GoogleSearchAction, EmailActionConfig, JiraAction, ZendeskAction
-signals.pre_save_post_validation.connect(GoogleSearchAction.pre_save_post_validation, sender=GoogleSearchAction)
-signals.pre_save_post_validation.connect(EmailActionConfig.pre_save_post_validation, sender=EmailActionConfig)
-signals.pre_save_post_validation.connect(JiraAction.pre_save_post_validation, sender=JiraAction)
-signals.pre_save_post_validation.connect(ZendeskAction.pre_save_post_validation, sender=ZendeskAction)

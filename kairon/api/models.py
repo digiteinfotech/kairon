@@ -44,7 +44,7 @@ class ListData(BaseModel):
 
 
 class RegisterAccount(BaseModel):
-    email: str
+    email: constr(to_lower=True, strip_whitespace=True)
     first_name: str
     last_name: str
     password: SecretStr

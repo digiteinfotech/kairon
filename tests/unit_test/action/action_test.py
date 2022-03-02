@@ -2411,3 +2411,17 @@ class TestActions:
             mock.side_effect = __mock_zendesk_error
             with pytest.raises(ActionFailure):
                 ActionUtility.validate_zendesk_credentials('digite751', 'test@digite.com', 'ASDFGHJKL')
+
+    def test_google_search_action_config_data_object(self):
+        GoogleSearchAction(
+            name='google_action',
+            api_key='sd234567',
+            search_engine_id='asdfgh2345678',
+            failure_response=None,
+            num_results='asdf2345',
+            bot='test_google_search',
+            user='test_google_search',
+        ).save()
+        saved_action = GoogleSearchAction.objects(name='google_action', bot='test_google_search', status=True).get()
+        assert saved_action.num_results == 1
+        assert saved_action.failure_response == 'I have failed to process your request.'

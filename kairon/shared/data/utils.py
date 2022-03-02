@@ -12,7 +12,7 @@ from loguru import logger
 from mongoengine.errors import ValidationError
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
-    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_HTTP_ACTIONS_FORMATS, \
+    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
     REQUIREMENTS
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
@@ -60,7 +60,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_HTTP_ACTIONS_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 
@@ -111,8 +111,8 @@ class DataUtility:
             requirements.add('config')
         if ALLOWED_RULES_FORMATS.intersection(files_received).__len__() < 1:
             requirements.add('rules')
-        if ALLOWED_HTTP_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
-            requirements.add('http_actions')
+        if ALLOWED_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('actions')
 
         if requirements == REQUIREMENTS:
             if delete_dir_on_exception:

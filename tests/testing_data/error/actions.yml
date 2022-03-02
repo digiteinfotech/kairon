@@ -1,7 +1,10 @@
-http_actions:
+http_action:
 - action_name: action_performanceUser1001@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
+  headers:
+    - key: auth_token
+      parameter_type: value
+      value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   params_list:
   - key: testParam1
     parameter_type: value
@@ -12,7 +15,6 @@ http_actions:
   request_method: GET
   response: json
 - action_name: action_performanceUser1000@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
   params_list:
   - key: testParam1

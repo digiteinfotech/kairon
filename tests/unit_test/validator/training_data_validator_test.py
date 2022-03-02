@@ -182,7 +182,7 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_utterance_in_story_not_in_domain(self):
-        root= 'tests/testing_data/validator/utterance_missing_in_domain'
+        root = 'tests/testing_data/validator/utterance_missing_in_domain'
         domain_path = 'tests/testing_data/validator/utterance_missing_in_domain/domain.yml'
         nlu_path = 'tests/testing_data/validator/utterance_missing_in_domain/data'
         config_path = 'tests/testing_data/validator/utterance_missing_in_domain/config.yml'
@@ -264,127 +264,249 @@ class TestTrainingDataValidator:
         assert not validator.summary['config'] == "Failed to load the component 'CountTokenizer'"
 
     def test_validate_http_action_empty_content(self):
-        test_dict = {'http_actions': []}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
-        assert not TrainingDataValidator.validate_http_actions({})
+        test_dict = {'http_action': []}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
+        assert TrainingDataValidator.validate_custom_actions([{}])
 
     def test_validate_http_action_error_duplicate(self):
-        test_dict = {'http_actions': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
-                                       "request_method": 'POST'},
-                                      {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
-                                       "request_method": 'POST'}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Duplicate http action found: act2' in errors
+        test_dict = {'http_action': [{'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
+                                      "request_method": 'POST'},
+                                     {'action_name': "act2", 'http_url': "http://www.alphabet.com", "response": 'asdf',
+                                      "request_method": 'POST'}]}
+        errors = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Duplicate http action found: act2' in errors[1]['http_actions']
 
     def test_validate_http_action_error_missing_field(self):
         test_dict = {
-            'http_actions': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Required http action fields not found' in errors
+            'http_action': [{'http_url': "http://www.alphabet.com", "response": 'asdf', "request_method": 'POST'}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert "Required http action fields" in errors['http_actions'][0]
 
     def test_validate_http_action_invalid_request_method(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'slot', "value": 'slot'}],
-                                       "request_method": "OPTIONS", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid request method: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'slot', "value": 'slot'}],
+                                      "request_method": "OPTIONS", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid request method: rain_today' in errors['http_actions']
 
     def test_validate_http_action_empty_params_list(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": '', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid params_list for http action: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": '', "parameter_type": '', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid params_list for http action: rain_today' in errors['http_actions']
 
     def test_validate_http_action_empty_headers(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
 
     def test_validate_http_action_header_with_empty_key(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [{"key": '', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid headers for http action: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [{"key": '', "parameter_type": '', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors['http_actions']
 
     def test_validate_http_action_header_with_no_parameter_type(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [{"key": 'location', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid headers for http action: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [{"key": 'location', "parameter_type": '', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors['http_actions']
 
     def test_validate_http_action_header_with_empty_slot_value(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [
-                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                           {"key": 'username', "parameter_type": 'slot', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        TrainingDataValidator.validate_http_actions(test_dict)
-        assert test_dict['http_actions'][0]['headers'][1]['value'] == 'username'
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [
+                                          {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                          {"key": 'username', "parameter_type": 'slot', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        TrainingDataValidator.validate_custom_actions(test_dict)
+        assert test_dict['http_action'][0]['headers'][1]['value'] == 'username'
 
     def test_validate_http_action_header(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [
-                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                           {"key": 'paid_user', "parameter_type": 'slot', "value": ''},
-                                           {"key": 'username', "parameter_type": 'sender_id'},
-                                           {"key": 'user_msg', "parameter_type": 'user_message'}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
-        assert test_dict['http_actions'][0]['headers'][1]['value'] == 'paid_user'
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [
+                                          {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                          {"key": 'paid_user', "parameter_type": 'slot', "value": ''},
+                                          {"key": 'username', "parameter_type": 'sender_id'},
+                                          {"key": 'user_msg', "parameter_type": 'user_message'}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        TrainingDataValidator.validate_custom_actions(test_dict)
+        assert test_dict['http_action'][0]['headers'][1]['value'] == 'paid_user'
 
     def test_validate_http_action_header_invalid_parameter_type(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "headers": [
-                                           {"key": 'location', "parameter_type": 'text', "value": 'Mumbai'}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid headers for http action: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "headers": [
+                                          {"key": 'location', "parameter_type": 'text', "value": 'Mumbai'}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid headers for http action: rain_today' in errors['http_actions']
 
     def test_validate_http_action_empty_params_list_2(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": '', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        errors = TrainingDataValidator.validate_http_actions(test_dict)
-        assert 'Invalid params_list for http action: rain_today' in errors
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": '', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, errors, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert 'Invalid params_list for http action: rain_today' in errors['http_actions']
 
     def test_validate_http_action_empty_slot_type(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [
-                                           {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
-                                           {"key": 'username', "parameter_type": 'slot', "value": ''},
-                                           {"key": 'username', "parameter_type": 'user_message', "value": ''},
-                                           {"key": 'username', "parameter_type": 'sender_id', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
-        assert test_dict['http_actions'][0]['params_list'][1]['value'] == 'username'
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [
+                                          {"key": 'location', "parameter_type": 'value', "value": 'Mumbai'},
+                                          {"key": 'username', "parameter_type": 'slot', "value": ''},
+                                          {"key": 'username', "parameter_type": 'user_message', "value": ''},
+                                          {"key": 'username', "parameter_type": 'sender_id', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
+        assert test_dict['http_action'][0]['params_list'][1]['value'] == 'username'
 
     def test_validate_http_action_params_list_4(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'value', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
 
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'value', "value": None}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'value', "value": None}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
 
     def test_validate_http_action_empty_params_list_5(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
 
     def test_validate_http_action_empty_params_list_6(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [], "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [], "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
 
     def test_validate_http_action_empty_params_list_7(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"}]}
-        assert not TrainingDataValidator.validate_http_actions(test_dict)
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        assert TrainingDataValidator.validate_custom_actions(test_dict)
+
+    def test_validate_custom_actions(self):
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"}]}
+        is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert not is_data_invalid
+        assert error_summary == {'http_actions': [], 'email_actions': [], 'form_validation_actions': [],
+                                 'google_search_actions': [], 'jira_actions': [], 'slot_set_actions': [],
+                                 'zendesk_actions': []}
+        assert component_count
+
+    def test_validate_custom_actions_with_errors(self):
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"},
+                                     {"action_name": "rain_today1", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'local', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"},
+                                     {"action_name": "rain_today2", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'slot', "value": ''}],
+                                      "request_method": "OPTIONS", "response": "${RESPONSE}"},
+                                     {"action_name": "rain_today3", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'intent', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"},
+                                     {"action_name": "rain_today4", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'chat_log', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"},
+                                     {"name": "rain_today", "http_url": "http://f2724.kairon.io/",
+                                      "params_list": [{"key": 'location', "parameter_type": 'chat_log', "value": ''}],
+                                      "request_method": "GET", "response": "${RESPONSE}"},
+                                     [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]
+                                     ],
+                     'slot_set_action': [
+                         {'name': 'set_cuisine', 'slot': 'cuisine', 'type': 'from_value', 'value': '100'},
+                         {'name': 'set_num_people', 'slot': 'num_people', 'type': 'reset_slot'},
+                         {'': 'action', 'slot': 'outside_seat', 'type': 'slot', 'value': 'yes'},
+                         {'name': 'action', 'slot': 'outside_seat', 'type': 'slot'},
+                         {'name': 'set_num_people', 'slot': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}},
+                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
+                     'form_validation_action': [
+                         {'name': 'validate_action', 'slot': 'cuisine', 'validation_semantic': None,
+                          'valid_response': 'valid slot value', 'invalid_response': 'invalid slot value'},
+                         {'name': 'validate_action', 'slot': 'num_people', 'validation_semantic': {
+                             'or': [{'operator': 'is_none'}, {'operator': 'ends_with', 'value': 'een'}]},
+                          'valid_response': 'valid value', 'invalid_response': 'invalid value'},
+                         {'slot': 'outside_seat'},
+                         {'name': 'validate_action', 'slot': 'num_people'},
+                         {'': 'validate_action', 'slot': 'preference'},
+                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
+                     'email_action': [{'action_name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
+                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
+                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
+                                       'response': 'mail sent'},
+                                      {'action_name': 'send_mail1', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
+                                       'smtp_userid': 'asdfghjkl',
+                                       'smtp_password': 'asdfghjkl',
+                                       'from_email': 'test@digite.com', 'subject': 'bot fallback',
+                                       'to_email': 'test@digite.com', 'response': 'mail sent',
+                                       'tls': False},
+                                      {'action_name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
+                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
+                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
+                                       'response': 'mail sent'},
+                                      {'name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
+                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
+                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
+                                       'response': 'mail sent'},
+                                      [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]
+                                      ],
+                     'jira_action': [{'name': 'jira', 'url': 'http://domain.atlassian.net',
+                                      'user_name': 'test@digite.com', 'api_token': '123456', 'project_key': 'KAI',
+                                      'issue_type': 'Subtask', 'parent_key': 'HEL', 'summary': 'demo request',
+                                      'response': 'issue created'},
+                                     {'name': 'jira1', 'url': 'http://domain.atlassian.net',
+                                      'user_name': 'test@digite.com', 'api_token': '234567',
+                                      'project_key': 'KAI', 'issue_type': 'Bug', 'summary': 'demo request',
+                                      'response': 'issue created'},
+                                     {'name': 'jira2', 'url': 'http://domain.atlassian.net',
+                                      'user_name': 'test@digite.com', 'api_token': '234567',
+                                      'project_key': 'KAI', 'issue_type': 'Subtask', 'summary': 'demo request',
+                                      'response': 'ticket created'},
+                                     {'name': 'jira', 'url': 'http://domain.atlassian.net',
+                                      'user_name': 'test@digite.com', 'api_token': '24567',
+                                      'project_key': 'KAI', 'issue_type': 'Task', 'summary': 'demo request',
+                                      'response': 'ticket created'},
+                                     {'action_name': 'jira', 'url': 'http://domain.atlassian.net',
+                                      'user_name': 'test@digite.com', 'api_token': '24567',
+                                      'project_key': 'KAI', 'issue_type': 'Task', 'summary': 'demo request',
+                                      'response': 'ticket created'},
+                                     [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
+                     'zendesk_action': [{'name': 'zendesk', 'subdomain': 'digite', 'user_name': 'test@digite.com',
+                                         'api_token': '123456', 'subject': 'demo request',
+                                         'response': 'ticket created'},
+                                        {'action_name': 'zendesk1', 'subdomain': 'digite',
+                                         'user_name': 'test@digite.com', 'api_token': '123456',
+                                         'subject': 'demo request', 'response': 'ticket created'},
+                                        {'name': 'zendesk2', 'subdomain': 'digite', 'user_name': 'test@digite.com',
+                                         'api_token': '123456', 'subject': 'demo request',
+                                         'response': 'ticket created'},
+                                        [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
+                     'google_search_action': [
+                         {'name': 'google_search', 'api_key': '1231234567', 'search_engine_id': '2345678'},
+                         {'name': 'google_search1', 'api_key': '1231234567', 'search_engine_id': '2345678',
+                          'failure_response': 'failed', 'num_results': 10},
+                         {'name': 'google_search2', 'api_key': '1231234567', 'search_engine_id': '2345678',
+                          'failure_response': 'failed to search', 'num_results': '1'},
+                         {'name': 'google_search', 'api_key': '1231234567', 'search_engine_id': '2345678',
+                          'failure_response': 'failed to search', 'num_results': ''},
+                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]]}
+        is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
+        assert is_data_invalid
+        assert len(error_summary['http_actions']) == 4
+        assert len(error_summary['slot_set_actions']) == 4
+        assert len(error_summary['form_validation_actions']) == 5
+        assert len(error_summary['email_actions']) == 3
+        assert len(error_summary['jira_actions']) == 4
+        assert len(error_summary['google_search_actions']) == 2
+        assert len(error_summary['zendesk_actions']) == 2
+        assert component_count == {'http_actions': 7, 'slot_set_actions': 6, 'form_validation_actions': 6,
+                                   'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
+                                   'zendesk_actions': 4}

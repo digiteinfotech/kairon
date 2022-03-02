@@ -52,7 +52,7 @@ class TestEvents:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            http_actions_path = os.path.join(path, 'http_action.yml')
+            http_actions_path = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -84,7 +84,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -114,7 +114,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -144,7 +144,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -200,7 +200,7 @@ class TestEvents:
         assert logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -230,7 +230,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -269,7 +269,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -310,7 +310,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -356,7 +356,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -394,7 +394,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -431,7 +431,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -456,7 +456,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert not [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -484,7 +484,7 @@ class TestEvents:
         config_obj = Configs._from_son(config)
         config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
-        mongo_processor.save_http_action(http_actions, bot, user)
+        mongo_processor.save_integrated_actions(http_actions, bot, user)
 
         def _path(*args, **kwargs):
             return test_data_path
@@ -498,7 +498,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -532,7 +532,7 @@ class TestEvents:
         config_obj = Configs._from_son(config)
         config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
-        mongo_processor.save_http_action(http_actions, bot, user)
+        mongo_processor.save_integrated_actions(http_actions, bot, user)
 
         def _path(*args, **kwargs):
             return test_data_path
@@ -546,7 +546,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -580,7 +580,7 @@ class TestEvents:
         config_obj = Configs._from_son(config)
         config_obj.save()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
-        mongo_processor.save_http_action(http_actions, bot, user)
+        mongo_processor.save_integrated_actions(http_actions, bot, user)
 
         def _path(*args, **kwargs):
             return test_data_path
@@ -594,7 +594,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -627,7 +627,7 @@ class TestEvents:
         config_obj = Configs._from_son(config)
         config_obj.save()
         mongo_processor.save_rules(story_graph.story_steps, bot, user)
-        mongo_processor.save_http_action(http_actions, bot, user)
+        mongo_processor.save_integrated_actions(http_actions, bot, user)
 
         def _path(*args, **kwargs):
             return test_data_path
@@ -641,7 +641,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -677,7 +677,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -715,7 +715,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -753,7 +753,7 @@ class TestEvents:
         assert logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
@@ -791,7 +791,7 @@ class TestEvents:
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
-        assert not logs[0].get('http_actions').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')

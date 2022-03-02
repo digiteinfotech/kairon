@@ -52,5 +52,5 @@ class DataImporter:
                                                           self.validator.domain,
                                                           self.validator.story_graph,
                                                           self.validator.intents,
-                                                          self.validator.http_actions,
+                                                          self.validator.actions,
                                                           self.overwrite, self.files_to_save)

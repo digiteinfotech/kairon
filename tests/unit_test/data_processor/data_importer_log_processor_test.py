@@ -26,7 +26,7 @@ class TestDataImporterLogProcessor:
         assert not log.get('intents').get('data')
         assert not log.get('stories').get('data')
         assert not log.get('utterances').get('data')
-        assert not log.get('http_actions').get('data')
+        assert not log.get('actions')
         assert not log.get('training_examples').get('data')
         assert not log.get('domain').get('data')
         assert not log.get('config').get('data')
@@ -48,7 +48,7 @@ class TestDataImporterLogProcessor:
         assert not log.get('intents').get('data')
         assert not log.get('stories').get('data')
         assert not log.get('utterances').get('data')
-        assert not log.get('http_actions').get('data')
+        assert not log.get('actions')
         assert not log.get('training_examples').get('data')
         assert not log.get('domain').get('data')
         assert not log.get('config').get('data')
@@ -77,7 +77,7 @@ class TestDataImporterLogProcessor:
         assert not log[0].get('intents').get('data')
         assert not log[0].get('stories').get('data')
         assert not log[0].get('utterances').get('data')
-        assert not log[0].get('http_actions').get('data')
+        assert not log[0].get('actions')
         assert not log[0].get('training_examples').get('data')
         assert not log[0].get('domain').get('data')
         assert not log[0].get('config').get('data')
@@ -121,7 +121,7 @@ class TestDataImporterLogProcessor:
         assert not log.get('intents').get('data')
         assert not log.get('stories').get('data')
         assert not log.get('utterances').get('data')
-        assert not log.get('http_actions').get('data')
+        assert not log.get('actions')
         assert not log.get('training_examples').get('data')
         assert not log.get('domain').get('data')
         assert not log.get('config').get('data')
@@ -140,7 +140,7 @@ class TestDataImporterLogProcessor:
         assert log.get('intents').get('data') == ['Intent not added to domain']
         assert not log.get('stories').get('data')
         assert not log.get('utterances').get('data')
-        assert not log.get('http_actions').get('data')
+        assert not log.get('actions')
         assert not log.get('training_examples').get('data')
         assert not log.get('domain').get('data')
         assert log.get('config').get('data') == ['Invalid component']
@@ -163,7 +163,7 @@ class TestDataImporterLogProcessor:
         assert log.get('intents').get('data') == ['Intent not added to domain']
         assert not log.get('stories').get('data')
         assert not log.get('utterances').get('data')
-        assert not log.get('http_actions').get('data')
+        assert not log.get('actions')
         assert not log.get('training_examples').get('data')
         assert not log.get('domain').get('data')
         assert log.get('config').get('data') == ['Invalid component']
