@@ -380,41 +380,41 @@ class TrainingDataValidator(Validator):
             }
             return False, error_summary, component_count
         for action_type, actions_list in actions.items():
-            if action_type == ActionType.http_action.value and actions.get(ActionType.http_action.value):
-                errors = TrainingDataValidator.__validate_http_actions(actions.get(ActionType.http_action.value))
+            if action_type == ActionType.http_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_http_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['http_actions'] = errors
-                component_count['http_actions'] = len(actions[ActionType.http_action.value])
-            elif action_type == ActionType.slot_set_action.value and actions.get(ActionType.slot_set_action.value):
-                errors = TrainingDataValidator.__validate_slot_set_actions(actions.get(ActionType.slot_set_action.value))
+                component_count['http_actions'] = len(actions_list)
+            elif action_type == ActionType.slot_set_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_slot_set_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['slot_set_actions'] = errors
-                component_count['slot_set_actions'] = len(actions[ActionType.slot_set_action.value])
-            elif action_type == ActionType.form_validation_action.value and actions.get(ActionType.form_validation_action.value):
-                errors = TrainingDataValidator.__validate_form_validation_actions(actions.get(ActionType.form_validation_action.value))
+                component_count['slot_set_actions'] = len(actions_list)
+            elif action_type == ActionType.form_validation_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_form_validation_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['form_validation_actions'] = errors
-                component_count['form_validation_actions'] = len(actions[ActionType.form_validation_action.value])
-            elif action_type == ActionType.email_action.value and actions.get(ActionType.email_action.value):
-                errors = TrainingDataValidator.__validate_email_actions(actions.get(ActionType.email_action.value))
+                component_count['form_validation_actions'] = len(actions_list)
+            elif action_type == ActionType.email_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_email_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['email_actions'] = errors
-                component_count['email_actions'] = len(actions[ActionType.email_action.value])
-            elif action_type == ActionType.google_search_action.value and actions.get(ActionType.google_search_action.value):
-                errors = TrainingDataValidator.__validate_google_search_actions(actions.get(ActionType.google_search_action.value))
+                component_count['email_actions'] = len(actions_list)
+            elif action_type == ActionType.google_search_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_google_search_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['google_search_actions'] = errors
-                component_count['google_search_actions'] = len(actions[ActionType.google_search_action.value])
-            elif action_type == ActionType.jira_action.value and actions.get(ActionType.jira_action.value):
-                errors = TrainingDataValidator.__validate_jira_actions(actions.get(ActionType.jira_action.value))
+                component_count['google_search_actions'] = len(actions_list)
+            elif action_type == ActionType.jira_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_jira_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['jira_actions'] = errors
-                component_count['jira_actions'] = len(actions[ActionType.jira_action.value])
-            elif action_type == ActionType.zendesk_action.value and actions.get(ActionType.zendesk_action.value):
-                errors = TrainingDataValidator.__validate_zendesk_actions(actions.get(ActionType.zendesk_action.value))
+                component_count['jira_actions'] = len(actions_list)
+            elif action_type == ActionType.zendesk_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_zendesk_actions(actions_list)
                 is_data_invalid = True if errors else False
                 error_summary['zendesk_actions'] = errors
-                component_count['zendesk_actions'] = len(actions[ActionType.zendesk_action.value])
+                component_count['zendesk_actions'] = len(actions_list)
 
         return is_data_invalid, error_summary, component_count
 
