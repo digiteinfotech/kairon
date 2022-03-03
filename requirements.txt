@@ -51,3 +51,4 @@ nltk==3.6.6
 blinker
 jira
 zenpy
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
