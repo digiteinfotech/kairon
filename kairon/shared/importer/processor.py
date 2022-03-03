@@ -3,6 +3,7 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
@@ -79,7 +80,9 @@ class DataImporterLogProcessor:
         doc.training_examples = TrainingComponentLog(count=component_count['training_examples'], data=summary.get('training_examples'))
         doc.config = TrainingComponentLog(data=summary.get('config'))
         doc.rules = TrainingComponentLog(count=component_count['rules'], data=summary.get('rules'))
-        doc.http_actions = TrainingComponentLog(count=component_count['http_actions'], data=summary.get('http_actions'))
+        action_summary = [{'type': s, 'count': component_count.get(s), 'data': summary.get(s)} for s in
+                          summary.keys() if s in {f'{a_type.value}s' for a_type in ActionType}]
+        doc.actions = action_summary
         doc.domain = DomainLog(
             intents_count=component_count['domain'].get('intents'),
             actions_count=component_count['domain'].get('actions'),

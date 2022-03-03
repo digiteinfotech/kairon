@@ -10,7 +10,7 @@ import pytest
 import responses
 from fastapi.testclient import TestClient
 from fastapi_sso.sso.google import GoogleSSO
-from jira import JIRAError, JIRA
+from jira import JIRAError
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
 from pydantic import SecretStr
@@ -110,7 +110,7 @@ def test_account_registration():
     response = client.post(
         "/api/account/registration",
         json={
-            "email": "integration2@demo.ai",
+            "email": "INTEGRATION2@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
             "password": "Welcome@1",
@@ -125,7 +125,7 @@ def test_account_registration():
 
 def test_api_wrong_password():
     response = client.post(
-        "/api/auth/login", data={"username": "integration@demo.ai", "password": "welcome@1"}
+        "/api/auth/login", data={"username": "INTEGRATION@DEMO.AI", "password": "welcome@1"}
     )
     actual = response.json()
     assert actual["error_code"] == 401
@@ -167,6 +167,21 @@ def test_api_login():
     assert response['data']['user']['account_name'] == 'integration'
     assert response['data']['user']['first_name'] == 'Demo'
     assert response['data']['user']['last_name'] == 'User'
+
+    email = "integration2@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_add_bot():
@@ -278,7 +293,7 @@ def test_upload_yml():
              ('training_files', ("stories.yml", open("tests/testing_data/valid_yml/data/stories.yml", "rb"))),
              ('training_files', ("config.yml", open("tests/testing_data/valid_yml/config.yml", "rb"))),
              (
-                 'training_files', ("http_action.yml", open("tests/testing_data/valid_yml/http_action.yml", "rb")))
+                 'training_files', ("actions.yml", open("tests/testing_data/valid_yml/actions.yml", "rb")))
              )
     response = client.post(
         f"/api/bot/{pytest.bot}/upload",
@@ -370,7 +385,7 @@ def test_upload_using_event_overwrite(monkeypatch):
                ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
                (
                    'training_files',
-                   ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+                   ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb")))
                )
     )
     actual = response.json()
@@ -416,7 +431,7 @@ def test_upload_using_event_append(monkeypatch):
                ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
                (
                    'training_files',
-                   ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb")))
+                   ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb")))
                )
     )
     actual = response.json()
@@ -488,12 +503,13 @@ def test_get_data_importer_logs():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
     assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
-    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'http_actions'}
+    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    print(actual['data'])
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][2]['start_timestamp']
     assert actual['data'][2]['end_timestamp']
-    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'http_actions'}
+    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
     del actual['data'][2]['start_timestamp']
     del actual['data'][2]['end_timestamp']
     del actual['data'][2]['files_received']
@@ -502,7 +518,14 @@ def test_get_data_importer_logs():
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
                                  'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
-                                 'http_actions': {'count': 5, 'data': []}, 'exception': '', 'is_data_uploaded': True,
+                                 'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
+                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                             {'type': 'email_actions', 'count': 0, 'data': []},
+                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                             {'type': 'jira_actions', 'count': 0, 'data': []},
+                                             {'type': 'zendesk_actions', 'count': 0, 'data': []}], 'exception': '',
+                                 'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
     assert actual['data'][3]['intents']['count'] == 16
     assert actual['data'][3]['intents']['data']
@@ -513,7 +536,13 @@ def test_get_data_importer_logs():
     assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9,
                                            'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data'][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data'][3]['http_actions'] == {'count': 0, 'data': []}
+    assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 0, 'data': []},
+                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                            {'type': 'email_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'jira_actions', 'count': 0, 'data': []},
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []}]
     assert actual['data'][3]['is_data_uploaded']
     assert set(actual['data'][3]['files_received']) == {'stories', 'domain', 'config', 'nlu'}
     assert actual['data'][3]['status'] == 'Failure'
@@ -4347,7 +4376,7 @@ def test_upload_with_http_error():
     config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
     config.get('pipeline').append({'name': "XYZ"})
     files = (('training_files', ("config.yml", json.dumps(config).encode())),
-             ('training_files', ("http_action.yml", open("tests/testing_data/error/http_action.yml", "rb"))))
+             ('training_files', ("actions.yml", open("tests/testing_data/error/actions.yml", "rb"))))
 
     response = client.post(
         f"/api/bot/{pytest.bot}/upload",
@@ -4374,14 +4403,15 @@ def test_upload_with_http_error():
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['http_actions']['data'] == ['Required http action fields not found']
+    print(actual['data'][0]['actions'])
+    assert 'Required http action fields' in actual['data'][0]['actions'][0]['data'][0]
     assert actual['data'][0]['config']['data'] == ['Invalid component XYZ']
 
 
 def test_upload_actions_and_config():
     files = (('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
              ('training_files',
-              ("http_action.yml", open("tests/testing_data/yml_training_files/http_action.yml", "rb"))))
+              ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))))
 
     response = client.post(
         f"/api/bot/{pytest.bot}/upload",
@@ -4406,10 +4436,14 @@ def test_upload_actions_and_config():
     assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['http_actions']['count'] == 5
-    assert not actual['data'][0]['http_actions']['data']
+    assert actual['data'][0]['end_timestamp']
+    assert actual['data'][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                            {'type': 'email_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'jira_actions', 'count': 0, 'data': []},
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []}]
     assert not actual['data'][0]['config']['data']
 
     response = client.get(

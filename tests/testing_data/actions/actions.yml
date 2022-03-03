@@ -1,0 +1,162 @@
+http_action:
+- action_name: http_action_1
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: intent
+    parameter_type: intent
+  - key: chat_log
+    parameter_type: chat_log
+  - key: user_message
+    parameter_type: user_message
+  - key: sender_id
+    parameter_type: sender_id
+  - key: slot
+    parameter_type: slot
+    value: slot
+  - key: value
+    parameter_type: value
+    value: value
+  headers:
+    - key: intent
+      parameter_type: intent
+    - key: chat_log
+      parameter_type: chat_log
+    - key: user_message
+      parameter_type: user_message
+    - key: sender_id
+      parameter_type: sender_id
+    - key: slot
+      parameter_type: slot
+      value: slot
+    - key: value
+      parameter_type: value
+      value: value
+  request_method: GET
+  response: json
+- action_name: http_action_2
+  http_url: http://www.alphabet.com
+  headers:
+  - key: authorization
+    parameter_type: slot
+    value: authorization
+  request_method: GET
+  response: json
+- action_name: http_action_3
+  http_url: http://www.alphabet.com
+  request_method: GET
+  response: json
+- action_name: http_action_4
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: testParam1
+    parameter_type: value
+    value: testValue1
+  - key: testParam2
+    parameter_type: slot
+    value: testValue1
+  request_method: GET
+  response: json
+
+slot_set_action:
+- name: slot_set_action_1
+  slot: auth
+  type: reset_slot
+- name: slot_set_action_2
+  slot: auth_token
+  type: from_value
+  value: asdfghjklqwertyuiop
+- name: slot_set_action_3
+  slot: user_details
+  type: from_value
+  value:
+    - name: udit
+      last_name: pandey
+
+form_validation_action:
+- name: form_validation_action_1
+  slot: name
+- name: form_validation_action_2
+  slot: cuisine
+  validation_semantic:
+    or:
+      - operator: equal_to
+        value: indian
+      - operator: equal_to
+        value: nepalese
+  valid_response: perfect
+  invalid_response: not found in database
+- name: form_validation_action_3
+  slot: name
+  valid_response: accepted
+- name: form_validation_action_4
+  slot: seating
+  validation_semantic:
+    or:
+      - operator: greater_than
+        value: 0
+      - operator: less_than
+        value: 10
+  invalid_response: value not acceptable
+
+google_search_action:
+- name: google_search_action_1
+  api_key: asdfghjklrtyu
+  search_engine_id: sdfg34567dfgh
+- name: google_search_action_2
+  api_key: asdfghjklrtyu
+  search_engine_id: sdfg34567dfgh
+  failure_response: no response from google
+  num_results: 2
+
+jira_action:
+- name: jira_action_1
+  url: http://digite.atlassian.net
+  user_name: udit.pandey@digite.com
+  api_token: bkjbk1234567890
+  project_key: HEL
+  issue_type: Subtask
+  parent_key: TAS
+  summary: new demo request
+  response: ticket created
+- name: jira_action_2
+  url: http://digite.atlassian.net
+  user_name: udit.pandey@digite.com
+  api_token: hgvj1234567890
+  project_key: HEL
+  issue_type: Task
+  summary: new demo request
+  response: ticket created
+
+zendesk_action:
+- name: zendesk_action_1
+  subdomain: digite751
+  user_name: udit.pandey@digite.com
+  api_token: 123456wertyu
+  subject: new demo request
+  response: Request taken
+- name: zendesk_action_2
+  subdomain: digite751
+  user_name: udit.pandey@digite.com
+  api_token: 1234567dfghjk
+  subject: new demo request
+  response: Request taken
+
+email_action:
+- action_name: email_action_1
+  smtp_url: smtp.gmail.com
+  smtp_port: 587
+  smtp_userid: udit.pandey@digite.com
+  smtp_password: dfgh4567
+  from_email: udit.pandey@digite.com
+  subject: bot fallback
+  to_email: udit.pandey@digite.com
+  response: email sent
+  tls: False
+- action_name: email_action_2
+  smtp_url: smtp.gmail.com
+  smtp_port: 587
+  smtp_password: sdfgh5678
+  from_email: udit.pandey@digite.com
+  subject: bot fallback
+  to_email: udit.pandey@digite.com
+  response: email sent

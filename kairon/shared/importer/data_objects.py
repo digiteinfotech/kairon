@@ -29,7 +29,7 @@ class ValidationLogs(Document):
     domain = EmbeddedDocumentField(DomainLog, default=DomainLog)
     config = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     rules = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
-    http_actions = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
+    actions = ListField()
     exception = StringField(default="")
     is_data_uploaded = BooleanField(default=False)
     files_received = ListField(default=None)

@@ -76,7 +76,7 @@ class TestMongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            http_actions_path = os.path.join(path, 'http_action.yml')
+            http_actions_path = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -287,9 +287,15 @@ class TestMongoProcessor:
         assert rules == ['rule which will not wait for user message once it was applied',
                          'ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = processor.load_http_action("test_upload_case_insensitivity")
-        assert actions == {'http_actions': [
+        assert actions == {'http_action': [
             {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
-             'request_method': 'GET',
+             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
+                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
+                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
+                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
+                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
+                                                  {'key': 'testParam4', 'value': 'testvalue1',
+                                                   'parameter_type': 'slot'}],
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
                              {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'}]},
             {'action_name': 'action_get_microsoft_application', 'response': 'json',
@@ -370,7 +376,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
         assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 27
 
     @pytest.mark.asyncio
@@ -1965,12 +1971,12 @@ class TestMongoProcessor:
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
-        http_action_content = "http_actions:\n- action_name: action_performanceUser1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
+        http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
@@ -1994,14 +2000,14 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_http")
         assert actions
         assert isinstance(actions, dict)
-        assert len(actions["http_actions"]) == 1
+        assert len(actions["http_action"]) == 1
         processor.delete_http_action(bot="test_http", user="http_creator")
         actions = processor.load_http_action("test_http")
-        assert not actions
+        assert not actions['http_action']
         assert isinstance(actions, dict)
 
     def test_save_http_action_already_exists(self):
-        test_dict = {"http_actions": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
+        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
                                        "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
                                        "request_method": "GET", "response": "${RESPONSE}"},
                                       {"action_name": "test_save_http_action_already_exists",
@@ -2013,9 +2019,10 @@ class TestMongoProcessor:
                          response='response',
                          request_method='GET',
                          bot='test', user='test').save()
+        Actions(name='test_save_http_action_already_exists', bot='test', user='test', status=True, type=ActionType.http_action.value).save()
         processor = MongoProcessor()
-        processor.save_http_action(test_dict, 'test', 'test')
-        action = HttpActionConfig.objects(bot='test', user='test').get(
+        processor.save_integrated_actions(test_dict, 'test', 'test')
+        action = HttpActionConfig.objects(bot='test', user='test', status=True).get(
             action_name="test_save_http_action_already_exists")
         assert action
         assert action['http_url'] == "http://kairon.ai"
@@ -2214,7 +2221,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
         assert len(Actions.objects(type='http_action', bot=bot)) == 5
 
     @pytest.mark.asyncio
@@ -2264,7 +2271,7 @@ class TestMongoProcessor:
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = mongo_processor.load_http_action(bot)
-        assert not actions
+        assert not actions['http_action']
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_overwrite(self, get_training_data):
@@ -2322,7 +2329,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_append(self, get_training_data):
@@ -2380,7 +2387,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
 
     def test_delete_nlu_only(self):
         bot = 'test'
@@ -2433,7 +2440,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
     async def test_save_nlu_only(self, get_training_data):
@@ -2493,7 +2500,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
     async def test_save_stories_only(self, get_training_data):
@@ -2523,7 +2530,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         mongo_processor = MongoProcessor()
-        mongo_processor.delete_bot_data(bot, user, {"config", "http_actions"})
+        mongo_processor.delete_bot_data(bot, user, {"config", "actions"})
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
         assert training_data.training_examples.__len__() == 292
@@ -2540,13 +2547,13 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 10
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 44
         assert domain.intents.__len__() == 30
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert not actions
+        assert not actions['http_action']
         assert mongo_processor.load_config(bot)
 
     @pytest.mark.asyncio
@@ -2558,10 +2565,10 @@ class TestMongoProcessor:
         config['language'] = 'fr'
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config=config, http_actions=http_actions, overwrite=True,
-                                           what={'http_actions', 'config'})
+        mongo_processor.save_training_data(bot, user, config=config, actions=http_actions, overwrite=True,
+                                           what={'actions', 'config'})
 
-        assert len(mongo_processor.load_http_action(bot)['http_actions']) == 5
+        assert len(mongo_processor.load_http_action(bot)['http_action']) == 5
         config = mongo_processor.load_config(bot)
         assert config['language'] == 'fr'
         assert config['pipeline']
@@ -2594,7 +2601,7 @@ class TestMongoProcessor:
         assert len(rules) == 0
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_actions']) == 5
+        assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
     async def test_save_rules_and_domain_only(self, get_training_data):
@@ -2740,7 +2747,7 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2751,13 +2758,13 @@ class TestMongoProcessor:
         domain_path = 'tests/testing_data/yml_training_files/domain.yml'
         nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
         stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
-        http_action_path = 'tests/testing_data/yml_training_files/http_action.yml'
+        http_action_path = 'tests/testing_data/yml_training_files/actions.yml'
         rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
         pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
         pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
         pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
-        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(open(http_action_path, 'rb').read()))
+        pytest.http_actions = UploadFile(filename="actions.yml", file=BytesIO(open(http_action_path, 'rb').read()))
         pytest.rules = UploadFile(filename="rules.yml", file=BytesIO(open(rules_path, 'rb').read()))
         pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
         yield "resource_save_and_validate_training_files"
@@ -2769,12 +2776,12 @@ class TestMongoProcessor:
 
         pytest.bot = 'test_validate_and_prepare_data'
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
-        actions = {"http_actions": [
+        actions = {"http_action": [
             {"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com",
              "request_method": "GET", "response": "json"}]}
         actions = json.dumps(actions).encode('utf-8')
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
-        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(actions))
+        pytest.http_actions = UploadFile(filename="actions.yml", file=BytesIO(actions))
         yield "resource_validate_and_prepare_data_save_actions_and_config_append"
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
@@ -2791,7 +2798,7 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2808,7 +2815,7 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2825,7 +2832,7 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2858,7 +2865,7 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2868,7 +2875,7 @@ class TestMongoProcessor:
         training_file = [pytest.http_actions]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert {'http_actions'} == files_received
+        assert {'actions'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
@@ -2887,7 +2894,7 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -2898,7 +2905,7 @@ class TestMongoProcessor:
         training_file = [pytest.http_actions, pytest.config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert {'http_actions', 'config'} == files_received
+        assert {'actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
@@ -2915,7 +2922,7 @@ class TestMongoProcessor:
         training_file = [pytest.http_actions, pytest.config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, False)
-        assert {'http_actions', 'config'} == files_received
+        assert {'actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
@@ -2949,7 +2956,7 @@ class TestMongoProcessor:
         tmp_dir = tempfile.mkdtemp()
         pytest.bot = 'validate_and_prepare_data_zip_actions_config'
         zip_file = os.path.join(tmp_dir, 'test')
-        shutil.copy2('tests/testing_data/yml_training_files/http_action.yml', tmp_dir)
+        shutil.copy2('tests/testing_data/yml_training_files/actions.yml', tmp_dir)
         shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
         shutil.make_archive(zip_file, 'zip', tmp_dir)
         pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
@@ -2963,7 +2970,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', [pytest.zip], True)
-        assert {'http_actions', 'config'} == files_received
+        assert {'actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
@@ -2979,9 +2986,9 @@ class TestMongoProcessor:
         tmp_dir = tempfile.mkdtemp()
         pytest.bot = 'validate_and_prepare_data_zip_actions_config'
         zip_file = os.path.join(tmp_dir, 'test')
-        actions = Utility.read_yaml('tests/testing_data/yml_training_files/http_action.yml')
-        actions['http_actions'][0].pop('action_name')
-        Utility.write_to_file(os.path.join(tmp_dir, 'http_action.yml'), json.dumps(actions).encode())
+        actions = Utility.read_yaml('tests/testing_data/yml_training_files/actions.yml')
+        actions['http_action'][0].pop('action_name')
+        Utility.write_to_file(os.path.join(tmp_dir, 'actions.yml'), json.dumps(actions).encode())
         shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
         shutil.make_archive(zip_file, 'zip', tmp_dir)
         pytest.zip = UploadFile(filename="test.zip", file=BytesIO(open(zip_file + '.zip', 'rb').read()))
@@ -2990,14 +2997,47 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_invalid_zip_actions_config(self,
-                                                                        resource_validate_and_prepare_data_invalid_zip_actions_config):
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', [pytest.zip], True)
-        assert non_event_validation_summary['summary']['http_actions'] == ['Required http action fields not found']
-        assert files_received == {'http_actions', 'config'}
+        assert 'Required http action' in non_event_validation_summary['summary']['http_actions'][0]
+        assert files_received == {'actions', 'config'}
         assert not is_event_data
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_all_actions(self):
+        with patch('kairon.shared.utils.SMTP'):
+            with patch('kairon.shared.actions.data_objects.ZendeskAction.validate'):
+                with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
+                    processor = MongoProcessor()
+                    actions = UploadFile(filename="actions.yml",
+                                         file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
+                    files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+                        'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
+                    print(non_event_validation_summary)
+                    assert non_event_validation_summary['summary'] == {'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
+                                    'email_actions': [], 'google_search_actions': [], 'jira_actions': [],
+                                    'zendesk_actions': [],
+                                    }
+                    assert non_event_validation_summary['component_count']['http_actions'] == 4
+                    assert non_event_validation_summary['component_count']['jira_actions'] == 2
+                    assert non_event_validation_summary['component_count']['google_search_actions'] == 2
+                    assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
+                    assert non_event_validation_summary['component_count']['email_actions'] == 2
+                    assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
+                    assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
+                    assert non_event_validation_summary['validation_failed'] is False
+                    assert files_received == {'actions'}
+                    assert not is_event_data
+                    saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
+                    assert len(saved_actions['http_action']) == 4
+                    assert len(saved_actions['slot_set_action']) == 3
+                    assert len(saved_actions['form_validation_action']) == 4
+                    assert len(saved_actions['jira_action']) == 2
+                    assert len(saved_actions['google_search_action']) == 2
+                    assert len(saved_actions['zendesk_action']) == 2
+                    assert len(saved_actions['email_action']) == 2
 
     def test_save_component_properties_all(self):
         config = {"nlu_epochs": 200,

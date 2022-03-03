@@ -470,7 +470,7 @@ async def upload_files(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and http_action.yml files.
+    Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and actions.yml files.
     """
     is_event_data = await mongo_processor.validate_and_log(current_user.get_bot(), current_user.get_user(),
                                                            training_files, overwrite)

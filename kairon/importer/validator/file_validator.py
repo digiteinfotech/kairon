@@ -16,7 +16,10 @@ from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 
-from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES
+from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
+    ZendeskAction, EmailActionConfig, HttpActionConfig
+from kairon.shared.actions.models import ActionType, ActionParameterType
+from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.utils import DataUtility
@@ -31,8 +34,7 @@ class TrainingDataValidator(Validator):
     def __init__(self, validator: Validator):
         """Initiate class with rasa validator object."""
 
-        super().__init__(validator.domain, validator.intents, validator.story_graph, validator
-                         .nlu_config.as_dict())
+        super().__init__(validator.domain, validator.intents, validator.story_graph, validator.nlu_config.as_dict())
         self.validator = validator
         self.summary = {}
         self.component_count = {}
@@ -67,7 +69,7 @@ class TrainingDataValidator(Validator):
             file_importer = RasaFileImporter(
                 domain_path=domain_path, training_data_paths=training_data_paths, config_file=config_path,
             )
-            cls.http_actions = Utility.read_yaml(os.path.join(root_dir, 'http_action.yml'))
+            cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -349,55 +351,270 @@ class TrainingDataValidator(Validator):
             self.summary['domain'] = ["domain.yml is empty!"]
 
     @staticmethod
-    def validate_http_actions(http_actions: Dict):
+    def validate_custom_actions(actions: Dict):
+        """
+        Validates different actions supported by kairon.
+        @param actions: Action configurations.
+        @return: Set this flag to false to prevent raising exceptions.
+        """
+        is_data_invalid = False
+        component_count = {
+            'http_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'email_actions': 0,
+            'google_search_actions': 0, 'jira_actions': 0, 'zendesk_actions': 0
+        }
+        error_summary = {
+            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
+            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': []
+        }
+        if not actions:
+            return True, error_summary, component_count
+        if not isinstance(actions, dict):
+            error_summary = {
+                'http_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'slot_set_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'form_validation_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'email_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'google_search_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'jira_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'zendesk_actions': ['Invalid action configuration format. Dictionary expected.']
+            }
+            return False, error_summary, component_count
+        for action_type, actions_list in actions.items():
+            if action_type == ActionType.http_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_http_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['http_actions'] = errors
+                component_count['http_actions'] = len(actions_list)
+            elif action_type == ActionType.slot_set_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_slot_set_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['slot_set_actions'] = errors
+                component_count['slot_set_actions'] = len(actions_list)
+            elif action_type == ActionType.form_validation_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_form_validation_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['form_validation_actions'] = errors
+                component_count['form_validation_actions'] = len(actions_list)
+            elif action_type == ActionType.email_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_email_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['email_actions'] = errors
+                component_count['email_actions'] = len(actions_list)
+            elif action_type == ActionType.google_search_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_google_search_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['google_search_actions'] = errors
+                component_count['google_search_actions'] = len(actions_list)
+            elif action_type == ActionType.jira_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_jira_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['jira_actions'] = errors
+                component_count['jira_actions'] = len(actions_list)
+            elif action_type == ActionType.zendesk_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_zendesk_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['zendesk_actions'] = errors
+                component_count['zendesk_actions'] = len(actions_list)
+
+        return is_data_invalid, error_summary, component_count
+
+    @staticmethod
+    def __validate_slot_set_actions(slot_set_actions: list):
+        """
+        Validates slot set actions.
+        @param slot_set_actions: Slot set actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in SlotSetAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in slot_set_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['type'] not in {s_type.value for s_type in SLOT_SET_TYPE}:
+                    data_error.append(f'Invalid action type: {action["type"]}')
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_form_validation_actions(form_actions: list):
+        """
+        Validates form validation actions.
+        @param form_actions: Form validation actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in FormValidationAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in form_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found in action: {action.get("name")}')
+                    continue
+                if action.get('validation_semantic') and not isinstance(action['validation_semantic'], dict):
+                    data_error.append(f'Invalid validation semantic: {action["name"]}')
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_jira_actions(jira_actions: list):
+        """
+        Validates jira actions.
+        @param jira_actions: Jira actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in JiraAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in jira_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['issue_type'] == 'Subtask' and not action.get('parent_key'):
+                    data_error.append(f'parent_key is required for issue_type Subtask: {action["name"]}')
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_google_search_actions(google_actions: list):
+        """
+        Validates Google search actions.
+        @param google_actions: Google search actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in GoogleSearchAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in google_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                try:
+                    if action.get("num_results"):
+                        int(action["num_results"])
+                except ValueError:
+                    data_error.append(f'int value required for num_results in action: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_zendesk_actions(zendesk_actions: list):
+        """
+        Validates Zendesk actions.
+        @param zendesk_actions: Zendesk actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in ZendeskAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in zendesk_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_email_actions(email_actions: list):
+        """
+        Validates Email actions.
+        @param email_actions: Email actions.
+        """
+        data_error = []
+        actions_present = set()
+        required_fields = {k for k, v in EmailActionConfig._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in email_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("action_name")}')
+                    continue
+                if action['action_name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["action_name"]}')
+                actions_present.add(action["action_name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_http_actions(http_actions: Dict):
         """
         Validates http actions.
         @param http_actions: Http actions as dict.
-        @return: Set this flag to false to prevent raising exceptions.
         """
-        required_fields = ['action_name', 'response', 'http_url', 'request_method']
-        action_names = []
+        required_fields = {k for k, v in HttpActionConfig._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        action_present = set()
         data_error = []
+        action_param_types = {a_type.value for a_type in ActionParameterType}
 
-        if not http_actions or not http_actions.get('http_actions'):
-            return
-
-        actions = http_actions.get('http_actions')
-        for http_obj in actions:
+        for http_obj in http_actions:
             if all(name in http_obj for name in required_fields):
                 if (not http_obj.get('request_method') or
                         http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}):
                     data_error.append('Invalid request method: ' + http_obj['action_name'])
 
-                if http_obj['action_name'] not in action_names:
-
-                    if http_obj.get('params_list'):
-                        for param in http_obj.get('params_list'):
-                            if not param.get('key'):
-                                data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
-                                continue
-                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id', 'user_message'}:
-                                data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
-                                continue
-                            if param.get('parameter_type') == 'slot' and not param.get('value'):
-                                param['value'] = param.get('key')
-
-                    if http_obj.get('headers'):
-                        for param in http_obj.get('headers'):
-                            if not param.get('key'):
-                                data_error.append('Invalid headers for http action: ' + http_obj['action_name'])
-                                continue
-                            if param.get('parameter_type') not in {'slot', 'value', 'sender_id', 'user_message'}:
-                                data_error.append('Invalid headers for http action: ' + http_obj['action_name'])
-                                continue
-                            if param.get('parameter_type') == 'slot' and not param.get('value'):
-                                param['value'] = param.get('key')
-
-                    action_names.append(http_obj['action_name'])
-                else:
+                if http_obj['action_name'] in action_present:
                     data_error.append("Duplicate http action found: " + http_obj['action_name'])
+                action_present.add(http_obj['action_name'])
+
+                if http_obj.get('params_list'):
+                    for param in http_obj.get('params_list'):
+                        if not param.get('key'):
+                            data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
+                            continue
+                        if param.get('parameter_type') not in action_param_types:
+                            data_error.append('Invalid params_list for http action: ' + http_obj['action_name'])
+                            continue
+                        if param.get('parameter_type') == 'slot' and not param.get('value'):
+                            param['value'] = param.get('key')
+
+                if http_obj.get('headers'):
+                    for param in http_obj.get('headers'):
+                        if not param.get('key'):
+                            data_error.append('Invalid headers for http action: ' + http_obj['action_name'])
+                            continue
+                        if param.get('parameter_type') not in action_param_types:
+                            data_error.append('Invalid headers for http action: ' + http_obj['action_name'])
+                            continue
+                        if param.get('parameter_type') == 'slot' and not param.get('value'):
+                            param['value'] = param.get('key')
             else:
-                data_error.append("Required http action fields not found")
+                data_error.append(f"Required http action fields {required_fields} not found")
         return data_error
 
     @staticmethod
@@ -408,18 +625,17 @@ class TrainingDataValidator(Validator):
         except Exception as e:
             raise AppException(f"Failed to load domain.yml. Error: '{e}'")
 
-    def validate_custom_actions(self, raise_exception: bool = True):
+    def validate_actions(self, raise_exception: bool = True):
         """
-        Validate http actions.
+        Validate different types of actions.
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
-        self.component_count['http_actions'] = len(self.http_actions.get('http_actions')) \
-            if self.http_actions and self.http_actions.get('http_actions') else 0
-        errors = TrainingDataValidator.validate_http_actions(self.http_actions)
-        self.summary['http_actions'] = errors
-        if errors and raise_exception:
-            raise AppException("Invalid http_actions.yml. Check logs!")
+        is_data_invalid, summary, component_count = TrainingDataValidator.validate_custom_actions(self.actions)
+        self.component_count.update(component_count)
+        self.summary.update(summary)
+        if not is_data_invalid and raise_exception:
+            raise AppException("Invalid actions.yml. Check logs!")
 
     def validate_training_data(self, raise_exception: bool = True):
         """
@@ -431,7 +647,7 @@ class TrainingDataValidator(Validator):
             self.verify_story_structure(raise_exception)
             self.verify_domain_validity()
             self.verify_nlu(raise_exception)
-            self.validate_custom_actions(raise_exception)
+            self.validate_actions(raise_exception)
             self.validate_config(raise_exception)
         except Exception as e:
             logger.error(str(e))

@@ -91,7 +91,7 @@ class TestUtility:
     @pytest.fixture()
     def resource_validate_only_http_actions(self):
         bot_data_home_dir = tempfile.mkdtemp()
-        shutil.copy2('tests/testing_data/yml_training_files/http_action.yml', bot_data_home_dir)
+        shutil.copy2('tests/testing_data/yml_training_files/actions.yml', bot_data_home_dir)
         pytest.bot_data_home_dir = bot_data_home_dir
         yield "resource_validate_only_http_actions"
         shutil.rmtree(bot_data_home_dir)
@@ -118,13 +118,13 @@ class TestUtility:
         domain_path = 'tests/testing_data/yml_training_files/domain.yml'
         nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
         stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
-        http_action_path = 'tests/testing_data/yml_training_files/http_action.yml'
+        http_action_path = 'tests/testing_data/yml_training_files/actions.yml'
         rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
         pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
         pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
         pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
-        pytest.http_actions = UploadFile(filename="http_action.yml", file=BytesIO(open(http_action_path, 'rb').read()))
+        pytest.http_actions = UploadFile(filename="actions.yml", file=BytesIO(open(http_action_path, 'rb').read()))
         pytest.rules = UploadFile(filename="rules.yml", file=BytesIO(open(rules_path, 'rb').read()))
         pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
         yield "resource_save_and_validate_training_files"
@@ -142,7 +142,7 @@ class TestUtility:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        http_action = UploadFile(filename="http_action.yml", file=BytesIO(http_action_content))
+        http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
@@ -201,9 +201,9 @@ class TestUtility:
         assert os.path.exists(training_data_path)
 
     def test_read_yaml(self):
-        path = 'tests/testing_data/yml_training_files/http_action.yml'
+        path = 'tests/testing_data/yml_training_files/actions.yml'
         content = Utility.read_yaml(path)
-        assert len(content['http_actions']) == 5
+        assert len(content['http_action']) == 5
 
     def test_read_yaml_not_found_exception(self):
         path = 'tests/testing_data/yml_training_files/path_not_found.yml'
@@ -328,7 +328,7 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'http_actions', 'config', 'domain'} == requirements
+        assert {'actions', 'config', 'domain'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
@@ -336,11 +336,11 @@ class TestUtility:
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'http_actions', 'config', 'stories', 'nlu', 'http_actions'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'http_actions', 'domain', 'stories', 'nlu', 'http_actions'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):
@@ -385,7 +385,7 @@ class TestUtility:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'http_action.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
 
     @pytest.mark.asyncio

@@ -53,7 +53,7 @@ class TestDataImporter:
     @pytest.mark.asyncio
     async def test_validate_all_including_http_actions(self):
         path = 'tests/testing_data/validator/valid'
-        http_actions = 'tests/testing_data/error/http_action.yml'
+        http_actions = 'tests/testing_data/error/actions.yml'
         bot = 'test_data_import'
         user = 'test'
         bot_home = os.path.join(pytest.tmp_dir, bot, str(uuid.uuid4()))
@@ -64,7 +64,7 @@ class TestDataImporter:
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
-        assert summary.get('http_actions')[0] == 'Required http action fields not found'
+        assert 'Required http action' in summary.get('http_actions')[0]
         assert not summary.get('training_examples')
         assert not summary.get('domain')
         assert not summary.get('config')

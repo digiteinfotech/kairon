@@ -1,6 +1,5 @@
-http_actions:
+http_action:
 - action_name: action_performanceUser1001@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
   params_list:
   - key: testParam1
@@ -9,22 +8,23 @@ http_actions:
   - key: testParam2
     parameter_type: slot
     value: testValue1
+  headers:
+    - key: authorization
+      parameter_type: value
+      value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
+    - key: sender
+      parameter_type: sender_id
   request_method: GET
   response: json
 - action_name: action_performanceUser1000@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
   params_list:
-  - key: testParam1
-    parameter_type: value
-    value: testValue1
-  - key: testParam2
+  - key: authorization
     parameter_type: slot
-    value: testValue1
+    value: authorization
   request_method: GET
   response: json
 - action_name: action_performanceUser999@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
   params_list:
   - key: testParam1
@@ -36,7 +36,6 @@ http_actions:
   request_method: GET
   response: json
 - action_name: action_performanceUser998@digite.com
-  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
   http_url: http://www.alphabet.com
   params_list:
   - key: testParam1

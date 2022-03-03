@@ -223,6 +223,12 @@ class GoogleSearchAction(Document):
 
     def clean(self):
         self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.failure_response):
+            self.failure_response = 'I have failed to process your request.'
+        try:
+            self.num_results = int(self.num_results)
+        except ValueError:
+            self.num_results = 1
 
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
@@ -295,3 +301,10 @@ class ZendeskAction(Document):
     def pre_save_post_validation(cls, sender, document, **kwargs):
         document.user_name = Utility.encrypt_message(document.user_name)
         document.api_token = Utility.encrypt_message(document.api_token)
+
+
+from mongoengine import signals
+signals.pre_save_post_validation.connect(GoogleSearchAction.pre_save_post_validation, sender=GoogleSearchAction)
+signals.pre_save_post_validation.connect(EmailActionConfig.pre_save_post_validation, sender=EmailActionConfig)
+signals.pre_save_post_validation.connect(JiraAction.pre_save_post_validation, sender=JiraAction)
+signals.pre_save_post_validation.connect(ZendeskAction.pre_save_post_validation, sender=ZendeskAction)

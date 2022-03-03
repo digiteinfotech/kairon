@@ -129,8 +129,8 @@ class MongoProcessor:
         stories = self.load_stories(bot)
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
-        http_action = self.load_http_action(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, http_action)
+        actions = self.load_action_configurations(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -164,7 +164,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            http_actions_yml = os.path.join(path, 'http_action.yml')
+            actions_yml = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -172,10 +172,10 @@ class MongoProcessor:
             story_graph = await importer.get_stories()
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
-            http_actions = Utility.read_yaml(http_actions_yml)
-            TrainingDataValidator.validate_http_actions(http_actions)
+            actions = Utility.read_yaml(actions_yml)
+            TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, overwrite,
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
                                     REQUIREMENTS.copy())
         except InvalidDomain as e:
             logging.exception(e)
@@ -188,13 +188,13 @@ class MongoProcessor:
             raise AppException(e)
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
-                           story_graph: StoryGraph = None, nlu: TrainingData = None, http_actions: dict = None,
+                           story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
-        if 'http_actions' in what:
-            self.save_http_action(http_actions, bot, user)
+        if 'actions' in what:
+            self.save_integrated_actions(actions, bot, user)
         if 'domain' in what:
             self.save_domain(domain, bot, user)
         if 'stories' in what:
@@ -253,7 +253,7 @@ class MongoProcessor:
             self.delete_config(bot, user)
         if 'rules' in what:
             self.delete_rules(bot, user)
-        if 'http_actions' in what:
+        if 'actions' in what:
             self.delete_http_action(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
@@ -2843,7 +2843,11 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([HttpActionConfig], bot=bot)
+        Utility.hard_delete_document([
+            HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
+            ZendeskAction
+        ], bot=bot)
+        Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
@@ -2870,51 +2874,48 @@ class MongoProcessor:
     def get_rules_for_training(self, bot: Text):
         return StoryGraph(list(self.__get_rules(bot)))
 
-    def save_http_action(self, http_action: dict, bot: Text, user: Text):
+    def save_integrated_actions(self, actions: dict, bot: Text, user: Text):
         """
-        saves http actions data
-        :param http_action: http actions
+        Saves different actions config data
+        :param actions: action configurations of different types
         :param bot: bot id
         :param user: user id
         :return: None
         """
-
-        if not http_action or not http_action.get('http_actions'):
+        if not actions:
             return
+        document_types = {
+            ActionType.http_action.value: HttpActionConfig,
+            ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
+            ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
+            ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
+        }
+        saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
+        for action_type, actions_list in actions.items():
+            for action in actions_list:
+                action_name = action.get('name') or action.get('action_name')
+                action_name = action_name.lower()
+                if document_types.get(action_type) and action_name not in saved_actions:
+                    action['bot'] = bot
+                    action['user'] = user
+                    document_types[action_type](**action).save()
+                    self.add_action(action_name, bot, user, action_type=action_type, raise_exception=False)
 
-        saved_http_actions = set([action['action_name'] for action in self.list_http_actions(bot)])
-
-        actions_data = http_action['http_actions']
-        for actions in actions_data:
-            if actions['action_name'].strip().lower() not in saved_http_actions:
-                action_name = str(actions['action_name'])
-                http_obj = HttpActionConfig()
-                http_obj.bot = bot
-                http_obj.user = user
-                http_obj.action_name = action_name
-                http_obj.http_url = actions['http_url']
-                http_obj.response = actions['response']
-                http_obj.request_method = actions['request_method']
-                if actions.get('params_list'):
-                    request_body_list = []
-                    for parameters in actions['params_list']:
-                        request_body = HttpActionRequestBody()
-                        request_body.key = parameters.get('key')
-                        request_body.value = parameters.get('value')
-                        request_body.parameter_type = parameters.get('parameter_type')
-                        request_body_list.append(request_body)
-                    http_obj.params_list = request_body_list
-                if actions.get('headers'):
-                    request_body_list = []
-                    for parameters in actions['headers']:
-                        request_body = HttpActionRequestBody()
-                        request_body.key = parameters.get('key')
-                        request_body.value = parameters.get('value')
-                        request_body.parameter_type = parameters.get('parameter_type')
-                        request_body_list.append(request_body)
-                    http_obj.header = request_body_list
-                http_obj.save()
-                self.add_action(action_name, bot, user, action_type=ActionType.http_action.value, raise_exception=False)
+    def load_action_configurations(self, bot: Text):
+        """
+        loads configurations of all types of actions from the database
+        :param bot: bot id
+        :return: dict of action configuations of all types.
+        """
+        action_config = {}
+        action_config.update(self.load_http_action(bot))
+        action_config.update(self.load_jira_action(bot))
+        action_config.update(self.load_email_action(bot))
+        action_config.update(self.load_zendesk_action(bot))
+        action_config.update(self.load_form_validation_action(bot))
+        action_config.update(self.load_slot_set_action(bot))
+        action_config.update(self.load_google_search_action(bot))
+        return action_config
 
     def load_http_action(self, bot: Text):
         """
@@ -2922,18 +2923,76 @@ class MongoProcessor:
         :param bot: bot id
         :return: dict
         """
-        action_list = []
-        for obj in HttpActionConfig.objects(bot=bot, status=True):
-            item = obj.to_mongo().to_dict()
-            http_dict = {"action_name": item["action_name"], "response": item["response"], "http_url": item["http_url"],
-                         "request_method": item["request_method"]}
-            if item.get('headers'):
-                http_dict['headers'] = item['headers']
-            if item.get('params_list'):
-                http_dict['params_list'] = item['params_list']
-            action_list.append(http_dict)
-        http_action = {"http_actions": action_list} if action_list else {}
-        return http_action
+        http_actions = []
+        for action in HttpActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            config = {
+                "action_name": action["action_name"], "response": action["response"], "http_url": action["http_url"],
+                "request_method": action["request_method"]
+            }
+            if action.get('headers'):
+                config['headers'] = action['headers']
+            if action.get('params_list'):
+                config['params_list'] = action['params_list']
+            http_actions.append(config)
+        return {ActionType.http_action.value: http_actions}
+
+    def load_email_action(self, bot: Text):
+        """
+        Loads email actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.email_action.value: list(self.list_email_action(bot, False))}
+
+    def load_jira_action(self, bot: Text):
+        """
+        Loads JIRA actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.jira_action.value: list(self.list_jira_actions(bot, False))}
+
+    def load_google_search_action(self, bot: Text):
+        """
+        Loads Google search action from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.google_search_action.value: list(self.list_google_search_actions(bot, False))}
+
+    def load_zendesk_action(self, bot: Text):
+        """
+        Loads Zendesk actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.zendesk_action.value: list(self.list_zendesk_actions(bot, False))}
+
+    def load_slot_set_action(self, bot: Text):
+        """
+        Loads Slot set actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.slot_set_action.value: list(self.list_slot_set_actions(bot))}
+
+    def load_form_validation_action(self, bot: Text):
+        """
+        Loads Form validation actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        form_validations = []
+        for action in FormValidationAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action.pop('_id')
+            action.pop('bot')
+            action.pop('user')
+            action.pop('timestamp')
+            action.pop('status')
+            form_validations.append(action)
+        return {ActionType.form_validation_action.value: form_validations}
 
     @staticmethod
     def get_existing_slots(bot: Text):
@@ -2965,7 +3024,7 @@ class MongoProcessor:
             status = 'Failure'
             summary = non_event_validation_summary['summary']
             component_count = non_event_validation_summary['component_count']
-            if not summary.get('http_actions') and not summary.get('config'):
+            if not non_event_validation_summary['validation_failed']:
                 status = 'Success'
             DataImporterLogProcessor.update_summary(bot, user, component_count, summary, status=status,
                                                     event_status=EVENT_STATUS.COMPLETED.value)
@@ -2986,7 +3045,7 @@ class MongoProcessor:
         files_received = REQUIREMENTS - files_to_prepare
         is_event_data = False
 
-        if files_received.difference({'config', 'http_actions'}):
+        if files_received.difference({'config', 'actions'}):
             is_event_data = True
         else:
             non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
@@ -2996,31 +3055,32 @@ class MongoProcessor:
         """
         Saves http actions and config file.
         """
-        http_actions = None
+        actions = None
         config = None
+        validation_failed = False
         error_summary = {}
         component_count = COMPONENT_COUNT.copy()
-        actions_path = os.path.join(data_home_dir, 'http_action.yml')
+        actions_path = os.path.join(data_home_dir, 'actions.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
         if os.path.exists(actions_path):
-            http_actions = Utility.read_yaml(actions_path)
-            errors = TrainingDataValidator.validate_http_actions(http_actions)
-            error_summary['http_actions'] = errors
+            actions = Utility.read_yaml(actions_path)
+            validation_failed, error_summary, actions_count = TrainingDataValidator.validate_custom_actions(actions)
+            component_count.update(actions_count)
         if os.path.exists(config_path):
             config = Utility.read_yaml(config_path)
             errors = TrainingDataValidator.validate_rasa_config(config)
             error_summary['config'] = errors
 
-        if not error_summary.get('http_actions') and not error_summary.get('config'):
+        if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
-            if http_actions:
-                files_to_save.add('http_actions')
-                component_count['http_actions'] = len(http_actions.get('http_actions'))
+            if actions and set(actions.keys()).intersection({a_type.value for a_type in ActionType}):
+                files_to_save.add('actions')
             if config:
                 files_to_save.add('config')
-            self.save_training_data(bot, user, http_actions=http_actions, config=config,
-                                    overwrite=overwrite, what=files_to_save)
-        return {'summary': error_summary, 'component_count': component_count}
+            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save)
+        else:
+            validation_failed = True
+        return {'summary': error_summary, 'component_count': component_count, 'validation_failed': validation_failed}
 
     def prepare_training_data_for_validation(self, bot: Text, bot_data_home_dir: str = None,
                                              which: set = REQUIREMENTS.copy()):

@@ -345,7 +345,7 @@ class AccountProcessor:
         :return: user details
         """
         try:
-            return User.objects().get(email=email).to_mongo().to_dict()
+            return User.objects().get(email__iexact=email).to_mongo().to_dict()
         except Exception as e:
             logging.error(e)
             raise DoesNotExist("User does not exist!")
