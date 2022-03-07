@@ -11,7 +11,7 @@ from fastapi import File
 from fastapi.background import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
-from mongoengine.errors import ValidationError, DoesNotExist
+from mongoengine.errors import ValidationError
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
