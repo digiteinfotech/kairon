@@ -36,7 +36,7 @@ async def generate_integration_token(
     """
     access_token = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.get_user(), expiry=request.expiry_seconds, name=request.name,
-        access_limit=request.access_list
+        access_limit=request.access_list, role=request.role
     )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},

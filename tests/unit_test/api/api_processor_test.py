@@ -860,19 +860,20 @@ class TestAccountProcessor:
         bot = 'test'
         user = 'test_user'
         with pytest.raises(NotImplementedError):
-            Authentication.generate_integration_token(bot, user, token_type=TOKEN_TYPE.LOGIN.value)
+            Authentication.generate_integration_token(bot, user, token_type=TOKEN_TYPE.LOGIN.value, role='chat')
 
     def test_generate_integration_token(self):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
-        token = Authentication.generate_integration_token(bot, user, name='integration_token')
+        token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        assert payload.get('role') == 'chat'
         assert not payload.get('exp')
 
     def test_generate_integration_token_different_bot(self):
@@ -880,25 +881,27 @@ class TestAccountProcessor:
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
-        token = Authentication.generate_integration_token(bot, user, name='integration_token')
+        token = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert not payload.get('exp')
+        assert payload.get('role') == 'tester'
 
     def test_generate_integration_token_with_expiry(self):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
-        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry')
+        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry', role='designer')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        assert payload.get('role') == 'designer'
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp-iat).total_seconds() / 60) == 15
@@ -910,7 +913,7 @@ class TestAccountProcessor:
         algorithm = Utility.environment['security']["algorithm"]
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         access_limit = ['/api/bot/endpoint']
-        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, name='integration_token_with_access_limit')
+        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, name='integration_token_with_access_limit', role='admin')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -918,6 +921,7 @@ class TestAccountProcessor:
         pytest.integration_iat = payload.get('iat')
         assert payload.get('access-limit') == access_limit
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
+        assert payload.get('role') == 'admin'
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp - iat).total_seconds() / 60) == 15
@@ -927,13 +931,13 @@ class TestAccountProcessor:
         user = 'test_user'
         monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
         with pytest.raises(AppException, match='Integration token with this name has already been initiated'):
-            Authentication.generate_integration_token(bot, user, name='integration_token')
+            Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
 
     def test_generate_integration_token_limit_exceeded(self):
         bot = 'test'
         user = 'test_user'
         with pytest.raises(AppException, match='Integrations limit reached!'):
-            Authentication.generate_integration_token(bot, user, name='integration_token1')
+            Authentication.generate_integration_token(bot, user, name='integration_token1', role='chat')
 
     def test_generate_integration_token_dynamic(self):
         bot = 'test'
@@ -948,6 +952,7 @@ class TestAccountProcessor:
         assert payload.get('sub') == user
         assert payload.get('iat')
         assert payload.get('type') == TOKEN_TYPE.DYNAMIC.value
+        assert payload.get('role') == 'chat'
         assert payload.get('access-limit') == access_limit
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
@@ -967,11 +972,13 @@ class TestAccountProcessor:
         assert integrations[0]['user'] == 'test_user'
         assert integrations[0]['iat']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'chat'
         assert integrations[1]['name'] == 'integration_token_with_expiry'
         assert integrations[1]['user'] == 'test_user'
         assert integrations[1]['iat']
         assert integrations[1]['expiry']
         assert integrations[1]['status'] == 'active'
+        assert integrations[0]['role'] == 'chat'
 
         bot = 'test1'
         integrations = list(IntegrationProcessor.get_integrations(bot))
@@ -981,6 +988,7 @@ class TestAccountProcessor:
         assert integrations[0]['expiry']
         assert integrations[0]['access_list'] == ['/api/bot/endpoint']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'admin'
 
     def test_update_integration_token_without_name(self):
         bot = 'test'
@@ -998,7 +1006,7 @@ class TestAccountProcessor:
         bot = 'test1'
         user = 'test_user'
         name = 'integration_token_with_access_limit'
-        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint']}
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint'], 'role': 'admin'}
         assert not Authentication.validate_integration_token(payload, None)
 
     def test_validate_integration_token_not_exists(self):
@@ -1025,11 +1033,13 @@ class TestAccountProcessor:
         assert integrations[0]['user'] == 'test_user'
         assert integrations[0]['iat']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'chat'
         assert integrations[1]['name'] == 'integration_token_with_expiry'
         assert integrations[1]['user'] == 'test_user'
         assert integrations[1]['iat']
         assert integrations[1]['expiry']
         assert integrations[1]['status'] == 'active'
+        assert integrations[1]['role'] == 'designer'
 
         bot = 'test1'
         integrations = list(IntegrationProcessor.get_integrations(bot))
@@ -1039,6 +1049,7 @@ class TestAccountProcessor:
         assert integrations[0]['expiry']
         assert integrations[0]['access_list'] == ['/api/bot/endpoint']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'admin'
 
     def test_update_integration_delete_integration_token_different_bot(self):
         bot = 'test_1'
@@ -1060,11 +1071,13 @@ class TestAccountProcessor:
         assert integrations[0]['user'] == 'test_user'
         assert integrations[0]['iat']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'chat'
         assert integrations[1]['name'] == 'integration_token_with_expiry'
         assert integrations[1]['user'] == 'test_user'
         assert integrations[1]['iat']
         assert integrations[1]['expiry']
         assert integrations[1]['status'] == 'active'
+        assert integrations[1]['role'] == 'designer'
 
         bot = 'test1'
         integrations = list(IntegrationProcessor.get_integrations(bot))
@@ -1096,11 +1109,13 @@ class TestAccountProcessor:
         assert integrations[0]['user'] == 'test_user'
         assert integrations[0]['iat']
         assert integrations[0]['status'] == 'active'
+        assert integrations[0]['role'] == 'chat'
         assert integrations[1]['name'] == 'integration_token_with_expiry'
         assert integrations[1]['user'] == 'test_user'
         assert integrations[1]['iat']
         assert integrations[1]['expiry']
         assert integrations[1]['status'] == 'active'
+        assert integrations[1]['role'] == 'designer'
 
         bot = 'test1'
         integrations = list(IntegrationProcessor.get_integrations(bot))

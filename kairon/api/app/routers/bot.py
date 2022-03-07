@@ -20,7 +20,7 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest
 )
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE
 from kairon.shared.data.data_objects import TrainingExamples
@@ -369,7 +369,7 @@ async def get_story_from_intent(
 @router.post("/chat", response_model=Response)
 async def chat(
         request_data: TextData,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
     Fetches a bot response for a given text/query.
@@ -385,7 +385,7 @@ async def chat(
 async def augment_chat(
         request_data: TextData,
         user: str = Path(default="default", description="user for which the chats needs to be log"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
     Fetches a bot response for a given text/query for user on path parameter.
@@ -1289,9 +1289,10 @@ async def list_entities(current_user: User = Security(Authentication.get_current
 
 
 @router.post("/channels", response_model=Response)
-async def add_channel_config(request_data: ChannelRequest,
-                             current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                           scopes=DESIGNER_ACCESS)):
+async def add_channel_config(
+        request_data: ChannelRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
     """
     Stores the channel config.
     """
@@ -1300,8 +1301,8 @@ async def add_channel_config(request_data: ChannelRequest,
 
 
 @router.get("/channels/params", response_model=Response)
-async def channels_params(current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                           scopes=DESIGNER_ACCESS)):
+async def channels_params(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
     Stores the channel config.
     """
