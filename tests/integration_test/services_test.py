@@ -7420,7 +7420,8 @@ def test_add_channel_config_error():
          'type': 'value_error'}]
 
 
-def test_add_channel_config():
+def test_add_channel_config(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
     data = {"connector_type": "slack",
             "config": {
                 "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
@@ -7434,6 +7435,19 @@ def test_add_channel_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Channel added"
+    assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
+
+
+def test_get_channel_endpoint(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/slack/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
 def test_get_channels_config():
@@ -7791,3 +7805,15 @@ def test_channels_params():
     assert "slack" in list(actual['data'].keys())
     assert ["slack_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
     assert ["slack_channel"] == actual['data']['slack']['optional_fields']
+
+
+def test_get_channel_endpoint_not_configured(monkeypatch):
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/slack/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == 'Channel not configured'

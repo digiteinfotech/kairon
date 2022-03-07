@@ -1,7 +1,12 @@
 from typing import Dict, Text
+
+from mongoengine import DoesNotExist
+
 from .data_objects import Channels
 from datetime import datetime
 from kairon.shared.utils import Utility
+from ..data.utils import DataUtility
+from ...exceptions import AppException
 
 
 class ChatDataProcessor:
@@ -24,6 +29,8 @@ class ChatDataProcessor:
         channel.user = user
         channel.timestamp = datetime.utcnow()
         channel.save()
+        channel_endpoint = DataUtility.get_channel_endpoint(channel)
+        return channel_endpoint
 
     @staticmethod
     def delete_channel_config(connector_type: Text, bot: Text):
@@ -71,3 +78,19 @@ class ChatDataProcessor:
                 config['config'][require_field] = config['config'][require_field][:-5] + '*****'
 
         return config
+
+    @staticmethod
+    def get_channel_endpoint(connector_type: Text, bot: Text):
+        """
+        fetch particular channel config for bot
+        :param connector_type: channel name
+        :param bot: bot id
+        :return: channel endpoint as string
+        """
+        try:
+            channel = Channels.objects(bot=bot, connector_type=connector_type).get()
+            channel_endpoint = DataUtility.get_channel_endpoint(channel)
+            return channel_endpoint
+        except DoesNotExist:
+            raise AppException('Channel not configured')
+

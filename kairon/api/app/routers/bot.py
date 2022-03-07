@@ -1296,8 +1296,10 @@ async def add_channel_config(
     """
     Stores the channel config.
     """
-    ChatDataProcessor.save_channel_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Channel added')
+    channel_endpoint = ChatDataProcessor.save_channel_config(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(message='Channel added', data=channel_endpoint)
 
 
 @router.get("/channels/params", response_model=Response)
@@ -1317,6 +1319,16 @@ async def list_channel_config(
     """
     config = list(ChatDataProcessor.list_channel_config(current_user.get_bot()))
     return Response(data=config)
+
+
+@router.get("/channels/{name}/endpoint", response_model=Response)
+async def get_channel_endpoint(
+        name: str = Path(default=None, description="channel name", example="slack"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    """
+    Retrieve channel endpoint.
+    """
+    return Response(data=ChatDataProcessor.get_channel_endpoint(name, current_user.get_bot()))
 
 
 @router.delete("/channels/{name}", response_model=Response)

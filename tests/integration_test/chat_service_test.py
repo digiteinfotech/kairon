@@ -46,7 +46,7 @@ ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                        "config": {
                                            "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
-                                      bot, user=user)
+                                      bot, user="test@chat.com")
 responses.start()
 responses.add("GET",
               json={"result": True},
@@ -56,12 +56,12 @@ ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                            "access_token": "xoxb-801939352912-801478018484",
                                            "webhook_url": "https://test@test.com/api/bot/telegram/tests/test",
                                            "bot_name": "test"}},
-                                      bot, user=user)
+                                      bot, user="test@chat.com")
 ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                        "config": {
                                            "project_id": "1234568"}
                                        },
-                                      bot, user=user)
+                                      bot, user="test@chat.com")
 responses.stop()
 
 
