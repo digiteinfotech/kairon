@@ -81,7 +81,6 @@ channels:
   telegram:
     required_fields:
       - access_token
-      - webhook_url
       - bot_name
     api:
       url: https://api.telegram.org

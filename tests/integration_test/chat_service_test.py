@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from urllib.parse import urlencode, quote_plus
 
 from mock import patch
 from mongoengine import connect
@@ -48,15 +49,23 @@ ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                       bot, user="test@chat.com")
 responses.start()
+encoded_url = urlencode({'url': f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus)
 responses.add("GET",
               json={"result": True},
-              url="https://api.telegram.org/botxoxb-801939352912-801478018484/setWebhook?url=https://test@test.com/api/bot/telegram/tests/test")
-ChatDataProcessor.save_channel_config({"connector_type": "telegram",
-                                       "config": {
-                                           "access_token": "xoxb-801939352912-801478018484",
-                                           "webhook_url": "https://test@test.com/api/bot/telegram/tests/test",
-                                           "bot_name": "test"}},
-                                      bot, user="test@chat.com")
+              url=f"https://api.telegram.org/botxoxb-801939352912-801478018484/setWebhook?{encoded_url}")
+Utility.environment['model']['agent']['url'] = 'https://test@test.com/api/bot/telegram/tests/test'
+
+
+def __mock_endpoint(*args):
+    return f"https://test@test.com/api/bot/telegram/{bot}/test"
+
+
+with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+    ChatDataProcessor.save_channel_config({"connector_type": "telegram",
+                                           "config": {
+                                               "access_token": "xoxb-801939352912-801478018484",
+                                               "bot_name": "test"}},
+                                          bot, user="test@chat.com")
 ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                        "config": {
                                            "project_id": "1234568"}

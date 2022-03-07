@@ -412,15 +412,16 @@ class DataUtility:
         return synonyms
 
     @staticmethod
-    def get_channel_endpoint(channel_config: Channels):
+    def get_channel_endpoint(channel_config: dict):
         from kairon.shared.auth import Authentication
         token = Authentication.generate_integration_token(
-            channel_config.bot, channel_config.user, role=ACCESS_ROLES.CHAT.value, access_limit=['/api/bot/.+/chat'],
+            channel_config['bot'], channel_config['user'], role=ACCESS_ROLES.CHAT.value,
+            access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
         channel_endpoint = urljoin(
             Utility.environment['model']['agent']['url'],
-            f"/api/bot/{channel_config.connector_type}/{channel_config.bot}/{token}"
+            f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/{token}"
         )
         return channel_endpoint
 
