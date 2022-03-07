@@ -18,7 +18,6 @@ from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
-from ..chat.data_objects import Channels
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
