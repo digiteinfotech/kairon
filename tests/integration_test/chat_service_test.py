@@ -408,7 +408,6 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
 
-
     def test_messenger_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
