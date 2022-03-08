@@ -12,16 +12,9 @@ class KaironSSO(SSOBase):
         """This method should be called from callback endpoint to verify the user and request user info endpoint.
         This is low level, you should use {verify_and_process} instead.
         """
-        url = request.url
-        scheme = url.scheme
-        if not self.allow_insecure_http and scheme != "https":
-            current_url = str(url).replace("http://", "https://")
-        else:
-            current_url = str(url)
         current_path = self.redirect_uri
-
         token_url, headers, body = self.oauth_client.prepare_token_request(
-            await self.token_endpoint, authorization_response=current_url, redirect_url=current_path, code=code
+            await self.token_endpoint, authorization_response=current_path, redirect_url=current_path, code=code
         )  # type: ignore
 
         if token_url is None:
