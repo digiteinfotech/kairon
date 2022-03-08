@@ -349,11 +349,11 @@ class MessengerHandler(InputChannel, BaseHandler):
             return
 
     async def post(self, bot: str, token: str):
-        # super().authenticate_channel(token, bot, self.request)
-        # messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
+        super().authenticate_channel(token, bot, self.request)
+        messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
 
-        fb_secret = "cdb69bc72e2ccb7a869f20cbb6b0229a"  # messenger_conf["config"]["app_secret"]
-        page_access_token = "EAAGa50I7D7cBANbXNPrhx7aj0BxFuxB63krNprFKapoOKUclnWBtXTBNdYaPaATlzkn41GzDCXzYKzm1CJYVd13DsW5Q48BU7Yu7asCHFnzXUagNvkfCl2nEDfkSWjRtUZB7DFRp8wq6N2ttMpCtA8BFlKVL1LorhcdMOHg7fe9J1nGAmucSDRsxkSiH24w6tULC0bQZDZD"  # messenger_conf["config"]["page_access_token"]
+        fb_secret = messenger_conf["config"]["app_secret"]
+        page_access_token = messenger_conf["config"]["page_access_token"]
 
         signature = self.request.headers.get("X-Hub-Signature") or ""
         if not self.validate_hub_signature(fb_secret, self.request.body, signature):

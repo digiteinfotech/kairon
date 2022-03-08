@@ -450,4 +450,3 @@ class TestChatServer(AsyncHTTPTestCase):
             }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
-        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
