@@ -4,7 +4,7 @@ from typing import Optional, Dict
 import httpx
 from fastapi_sso.sso.base import OpenID, SSOBase
 from starlette.requests import Request
-
+from loguru import logger as logging
 from kairon.exceptions import AppException
 
 
@@ -81,8 +81,11 @@ class LinkedinSSO(SSOBase):
 
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
+            logging.debug(f'redirect_uri: {current_path}')
+            logging.debug(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
+            logging.debug(f'response: {content}')
             self.oauth_client.parse_request_body_response(json.dumps(content))
 
             uri, headers, _ = self.oauth_client.add_token(await self.userinfo_endpoint)
