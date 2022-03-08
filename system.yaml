@@ -89,3 +89,8 @@ channels:
     required_fields:
       - project_id
 
+  messenger:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verity_token
