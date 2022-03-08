@@ -1,11 +1,11 @@
 from urllib.parse import urljoin
 
-from fastapi_sso.sso.google import GoogleSSO
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import SSO_TYPES
 from kairon.shared.sso.base import BaseSSO
+from kairon.shared.sso.clients.google import GoogleSSO
 
 
 class GoogleSSOClient(BaseSSO):

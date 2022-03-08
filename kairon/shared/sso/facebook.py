@@ -1,11 +1,11 @@
 from urllib.parse import urljoin
 
-from fastapi_sso.sso.facebook import FacebookSSO
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import SSO_TYPES
 from kairon.shared.sso.base import BaseSSO
+from kairon.shared.sso.clients.facebook import FacebookSSO
 
 
 class FacebookSSOClient(BaseSSO):

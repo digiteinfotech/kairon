@@ -6651,7 +6651,7 @@ def test_sso_redirect_url_not_enabled():
 
 
 def test_sso_redirect_url(monkeypatch):
-    discovery_url = 'https://discovery.url.localhost/o/oauth2/v2/auth?response_type=code&client_id'
+    discovery_url = 'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id='
 
     async def _mock_get_discovery_doc(*args, **kwargs):
         return {'authorization_endpoint': discovery_url}
