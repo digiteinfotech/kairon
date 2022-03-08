@@ -6,6 +6,7 @@ from .handlers.action import ChatHandler, ReloadHandler
 from .handlers.channels.slack import SlackHandler
 from .handlers.channels.telegram import TelegramHandler
 from .handlers.channels.hangouts import HangoutHandler
+from .handlers.channels.messenger import MessengerHandler
 from ..shared.utils import Utility
 from loguru import logger
 from mongoengine import connect
@@ -19,6 +20,7 @@ def make_app():
         (r"/api/bot/slack/([^/]+)/([^/]+)", SlackHandler),
         (r"/api/bot/telegram/([^/]+)/([^/]+)", TelegramHandler),
         (r"/api/bot/hangout/([^/]+)/([^/]+)", HangoutHandler),
+        (r"/api/bot/messenger/([^/]+)/([^/]+)", MessengerHandler),
         (r"/api/bot/([^/]+)/reload", ReloadHandler),
     ], compress_response=True, debug=False)
 
