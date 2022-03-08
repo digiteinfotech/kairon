@@ -71,6 +71,16 @@ ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                            "project_id": "1234568"}
                                        },
                                       bot, user="test@chat.com")
+
+ChatDataProcessor.save_channel_config({"connector_type": "messenger",
+                                       "config": {
+                                           "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                                           "page_access_token": "EAAGa50I7D7cBANbXNPrhx7aj0BxFuxB63krNprFKapoOKUclnWBtXTBNdYaPaATlzkn41GzDCXzYKzm1CJYVd13DsW5Q48BU7Yu7asCHFnzXUagNvkfCl2nEDfkSWjRtUZB7DFRp8wq6N2ttMpCtA8BFlKVL1LorhcdMOHg7fe9J1nGAmucSDRsxkSiH24w6tULC0bQZDZD",
+                                           "callback_url": "https://test@test.com/api/bot/messenger/tests/test",
+                                           "verity_token": "kairon-messenger-token",
+                                       }
+                                       },
+                                      bot, user="test@chat.com")
 responses.stop()
 
 
@@ -398,3 +408,66 @@ class TestChatServer(AsyncHTTPTestCase):
             }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
+
+    def test_messenger_invalid_auth(self):
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/messenger/{bot}/123",
+            method="GET",
+            body=json.dumps({
+                "object": "page",
+                "entry": [{
+                    "id": "104610528288640",
+                    "time": 1646648478575,
+                    "messaging": [{
+                        "sender": {
+                            "id": "4237571439620831"
+                        },
+                        "recipient": {
+                            "id": "104610528288640"
+                        },
+                        "timestamp": 1646647205156,
+                        "message": {
+                            "mid": "m_J-gcviaJSGp427f7jzL2PBygi_iiuvCXf2eCu2qb-kr9onZGEYfSoC7TctL84humv0mbtH7GsQ0vmELAGS74Ew",
+                            "text": "hi",
+                            "nlp": {
+                                "intents": [],
+                                "entities": {
+                                    "wit$location:location": [{
+                                        "id": "624173841772436",
+                                        "name": "wit$location",
+                                        "role": "location",
+                                        "start": 0,
+                                        "end": 2,
+                                        "body": "hi",
+                                        "confidence": 0.3146,
+                                        "entities": [],
+                                        "suggested": True,
+                                        "value": "hi",
+                                        "type": "value"
+                                    }]
+                                },
+                                "traits": {
+                                    "wit$sentiment": [{
+                                        "id": "5ac2b50a-44e4-466e-9d49-bad6bd40092c",
+                                        "value": "positive",
+                                        "confidence": 0.7336
+                                    }],
+                                    "wit$greetings": [{
+                                        "id": "5900cc2d-41b7-45b2-b21f-b950d3ae3c5c",
+                                        "value": "true",
+                                        "confidence": 0.9999
+                                    }]
+                                },
+                                "detected_locales": [{
+                                    "locale": "mr_IN",
+                                    "confidence": 0.7365
+                                }]
+                            }
+                        }
+                    }]
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 500)
+        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
