@@ -4,7 +4,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import SSO_TYPES
 from kairon.shared.sso.base import BaseSSO
-from kairon.shared.sso.linkedin_client import LinkedinSSO
+from kairon.shared.sso.clients.linkedin import LinkedinSSO
 
 
 class LinkedinSSOClient(BaseSSO):

@@ -7,8 +7,6 @@ import jwt
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
-from fastapi_sso.sso.facebook import FacebookSSO
-from fastapi_sso.sso.google import GoogleSSO
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
 import pytest
@@ -25,6 +23,8 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.sso.clients.facebook import FacebookSSO
+from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from stress_test.data_objects import Bot

@@ -2,13 +2,14 @@ import json
 from typing import Optional, Dict
 
 import httpx
-from fastapi_sso.sso.base import OpenID, SSOBase
+from fastapi_sso.sso.base import OpenID
 from starlette.requests import Request
-
+from loguru import logger as logging
 from kairon.exceptions import AppException
+from kairon.shared.sso.clients.kairon import KaironSSO
 
 
-class LinkedinSSO(SSOBase):
+class LinkedinSSO(KaironSSO):
 
     """
     Class providing login via linkedin OAuth
@@ -67,10 +68,9 @@ class LinkedinSSO(SSOBase):
         scheme = url.scheme
         if not self.allow_insecure_http and scheme != "https":
             current_url = str(url).replace("http://", "https://")
-            scheme = "https"
         else:
             current_url = str(url)
-        current_path = f"{scheme}://{url.netloc}{url.path}"
+        current_path = self.redirect_uri
 
         token_url, headers, body = self.oauth_client.prepare_token_request(
             await self.token_endpoint, authorization_response=current_url, redirect_url=current_path, code=code
@@ -81,8 +81,11 @@ class LinkedinSSO(SSOBase):
 
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
+            logging.debug(f'redirect_uri: {current_path}')
+            logging.debug(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
+            logging.debug(f'response: {content}')
             self.oauth_client.parse_request_body_response(json.dumps(content))
 
             uri, headers, _ = self.oauth_client.add_token(await self.userinfo_endpoint)

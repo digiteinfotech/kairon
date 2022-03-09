@@ -9,7 +9,6 @@ from zipfile import ZipFile
 import pytest
 import responses
 from fastapi.testclient import TestClient
-from fastapi_sso.sso.google import GoogleSSO
 from jira import JIRAError
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
@@ -31,9 +30,11 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
+from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 import json
 from unittest.mock import patch
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -6828,7 +6829,7 @@ def test_sso_redirect_url_not_enabled():
 
 
 def test_sso_redirect_url(monkeypatch):
-    discovery_url = 'https://discovery.url.localhost/o/oauth2/v2/auth?response_type=code&client_id'
+    discovery_url = 'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id='
 
     async def _mock_get_discovery_doc(*args, **kwargs):
         return {'authorization_endpoint': discovery_url}
