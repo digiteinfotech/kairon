@@ -4,6 +4,8 @@ import tempfile
 from itertools import chain
 from typing import Text, List, Dict
 import uuid
+from urllib.parse import urljoin
+
 import requests
 from fastapi import File
 from fastapi.background import BackgroundTasks
@@ -13,7 +15,7 @@ from mongoengine.errors import ValidationError
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
-    REQUIREMENTS
+    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
@@ -407,6 +409,20 @@ class DataUtility:
                 if num_variations <= 0:
                     return synonyms
         return synonyms
+
+    @staticmethod
+    def get_channel_endpoint(channel_config: dict):
+        from kairon.shared.auth import Authentication
+        token = Authentication.generate_integration_token(
+            channel_config['bot'], channel_config['user'], role=ACCESS_ROLES.CHAT.value,
+            access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
+            token_type=TOKEN_TYPE.CHANNEL.value
+        )
+        channel_endpoint = urljoin(
+            Utility.environment['model']['agent']['url'],
+            f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/{token}"
+        )
+        return channel_endpoint
 
 
 class ChatHistoryUtils:

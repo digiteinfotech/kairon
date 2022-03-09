@@ -5,7 +5,7 @@ from mongoengine import (
     ListField
 )
 from mongoengine.errors import ValidationError
-from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.utils import Utility
 
 
@@ -15,6 +15,7 @@ class Integration(Document):
     user = StringField(required=True)
     iat = DateTimeField(required=True)
     expiry = DateTimeField(default=None)
+    role = StringField(required=True, choices=[role_type.value for role_type in ACCESS_ROLES])
     access_list = ListField(StringField(), default=None)
     status = StringField(required=True, choices=[i_status.value for i_status in INTEGRATION_STATUS])
 

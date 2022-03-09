@@ -1,3 +1,6 @@
+from unittest.mock import patch
+from urllib.parse import urlencode, quote_plus
+
 from kairon.shared.utils import Utility
 import pytest
 import os
@@ -97,11 +100,16 @@ class TestChat:
     @responses.activate
     def test_save_channel_config_telegram(self):
         access_token = "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"
-        webhook = "https://test@test.com/api/bot/telegram/tests/test"
+        webhook = urlencode({'url': "https://test@test.com/api/bot/telegram/tests/test"}, quote_via=quote_plus)
         responses.add("GET",
                       json={'result': True},
-                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?url={webhook}")
-        ChatDataProcessor.save_channel_config({"connector_type": "telegram",
+                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
+
+        def __mock_endpoint(*args):
+            return f"https://test@test.com/api/bot/telegram/tests/test"
+
+        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+            ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                                "config": {
                                                    "access_token": access_token,
                                                    "webhook_url": webhook,
@@ -112,15 +120,20 @@ class TestChat:
     @responses.activate
     def test_save_channel_config_telegram_invalid(self):
         access_token = "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"
-        webhook = "https://test@test.com/api/bot/telegram/tests/test"
+        webhook = {'url': "https://test@test.com/api/bot/telegram/tests/test"}
+        webhook = urlencode(webhook, quote_via=quote_plus)
         responses.add("GET",
                       json={'result': False, 'error_code': 400, 'description': "Invalid Webhook!"},
-                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?url={webhook}")
+                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
         with pytest.raises(ValidationError, match="Invalid Webhook!"):
-            ChatDataProcessor.save_channel_config({"connector_type": "telegram",
-                                                   "config": {
-                                                       "access_token": access_token,
-                                                       "webhook_url": webhook,
-                                                       "bot_name": "test"}},
-                                                  "test",
-                                                  "test")
+            def __mock_endpoint(*args):
+                return f"https://test@test.com/api/bot/telegram/tests/test"
+
+            with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+                ChatDataProcessor.save_channel_config({"connector_type": "telegram",
+                                                       "config": {
+                                                           "access_token": access_token,
+                                                           "webhook_url": webhook,
+                                                           "bot_name": "test"}},
+                                                      "test",
+                                                      "test")

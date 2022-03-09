@@ -1718,7 +1718,7 @@ def test_deploy_server_error(mock_endpoint):
 def test_integration_token():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 1', 'expiry_seconds': 1440},
+        json={'name': 'integration 1', 'expiry_seconds': 1440, 'role': 'designer'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2849,7 +2849,7 @@ def test_overwrite_password_for_non_matching_passwords():
 def test_add_and_delete_intents_by_integration_user():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 1'},
+        json={'name': 'integration 1', 'role': 'designer'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2895,7 +2895,7 @@ def test_add_and_delete_intents_by_integration_user():
 def test_add_non_integration_intent_and_delete_intent_by_integration_user():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 3'},
+        json={'name': 'integration 3', 'role': 'designer'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -7203,10 +7203,12 @@ def test_list_integrations_after_disable():
     assert actual["data"][0]['user'] == 'integ1@gmail.com'
     assert actual["data"][0]['iat']
     assert actual["data"][0]['status'] == 'active'
+    assert actual["data"][0]['role'] == 'designer'
     assert actual["data"][1]['name'] == 'integration 3'
     assert actual["data"][1]['user'] == 'integ1@gmail.com'
     assert actual["data"][1]['iat']
     assert actual["data"][1]['status'] == 'inactive'
+    assert actual["data"][1]['role'] == 'designer'
     assert actual["success"]
     assert actual["error_code"] == 0
 
@@ -7226,10 +7228,11 @@ def test_use_inactive_token():
 
     response = client.put(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 3', 'status': 'active'},
+        json={'name': 'integration 3', 'status': 'active', 'role': 'tester'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
 
@@ -7308,6 +7311,33 @@ def test_integration_token_from_one_bot_on_another_bot():
     assert actual["message"] == 'Access to bot is denied'
     assert not actual["success"]
     assert actual["error_code"] == 401
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/intents",
+        headers={
+            "Authorization": token["data"]["token_type"]
+                             + " "
+                             + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "['admin', 'designer', 'tester'] access is required to perform this operation on the bot"
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/chat",
+        json={'data': 'hi'},
+        headers={
+            "Authorization": token["data"]["token_type"]
+                             + " "
+                             + token["data"]["access_token"],
+            "X-USER": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["error_code"] != 401
 
 
 def test_integration_limit_reached():
@@ -7390,7 +7420,8 @@ def test_add_channel_config_error():
          'type': 'value_error'}]
 
 
-def test_add_channel_config():
+def test_add_channel_config(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
     data = {"connector_type": "slack",
             "config": {
                 "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
@@ -7404,6 +7435,19 @@ def test_add_channel_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Channel added"
+    assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
+
+
+def test_get_channel_endpoint(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/slack/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
 def test_get_channels_config():
@@ -7761,3 +7805,15 @@ def test_channels_params():
     assert "slack" in list(actual['data'].keys())
     assert ["slack_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
     assert ["slack_channel"] == actual['data']['slack']['optional_fields']
+
+
+def test_get_channel_endpoint_not_configured(monkeypatch):
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/slack/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == 'Channel not configured'

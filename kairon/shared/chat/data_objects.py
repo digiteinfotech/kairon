@@ -1,5 +1,6 @@
 from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
+
 from kairon.shared.utils import Utility
 
 
@@ -11,7 +12,12 @@ class Channels(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     def validate(self, clean=True):
+        from kairon.shared.data.utils import DataUtility
+
         Utility.validate_channel_config(self.connector_type, self.config, ValidationError)
         if self.connector_type == "telegram":
-            Utility.register_telegram_webhook(Utility.decrypt_message(self.config['access_token']), Utility.decrypt_message(self.config['webhook_url']))
+            webhook_url = DataUtility.get_channel_endpoint({
+                'bot': self.bot, 'user': self.user, 'connector_type': self.connector_type
+            })
+            Utility.register_telegram_webhook(Utility.decrypt_message(self.config['access_token']), webhook_url)
 

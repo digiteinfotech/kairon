@@ -13,7 +13,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from kairon.api.models import TokenData
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE
+from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.sso.factory import LoginSSOFactory
@@ -65,6 +65,7 @@ class Authentication:
                     )
                 user_model.is_integration_user = True
                 user_model.alias_user = alias_user
+                user_model.role = payload.get('role')
             return user_model
         except PyJWTError:
             raise credentials_exception
@@ -82,8 +83,12 @@ class Authentication:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Bot is required',
             )
-        user_role = AccountProcessor.fetch_role_for_user(user.email, bot_id)
-        if security_scopes.scopes and user_role['role'] not in security_scopes.scopes:
+        if user.is_integration_user:
+            user_role = user.role
+        else:
+            user_role = AccountProcessor.fetch_role_for_user(user.email, bot_id)
+            user_role = user_role['role']
+        if security_scopes.scopes and user_role not in security_scopes.scopes:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"{security_scopes.scopes} access is required to perform this operation on the bot",
@@ -189,8 +194,8 @@ class Authentication:
 
     @staticmethod
     def generate_integration_token(
-            bot: Text, user: Text, expiry: int = 0, access_limit: list = None, name: Text = None,
-            token_type: TOKEN_TYPE = TOKEN_TYPE.INTEGRATION.value
+            bot: Text, user: Text, role: ACCESS_ROLES = ACCESS_ROLES.CHAT.value, expiry: int = 0,
+            access_limit: list = None, name: Text = None, token_type: TOKEN_TYPE = TOKEN_TYPE.INTEGRATION.value
     ):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
@@ -198,7 +203,7 @@ class Authentication:
             raise NotImplementedError
         iat: datetime = datetime.now(tz=timezone.utc)
         iat = iat.replace(microsecond=0)
-        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type}
+        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role}
         if not Utility.check_empty_string(name):
             data.update({"name": name})
         if expiry > 0:
@@ -211,7 +216,7 @@ class Authentication:
             data['access-limit'] = access_limit
         access_token = Authentication.create_access_token(data=data, token_type=token_type)
         if token_type == TOKEN_TYPE.INTEGRATION.value:
-            IntegrationProcessor.add_integration(name, bot, user, iat, expiry, access_limit)
+            IntegrationProcessor.add_integration(name, bot, user, role, iat, expiry, access_limit)
         return access_token
 
     @staticmethod
@@ -241,10 +246,11 @@ class Authentication:
         bot = payload.get('bot')
         user = payload.get('sub')
         iat = payload.get('iat')
+        role = payload.get('role')
         if not Utility.check_empty_string(accessing_bot) and accessing_bot != bot:
             raise exception
         try:
-            IntegrationProcessor.verify_integration_token(name, bot, user, iat)
+            IntegrationProcessor.verify_integration_token(name, bot, user, iat, role)
         except Exception as e:
             logger.exception(str(e))
             raise exception
