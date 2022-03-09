@@ -12,22 +12,22 @@ class KaironSSO(SSOBase):
         """This method should be called from callback endpoint to verify the user and request user info endpoint.
         This is low level, you should use {verify_and_process} instead.
         """
+        logging.debug(f'redirect_uri: {self.redirect_uri}')
         current_path = f'{self.redirect_uri}?code={code}'
         logging.debug(f'current_path with query_params: {current_path}')
         if self.state is not None and self.use_state and request.query_params.get("state"):
             current_path = f'{current_path}&state={request.query_params.get("state")}'
         logging.debug(f'current_path with query_params: {current_path}')
         token_url, headers, body = self.oauth_client.prepare_token_request(
-            await self.token_endpoint, authorization_response=current_path, redirect_url=current_path, code=code
+            await self.token_endpoint, authorization_response=current_path, redirect_url=self.redirect_uri, code=code
         )  # type: ignore
 
         if token_url is None:
             return None
 
-        auth = httpx.BasicAuth(self.client_id, self.client_secret)
+        auth = httpx.BasicAuth(str(self.client_id), self.client_secret)
         async with httpx.AsyncClient() as session:
             logging.debug(f'token_url: {token_url}')
-            logging.debug(f'redirect_uri: {current_path}')
             logging.debug(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
