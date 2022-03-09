@@ -1,7 +1,7 @@
 import os
 import shutil
 import tempfile
-from datetime import datetime
+import uuid
 from io import BytesIO
 import pytest
 from fastapi import UploadFile
@@ -39,7 +39,7 @@ class TestUtility:
     @pytest.fixture()
     def resource_validate_files(self):
         tmp_dir = tempfile.mkdtemp()
-        bot_data_home_dir = os.path.join(tmp_dir, str(datetime.now()))
+        bot_data_home_dir = os.path.join(tmp_dir, str(uuid.uuid4()))
         shutil.copytree('tests/testing_data/yml_training_files', bot_data_home_dir)
         pytest.bot_data_home_dir = bot_data_home_dir
         yield "resource_validate_files"
@@ -225,7 +225,7 @@ class TestUtility:
         assert output == "Invalid domain.yaml:\n Error found in domain.yaml at line 6"
 
     def test_make_dirs(self, resource_make_dirs):
-        path = os.path.join(pytest.temp_path, str(datetime.now()))
+        path = os.path.join(pytest.temp_path, str(uuid.uuid4()))
         Utility.make_dirs(path)
         assert os.path.exists(path)
 

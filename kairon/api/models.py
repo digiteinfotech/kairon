@@ -472,7 +472,7 @@ class EmailActionRequest(BaseModel):
     smtp_password: str = None
     from_email: str
     subject: str
-    to_email: str
+    to_email: List[str]
     response: str
     tls: bool = False
 

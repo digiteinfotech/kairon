@@ -149,7 +149,9 @@ email_action:
   smtp_password: dfgh4567
   from_email: udit.pandey@digite.com
   subject: bot fallback
-  to_email: udit.pandey@digite.com
+  to_email:
+  - udit.pandey@digite.com
+  - ritika.gupta@digite.com
   response: email sent
   tls: False
 - action_name: email_action_2
@@ -158,5 +160,7 @@ email_action:
   smtp_password: sdfgh5678
   from_email: udit.pandey@digite.com
   subject: bot fallback
-  to_email: udit.pandey@digite.com
+  to_email:
+  - udit.pandey@digite.com
+  - ritika.gupta@digite.com
   response: email sent

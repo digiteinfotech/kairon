@@ -1950,7 +1950,7 @@ class TestActions:
                 smtp_password="test",
                 from_email="test@demo.com",
                 subject="test",
-                to_email="test@test.com",
+                to_email=["test@test.com","test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"
@@ -1975,7 +1975,7 @@ class TestActions:
                 smtp_password="test",
                 from_email="test@demo.com",
                 subject="test",
-                to_email="test@test.com",
+                to_email=["test@test.com", "test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"

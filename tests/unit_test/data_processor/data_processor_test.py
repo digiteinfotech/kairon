@@ -7441,7 +7441,7 @@ class TestTrainingDataProcessor:
                         "smtp_userid": None,
                         "smtp_password": "test",
                         "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -7538,7 +7538,7 @@ class TestTrainingDataProcessor:
                         "smtp_userid": None,
                         "smtp_password": "test",
                         "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
