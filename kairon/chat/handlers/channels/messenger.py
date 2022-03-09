@@ -162,7 +162,6 @@ class Messenger:
             logger.exception(
                 "Exception when trying to handle webhook for facebook message."
             )
-            pass
         finally:
             await out_channel.send_action(sender_id, sender_action="typing_off")
 
@@ -389,7 +388,7 @@ class MessengerHandler(InputChannel, BaseHandler):
         try:
             hash_method, hub_signature = hub_signature_header.split("=")
         except Exception:
-            pass
+            logger.exception("Validation failed for hub.signature")
         else:
             digest_module = getattr(hashlib, hash_method)
             hmac_object = hmac.new(
