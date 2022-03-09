@@ -217,7 +217,7 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
 async def app_exception_handler(request, exc):
     """ logs the AppException error detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
