@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import html
 import json
 import logging
 from http import HTTPStatus
@@ -338,7 +339,7 @@ class MessengerHandler(InputChannel, BaseHandler):
 
         if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == fb_verify:
             hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
-            self.write(hub_challenge)
+            self.write(html.escape(hub_challenge))
             return
         else:
             logger.warning(
