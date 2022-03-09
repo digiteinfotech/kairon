@@ -9,7 +9,6 @@ from zipfile import ZipFile
 import pytest
 import responses
 from fastapi.testclient import TestClient
-from fastapi_sso.sso.google import GoogleSSO
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
 from pydantic import SecretStr
@@ -29,6 +28,7 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
+from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 import json
 from unittest.mock import patch

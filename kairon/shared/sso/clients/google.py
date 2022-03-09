@@ -4,10 +4,11 @@
 from typing import Dict
 import httpx
 
-from fastapi_sso.sso.base import OpenID, SSOBase, SSOLoginError
+from fastapi_sso.sso.base import OpenID, SSOLoginError
+from kairon.shared.sso.clients.kairon import KaironSSO
 
 
-class GoogleSSO(SSOBase):
+class GoogleSSO(KaironSSO):
     """Class providing login via Facebook OAuth"""
 
     discovery_url = "https://accounts.google.com/.well-known/openid-configuration"
