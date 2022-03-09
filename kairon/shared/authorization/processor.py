@@ -4,7 +4,7 @@ from typing import Text
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.authorization.data_objects import Integration
-from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.utils import Utility
 
 
@@ -12,7 +12,7 @@ class IntegrationProcessor:
 
     @staticmethod
     def add_integration(
-            name: Text, bot: Text, user: Text, iat: datetime = datetime.utcnow(), expiry: datetime = None,
+            name: Text, bot: Text, user: Text, role: ACCESS_ROLES, iat: datetime = datetime.utcnow(), expiry: datetime = None,
             access_list: list = None
     ):
         integration_limit = Utility.environment['security'].get('integrations_per_user') or 2
@@ -25,17 +25,17 @@ class IntegrationProcessor:
             name=name, bot=bot, status__ne=INTEGRATION_STATUS.DELETED.value
         )
         Integration(
-            name=name, bot=bot, user=user, iat=iat, expiry=expiry, access_list=access_list,
+            name=name, bot=bot, user=user, role=role, iat=iat, expiry=expiry, access_list=access_list,
             status=INTEGRATION_STATUS.ACTIVE.value
         ).save()
 
     @staticmethod
-    def verify_integration_token(name: Text, bot: Text, user: Text, iat: datetime):
+    def verify_integration_token(name: Text, bot: Text, user: Text, iat: datetime, role: Text):
         if isinstance(iat, float) or isinstance(iat, int):
             iat = datetime.fromtimestamp(iat, tz=timezone.utc)
         if not Utility.is_exist(
                 Integration, raise_error=False,
-                name=name, bot=bot, user=user, iat=iat, status=INTEGRATION_STATUS.ACTIVE.value
+                name=name, bot=bot, user=user, iat=iat, role=role, status=INTEGRATION_STATUS.ACTIVE.value
         ):
             raise AppException("Could not validate credentials")
 

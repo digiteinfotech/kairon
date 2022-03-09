@@ -502,4 +502,5 @@ class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_seconds: int = 0
     access_list: list = None
+    role: ACCESS_ROLES = ACCESS_ROLES.CHAT.value
     status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value

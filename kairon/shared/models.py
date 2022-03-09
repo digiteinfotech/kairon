@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 
+from kairon.shared.data.constant import ACCESS_ROLES
+
 
 class StoryStepType(str, Enum):
     intent = "INTENT"
@@ -61,6 +63,7 @@ class User(BaseModel):
     status: bool
     alias_user: str = None
     is_integration_user: bool
+    role: ACCESS_ROLES = None
 
     def get_bot(self):
         return self.active_bot

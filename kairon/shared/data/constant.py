@@ -129,6 +129,7 @@ class ACCESS_ROLES(str, Enum):
     ADMIN = "admin"
     DESIGNER = "designer"
     TESTER = "tester"
+    CHAT = "chat"
 
 
 class ACTIVITY_STATUS(str, Enum):
@@ -148,6 +149,7 @@ class TOKEN_TYPE(str, Enum):
     INTEGRATION = "integration"
     LOGIN = "login"
     DYNAMIC = "dynamic"
+    CHANNEL = "channel"
 
 
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
