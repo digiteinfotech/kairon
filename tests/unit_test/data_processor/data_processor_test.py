@@ -1758,6 +1758,17 @@ class TestMongoProcessor:
         assert not Entities.objects(name='color', bot=bot, user=user, status=True)
         assert slot.status is False
 
+    def test_delete_slot_default_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='bot', bot=bot, user=user)
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='kairon_action_response', bot=bot, user=user)
+
     def test_delete_inexistent_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'

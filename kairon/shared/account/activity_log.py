@@ -20,7 +20,7 @@ class UserActivityLogger:
             user=email, type=UserActivityType.reset_password_request.value, timestamp__gte=datetime.utcnow().date()
         ).count()
         if reset_password_request_count >= reset_password_request_limit:
-            raise AppException(f'Password reset limit exhausted for today.')
+            raise AppException('Password reset limit exhausted for today.')
 
     @staticmethod
     def is_password_reset_within_cooldown_period(email: Text):
