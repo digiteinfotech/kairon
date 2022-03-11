@@ -66,8 +66,7 @@ ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
 ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        "config": {
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
-                                           "page_access_token": "EAAGa50I7D7cBANbXNPrhx7aj0BxFuxB63krNprFKapoOKUclnWBtXTBNdYaPaATlzkn41GzDCXzYKzm1CJYVd13DsW5Q48BU7Yu7asCHFnzXUagNvkfCl2nEDfkSWjRtUZB7DFRp8wq6N2ttMpCtA8BFlKVL1LorhcdMOHg7fe9J1nGAmucSDRsxkSiH24w6tULC0bQZDZD",
-                                           "callback_url": "https://test@test.com/api/bot/messenger/tests/test",
+                                           "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
                                            "verity_token": "kairon-messenger-token",
                                        }
                                        },
@@ -389,11 +388,13 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
 
+
     def test_messenger_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
             f"/api/bot/messenger/{bot}/123",
-            method="GET",
+            headers={"X-Hub-Signature": "invalid"},
+            method="POST",
             body=json.dumps({
                 "object": "page",
                 "entry": [{
@@ -450,3 +451,4 @@ class TestChatServer(AsyncHTTPTestCase):
             }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
+        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
