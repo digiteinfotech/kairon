@@ -667,7 +667,7 @@ class Utility:
                                     tls=True)
 
     @staticmethod
-    async def trigger_email(email: str,
+    async def trigger_email(email: List[str],
                             subject: str,
                             body: str,
                             smtp_url: str,
@@ -704,7 +704,7 @@ class Utility:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = from_addr
-        msg['To'] = email
+        msg['To'] = ",".join(email)
         msg.attach(body)
         smtp.sendmail(from_addr, email, msg.as_string())
         smtp.quit()

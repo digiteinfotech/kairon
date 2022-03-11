@@ -6961,7 +6961,7 @@ def test_add_email_action(mock_smtp):
                "smtp_userid": None,
                "smtp_password": "test",
                "from_email": "test@demo.com",
-               "to_email": "test@test.com",
+               "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -6987,7 +6987,7 @@ def test_list_email_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': 'test@test.com', 'response': 'Test Response', 'tls': False}]
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': ['test@test.com',"test1@test.com"], 'response': 'Test Response', 'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -6998,7 +6998,7 @@ def test_edit_email_action(mock_smtp):
                "smtp_userid": None,
                "smtp_password": "test",
                "from_email": "test@demo.com",
-               "to_email": "test@test.com",
+               "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -7022,7 +7022,7 @@ def test_edit_email_action_does_not_exists(mock_smtp):
                "smtp_userid": None,
                "smtp_password": "test",
                "from_email": "test@demo.com",
-               "to_email": "test@test.com",
+               "to_email":["test@test.com","test1@test.com"],
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
