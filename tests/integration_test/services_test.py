@@ -219,7 +219,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 1
+    assert len(actual['data']) == 2
     assert actual["success"]
 
 
@@ -315,7 +315,7 @@ def test_list_entities():
     actual = response.json()
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
-                                                   'priority', 'requested_slot', 'fdresponse'}
+                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response'}
     assert actual["success"]
 
 
@@ -563,7 +563,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 8
+    assert len(actual["data"]) == 9
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -651,14 +651,15 @@ def test_edit_empty_slots():
 
 
 def test_delete_slots():
-    client.post(
+    response = client.post(
         f"/api/bot/{pytest.bot}/slots",
-        json={"name": "bot", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        json={"name": "color", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    print(response.json())
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/slots/bot",
+        f"/api/bot/{pytest.bot}/slots/color",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 

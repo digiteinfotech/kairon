@@ -8,9 +8,11 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
     MailTemplates, SystemProperties, BotAccess
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
+from kairon.shared.constants import UserActivityType
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.utils import Utility
@@ -539,15 +541,20 @@ class AccountProcessor:
         email_enabled = Utility.email_conf["email"]["enable"]
 
         if email_enabled:
+            mail = mail.strip()
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+            if not Utility.is_exist(User, email__iexact=mail, status=True, raise_error=False):
                 raise AppException("Error! There is no user with the following mail id")
-            if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail.strip(), raise_error=False):
+            if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail, raise_error=False):
                 raise AppException("Error! The following user's mail is not verified")
-            token = Utility.generate_token(mail)
+            UserActivityLogger.is_password_reset_within_cooldown_period(mail)
+            UserActivityLogger.is_password_reset_request_limit_exceeded(mail)
+            token_expiry = Utility.environment['user']['reset_password_cooldown_period'] or 120
+            token = Utility.generate_token(mail, token_expiry * 60)
             user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
+            UserActivityLogger.add_log(mail, UserActivityType.reset_password_request.value)
             return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
@@ -565,10 +572,11 @@ class AccountProcessor:
             raise AppException("password cannot be empty or blank")
         email = Utility.verify_token(token)
         user = User.objects().get(email=email)
+        UserActivityLogger.is_password_reset_within_cooldown_period(email)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
-        user.password_changed = datetime.utcnow
         user.save()
+        UserActivityLogger.add_log(email, UserActivityType.reset_password.value)
         return email, user.first_name
 
     @staticmethod
