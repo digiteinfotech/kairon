@@ -100,7 +100,7 @@ class TestActionServer(AsyncHTTPTestCase):
             self.assertEqual(len(response_json['events']), 1)
             self.assertEqual(len(response_json['responses']), 1)
             self.assertEqual(response_json['events'], [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
             self.assertEqual(response_json['responses'][0]['text'],
                              "The value of 2 in red is ['red', 'buggy', 'bumpers']")
@@ -156,7 +156,7 @@ class TestActionServer(AsyncHTTPTestCase):
             self.assertEqual(len(response_json['events']), 1)
             self.assertEqual(len(response_json['responses']), 1)
             self.assertEqual(response_json['events'], [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': "I have failed to process your request"}])
             self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
 
@@ -888,7 +888,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['events']), 1)
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
-            {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': "Email Triggered"}])
         self.assertEqual(response_json['responses'][0]['text'],
                          "Email Triggered")
@@ -1024,7 +1024,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['events']), 1)
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
-            {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': "I have failed to process your request"}])
         self.assertEqual(response_json['responses'][0]['text'],
                          "I have failed to process your request")
@@ -1256,7 +1256,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
             self.assertEqual(response_json, {'events': [{
-                'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
                  }],
                 'responses': [{
@@ -1359,7 +1359,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
             self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None,
-                                                         'name': 'KAIRON_ACTION_RESPONSE',
+                                                         'name': 'kairon_action_response',
                                                          'value': 'I have failed to process your request.'}],
                                              'responses': [{'text': 'I have failed to process your request.',
                                                             'buttons': [], 'elements': [], 'custom': {}, 'template': None,
@@ -1459,7 +1459,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None,
-                                                         'name': 'KAIRON_ACTION_RESPONSE', 'value': 'I have failed to process your request.'}],
+                                                         'name': 'kairon_action_response', 'value': 'I have failed to process your request.'}],
                                              'responses': [{'text': 'I have failed to process your request.', 'buttons': [], 'elements': [],
                                                             'custom': {}, 'template': None, 'response': None,
                                                             'image': None, 'attachment': None}]})
@@ -1563,7 +1563,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': 'Successfully created'}], 'responses': [
                 {'text': 'Successfully created', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                  'response': None, 'image': None, 'attachment': None}]})
@@ -1670,7 +1670,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': 'I have failed to create issue for you'}], 'responses': [
                 {'text': 'I have failed to create issue for you', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                  'response': None, 'image': None, 'attachment': None}]})
@@ -1945,7 +1945,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': 'ticket created'}], 'responses': [
                 {'text': 'ticket created', 'buttons': [], 'elements': [], 'custom': {},
                  'template': None,
@@ -2050,7 +2050,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'events': [
-                {'event': 'slot', 'timestamp': None, 'name': 'KAIRON_ACTION_RESPONSE',
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                  'value': 'I have failed to create issue for you'}], 'responses': [
                 {'text': 'I have failed to create issue for you', 'buttons': [], 'elements': [], 'custom': {},
                  'template': None,

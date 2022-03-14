@@ -11,6 +11,8 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
+
+from kairon.shared.constants import UserActivityType
 from kairon.shared.data.signals import push_notification
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
@@ -36,7 +38,6 @@ class User(Document):
     account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
-    password_changed = DateTimeField(default=None)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -119,3 +120,9 @@ class MailTemplates(EmbeddedDocument):
 
 class SystemProperties(Document):
     mail_templates = EmbeddedDocumentField(MailTemplates)
+
+
+class UserActivityLog(Document):
+    type = StringField(required=True, choices=[a_type.value for a_type in UserActivityType])
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
