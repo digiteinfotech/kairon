@@ -35,7 +35,7 @@ async def generate_integration_token(
     Generates an access token for api integration.
     """
     access_token = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.get_user(), expiry=request.expiry_seconds, name=request.name,
+        current_user.get_bot(), current_user.get_user(), expiry=request.expiry_minutes, name=request.name,
         access_limit=request.access_list, role=request.role
     )
     return {

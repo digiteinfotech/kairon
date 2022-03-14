@@ -22,7 +22,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -495,7 +495,9 @@ async def upload_data_generation_file(
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
                                                user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
                                                document_path=file_path)
-    token = Authentication.create_access_token(data={"sub": current_user.email})
+    token = Authentication.generate_integration_token(
+        current_user.get_bot(), current_user.email, token_type=TOKEN_TYPE.DYNAMIC.value
+    )
     background_tasks.add_task(
         DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
     )
@@ -993,9 +995,9 @@ async def get_training_data_count(
 @router.get("/chat/client/config/url", response_model=Response)
 async def get_chat_client_config_url(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    access_token = Authentication.create_access_token(
-        data={"sub": current_user.get_bot(), 'access-limit': ['/api/bot/.+/chat/client/config$']},
-        token_type=TOKEN_TYPE.DYNAMIC.value
+    access_token = Authentication.generate_integration_token(
+        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value, expiry=120,
+        access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
     )
     url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
     url = urljoin(url, access_token)

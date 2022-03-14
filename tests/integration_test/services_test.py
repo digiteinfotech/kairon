@@ -1719,7 +1719,7 @@ def test_deploy_server_error(mock_endpoint):
 def test_integration_token():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 1', 'expiry_seconds': 1440, 'role': 'designer'},
+        json={'name': 'integration 1', 'expiry_minutes': 1440, 'role': 'designer'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -7290,7 +7290,7 @@ def test_integration_token_from_one_bot_on_another_bot():
 
     response = client.post(
         f"/api/auth/{bot1}/integration/token",
-        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        json={'name': 'integration 4', 'expiry_minutes': 1440},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     token = response.json()
@@ -7344,7 +7344,7 @@ def test_integration_token_from_one_bot_on_another_bot():
 def test_integration_limit_reached():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        json={'name': 'integration 4', 'expiry_minutes': 1440},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     token = response.json()

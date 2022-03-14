@@ -293,7 +293,6 @@ class AccountProcessor:
         last_name: str,
         account: int,
         user: str,
-        is_integration_user=False
     ):
         """
         adds new user to the account
@@ -304,7 +303,6 @@ class AccountProcessor:
         :param last_name:  user lastname
         :param account: account id
         :param user: user id
-        :param is_integration_user: is this
         :return: user details
         """
         if (
@@ -330,8 +328,7 @@ class AccountProcessor:
                 first_name=first_name.strip(),
                 last_name=last_name.strip(),
                 account=account,
-                user=user.strip(),
-                is_integration_user=is_integration_user,
+                user=user.strip()
             )
             .save()
             .to_mongo()
@@ -361,8 +358,7 @@ class AccountProcessor:
         :return: dict
         """
         user = AccountProcessor.get_user(email)
-        if not user["is_integration_user"]:
-            AccountProcessor.check_email_confirmation(user["email"])
+        AccountProcessor.check_email_confirmation(user["email"])
         if not user["status"]:
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
