@@ -218,7 +218,7 @@ class TestChatServer(AsyncHTTPTestCase):
             },
         )
         actual = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 422)
+        self.assertEqual(response.code, 200)
         assert actual['message'] == 'Alias user missing for integration'
 
     def test_chat_with_limited_access_without_integration(self):
