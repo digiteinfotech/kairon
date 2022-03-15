@@ -407,11 +407,14 @@ class TestChatServer(AsyncHTTPTestCase):
             }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
+
+
     def test_messenger_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
             f"/api/bot/messenger/{bot}/123",
-            method="GET",
+            headers={"X-Hub-Signature": "invalid"},
+            method="POST",
             body=json.dumps({
                 "object": "page",
                 "entry": [{
