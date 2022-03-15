@@ -4,6 +4,8 @@ from jwt import PyJWTError
 from tornado.httputil import HTTPServerRequest
 
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 from typing import Text
@@ -23,7 +25,7 @@ class TornadoAuthenticate:
 
     @staticmethod
     def get_user_from_token(
-            token: Text, request: HTTPServerRequest
+            token: Text, request: HTTPServerRequest, **kwargs
     ):
         """
         validates jwt token
@@ -46,13 +48,22 @@ class TornadoAuthenticate:
         user = AccountProcessor.get_user_details(username)
         if user is None:
             raise credentials_exception
-
         user_model = User(**user)
+        if payload.get("type") != TOKEN_TYPE.LOGIN.value:
+            if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
+                Authentication.validate_integration_token(payload, kwargs.get('bot'))
+            alias_user = request.headers.get("X-USER")
+            if Utility.check_empty_string(alias_user):
+                raise Exception("Alias user missing for integration")
+            user_model.alias_user = alias_user
+            user_model.is_integration_user = True
+            user_model.role = payload.get('role')
+
         return user_model
 
     @staticmethod
     def get_current_user(
-            request: HTTPServerRequest
+            request: HTTPServerRequest, **kwargs
     ):
         """
         validates jwt token
@@ -62,25 +73,21 @@ class TornadoAuthenticate:
         :return: dict of user details
         """
         token = TornadoAuthenticate.get_token(request)
-        user = TornadoAuthenticate.get_user_from_token(token, request)
-        if user.is_integration_user:
-            alias_user = request.headers.get("X-USER")
-            if Utility.check_empty_string(alias_user):
-                raise Exception("Alias user missing for integration")
-            user.alias_user = alias_user
+        user = TornadoAuthenticate.get_user_from_token(token, request, **kwargs)
         return user
 
     @staticmethod
     def get_current_user_and_bot(
             request: HTTPServerRequest, **kwargs
     ):
-        user = TornadoAuthenticate.get_current_user(request)
+        user = TornadoAuthenticate.get_current_user(request, **kwargs)
         bot_id = kwargs.get('bot')
         if Utility.check_empty_string(bot_id):
             raise Exception({"status_code": 422,
                              "detail": "Bot is required",
                              "headers": {"WWW-Authenticate": "Bearer"}})
-        AccountProcessor.fetch_role_for_user(user.email, bot_id)
+        if not user.is_integration_user:
+            AccountProcessor.fetch_role_for_user(user.email, bot_id)
         bot = AccountProcessor.get_bot(bot_id)
         if not bot["status"]:
             raise Exception({"status_code": 422,

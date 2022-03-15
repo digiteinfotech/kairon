@@ -34,7 +34,6 @@ class User(Document):
     first_name = StringField(required=True)
     last_name = StringField(required=True)
     password = StringField(required=True)
-    is_integration_user = BooleanField(default=False)
     account = LongField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

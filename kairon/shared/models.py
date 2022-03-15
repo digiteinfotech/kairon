@@ -62,7 +62,7 @@ class User(BaseModel):
     account: int
     status: bool
     alias_user: str = None
-    is_integration_user: bool
+    is_integration_user: bool = False
     role: ACCESS_ROLES = None
 
     def get_bot(self):
