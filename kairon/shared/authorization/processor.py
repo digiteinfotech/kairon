@@ -52,7 +52,7 @@ class IntegrationProcessor:
             name: Text, bot: Text, user: Text, status: INTEGRATION_STATUS
     ):
         try:
-            integration = Integration.objects(name=name, bot=bot).get()
+            integration = Integration.objects(name=name, bot=bot, status__ne=INTEGRATION_STATUS.DELETED.value).get()
             integration.user = user
             integration.status = status
             integration.save()

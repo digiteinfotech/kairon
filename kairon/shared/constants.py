@@ -28,3 +28,8 @@ class SSO_TYPES(str, Enum):
     FACEBOOK = "facebook"
     LINKEDIN = "linkedin"
     GOOGLE = "google"
+
+
+class UserActivityType(str, Enum):
+    reset_password = "reset_password"
+    reset_password_request = "reset_password_request"

@@ -306,7 +306,9 @@ class DataUtility:
         ModelProcessor.set_training_status(
             bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
         )
-        token = Authentication.create_access_token(data={"sub": email}, token_expire=180)
+        token = Authentication.generate_integration_token(
+            bot, email, ACCESS_ROLES.TESTER.value, expiry=180, token_type=TOKEN_TYPE.DYNAMIC.value
+        )
         background_tasks.add_task(
             start_training, bot, user, token
         )

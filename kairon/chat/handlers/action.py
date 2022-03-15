@@ -22,7 +22,7 @@ class ChatHandler(BaseHandler, ABC):
         try:
             user: User = super().authenticate(self.request, bot=bot)
             body = json_decode(self.request.body.decode("utf8"))
-            response = {"response": await ChatUtils.chat(body.get("data"), bot, user.get_user()) }
+            response = {"response": await ChatUtils.chat(body.get("data"), bot, user.get_user())}
             logger.info(f"text={body.get('data')} response={response}")
         except Exception as e:
             message = str(e)

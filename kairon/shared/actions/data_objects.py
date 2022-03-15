@@ -172,7 +172,7 @@ class EmailActionConfig(Document):
     smtp_password = StringField(required=True)
     from_email = StringField(required=True)
     subject = StringField(required=True)
-    to_email = StringField(required=True)
+    to_email = ListField(StringField(), required=True)
     response = StringField(required=True)
     tls = BooleanField(default=False)
     bot = StringField(required=True)
@@ -190,8 +190,12 @@ class EmailActionConfig(Document):
             raise ValidationError("URL cannot be empty")
         if not Utility.validate_smtp(self.smtp_url, self.smtp_port):
             raise ValidationError("Invalid SMTP url")
-        elif isinstance(email(self.from_email), ValidationFailure) or isinstance(email(self.to_email), ValidationFailure):
+        elif isinstance(email(self.from_email), ValidationFailure):
             raise ValidationError("Invalid From or To email address")
+        else:
+            for to_email in self.to_email:
+                if isinstance(email(to_email), ValidationFailure):
+                    raise ValidationError("Invalid From or To email address")
 
     def clean(self):
         self.action_name = self.action_name.strip().lower()

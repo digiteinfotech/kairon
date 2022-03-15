@@ -730,9 +730,25 @@ class TestAccountProcessor:
         Utility.email_conf["email"]["enable"] = True
         monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        assert result[0] == 'integ2@gmail.com'
+        assert result[1] == 'inteq'
+        assert result[2].__contains__('kairon.digite.com/reset_password/')
         Utility.email_conf["email"]["enable"] = False
-        assert True
+
+    def test_reset_link_with_mail_limit_exceeded(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setitem(Utility.environment['user'], 'reset_password_request_limit', 2)
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        assert result[0] == 'integ2@gmail.com'
+        assert result[1] == 'inteq'
+        assert result[2].__contains__('kairon.digite.com/reset_password/')
+
+        with pytest.raises(AppException, match='Password reset limit exhausted for today.'):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        Utility.email_conf["email"]["enable"] = False
 
     def test_reset_link_with_empty_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
@@ -778,6 +794,21 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
         assert True
+
+    def test_overwrite_password_limit_exceeded(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('integ2@gmail.com')
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+
+    def test_reset_link_not_within_cooldown_period(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
+            loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
+        Utility.email_conf["email"]["enable"] = False
 
     def test_send_confirmation_link_with_valid_id(self, monkeypatch):
         AccountProcessor.add_user(

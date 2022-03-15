@@ -194,9 +194,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert Utility.check_empty_string(actual["message"])
 
     def test_chat_with_limited_access(self):
-        access_token = Authentication.create_access_token(
-            data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
-            token_type=TOKEN_TYPE.INTEGRATION.value
+        access_token = Authentication.generate_integration_token(
+            bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="integration token"
         )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -209,6 +208,18 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert actual['data']['response']
+
+        response = self.fetch(
+            f"/api/bot/{bot2}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={
+                "Authorization": f"{token_type} {access_token}"
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual['message'] == 'Alias user missing for integration'
 
     def test_chat_with_limited_access_without_integration(self):
         access_token = Authentication.create_access_token(

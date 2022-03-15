@@ -828,7 +828,7 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run",
                                        status="SUCCESS").get()
@@ -881,7 +881,7 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run_with_params",
                                        status="SUCCESS").get()
@@ -931,7 +931,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post")
         assert actual is not None
-        assert actual[0]['name'] == 'KAIRON_ACTION_RESPONSE'
+        assert actual[0]['name'] == 'kairon_action_response'
         assert actual[0]['value'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
@@ -975,7 +975,7 @@ class TestActions:
                                                                              "test_run_with_post")
         responses.stop()
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="sender_test_run_with_post",
                                        action="test_run_with_post",
@@ -1034,7 +1034,7 @@ class TestActions:
                                                                              "test_run_with_post")
         responses.stop()
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
@@ -1064,7 +1064,7 @@ class TestActions:
         action.save()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']).__contains__('I have failed to process your request')
 
     @pytest.mark.asyncio
@@ -1105,7 +1105,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         responses.stop()
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(
             actual[0]['value']) == 'I have failed to process your request'
 
@@ -1221,7 +1221,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post")
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
@@ -1280,7 +1280,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post")
         assert actual is not None
-        assert str(actual[0]['name']) == 'KAIRON_ACTION_RESPONSE'
+        assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
@@ -1950,7 +1950,7 @@ class TestActions:
                 smtp_password="test",
                 from_email="test@demo.com",
                 subject="test",
-                to_email="test@test.com",
+                to_email=["test@test.com","test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"
@@ -1975,7 +1975,7 @@ class TestActions:
                 smtp_password="test",
                 from_email="test@demo.com",
                 subject="test",
-                to_email="test@test.com",
+                to_email=["test@test.com", "test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"
