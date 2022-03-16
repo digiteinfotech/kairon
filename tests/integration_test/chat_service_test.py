@@ -71,6 +71,15 @@ ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                            "project_id": "1234568"}
                                        },
                                       bot, user="test@chat.com")
+
+ChatDataProcessor.save_channel_config({"connector_type": "messenger",
+                                       "config": {
+                                           "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                                           "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                                           "verity_token": "kairon-messenger-token",
+                                       }
+                                       },
+                                      bot, user="test@chat.com")
 responses.stop()
 
 
@@ -194,9 +203,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert Utility.check_empty_string(actual["message"])
 
     def test_chat_with_limited_access(self):
-        access_token = Authentication.create_access_token(
-            data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
-            token_type=TOKEN_TYPE.INTEGRATION.value
+        access_token = Authentication.generate_integration_token(
+            bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="integration token"
         )
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -209,6 +217,18 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert actual['data']['response']
+
+        response = self.fetch(
+            f"/api/bot/{bot2}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={
+                "Authorization": f"{token_type} {access_token}"
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual['message'] == 'Alias user missing for integration'
 
     def test_chat_with_limited_access_without_integration(self):
         access_token = Authentication.create_access_token(
@@ -387,3 +407,67 @@ class TestChatServer(AsyncHTTPTestCase):
             }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 500)
+
+    def test_messenger_invalid_auth(self):
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/messenger/{bot}/123",
+            headers={"X-Hub-Signature": "invalid"},
+            method="POST",
+            body=json.dumps({
+                "object": "page",
+                "entry": [{
+                    "id": "104610528288640",
+                    "time": 1646648478575,
+                    "messaging": [{
+                        "sender": {
+                            "id": "4237571439620831"
+                        },
+                        "recipient": {
+                            "id": "104610528288640"
+                        },
+                        "timestamp": 1646647205156,
+                        "message": {
+                            "mid": "m_J-gcviaJSGp427f7jzL2PBygi_iiuvCXf2eCu2qb-kr9onZGEYfSoC7TctL84humv0mbtH7GsQ0vmELAGS74Ew",
+                            "text": "hi",
+                            "nlp": {
+                                "intents": [],
+                                "entities": {
+                                    "wit$location:location": [{
+                                        "id": "624173841772436",
+                                        "name": "wit$location",
+                                        "role": "location",
+                                        "start": 0,
+                                        "end": 2,
+                                        "body": "hi",
+                                        "confidence": 0.3146,
+                                        "entities": [],
+                                        "suggested": True,
+                                        "value": "hi",
+                                        "type": "value"
+                                    }]
+                                },
+                                "traits": {
+                                    "wit$sentiment": [{
+                                        "id": "5ac2b50a-44e4-466e-9d49-bad6bd40092c",
+                                        "value": "positive",
+                                        "confidence": 0.7336
+                                    }],
+                                    "wit$greetings": [{
+                                        "id": "5900cc2d-41b7-45b2-b21f-b950d3ae3c5c",
+                                        "value": "true",
+                                        "confidence": 0.9999
+                                    }]
+                                },
+                                "detected_locales": [{
+                                    "locale": "mr_IN",
+                                    "confidence": 0.7365
+                                }]
+                            }
+                        }
+                    }]
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 500)
+        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"

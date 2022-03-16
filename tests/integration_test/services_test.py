@@ -219,7 +219,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 1
+    assert len(actual['data']) == 2
     assert actual["success"]
 
 
@@ -315,7 +315,7 @@ def test_list_entities():
     actual = response.json()
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
-                                                   'priority', 'requested_slot', 'fdresponse'}
+                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response'}
     assert actual["success"]
 
 
@@ -563,7 +563,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 8
+    assert len(actual["data"]) == 9
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -651,14 +651,15 @@ def test_edit_empty_slots():
 
 
 def test_delete_slots():
-    client.post(
+    response = client.post(
         f"/api/bot/{pytest.bot}/slots",
-        json={"name": "bot", "type": "any", "initial_value": "bot", "influence_conversation": False},
+        json={"name": "color", "type": "any", "initial_value": "bot", "influence_conversation": False},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    print(response.json())
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/slots/bot",
+        f"/api/bot/{pytest.bot}/slots/color",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -1718,7 +1719,7 @@ def test_deploy_server_error(mock_endpoint):
 def test_integration_token():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 1', 'expiry_seconds': 1440, 'role': 'designer'},
+        json={'name': 'integration 1', 'expiry_minutes': 1440, 'role': 'designer'},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -7289,7 +7290,7 @@ def test_integration_token_from_one_bot_on_another_bot():
 
     response = client.post(
         f"/api/auth/{bot1}/integration/token",
-        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        json={'name': 'integration 4', 'expiry_minutes': 1440},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     token = response.json()
@@ -7343,7 +7344,7 @@ def test_integration_token_from_one_bot_on_another_bot():
 def test_integration_limit_reached():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
-        json={'name': 'integration 4', 'expiry_seconds': 1440},
+        json={'name': 'integration 4', 'expiry_minutes': 1440},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     token = response.json()

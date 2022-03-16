@@ -5,6 +5,10 @@ database:
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
 
+user:
+  reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
+  reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
+
 security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
   algorithm: "HS256"
@@ -70,7 +74,6 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}
 
-
 channels:
   slack:
     required_fields:
@@ -88,3 +91,8 @@ channels:
     required_fields:
       - project_id
 
+  messenger:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verity_token

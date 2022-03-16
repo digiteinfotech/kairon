@@ -39,7 +39,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
 from .constant import (
@@ -897,8 +897,14 @@ class MongoProcessor:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
                 Slots.objects.insert(new_slots)
-        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
-                      raise_exception_if_exists=False)
+        self.add_slot({
+            "name": BOT_ID_SLOT, "type": "any", "initial_value": bot, "auto_fill": False,
+            "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+        )
+        self.add_slot({
+            "name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "auto_fill": False, "initial_value": None,
+            "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+        )
 
     def fetch_slots(self, bot: Text, status=True):
         """
@@ -2745,6 +2751,8 @@ class MongoProcessor:
         """
 
         try:
+            if slot_name in {BOT_ID_SLOT, BOT_ID_SLOT.lower(), KAIRON_ACTION_RESPONSE_SLOT, KAIRON_ACTION_RESPONSE_SLOT.lower()}:
+                raise AppException('Default kAIron slot deletion not allowed')
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
             if len(forms_with_slot) > 0:
