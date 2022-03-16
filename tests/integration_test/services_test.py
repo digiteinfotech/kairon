@@ -7818,3 +7818,34 @@ def test_get_channel_endpoint_not_configured(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["data"]
     assert actual["message"] == 'Channel not configured'
+
+
+def test_delete_account():
+    response_log = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+    )
+    actual = response_log.json()
+
+    assert actual['success']
+    assert actual['error_code'] == 0
+    pytest.access_token_delete = actual["data"]["access_token"]
+    pytest.token_type_delete = actual["data"]["token_type"]
+    response = client.delete(
+        "/api/account/delete",
+        headers={"Authorization": pytest.token_type_delete + " " + pytest.access_token_delete},
+    ).json()
+
+    assert response["success"]
+    assert response["message"] == "Account deleted"
+    assert response["error_code"] == 0
+
+
+def test_delete_account_already_deleted():
+    response = client.delete(
+        "/api/account/delete",
+        headers={"Authorization": pytest.token_type_delete + " " + pytest.access_token_delete},
+    ).json()
+    print(response)
+    assert not response["success"]
+    assert response["message"] == "User does not exist!"

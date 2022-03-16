@@ -33,3 +33,6 @@ class SSO_TYPES(str, Enum):
 class UserActivityType(str, Enum):
     reset_password = "reset_password"
     reset_password_request = "reset_password_request"
+    delete_user = "delete_user"
+    delete_bot = "delete_bot"
+    delete_account = "delete_account"
