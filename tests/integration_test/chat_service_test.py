@@ -12,7 +12,7 @@ from kairon.chat.server import make_app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.data.constant import TOKEN_TYPE
+from kairon.shared.data.constant import TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
@@ -182,6 +182,43 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["error_code"] == 422
         assert actual["data"] is None
         assert actual["message"] == "Access to bot is denied"
+
+    def test_chat_with_different_bot_using_token_for_different_bot(self):
+        access_token = Authentication.generate_integration_token(
+            bot, "test@chat.com", name='integration_token_for_chat_service')
+        response = self.fetch(
+            f"/api/bot/{bot2}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={"Authorization": token_type + " " + access_token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert not actual["data"]
+        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Access to bot is denied\'}'
+
+    def test_chat_with_bot_using_deleted_token(self):
+        access_token = Authentication.generate_integration_token(bot, "test@chat.com", name='integration_token_1')
+        Authentication.update_integration_token('integration_token_1', bot,
+                                                "test@chat.com", INTEGRATION_STATUS.DELETED.value)
+        response = self.fetch(
+            f"/api/bot/{bot}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={"Authorization": token_type + " " + access_token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert not actual["data"]
+        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Access to bot is denied\'}'
 
     def test_chat_different_bot(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:

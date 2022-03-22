@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Text
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.constants import UserActivityType
