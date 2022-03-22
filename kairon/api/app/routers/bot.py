@@ -22,7 +22,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
 from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -562,11 +562,16 @@ async def test_model(
 
 @router.get("/logs/test", response_model=Response)
 async def model_testing_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        log_type: ModelTestType = None, reference_id: str = None,
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     List model testing logs.
     """
-    return Response(data=ModelTestingLogProcessor.get_logs(current_user.get_bot()))
+    return Response(
+        data=ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
+    )
 
 
 @router.get("/endpoint", response_model=Response)

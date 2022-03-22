@@ -79,13 +79,13 @@ class ModelTester:
             events_tracker = []
             for event in story.events:
                 events_tracker.append(vars(event))
-            failed_stories_summary.append(events_tracker)
+            failed_stories_summary.append({'name': story.sender_id, 'events': events_tracker})
 
         for story in story_evaluation.successful_stories:
             events_tracker = []
             for event in story.events:
                 events_tracker.append(vars(event))
-            success_stories_summary.append(events_tracker)
+            success_stories_summary.append({'name': story.sender_id, 'events': events_tracker})
 
         num_failed = len(story_evaluation.failed_stories)
         num_correct = len(story_evaluation.successful_stories)
@@ -95,9 +95,10 @@ class ModelTester:
             conv_accuracy = num_correct / num_convs
             test_report["conversation_accuracy"] = {
                 "accuracy": conv_accuracy,
-                "correct": num_correct,
+                "success_count": num_correct,
+                "failure_count": num_failed,
+                "total_count": num_convs,
                 "with_warnings": num_warnings,
-                "total": num_convs,
             }
 
         test_report.update({
@@ -180,6 +181,9 @@ class ModelTester:
                             "confidence": r.confidence,
                         },
                     })
+            result["intent_evaluation"]['total_count'] = len(successes) + len(errors)
+            result["intent_evaluation"]['success_count'] = len(successes)
+            result["intent_evaluation"]['failure_count'] = len(errors)
             result["intent_evaluation"]['successes'] = successes
             result["intent_evaluation"]['errors'] = errors
 
@@ -218,6 +222,9 @@ class ModelTester:
                             },
                         }
                     )
+            result["response_selection_evaluation"]['total_count'] = len(successes) + len(errors)
+            result["response_selection_evaluation"]['success_count'] = len(successes)
+            result["response_selection_evaluation"]['failure_count'] = len(errors)
             result["response_selection_evaluation"]['successes'] = successes
             result["response_selection_evaluation"]['errors'] = errors
 
@@ -269,14 +276,17 @@ class ModelTester:
                     exclude_label=NO_ENTITY,
                 )
 
-            # successes = collect_successful_entity_predictions(
-            #     entity_results, merged_predictions, merged_targets
-            # )
+            successes = collect_successful_entity_predictions(
+                entity_results, merged_predictions, merged_targets
+            )
             errors = collect_incorrect_entity_predictions(
                 entity_results, merged_predictions, merged_targets
             )
 
             result[extractor] = {
+                "total_count": len(successes) + len(errors),
+                "success_count": len(successes),
+                "failure_count": len(errors),
                 "precision": precision,
                 "f1_score": f1,
                 "accuracy": accuracy,

@@ -492,6 +492,14 @@ def test_get_model_testing_logs():
     assert actual['data']
     assert actual["success"]
 
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data'][0]['reference_id']}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
 
 def test_get_data_importer_logs():
     response = client.get(

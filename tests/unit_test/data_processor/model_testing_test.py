@@ -70,6 +70,9 @@ class TestModelTesting:
                                                  nlu_result={},
                                                  event_status='Completed')
         logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        assert logs[0]['data'][0]['conversation_accuracy']['success_count'] == 3
+        assert logs[0]['data'][0]['conversation_accuracy']['failure_count'] == 2
+        assert logs[0]['data'][0]['conversation_accuracy']['total_count'] == 5
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0].get('data')
@@ -78,6 +81,9 @@ class TestModelTesting:
         assert logs[0].get('end_timestamp')
         assert logs[0].get('status') == 'FAILURE'
         assert logs[0]['event_status'] == 'Completed'
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'stories', logs[0]['reference_id'])
+        assert len(logs['errors']) == 2
+        assert logs['total'] == 2
 
     def test_run_test_on_nlu(self):
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
@@ -99,19 +105,41 @@ class TestModelTesting:
         assert result['entity_evaluation']['DIETClassifier']['precision']
         assert result['entity_evaluation']['DIETClassifier']['f1_score']
         assert result['entity_evaluation']['DIETClassifier']['accuracy']
-        result['response_selection_evaluation'] = {'errors': [{'text': 'this is failure', 'confidence': 0.78}]}
+        result['response_selection_evaluation'] = {'errors': [{'text': 'this is failure', 'confidence': 0.78}],
+                                                   'failure_count': 1}
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result={},
                                                  nlu_result=result,
                                                  event_status='Completed')
-        logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
-        assert not logs[0].get('exception')
-        assert logs[0]['start_timestamp']
-        assert not logs[0].get('stories')
-        assert next(data for data in logs[0].get('data') if data['type'] == 'nlu')
-        assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'FAILURE'
-        assert logs[0]['event_status'] == 'Completed'
+        logs1 = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 0
+        assert logs1[0]['data'][0]['intent_evaluation']['failure_count'] == 18
+        assert logs1[0]['data'][0]['intent_evaluation']['total_count'] == 18
+        assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['success_count'] == 2
+        assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['failure_count'] == 2
+        assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['total_count'] == 4
+        assert logs1[0]['data'][0]['response_selection_evaluation']
+        assert not logs1[0].get('exception')
+        assert logs1[0]['start_timestamp']
+        assert not logs1[0].get('stories')
+        assert next(data for data in logs1[0].get('data') if data['type'] == 'nlu')
+        assert logs1[0].get('end_timestamp')
+        assert logs1[0].get('status') == 'FAILURE'
+        assert logs1[0]['event_status'] == 'Completed'
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'])
+        assert len(logs['intent_evaluation']['errors']) == 10
+        assert len(logs['entity_evaluation']['errors']) == 0
+        assert len(logs['response_selection_evaluation']['errors']) == 1
+        assert logs['intent_evaluation']['total'] == 18
+        assert logs['entity_evaluation']['total'] == 0
+        assert logs['response_selection_evaluation']['total'] == 1
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'], 9)
+        assert len(logs['intent_evaluation']['errors']) == 9
+        assert len(logs['entity_evaluation']['errors']) == 0
+        assert len(logs['response_selection_evaluation']['errors']) == 0
+        assert logs['intent_evaluation']['total'] == 18
+        assert logs['entity_evaluation']['total'] == 0
+        assert logs['response_selection_evaluation']['total'] == 1
 
     def test_is_event_in_progress(self):
         assert not ModelTestingLogProcessor.is_event_in_progress('test_bot')
