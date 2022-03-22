@@ -123,5 +123,7 @@ class SystemProperties(Document):
 
 class UserActivityLog(Document):
     type = StringField(required=True, choices=[a_type.value for a_type in UserActivityType])
-    user = StringField(required=True)
+    user = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
+    account = LongField(required=True)
+    bot = StringField()

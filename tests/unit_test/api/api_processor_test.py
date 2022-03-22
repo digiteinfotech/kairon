@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess
+from kairon.shared.account.data_objects import Feedback, BotAccess, User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
@@ -324,6 +324,142 @@ class TestAccountProcessor:
                                                     pytest.account, ACCESS_ROLES.DESIGNER.value,
                                                     ACTIVITY_STATUS.ACTIVE.value)
         assert BotAccess.objects(bot=pytest.deleted_bot, accessor_email="fshaikh").get()
+
+
+    def test_delete_account_for_account_bots(self):
+        account = {
+            "account": "Test_Delete_Account",
+            "email": "ritika@digite.com",
+            "first_name": "Test_Delete_First",
+            "last_name": "Test_Delete_Last",
+            "password": SecretStr("Welcome@1"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+
+        pytest.deleted_account = user_detail['account'].__str__()
+        bot_response_1 = AccountProcessor.add_bot("delete_account_bot_1", pytest.deleted_account, "ritika@digite.com", False)
+        bot_response_2 = AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
+        account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
+
+        assert len(account_bots_before_delete) == 3
+        AccountProcessor.delete_account(pytest.deleted_account)
+
+        for bot in account_bots_before_delete:
+            with pytest.raises(DoesNotExist):
+                Bot.objects(id=bot['_id'], account=pytest.deleted_account, status=True).get()
+
+    def test_delete_account_for_shared_bot(self):
+        account = {
+            "account": "Test_Delete_Account",
+            "email": "ritika@digite.com",
+            "first_name": "Test_Delete_First",
+            "last_name": "Test_Delete_Last",
+            "password": SecretStr("Welcome@1"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(
+            AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+
+        #Add shared bot
+        bot_response = AccountProcessor.add_bot("delete_account_shared_bot", 20, "udit.pandey@digite.com", False)
+        bot_id = bot_response['_id'].__str__()
+        BotAccess(bot=bot_id, accessor_email="ritika@digite.com", user='testAdmin',
+                  role='designer', status='active', bot_account=20).save()
+        pytest.deleted_account = user_detail['account'].__str__()
+        accessors_before_delete = list(AccountProcessor.list_bot_accessors(bot_id))
+
+        assert len(accessors_before_delete) == 2
+        assert accessors_before_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
+        assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
+        AccountProcessor.delete_account(pytest.deleted_account)
+        accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
+        assert len(accessors_after_delete) == 1
+        assert accessors_after_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
+        assert accessors_after_delete[0]['bot_account'] == 20
+        assert Bot.objects(id=bot_id, account=20, status=True).get()
+
+    def test_delete_account_for_account(self):
+        account = {
+            "account": "Test_Delete_Account",
+            "email": "ritika@digite.com",
+            "first_name": "Test_Delete_First",
+            "last_name": "Test_Delete_Last",
+            "password": SecretStr("Welcome@1")
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(
+            AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        pytest.deleted_account = user_detail['account'].__str__()
+
+        AccountProcessor.delete_account(pytest.deleted_account)
+        assert AccountProcessor.get_account(pytest.deleted_account)
+        assert not AccountProcessor.get_account(pytest.deleted_account).get('status')
+
+        with pytest.raises(AppException, match="Account does not exist!"):
+            AccountProcessor.delete_account(pytest.deleted_account)
+
+    def test_delete_account_for_user(self):
+        account = {
+            "account": "Test_Delete_Account",
+            "email": "ritika@digite.com",
+            "first_name": "Test_Delete_First",
+            "last_name": "Test_Delete_Last",
+            "password": SecretStr("Welcome@1")
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(
+            AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        pytest.deleted_account = user_detail['account'].__str__()
+
+        # Add Multiple user to same account
+        user = {
+            "account": pytest.deleted_account,
+            "email": "ritika.G@digite.com",
+            "first_name": "Test_Delete_First1",
+            "last_name": "Test_Delete_Last1",
+            "password": "Welcome@2",
+            "user": "testAdmin"
+        }
+        AccountProcessor.add_user(**user)
+
+        assert User.objects(email__iexact="ritika@digite.com", status=True).get()
+        assert User.objects(email__iexact="ritika.G@digite.com", status=True).get()
+
+        AccountProcessor.delete_account(pytest.deleted_account)
+
+        assert User.objects(email__iexact="ritika@digite.com", status=False)
+        assert User.objects(email__iexact="ritika.G@digite.com", status=False)
+
+
+    def test_delete_account_again_add(self):
+        account = {
+            "account": "Test_Delete_Account",
+            "email": "ritika@digite.com",
+            "first_name": "Test_Delete_First",
+            "last_name": "Test_Delete_Last",
+            "password": SecretStr("Welcome@1"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(
+            AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        pytest.deleted_account = user_detail['account'].__str__()
+
+        AccountProcessor.delete_account(pytest.deleted_account)
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(
+            AccountProcessor.account_setup(account_setup=account, user="testAdmin"))
+        new_account_id = user_detail['account'].__str__()
+
+        assert new_account_id
+        assert AccountProcessor.get_account(new_account_id).get('status')
+        assert len(list(AccountProcessor.list_bots(new_account_id))) == 1
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):

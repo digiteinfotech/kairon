@@ -344,7 +344,7 @@ class AccountProcessor:
         :return: user details
         """
         try:
-            return User.objects().get(email__iexact=email).to_mongo().to_dict()
+            return User.objects(email__iexact=email, status=True).get().to_mongo().to_dict()
         except Exception as e:
             logging.error(e)
             raise DoesNotExist("User does not exist!")
@@ -550,7 +550,7 @@ class AccountProcessor:
             token = Utility.generate_token(mail, token_expiry * 60)
             user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
-            UserActivityLogger.add_log(mail, UserActivityType.reset_password_request.value)
+            UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.reset_password_request.value)
             return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
@@ -567,12 +567,12 @@ class AccountProcessor:
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
         email = Utility.verify_token(token)
-        user = User.objects().get(email=email)
+        user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
-        UserActivityLogger.add_log(email, UserActivityType.reset_password.value)
+        UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value)
         return email, user.first_name
 
     @staticmethod
@@ -589,7 +589,7 @@ class AccountProcessor:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
             Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
-            if not Utility.is_exist(User, email__iexact=mail.strip(), raise_error=False):
+            if not Utility.is_exist(User, email__iexact=mail.strip(), status=True, raise_error=False):
                 raise AppException("Error! There is no user with the following mail id")
             user = AccountProcessor.get_user(mail)
             token = Utility.generate_token(mail)
@@ -639,3 +639,36 @@ class AccountProcessor:
             config = {}
             AccountProcessor.update_ui_config(config, user)
         return config
+
+    @staticmethod
+    def delete_account(account_id: int):
+        """
+                Delete User Account
+
+                :param account_id: user account id
+                :param email: user email
+                :return: None
+        """
+        try:
+            account_obj = Account.objects(id=account_id, status=True).get()
+        except DoesNotExist:
+            raise AppException("Account does not exist!")
+
+        # List all bots for the account
+        account_bots = list(AccountProcessor.list_bots(account_id))
+        # Delete all account_owned bots
+        for bot in account_bots:
+            AccountProcessor.delete_bot(bot['_id'])
+            UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_bot.value, bot=bot["_id"])
+
+        # Delete all Users for Account
+        for user in User.objects(account=account_id, status=True):
+            BotAccess.objects(accessor_email=user.email, status__ne=ACTIVITY_STATUS.DELETED.value).update(
+                set__status=ACTIVITY_STATUS.DELETED.value)
+            user.status = False
+            user.save()
+            UserActivityLogger.add_log(account=account_id, email=user.email, a_type=UserActivityType.delete_user.value)
+
+        account_obj.status = False
+        account_obj.save()
+        UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
