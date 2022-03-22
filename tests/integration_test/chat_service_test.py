@@ -314,6 +314,18 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["data"] is None
         assert actual["message"] == "Reloading Model!"
 
+    def test_reload_exception(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/reload",
+            method="GET"
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Could not validate credentials\', \'headers\': {\'WWW-Authenticate\': \'Bearer\'}}'
+
     @patch('kairon.chat.handlers.channels.slack.SlackHandler.is_request_from_slack_authentic')
     @patch('kairon.shared.utils.Utility.get_local_mongo_store')
     def test_slack_auth_bot_challenge(self, mock_store, mock_slack):

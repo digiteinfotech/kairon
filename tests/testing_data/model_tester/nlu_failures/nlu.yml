@@ -61,3 +61,12 @@ nlu:
     - am i talking to a [mango](fruit)?
     - am i talking to a [tiger](animal)?
     - am i talking to a [apple](fruit)?
+- intent: chitchat/ask_name
+  examples: |
+    - what is your name?
+    - name?
+    - introduce yourself
+- intent: chtchat/ask_profession
+  examples: |
+    - what do you do?
+    - where do you work?

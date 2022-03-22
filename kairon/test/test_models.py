@@ -4,7 +4,6 @@ from typing import Dict, Text, Optional, Set
 
 import requests
 from loguru import logger
-from rasa.exceptions import ModelNotFound
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
 from kairon.exceptions import AppException
@@ -135,6 +134,7 @@ class ModelTester:
             evaluate_response_selections,
             get_entity_extractors,
         )
+        from kairon import Utility
 
         unpacked_model = get_model(model_path)
         nlu_model = os.path.join(unpacked_model, "nlu")
@@ -212,16 +212,17 @@ class ModelTester:
                     #     },
                     # })
                 else:
-                    errors.append(
-                        {
-                            "text": r.message,
-                            "intent_response_key_target": r.intent_response_key_target,
-                            "intent_response_key_prediction": {
-                                "name": r.intent_response_key_prediction,
-                                "confidence": r.confidence,
-                            },
-                        }
-                    )
+                    if not Utility.check_empty_string(r.intent_response_key_target):
+                        errors.append(
+                            {
+                                "text": r.message,
+                                "intent_response_key_target": r.intent_response_key_target,
+                                "intent_response_key_prediction": {
+                                    "name": r.intent_response_key_prediction,
+                                    "confidence": r.confidence,
+                                },
+                            }
+                        )
             result["response_selection_evaluation"]['total_count'] = len(successes) + len(errors)
             result["response_selection_evaluation"]['success_count'] = len(successes)
             result["response_selection_evaluation"]['failure_count'] = len(errors)
