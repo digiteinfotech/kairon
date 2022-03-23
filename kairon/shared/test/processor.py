@@ -109,7 +109,26 @@ class ModelTestingLogProcessor:
             return False
 
     @staticmethod
-    def get_logs(bot: str):
+    def get_logs(bot: str, log_type: str = None, reference_id: str = None, start_idx: int = 0, page_size: int = 10):
+        """
+        Get all logs for data importer event.
+        @param reference_id: test reference_id
+        @param bot: bot id.
+        @param log_type: log data type: 'stories', 'nlu'
+        @param start_idx: start index in list field
+        @param page_size: number of rows from start index
+        @return: list of logs.
+        """
+        from kairon import Utility
+
+        if not (Utility.check_empty_string(log_type) and Utility.check_empty_string(reference_id)):
+            logs = ModelTestingLogProcessor.get_by_id_and_type(reference_id, bot, log_type, start_idx, page_size)
+        else:
+            logs = ModelTestingLogProcessor.get_all(bot)
+        return logs
+
+    @staticmethod
+    def get_all(bot: str):
         """
         Get all logs for data importer event.
         @param bot: bot id.
@@ -124,6 +143,42 @@ class ModelTestingLogProcessor:
                         'start_timestamp': {'$first': '$start_timestamp'},
                         'end_timestamp': {'$first': '$end_timestamp'}}},
             {'$project': {
+                '_id': 0, 'reference_id': '$_id',
                 'data': {'$filter': {'input': '$data', 'as': 'data', 'cond': {'$ne': ['$$data.type', 'common']}}},
                 'status': 1, 'event_status': 1, 'exception': 1, 'start_timestamp': 1, 'end_timestamp': 1}},
             {"$sort": {"start_timestamp": -1}}]))
+
+    @staticmethod
+    def get_by_id_and_type(reference_id: str, bot: str, log_type: str, start_idx: int = 0, page_size: int = 10):
+        """
+        Get all logs for data importer event.
+        @param reference_id: test reference_id
+        @param bot: bot id.
+        @param log_type: log data type: 'stories', 'nlu'
+        @param start_idx: start index in list field
+        @param page_size: number of rows from start index
+        @return: list of logs.
+        """
+        logs = []
+        filtered_data = ModelTestingLogs.objects(reference_id=reference_id, bot=bot, type=log_type)
+        if log_type == 'stories' and filtered_data:
+            filtered_data = filtered_data.get()
+            logs = filtered_data.data.get('failed_stories', [])[start_idx:start_idx+page_size]
+            fail_cnt = filtered_data.data.get('conversation_accuracy', {}).get('failure_count', 0)
+            logs = {'errors': logs, 'total': fail_cnt}
+        elif log_type == 'nlu' and filtered_data:
+            filtered_data = filtered_data.get()
+            intent_evaluation_logs = filtered_data.data.get('intent_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
+            entity_evaluation_logs = filtered_data.data.get('entity_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
+            response_selection_evaluation_logs = filtered_data.data.get('response_selection_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
+            intent_evaluation_fail_cnt = filtered_data.data.get('intent_evaluation', {}).get('failure_count', 0)
+            entity_evaluation_fail_cnt = filtered_data.data.get('entity_evaluation', {}).get('failure_count', 0)
+            response_selection_evaluation_fail_cnt = filtered_data.data.get('response_selection_evaluation', {}).get('failure_count', 0)
+            logs = {
+                "intent_evaluation": {'errors': intent_evaluation_logs, 'total': intent_evaluation_fail_cnt},
+                "entity_evaluation": {'errors': entity_evaluation_logs, 'total': entity_evaluation_fail_cnt},
+                "response_selection_evaluation": {
+                    'errors': response_selection_evaluation_logs, 'total': response_selection_evaluation_fail_cnt
+                }
+            }
+        return logs

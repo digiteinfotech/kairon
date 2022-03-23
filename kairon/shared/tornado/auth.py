@@ -4,7 +4,7 @@ from jwt import PyJWTError
 from tornado.httputil import HTTPServerRequest
 
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.auth import Authentication
+from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -51,7 +51,7 @@ class TornadoAuthenticate:
         user_model = User(**user)
         if payload.get("type") != TOKEN_TYPE.LOGIN.value:
             if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
-                Authentication.validate_integration_token(payload, kwargs.get('bot'))
+                TornadoAuthenticate.validate_integration_token(payload, kwargs.get('bot'))
             alias_user = request.headers.get("X-USER")
             if Utility.check_empty_string(alias_user):
                 raise Exception("Alias user missing for integration")
@@ -124,3 +124,26 @@ class TornadoAuthenticate:
             raise Exception(
                  'Access denied for this endpoint'
             )
+
+    @staticmethod
+    def validate_integration_token(payload: dict, accessing_bot: Text):
+        """
+        Validates:
+        1. whether integration token with this payload is active.
+        2. the bot which is being accessed is the same bot for which the integration was generated.
+
+        :param payload: Auth token claims dict.
+        :param accessing_bot: bot for which the request was made.
+        """
+        exception = Exception({'status_code': 401, 'detail': 'Access to bot is denied'})
+        name = payload.get('name')
+        bot = payload.get('bot')
+        user = payload.get('sub')
+        iat = payload.get('iat')
+        role = payload.get('role')
+        if not Utility.check_empty_string(accessing_bot) and accessing_bot != bot:
+            raise exception
+        try:
+            IntegrationProcessor.verify_integration_token(name, bot, user, iat, role)
+        except Exception:
+            raise exception

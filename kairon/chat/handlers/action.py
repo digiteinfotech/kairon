@@ -25,6 +25,7 @@ class ChatHandler(BaseHandler, ABC):
             response = {"response": await ChatUtils.chat(body.get("data"), bot, user.get_user())}
             logger.info(f"text={body.get('data')} response={response}")
         except Exception as e:
+            logger.exception(e)
             message = str(e)
             error_code = 422
             success = False
@@ -43,6 +44,7 @@ class ReloadHandler(BaseHandler, ABC):
             user: User = super().authenticate(self.request, bot=bot)
             executor.submit(ChatUtils.reload, bot)
         except Exception as e:
+            logger.exception(e)
             message = str(e)
             error_code = 422
             success = False
