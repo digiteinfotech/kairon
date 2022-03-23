@@ -5413,6 +5413,43 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Action exists!"):
             processor.add_jira_action(action, bot, user)
 
+    def test_add_jira_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        http_url = 'http://www.google.com'
+        action = 'test_action'
+        # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        action = {
+            'name': 'test_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_jira_action(action, bot, user)
+
     @responses.activate
     def test_add_jira_action_different_bot(self):
         bot = 'test_2'
@@ -5836,6 +5873,39 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action exists!'):
+            assert processor.add_zendesk_action(action, bot, user)
+
+    def test_add_zendesk_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        http_url = 'http://www.google.com'
+        action = 'test_action_1'
+        # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
+        user = 'test'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+
+        bot = 'test'
+        user = 'test'
+        action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
@@ -6278,6 +6348,26 @@ class TestModelProcessor:
             assert False
         except AppException as ex:
             assert str(ex).__contains__("Action exists")
+
+    def test_add_http_action_config_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_action'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
+
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=response,
+            http_url=http_url,
+            request_method=request_method,
+            params_list=params
+        )
+        with pytest.raises(AppException, match="Action exists"):
+            processor.add_http_action_config(http_action_config.dict(), user, bot)
 
     def test_delete_http_action_config(self):
         processor = MongoProcessor()
@@ -7534,7 +7624,7 @@ class TestTrainingDataProcessor:
                         "smtp_userid": None,
                         "smtp_password": "test",
                         "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "to_email": ["test@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -7542,6 +7632,24 @@ class TestTrainingDataProcessor:
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             with pytest.raises(AppException, match="Action exists!"):
                 processor.add_email_action(email_config, "TEST", "tests")
+
+    def test_add_email_action_existing_name(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "test_action",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": "test",
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com"],
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            with pytest.raises(AppException, match="Action exists!"):
+                processor.add_email_action(email_config, "test_bot", "tests")
+
 
     def test_edit_email_action(self):
         processor = MongoProcessor()
@@ -7672,6 +7780,21 @@ class TestTrainingDataProcessor:
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_google_search_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'api_key': '12345678',
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action with name "test_action" exists'):
+            processor.add_google_search_action(action, bot, user)
+        assert Actions.objects(name='test_action', status=True, bot=bot).get()
+
 
     def test_list_google_search_action_masked(self):
         processor = MongoProcessor()

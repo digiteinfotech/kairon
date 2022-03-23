@@ -2537,6 +2537,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
+        Utility.is_exist(Actions, exp_message="Action exists",
+                         name__iexact=http_action_config.get("action_name"), bot=bot,
+                         status=True)
         Utility.is_exist(HttpActionConfig, exp_message="Action exists",
                          action_name__iexact=http_action_config.get("action_name"), bot=bot,
                          status=True)
@@ -2638,6 +2641,10 @@ class MongoProcessor:
         :param user: user id
         :return: doc id
         """
+        Utility.is_exist(
+            Actions, f'Action with name "{action_config.get("name")}" exists', bot=bot,
+            name=action_config.get('name'), status=True
+        )
         Utility.is_exist(
             GoogleSearchAction, f'Action with name "{action_config.get("name")}" exists', bot=bot,
             name=action_config.get('name'), status=True
@@ -3769,6 +3776,9 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
+        Utility.is_exist(Actions, exp_message="Action exists!",
+                         name__iexact=action.get("action_name"), bot=bot,
+                         status=True)
         Utility.is_exist(EmailActionConfig, exp_message="Action exists!",
                          action_name__iexact=action.get("action_name"), bot=bot,
                          status=True)
@@ -3838,6 +3848,9 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+        Utility.is_exist(
             JiraAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
         )
 
@@ -3903,6 +3916,9 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
+        Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
         Utility.is_exist(
             ZendeskAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
         )

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Text
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.constants import UserActivityType
@@ -10,8 +10,8 @@ from kairon.shared.constants import UserActivityType
 class UserActivityLogger:
 
     @staticmethod
-    def add_log(email: Text, a_type: UserActivityType):
-        UserActivityLog(user=email, type=a_type).save()
+    def add_log(account: int, a_type: UserActivityType, email: Text = None, bot: Text = None):
+        UserActivityLog(account=account, user=email, type=a_type, bot=bot).save()
 
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):

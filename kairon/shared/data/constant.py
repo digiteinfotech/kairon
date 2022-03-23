@@ -152,6 +152,12 @@ class TOKEN_TYPE(str, Enum):
     CHANNEL = "channel"
 
 
+class ModelTestType(str, Enum):
+    stories = "stories"
+    nlu = "nlu"
+    common = "common"
+
+
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
 ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.md', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}

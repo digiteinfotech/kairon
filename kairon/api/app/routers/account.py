@@ -125,3 +125,12 @@ async def get_ui_config(current_user: User = Depends(Authentication.get_current_
     Get ui configuration for user.
     """
     return {'data': AccountProcessor.get_ui_config(current_user.get_user())}
+
+
+@router.delete("/delete", response_model=Response)
+async def delete_account(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Deletes user account.
+    """
+    AccountProcessor.delete_account(current_user.account)
+    return {"message": "Account deleted"}
