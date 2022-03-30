@@ -38,7 +38,8 @@ from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
-    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
+    SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
+    PipedriveLeadsAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
@@ -254,7 +255,7 @@ class MongoProcessor:
         if 'rules' in what:
             self.delete_rules(bot, user)
         if 'actions' in what:
-            self.delete_http_action(bot, user)
+            self.delete_bot_actions(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -328,9 +329,9 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document([
-            Intents, Entities, Forms, FormValidationAction, EmailActionConfig, SlotSetAction, Actions, Responses,
-            Slots, SlotMapping, Utterances], bot=bot
-        )
+            Intents, Entities, Forms, FormValidationAction, Responses, Slots, SlotMapping, Utterances
+        ], bot=bot)
+        Utility.hard_delete_document([Actions], bot=bot, type=None)
 
     def load_domain(self, bot: Text) -> Domain:
         """
@@ -897,6 +898,9 @@ class MongoProcessor:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
                 Slots.objects.insert(new_slots)
+        self.add_system_required_slots(bot, user)
+
+    def add_system_required_slots(self, bot: Text, user: Text):
         self.add_slot({
             "name": BOT_ID_SLOT, "type": "any", "initial_value": bot, "auto_fill": False,
             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
@@ -2100,6 +2104,8 @@ class MongoProcessor:
         reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
         jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list('name'))
+        zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
+        pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
@@ -2139,6 +2145,10 @@ class MongoProcessor:
                         step['type'] = StoryStepType.email_action.value
                     elif event['name'] in forms:
                         step['type'] = StoryStepType.form_action.value
+                    elif event['name'] in zendesk_actions:
+                        step['type'] = StoryStepType.zendesk_action.value
+                    elif event['name'] in pipedrive_leads_actions:
+                        step['type'] = StoryStepType.pipedrive_leads_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -2568,9 +2578,6 @@ class MongoProcessor:
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value,
                         raise_exception=False)
-        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
-                       "influence_conversation": False}, bot, user,
-                      raise_exception_if_exists=False)
         return doc_id
 
     def get_http_action_config(self, bot: str, action_name: str):
@@ -2661,10 +2668,6 @@ class MongoProcessor:
         self.add_action(
             action_config['name'], bot, user, action_type=ActionType.google_search_action.value,
             raise_exception=False
-        )
-        self.add_slot(
-            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None, "influence_conversation": False},
-            bot, user, raise_exception_if_exists=False
         )
         return action
 
@@ -2850,9 +2853,9 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([Rules], bot=bot)
 
-    def delete_http_action(self, bot: Text, user: Text):
+    def delete_bot_actions(self, bot: Text, user: Text):
         """
-        soft deletes http actions
+        Deletes all type of actions created in bot.
 
         :param bot: bot id
         :param user: user id
@@ -2860,7 +2863,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction
+            ZendeskAction, PipedriveLeadsAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -3759,6 +3762,10 @@ class MongoProcessor:
                 Utility.delete_document([JiraAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.http_action.value:
                 Utility.delete_document([HttpActionConfig], action_name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.zendesk_action.value:
+                Utility.delete_document([ZendeskAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.pipedrive_leads_action.value:
+                Utility.delete_document([PipedriveLeadsAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -3786,9 +3793,6 @@ class MongoProcessor:
         email = EmailActionConfig(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(action['action_name'], bot, user, action_type=ActionType.email_action.value,
                         raise_exception=False)
-        self.add_slot({"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
-                       "influence_conversation": False}, bot, user,
-                      raise_exception_if_exists=False)
         return email
 
     def edit_email_action(self, action: dict, bot: Text, user: Text):
@@ -3858,10 +3862,6 @@ class MongoProcessor:
         self.add_action(
             action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
         )
-        self.add_slot(
-            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
-             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
-        )
         return jira_action
 
     def edit_jira_action(self, action: dict, bot: Text, user: Text):
@@ -3927,10 +3927,6 @@ class MongoProcessor:
         self.add_action(
             action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
         )
-        self.add_slot(
-            {"name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "initial_value": None,
-             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
-        )
         return zendesk_action
 
     def edit_zendesk_action(self, action: dict, bot: Text, user: Text):
@@ -3962,6 +3958,66 @@ class MongoProcessor:
         for action in ZendeskAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             action['user_name'] = Utility.decrypt_message(action['user_name'])
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+            if mask_characters:
+                action['api_token'] = action['api_token'][:-3] + '***'
+            action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
+
+    def add_pipedrive_action(self, action: Dict, bot: str, user: str):
+        """
+        Add a new Pipedrive Action
+        :param action: Pipedrive action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        action['bot'] = bot
+        action['user'] = user
+        Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+        Utility.is_exist(
+            PipedriveLeadsAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+        pipedrive_action = PipedriveLeadsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            action['name'], bot, user, action_type=ActionType.pipedrive_leads_action.value, raise_exception=False
+        )
+        return pipedrive_action
+
+    def edit_pipedrive_action(self, action: dict, bot: Text, user: Text):
+        """
+        Update a Pipedrive Action
+        :param action: Pipedrive action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(PipedriveLeadsAction, raise_error=False, name=action.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        pipedrive_action = PipedriveLeadsAction.objects(name=action.get('name'), bot=bot, status=True).get()
+        pipedrive_action.domain = action['domain']
+        pipedrive_action.api_token = action['api_token']
+        pipedrive_action.title = action['title']
+        pipedrive_action.response = action['response']
+        pipedrive_action.metadata = action['metadata']
+        pipedrive_action.user = user
+        pipedrive_action.timestamp = datetime.utcnow()
+        pipedrive_action.save()
+
+    def list_pipedrive_actions(self, bot: Text, mask_characters: bool = True):
+        """
+        List Pipedrive Action
+        :param bot: bot id
+        :param mask_characters: masks last 3 characters of the password if True
+        """
+        for action in PipedriveLeadsAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
             action['api_token'] = Utility.decrypt_message(action['api_token'])
             if mask_characters:
                 action['api_token'] = action['api_token'][:-3] + '***'

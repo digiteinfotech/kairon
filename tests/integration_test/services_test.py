@@ -13,6 +13,7 @@ from fastapi_sso.sso.google import GoogleSSO
 from jira import JIRAError
 from mongoengine import connect
 from mongoengine.queryset.base import BaseQuerySet
+from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 
@@ -22,7 +23,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.auth import Authentication, LoginSSOFactory
+from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1348,9 +1349,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1395,9 +1396,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3478,7 +3479,7 @@ def test_delete_http_action():
     )
 
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/action/httpaction/test_delete_http_action",
+        url=f"/api/bot/{pytest.bot}/action/test_delete_http_action",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3504,7 +3505,7 @@ def test_delete_http_action_non_existing():
     )
 
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/action/httpaction/new_http_action_never_added",
+        url=f"/api/bot/{pytest.bot}/action/new_http_action_never_added",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3551,7 +3552,7 @@ def test_list_actions():
                         'test_update_http_action_6',
                         'test_update_http_action_non_existing',
                         'new_http_action4'],
-        'slot_set_action': [], 'jira_action': [], 'zendesk_action': [],
+        'slot_set_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
         'utterances': ['utter_greet',
                        'utter_cheer_up',
                        'utter_did_that_help',
@@ -4220,9 +4221,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4265,9 +4266,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -6311,7 +6312,7 @@ def test_edit_slot_set_action_slot_not_exists():
 
 def test_delete_slot_set_action_not_exists():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/slotset/non_existant",
+        f"/api/bot/{pytest.bot}/action/non_existant",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -6322,7 +6323,7 @@ def test_delete_slot_set_action_not_exists():
 
 def test_delete_slot_set_action():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/slotset/action_set_name_slot",
+        f"/api/bot/{pytest.bot}/action/action_set_name_slot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7049,7 +7050,7 @@ def test_edit_email_action_does_not_exists(mock_smtp):
 
 def test_delete_email_action_not_exists():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/email/non_existant",
+        f"/api/bot/{pytest.bot}/action/non_existant",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7060,7 +7061,7 @@ def test_delete_email_action_not_exists():
 
 def test_delete_email_action():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/email/email_config",
+        f"/api/bot/{pytest.bot}/action/email_config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7170,7 +7171,7 @@ def test_list_google_search_action():
 
 def test_delete_google_search_action():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/googlesearch/google_custom_search",
+        f"/api/bot/{pytest.bot}/action/google_custom_search",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7181,7 +7182,7 @@ def test_delete_google_search_action():
 
 def test_delete_google_search_action_not_exists():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/googlesearch/google_custom_search",
+        f"/api/bot/{pytest.bot}/action/google_custom_search",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7801,6 +7802,180 @@ def test_edit_zendesk_action_not_found():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "zendesk_action_1" not found'
+
+
+def test_add_pipedrive_leads_action_invalid_config(monkeypatch):
+    def __mock_exception(*args, **kwargs):
+        raise UnauthorizedError('Invalid authentication', {'error_code': 401})
+
+    action = {
+        'name': 'pipedrive_leads',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': '12345678',
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client._request', __mock_exception) as mock:
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["message"] == "Invalid authentication"
+
+
+def test_add_pipedrive_leads_name_not_filled(monkeypatch):
+    action = {
+        'name': 'pipedrive_leads',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': '12345678',
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'metadata'], 'msg': 'name is required', 'type': 'value_error'}]
+
+
+def test_list_pipedrive_actions_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_pipedrive_action():
+    action = {
+        'name': 'pipedrive_leads',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': '12345678',
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_list_pipedrive_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [
+        {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345***',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }]
+
+
+def test_edit_pipedrive_action():
+    action = {
+        'name': 'pipedrive_leads',
+        'domain': 'https://digite7.pipedrive.com/',
+        'api_token': '1asdfghjklqwertyuio',
+        'title': 'new lead generated',
+        'response': 'Failed to create lead for you',
+        'metadata': {'name': 'name'}
+    }
+
+    with patch('pipedrive.client.Client'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_pipedrive_action_invalid_config(monkeypatch):
+    action = {
+        'name': 'pipedrive_leads',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': '12345678',
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+
+    def __mock_exception(*args, **kwargs):
+        raise UnauthorizedError('Invalid authentication', {'error_code': 401})
+
+    with patch('pipedrive.client.Client._request', __mock_exception):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["message"] == "Invalid authentication"
+
+
+def test_edit_pipedrive_action_not_found():
+    action = {
+        'name': 'pipedrive_action',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': '12345678',
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "pipedrive_action" not found'
+
+
+def test_get_fields_for_integrated_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fields/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['pipedrive'] == {'required_fields': ['name'], 'optional_fields': ['org_name', 'email', 'phone']}
 
 
 def test_channels_params():

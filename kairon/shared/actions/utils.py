@@ -9,20 +9,10 @@ import requests
 from jira import JIRA
 from loguru import logger
 from mongoengine import DoesNotExist
-from pymongo.common import _CaseInsensitiveDictionary
-from pymongo.errors import InvalidURI
-from pymongo.uri_parser import (
-    SRV_SCHEME_LEN,
-    SCHEME,
-    SCHEME_LEN,
-    SRV_SCHEME,
-    parse_userinfo,
-)
-from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from rasa_sdk import Tracker
 
 from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
-    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
+    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
@@ -127,6 +117,18 @@ class ActionUtility:
         return initiated_at, message_trail
 
     @staticmethod
+    def prepare_message_trail_as_str(tracker_events):
+        message_trail_as_str = ''
+        initiated_at = None
+        for event in tracker_events:
+            if event.get('event') == 'session_started' and event.get('timestamp'):
+                initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            elif event.get('event') == 'user' or event.get('event') == 'bot':
+                message_trail_as_str = f"{message_trail_as_str}{event['event']}: {event.get('text')}\n"
+
+        return initiated_at, message_trail_as_str
+
+    @staticmethod
     def prepare_url(request_method: str, http_url: str, request_body=None):
         if request_method.lower() == 'get' and request_body:
             http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
@@ -143,94 +145,6 @@ class ActionUtility:
         if not value:
             return True
         return bool(not value.strip())
-
-    @staticmethod
-    def extract_db_config(uri: str):
-        """
-        extract username, password and host with port from mongo uri
-
-        :param uri: mongo uri
-        :return: username, password, scheme, hosts
-        """
-        user = None
-        passwd = None
-        dbase = None
-        collection = None
-        options = _CaseInsensitiveDictionary()
-        hosts = None
-        is_mock = False
-        if uri.startswith("mongomock://"):
-            uri = uri.replace("mongomock://", "mongodb://", 1)
-            is_mock = True
-        if uri.startswith(SCHEME):
-            scheme_free = uri[SCHEME_LEN:]
-            scheme = uri[:SCHEME_LEN]
-        elif uri.startswith(SRV_SCHEME):
-            scheme_free = uri[SRV_SCHEME_LEN:]
-            scheme = uri[:SRV_SCHEME_LEN]
-        else:
-            raise InvalidURI(
-                "Invalid URI scheme: URI must "
-                "begin with '%s' or '%s'" % (SCHEME, SRV_SCHEME)
-            )
-
-        if not scheme_free:
-            raise InvalidURI("Must provide at least one hostname or IP.")
-
-        host_part, _, path_part = scheme_free.partition("/")
-        if not host_part:
-            host_part = path_part
-            path_part = ""
-
-        if not path_part and '?' in host_part:
-            raise InvalidURI("A '/' is required between "
-                             "the host list and any options.")
-
-        if path_part:
-            dbase, _, opts = path_part.partition('?')
-            if dbase:
-                dbase = unquote_plus(dbase)
-                if '.' in dbase:
-                    dbase, collection = dbase.split('.', 1)
-                if _BAD_DB_CHARS.search(dbase):
-                    raise InvalidURI('Bad database name "%s"' % dbase)
-            else:
-                dbase = None
-
-            if opts:
-                options.update(split_options(opts, True, False, True))
-
-        if "@" in host_part:
-            userinfo, _, hosts = host_part.rpartition("@")
-            user, passwd = parse_userinfo(userinfo)
-            hosts = scheme + hosts
-        else:
-            hosts = scheme + host_part
-        settings = {
-            "username": user,
-            "password": passwd,
-            "host": hosts,
-            "db": dbase,
-            "options": options,
-            "collection": collection
-        }
-
-        if is_mock:
-            settings['is_mock'] = is_mock
-        return settings
-
-    @staticmethod
-    def mongoengine_connection(environment=None):
-        config = ActionUtility.extract_db_config(environment['database']["url"])
-        options = config.pop("options")
-        config.pop("collection")
-        if "replicaset" in options:
-            config["replicaSet"] = options["replicaset"]
-        if "authsource" in options:
-            config["authentication_source"] = options["authsource"]
-        if "authmechanism" in options:
-            config["authentication_mechanism"] = options["authmechanism"]
-        return config
 
     @staticmethod
     def get_action_config(bot: str, name: str):
@@ -254,6 +168,8 @@ class ActionUtility:
                 config = ActionUtility.get_jira_action_config(bot, name)
             elif action.get('type') == ActionType.zendesk_action.value:
                 config = ActionUtility.get_zendesk_action_config(bot, name)
+            elif action.get('type') == ActionType.pipedrive_leads_action.value:
+                config = ActionUtility.get_pipedrive_leads_action_config(bot, name)
             else:
                 raise ActionFailure(f'{action.get("type")} action is not supported with action server')
         except DoesNotExist as e:
@@ -345,6 +261,17 @@ class ActionUtility:
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("Zendesk action not found")
+        return action
+
+    @staticmethod
+    def get_pipedrive_leads_action_config(bot: str, name: str):
+        try:
+            action = PipedriveLeadsAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("pipedrive_leads_action_config: " + str(action))
+            action['api_token'] = Utility.decrypt_message(action['api_token'])
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Pipedrive leads action not found")
         return action
 
     @staticmethod
@@ -554,6 +481,69 @@ class ActionUtility:
             zendesk_client.tickets.create(Ticket(subject=subject, description=description, tags=tags, comment=comment))
         except APIException as e:
             raise ActionFailure(e)
+
+    @staticmethod
+    def prepare_pipedrive_metadata(tracker: Tracker, action_config: dict):
+        metadata = {}
+        for key, slot in action_config.get('metadata', {}).items():
+            metadata[key] = tracker.get_slot(slot)
+        return metadata
+
+    @staticmethod
+    def validate_pipedrive_credentials(domain: str, api_token: str):
+        from pipedrive.client import Client
+        from pipedrive.exceptions import UnauthorizedError
+
+        try:
+            client = Client(domain=domain)
+            client.set_api_token(api_token)
+            client.leads.get_all_leads()
+        except UnauthorizedError as e:
+            raise ActionFailure(e)
+
+    @staticmethod
+    def create_pipedrive_lead(domain: str, api_token: str, title: str, conversation: str, **kwargs):
+        from pipedrive.client import Client
+
+        client = Client(domain=domain)
+        client.set_api_token(api_token)
+        if kwargs.get('org_name'):
+            organization = ActionUtility.create_pipedrive_organization(domain, api_token, **kwargs)
+            kwargs['org_id'] = organization['id']
+        person = ActionUtility.create_pipedrive_person(domain, api_token, **kwargs)
+        payload = {'title': title, 'person_id': person['data']['id'], 'organization_id': kwargs.get('org_id')}
+        lead = client.leads.create_lead(payload)
+        kwargs['lead_id'] = lead['data']['id']
+        ActionUtility.create_pipedrive_note(domain, api_token, conversation, **kwargs)
+
+    @staticmethod
+    def create_pipedrive_organization(domain: str, api_token: str, **kwargs):
+        from pipedrive.client import Client
+
+        client = Client(domain=domain)
+        client.set_api_token(api_token)
+        payload = {'name': kwargs.get('org_name')}
+        return client.organizations.create_organization(payload)
+
+    @staticmethod
+    def create_pipedrive_person(domain: str, api_token: str, **kwargs):
+        from pipedrive.client import Client
+
+        client = Client(domain=domain)
+        client.set_api_token(api_token)
+        email = [kwargs['email']] if kwargs.get('email') else None
+        phone = [kwargs['phone']] if kwargs.get('phone') else None
+        payload = {'name': kwargs.get('name'), 'org_id': kwargs.get('org_id'), 'email': email, 'phone': phone}
+        return client.persons.create_person(payload)
+
+    @staticmethod
+    def create_pipedrive_note(domain: str, api_token: str, conversation: str, **kwargs):
+        from pipedrive.client import Client
+
+        client = Client(domain=domain)
+        client.set_api_token(api_token)
+        payload = {'content': conversation, 'lead_id': kwargs.get('lead_id')}
+        return client.notes.create_note(payload)
 
 
 class ExpressionEvaluator:

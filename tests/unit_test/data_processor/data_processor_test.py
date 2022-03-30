@@ -17,6 +17,7 @@ from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
+from pipedrive.exceptions import UnauthorizedError
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -48,7 +49,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -2012,7 +2013,7 @@ class TestMongoProcessor:
         assert actions
         assert isinstance(actions, dict)
         assert len(actions["http_action"]) == 1
-        processor.delete_http_action(bot="test_http", user="http_creator")
+        processor.delete_bot_actions(bot="test_http", user="http_creator")
         actions = processor.load_http_action("test_http")
         assert not actions['http_action']
         assert isinstance(actions, dict)
@@ -2606,7 +2607,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 0
+        assert domain.user_actions.__len__() == 5
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2634,7 +2635,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -5835,6 +5836,27 @@ class TestMongoProcessor:
         with patch('zenpy.Zenpy'):
             assert processor.add_zendesk_action(action, bot, user)
 
+    def test_add_zendesk_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "zendesk_action", "type": "ZENDESK_ACTION"},
+        ]
+        story_dict = {'name': "story with zendesk action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with zendesk action", bot=bot,
+                                events__name='zendesk_action', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with zendesk action']
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "zendesk_action", "type": "ZENDESK_ACTION"},
+        ]
+        processor.delete_complex_story('story with zendesk action', 'STORY', bot, user)
+
     def test_add_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
@@ -5964,6 +5986,182 @@ class TestMongoProcessor:
         assert list(processor.list_zendesk_actions(bot, False)) == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+
+    def test_add_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with patch('pipedrive.client.Client'):
+            assert processor.add_pipedrive_action(action, bot, user)
+        assert Actions.objects(name='pipedrive_leads', status=True, bot=bot).get()
+        assert PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
+
+    def test_add_pipedrive_leads_action_required_metadata_absent(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(ValidationError, match='metadata: name is required'):
+            with patch('pipedrive.client.Client'):
+                assert processor.add_pipedrive_action(action, bot, user)
+
+    def test_add_pipedrive_leads_action_invalid_auth(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+
+        def __mock_exception(*args, **kwargs):
+            raise UnauthorizedError('Invalid authentication', {'error_code': 401})
+
+        with pytest.raises(ValidationError, match='Invalid authentication*'):
+            with patch('pipedrive.client.Client', __mock_exception):
+                assert processor.add_pipedrive_action(action, bot, user)
+
+    def test_add_pipedrive_leads_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "pipedrive_leads", "type": "PIPEDRIVE_LEADS_ACTION"},
+        ]
+        story_dict = {'name': "story with pipedrive leads", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with pipedrive leads", bot=bot,
+                                events__name='pipedrive_leads', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with pipedrive leads']
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "pipedrive_leads", "type": "PIPEDRIVE_LEADS_ACTION"},
+        ]
+        processor.delete_complex_story('story with pipedrive leads', 'STORY', bot, user)
+
+    def test_add_pipedrive_leads_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_pipedrive_action(action, bot, user)
+
+    def test_add_pipedrive_leads_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads_action',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        Actions(name='pipedrive_leads_action', type=ActionType.pipedrive_leads_action.value, bot=bot, user=user).save()
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_pipedrive_action(action, bot, user)
+
+    def test_list_pipedrive_leads_action_masked(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_pipedrive_actions(bot))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == '12345***'
+        assert actions[0]['domain'] == 'https://digite751.pipedrive.com/'
+        assert actions[0]['response'] == 'I have failed to create lead for you'
+        assert actions[0]['title'] == 'new lead'
+        assert actions[0]['metadata'] == {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+
+    def test_edit_pipedrive_leads_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(AppException, match='Action with name "pipedrive_invalid_metadata" not found'):
+            processor.edit_pipedrive_action(action, bot, user)
+
+    def test_edit_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite7.pipedrive.com/',
+            'api_token': 'asdfghjklertyui',
+            'title': 'new lead generated',
+            'response': 'Failed to create lead for you',
+            'metadata': {'name': 'name', 'email': 'email', 'phone': 'phone'}
+        }
+        with patch('pipedrive.client.Client'):
+            assert not processor.edit_pipedrive_action(action, bot, user)
+
+    def test_list_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_pipedrive_actions(bot, False))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == 'asdfghjklertyui'
+        assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
+        assert actions[0]['response'] == 'Failed to create lead for you'
+        assert actions[0]['title'] == 'new lead generated'
+        assert actions[0]['metadata'] == {'name': 'name', 'email': 'email', 'phone': 'phone'}
+
+        actions = list(processor.list_pipedrive_actions(bot, True))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == 'asdfghjklert***'
+        assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
+        assert actions[0]['response'] == 'Failed to create lead for you'
+        assert actions[0]['title'] == 'new lead generated'
+        assert actions[0]['metadata'] == {'name': 'name', 'email': 'email', 'phone': 'phone'}
+
+    def test_delete_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('pipedrive_leads', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='pipedrive_leads', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
+
 
 
 # pylint: disable=R0201
@@ -6632,8 +6830,11 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
-                           'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': []}
+        assert actions == {
+            'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
+            'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
+            'pipedrive_leads_action': []
+        }
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -6653,7 +6854,7 @@ class TestModelProcessor:
         assert actions == {
             'actions': ['action_check'],
             'http_action': [], 'jira_action': [],
-            'slot_set_action': [], 'zendesk_action': [],
+            'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story(self):
@@ -6671,7 +6872,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [], 'zendesk_action': [],
+        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
@@ -6948,12 +7149,11 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [],
-                           'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
-                           'utterances': ['utter_offer_help',
-                                          'utter_default',
-                                          'utter_please_rephrase']}
+        assert actions == {
+            'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
+            'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
+            'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
+                                                                             'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -7221,7 +7421,7 @@ class TestTrainingDataProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [], 'zendesk_action': [],
-            'http_action': [], 'google_search_action': [],
+            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -7650,7 +7850,6 @@ class TestTrainingDataProcessor:
             with pytest.raises(AppException, match="Action exists!"):
                 processor.add_email_action(email_config, "test_bot", "tests")
 
-
     def test_edit_email_action(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config",
@@ -7794,7 +7993,6 @@ class TestTrainingDataProcessor:
         with pytest.raises(AppException, match='Action with name "test_action" exists'):
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='test_action', status=True, bot=bot).get()
-
 
     def test_list_google_search_action_masked(self):
         processor = MongoProcessor()

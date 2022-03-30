@@ -498,6 +498,23 @@ class ZendeskActionRequest(BaseModel):
     response: str
 
 
+class PipedriveActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    domain: str
+    api_token: str
+    title: str
+    response: str
+    metadata: dict
+
+    @validator("metadata")
+    def validate_metadata(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v.get('name')):
+            raise ValueError("name is required")
+        return v
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_minutes: int = 0

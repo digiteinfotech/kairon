@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Path, Security
+
+from kairon import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
-    ZendeskActionRequest
+    ZendeskActionRequest, PipedriveActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -62,18 +64,6 @@ async def update_http_action(
     return Response(data=response, message=message)
 
 
-@router.delete("/httpaction/{action}", response_model=Response)
-async def delete_http_action(
-        action: str = Path(default=None, description="action name", example="http_action"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Deletes the http action config and story event
-    """
-    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
-    return Response(message="HTTP action deleted")
-
-
 @router.post("/jira", response_model=Response)
 async def add_jira_action(
         request_data: JiraActionRequest,
@@ -105,18 +95,6 @@ async def edit_jira_action(
     """
     mongo_processor.edit_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
-
-
-@router.delete("/jira/{action}", response_model=Response)
-async def delete_jira_action(
-        action: str = Path(default=None, description="action name", example="action_email"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Deletes the Jira action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')
 
 
 @router.post("/slotset", response_model=Response)
@@ -152,17 +130,6 @@ async def edit_slot_set_action(
     """
     mongo_processor.edit_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
-
-
-@router.delete("/slotset/{action}", response_model=Response)
-async def delete_slot_set_action(
-        action: str = Path(default=None, description="action name", example="action_reset_slot"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the slot set action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')
 
 
 @router.post("/googlesearch", response_model=Response)
@@ -204,18 +171,6 @@ async def update_google_search_action(
     return Response(message='Action updated')
 
 
-@router.delete("/googlesearch/{action}", response_model=Response)
-async def delete_google_search_action(
-        action: str = Path(default=None, description="action name", example="action_google_search"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Deletes the google search action.
-    """
-    mongo_processor.delete_action(action, user=current_user.get_user(), bot=current_user.get_bot())
-    return Response(message="Action deleted")
-
-
 @router.post("/email", response_model=Response)
 async def add_email_action(
         request_data: EmailActionRequest,
@@ -249,24 +204,13 @@ async def edit_email_action(
     return Response(message='Action updated')
 
 
-@router.delete("/email/{action}", response_model=Response)
-async def delete_email_action(
-        action: str = Path(default=None, description="action name", example="action_email"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the email action config.
-    """
-    mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
-    return Response(message='Action deleted')
-
-
 @router.post("/zendesk", response_model=Response)
 async def add_zendesk_action(
         request_data: ZendeskActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Stores the email action config.
+    Stores the zendesk action config.
     """
     mongo_processor.add_zendesk_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
@@ -276,7 +220,7 @@ async def add_zendesk_action(
 async def list_zendesk_actions(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
-    Returns list of email actions for bot.
+    Returns list of zendesk actions for bot.
     """
     actions = list(mongo_processor.list_zendesk_actions(current_user.get_bot()))
     return Response(data=actions)
@@ -288,19 +232,64 @@ async def edit_zendesk_action(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Edits the email action config.
+    Edits the zendesk action config.
     """
     mongo_processor.edit_zendesk_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
-@router.delete("/zendesk/{action}", response_model=Response)
-async def delete_zendesk_action(
-        action: str = Path(default=None, description="action name", example="action_email"),
+@router.post("/pipedrive", response_model=Response)
+async def add_pipedrive_action(
+        request_data: PipedriveActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Deletes the email action config.
+    Stores the pipedrive leads action config.
+    """
+    mongo_processor.add_pipedrive_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/pipedrive", response_model=Response)
+async def list_pipedrive_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of pipedrive leads actions for bot.
+    """
+    actions = list(mongo_processor.list_pipedrive_actions(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/pipedrive", response_model=Response)
+async def edit_pipedrive_action(
+        request_data: PipedriveActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the pipedrive leads action config.
+    """
+    mongo_processor.edit_pipedrive_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/{action}", response_model=Response)
+async def delete_action(
+        action: str = Path(default=None, description="action name", example="action_pipedrive"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the action config.
     """
     mongo_processor.delete_action(action, current_user.get_bot(), current_user.get_user())
     return Response(message='Action deleted')
+
+
+@router.get("/fields/list", response_model=Response)
+async def list_integration_fields(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    List required and optional fields for integrated actions.
+    """
+    return Response(data=Utility.environment['integrations'])
+
