@@ -55,6 +55,8 @@ class ActionProcessor:
                 slots = await ActionProcessor.__process_jira_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.zendesk_action.value:
                 slots = await ActionProcessor.__process_zendesk_action(dispatcher, tracker, action_config)
+            elif action_type == ActionType.pipedrive_leads_action.value:
+                slots = await ActionProcessor.__process_pipedrive_leads_action(dispatcher, tracker, action_config)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
@@ -225,6 +227,7 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
+                bot_response=bot_response,
                 status=status
             ).save()
         dispatcher.utter_message(bot_response)
@@ -294,6 +297,7 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
+                bot_response=bot_response,
                 status=status
             ).save()
         dispatcher.utter_message(bot_response)
@@ -329,6 +333,43 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
+                bot_response=bot_response,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+
+    @staticmethod
+    async def __process_pipedrive_leads_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        status = "SUCCESS"
+        exception = None
+        bot_response = action_config.get("response")
+        title = f"{tracker.sender_id} {action_config['title']}"
+        try:
+            conversation_as_str = ActionUtility.prepare_message_trail_as_str(tracker.events)
+            metadata = ActionUtility.prepare_pipedrive_metadata(tracker, action_config)
+            ActionUtility.create_pipedrive_lead(
+                domain=action_config['domain'],
+                api_token=action_config['api_token'],
+                title=title,
+                conversation=conversation_as_str,
+                **metadata
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = str(e)
+            status = "FAILURE"
+            bot_response = "I have failed to create lead for you"
+        finally:
+            ActionServerLogs(
+                type=ActionType.pipedrive_leads_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=action_config['name'],
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                bot_response=bot_response,
                 status=status
             ).save()
         dispatcher.utter_message(bot_response)

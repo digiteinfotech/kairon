@@ -397,7 +397,7 @@ class TestTrainingDataValidator:
         assert not is_data_invalid
         assert error_summary == {'http_actions': [], 'email_actions': [], 'form_validation_actions': [],
                                  'google_search_actions': [], 'jira_actions': [], 'slot_set_actions': [],
-                                 'zendesk_actions': []}
+                                 'zendesk_actions': [], 'pipedrive_leads_actions': []}
         assert component_count
 
     def test_validate_custom_actions_with_errors(self):
@@ -497,7 +497,27 @@ class TestTrainingDataValidator:
                           'failure_response': 'failed to search', 'num_results': '1'},
                          {'name': 'google_search', 'api_key': '1231234567', 'search_engine_id': '2345678',
                           'failure_response': 'failed to search', 'num_results': ''},
-                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]]}
+                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
+                     'pipedrive_leads_action': [
+                         {'name': 'action_pipedrive_leads', 'domain': 'https://digite751.pipedrive.com',
+                          'api_token': '2345678dfghj', 'metadata': {
+                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
+                         }, 'title': 'new lead detected', 'response': 'lead_created'},
+                         {'name': 'action_create_lead', 'domain': 'https://digite75.pipedrive.com',
+                          'api_token': '2345678dfghj', 'metadata': {
+                             'name': 'name'}, 'title': 'new lead detected', 'response': 'lead_created'},
+                         {'name': 'pipedrive_leads_action', 'domain': 'https://digite751.pipedrive.com',
+                          'api_token': '2345678dfghj', 'metadata': {
+                             'org_name': 'organization', 'email': 'email', 'phone': 'phone'
+                         }, 'title': 'new lead detected', 'response': 'lead_created'},
+                         {'domain': 'https://digite751.pipedrive.com', 'api_token': '2345678dfghj', 'metadata': {
+                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
+                         }, 'title': 'new lead detected', 'response': 'lead_created'},
+                         {'name': 'action_pipedrive_leads', 'domain': 'https://digite751.pipedrive.com',
+                          'api_token': '2345678dfghj', 'metadata': {
+                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
+                         }, 'title': 'new lead detected', 'response': 'lead_created'}
+                     ]}
         is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
         assert is_data_invalid
         assert len(error_summary['http_actions']) == 4
@@ -507,6 +527,7 @@ class TestTrainingDataValidator:
         assert len(error_summary['jira_actions']) == 4
         assert len(error_summary['google_search_actions']) == 2
         assert len(error_summary['zendesk_actions']) == 2
+        assert len(error_summary['pipedrive_leads_actions']) == 3
         assert component_count == {'http_actions': 7, 'slot_set_actions': 6, 'form_validation_actions': 6,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
-                                   'zendesk_actions': 4}
+                                   'zendesk_actions': 4, 'pipedrive_leads_actions': 5}

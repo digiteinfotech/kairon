@@ -307,8 +307,42 @@ class ZendeskAction(Document):
         document.api_token = Utility.encrypt_message(document.api_token)
 
 
+@push_notification.apply
+class PipedriveLeadsAction(Document):
+    name = StringField(required=True)
+    domain = StringField(required=True)
+    api_token = StringField(required=True)
+    title = StringField(required=True)
+    metadata = DictField(required=True)
+    response = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        try:
+            ActionUtility.validate_pipedrive_credentials(self.domain, self.api_token)
+            if Utility.check_empty_string(self.metadata.get('name')):
+                raise ValidationError("metadata: name is required")
+        except Exception as e:
+            raise ValidationError(e)
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        document.api_token = Utility.encrypt_message(document.api_token)
+
+
 from mongoengine import signals
 signals.pre_save_post_validation.connect(GoogleSearchAction.pre_save_post_validation, sender=GoogleSearchAction)
 signals.pre_save_post_validation.connect(EmailActionConfig.pre_save_post_validation, sender=EmailActionConfig)
 signals.pre_save_post_validation.connect(JiraAction.pre_save_post_validation, sender=JiraAction)
 signals.pre_save_post_validation.connect(ZendeskAction.pre_save_post_validation, sender=ZendeskAction)
+signals.pre_save_post_validation.connect(PipedriveLeadsAction.pre_save_post_validation, sender=PipedriveLeadsAction)

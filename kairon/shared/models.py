@@ -17,6 +17,8 @@ class StoryStepType(str, Enum):
     google_search_action = "GOOGLE_SEARCH_ACTION"
     email_action = "EMAIL_ACTION"
     jira_action = "JIRA_ACTION"
+    zendesk_action = "ZENDESK_ACTION"
+    pipedrive_leads_action = "PIPEDRIVE_LEADS_ACTION"
 
 
 class StoryType(str, Enum):

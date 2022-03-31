@@ -7,7 +7,6 @@ from pymongo.errors import ServerSelectionTimeoutError
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.utils import ActionUtility
 
 
 class HistoryProcessor:
@@ -18,7 +17,7 @@ class HistoryProcessor:
     @staticmethod
     def get_mongo_connection():
         url = Utility.environment["tracker"]["url"]
-        config = ActionUtility.extract_db_config(url)
+        config = Utility.extract_db_config(url)
         message = f"Loading host:{config.get('host')}, db:{config.get('db')}"
         client = MongoClient(host=url)
         return client, message
