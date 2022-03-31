@@ -7,7 +7,6 @@ from pymongo.errors import ServerSelectionTimeoutError
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.utils import ActionUtility
 
 
 class HistoryProcessor:

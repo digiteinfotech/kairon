@@ -2907,6 +2907,7 @@ class MongoProcessor:
             ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
+            ActionType.pipedrive_leads_action.value: PipedriveLeadsAction
         }
         saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
         for action_type, actions_list in actions.items():
@@ -2933,6 +2934,7 @@ class MongoProcessor:
         action_config.update(self.load_form_validation_action(bot))
         action_config.update(self.load_slot_set_action(bot))
         action_config.update(self.load_google_search_action(bot))
+        action_config.update(self.load_pipedrive_leads_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -2995,22 +2997,21 @@ class MongoProcessor:
         """
         return {ActionType.slot_set_action.value: list(self.list_slot_set_actions(bot))}
 
+    def load_pipedrive_leads_action(self, bot: Text):
+        """
+        Loads Pipedrive leads actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.pipedrive_leads_action.value: list(self.list_pipedrive_actions(bot, False))}
+
     def load_form_validation_action(self, bot: Text):
         """
         Loads Form validation actions from the database
         :param bot: bot id
         :return: dict
         """
-        form_validations = []
-        for action in FormValidationAction.objects(bot=bot, status=True):
-            action = action.to_mongo().to_dict()
-            action.pop('_id')
-            action.pop('bot')
-            action.pop('user')
-            action.pop('timestamp')
-            action.pop('status')
-            form_validations.append(action)
-        return {ActionType.form_validation_action.value: form_validations}
+        return {ActionType.form_validation_action.value: list(self.list_form_validation_actions(bot))}
 
     @staticmethod
     def get_existing_slots(bot: Text):
@@ -3886,6 +3887,16 @@ class MongoProcessor:
         jira_action.user = user
         jira_action.timestamp = datetime.utcnow()
         jira_action.save()
+
+    def list_form_validation_actions(self, bot: Text):
+        for action in FormValidationAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action.pop('_id')
+            action.pop('bot')
+            action.pop('user')
+            action.pop('timestamp')
+            action.pop('status')
+            yield action
 
     def list_jira_actions(self, bot: Text, mask_characters: bool = True):
         """

@@ -513,7 +513,6 @@ def test_get_data_importer_logs():
     assert len(actual["data"]) == 5
     assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
     assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    print(actual['data'])
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][2]['start_timestamp']
@@ -533,7 +532,9 @@ def test_get_data_importer_logs():
                                              {'type': 'email_actions', 'count': 0, 'data': []},
                                              {'type': 'google_search_actions', 'count': 0, 'data': []},
                                              {'type': 'jira_actions', 'count': 0, 'data': []},
-                                             {'type': 'zendesk_actions', 'count': 0, 'data': []}], 'exception': '',
+                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}],
+                                 'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
     assert actual['data'][3]['intents']['count'] == 16
@@ -551,7 +552,9 @@ def test_get_data_importer_logs():
                                             {'type': 'email_actions', 'count': 0, 'data': []},
                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
-                                            {'type': 'zendesk_actions', 'count': 0, 'data': []}]
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}
+                                            ]
     assert actual['data'][3]['is_data_uploaded']
     assert set(actual['data'][3]['files_received']) == {'stories', 'domain', 'config', 'nlu'}
     assert actual['data'][3]['status'] == 'Failure'
@@ -4453,7 +4456,8 @@ def test_upload_actions_and_config():
                                             {'type': 'email_actions', 'count': 0, 'data': []},
                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
-                                            {'type': 'zendesk_actions', 'count': 0, 'data': []}]
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                            {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0}]
     assert not actual['data'][0]['config']['data']
 
     response = client.get(

@@ -17,7 +17,7 @@ from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
-    ZendeskAction, EmailActionConfig, HttpActionConfig
+    ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.utils import Utility
@@ -360,11 +360,11 @@ class TrainingDataValidator(Validator):
         is_data_invalid = False
         component_count = {
             'http_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'email_actions': 0,
-            'google_search_actions': 0, 'jira_actions': 0, 'zendesk_actions': 0
+            'google_search_actions': 0, 'jira_actions': 0, 'zendesk_actions': 0, 'pipedrive_leads_actions': 0
         }
         error_summary = {
             'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
-            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': []
+            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [], 'pipedrive_leads_actions': []
         }
         if not actions:
             return True, error_summary, component_count
@@ -376,7 +376,8 @@ class TrainingDataValidator(Validator):
                 'email_actions': ['Invalid action configuration format. Dictionary expected.'],
                 'google_search_actions': ['Invalid action configuration format. Dictionary expected.'],
                 'jira_actions': ['Invalid action configuration format. Dictionary expected.'],
-                'zendesk_actions': ['Invalid action configuration format. Dictionary expected.']
+                'zendesk_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'pipedrive_leads_actions': ['Invalid action configuration format. Dictionary expected.']
             }
             return False, error_summary, component_count
         for action_type, actions_list in actions.items():
@@ -415,6 +416,11 @@ class TrainingDataValidator(Validator):
                 is_data_invalid = True if errors else False
                 error_summary['zendesk_actions'] = errors
                 component_count['zendesk_actions'] = len(actions_list)
+            elif action_type == ActionType.pipedrive_leads_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_pipedrive_leads_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['pipedrive_leads_actions'] = errors
+                component_count['pipedrive_leads_actions'] = len(actions_list)
 
         return is_data_invalid, error_summary, component_count
 
@@ -541,6 +547,32 @@ class TrainingDataValidator(Validator):
                     continue
                 if action['name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_pipedrive_leads_actions(pipedrive_actions: list):
+        """
+        Validates Zendesk actions.
+        @param zendesk_actions: Zendesk actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in PipedriveLeadsAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in pipedrive_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                if not (isinstance(action['metadata'], dict) and action['metadata'].get('name')):
+                    data_error.append(f'Invalid metadata. "name" is required: {action["name"]}')
                 actions_present.add(action["name"])
             else:
                 data_error.append('Invalid action configuration format. Dictionary expected.')

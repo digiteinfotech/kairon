@@ -3,7 +3,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, List
-from urllib.parse import urlencode, quote_plus, unquote_plus
+from urllib.parse import urlencode, quote_plus
 
 import requests
 from jira import JIRA

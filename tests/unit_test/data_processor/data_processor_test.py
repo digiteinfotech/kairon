@@ -3022,34 +3022,37 @@ class TestMongoProcessor:
         with patch('kairon.shared.utils.SMTP'):
             with patch('kairon.shared.actions.data_objects.ZendeskAction.validate'):
                 with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
-                    processor = MongoProcessor()
-                    actions = UploadFile(filename="actions.yml",
-                                         file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
-                    files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
-                        'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
-                    print(non_event_validation_summary)
-                    assert non_event_validation_summary['summary'] == {'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
-                                    'email_actions': [], 'google_search_actions': [], 'jira_actions': [],
-                                    'zendesk_actions': [],
-                                    }
-                    assert non_event_validation_summary['component_count']['http_actions'] == 4
-                    assert non_event_validation_summary['component_count']['jira_actions'] == 2
-                    assert non_event_validation_summary['component_count']['google_search_actions'] == 2
-                    assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
-                    assert non_event_validation_summary['component_count']['email_actions'] == 2
-                    assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
-                    assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
-                    assert non_event_validation_summary['validation_failed'] is False
-                    assert files_received == {'actions'}
-                    assert not is_event_data
-                    saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
-                    assert len(saved_actions['http_action']) == 4
-                    assert len(saved_actions['slot_set_action']) == 3
-                    assert len(saved_actions['form_validation_action']) == 4
-                    assert len(saved_actions['jira_action']) == 2
-                    assert len(saved_actions['google_search_action']) == 2
-                    assert len(saved_actions['zendesk_action']) == 2
-                    assert len(saved_actions['email_action']) == 2
+                    with patch('pipedrive.client.Client'):
+                        processor = MongoProcessor()
+                        actions = UploadFile(filename="actions.yml",
+                                             file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
+                        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+                            'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
+                        assert non_event_validation_summary['summary'] == {
+                            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
+                            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
+                            'pipedrive_leads_actions': []
+                        }
+                        assert non_event_validation_summary['component_count']['http_actions'] == 4
+                        assert non_event_validation_summary['component_count']['jira_actions'] == 2
+                        assert non_event_validation_summary['component_count']['google_search_actions'] == 2
+                        assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
+                        assert non_event_validation_summary['component_count']['email_actions'] == 2
+                        assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
+                        assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
+                        assert non_event_validation_summary['component_count']['pipedrive_leads_actions'] == 2
+                        assert non_event_validation_summary['validation_failed'] is False
+                        assert files_received == {'actions'}
+                        assert not is_event_data
+                        saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
+                        assert len(saved_actions['http_action']) == 4
+                        assert len(saved_actions['slot_set_action']) == 3
+                        assert len(saved_actions['form_validation_action']) == 4
+                        assert len(saved_actions['jira_action']) == 2
+                        assert len(saved_actions['google_search_action']) == 2
+                        assert len(saved_actions['zendesk_action']) == 2
+                        assert len(saved_actions['email_action']) == 2
+                        assert len(saved_actions['pipedrive_leads_action']) == 2
 
     def test_save_component_properties_all(self):
         config = {"nlu_epochs": 200,
@@ -5987,6 +5990,16 @@ class TestMongoProcessor:
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
 
+    def test_delete_zendesk_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('zendesk_action', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='zendesk_action', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            PipedriveLeadsAction.objects(name='zendesk_action', status=True, bot=bot).get()
+
     def test_add_pipedrive_leads_action(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -6161,132 +6174,6 @@ class TestMongoProcessor:
             Actions.objects(name='pipedrive_leads', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
-
-
-
-# pylint: disable=R0201
-class TestAgentProcessor:
-
-    def test_get_agent(self, monkeypatch):
-        def mongo_store(*args, **kwargs):
-            return None
-
-        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        agent = AgentProcessor.get_agent("tests")
-        assert isinstance(agent, Agent)
-
-    def test_get_agent_from_cache(self):
-        agent = AgentProcessor.get_agent("tests")
-        assert isinstance(agent, Agent)
-
-    def test_get_agent_from_cache_does_not_exists(self):
-        with pytest.raises(AppException):
-            agent = AgentProcessor.get_agent("test")
-            assert isinstance(agent, Agent)
-
-
-class TestModelProcessor:
-
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
-        yield None
-        Utility.environment['notifications']['enable'] = False
-
-    @pytest.fixture
-    def test_set_training_status_inprogress(self):
-        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
-        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
-        return model_training
-
-    def test_set_training_status_Done(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-        training_status_inprogress_id = test_set_training_status_inprogress.first().id
-
-        ModelProcessor.set_training_status(bot="tests",
-                                           user="testUser",
-                                           status="Done",
-                                           model_path="model_path"
-                                           )
-        model_training = ModelTraining.objects(bot="tests", status="Done")
-        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
-        index = ids.index(training_status_inprogress_id)
-        assert model_training.count() == 4
-        assert training_status_inprogress_id in ids
-        assert model_training[index].bot == "tests"
-        assert model_training[index].user == "testUser"
-        assert model_training[index].status == "Done"
-        assert model_training[index].model_path == "model_path"
-        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
-
-    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-        training_status_inprogress_id = test_set_training_status_inprogress.first().id
-
-        ModelProcessor.set_training_status(bot="tests",
-                                           user="testUser",
-                                           status="Fail",
-                                           model_path=None,
-                                           exception="exception occurred while training model."
-                                           )
-        model_training = ModelTraining.objects(bot="tests", status="Fail")
-
-        assert model_training.__len__() == 1
-        assert model_training.first().id == training_status_inprogress_id
-        assert model_training.first().bot == "tests"
-        assert model_training.first().user == "testUser"
-        assert model_training.first().status == "Fail"
-        assert model_training.first().model_path is None
-        assert model_training.first().exception == "exception occurred while training model."
-        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
-
-    def test_is_training_inprogress_False(self):
-        actual_response = ModelProcessor.is_training_inprogress("tests")
-        assert actual_response is False
-
-    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-
-        actual_response = ModelProcessor.is_training_inprogress("tests", False)
-        assert actual_response is True
-
-    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
-        with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_training_inprogress("tests")
-
-        assert str(exp.value) == "Previous model training in progress."
-
-    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
-        assert actual_response is False
-
-    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
-        assert actual_response is True
-
-    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
-        with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
-
-        assert str(exp.value) == "Daily model training limit exceeded."
-
-    def test_get_training_history(self):
-        actual_response = ModelProcessor.get_training_history("tests")
-        assert actual_response
 
     def test_push_notifications_enabled_message_type_event(self):
         bot = "test"
@@ -7241,170 +7128,6 @@ class TestModelProcessor:
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
                                 delete_dependencies=False)
 
-
-class TestTrainingDataProcessor:
-
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
-
-    def test_set_status_new_status(self):
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            document_path='document/doc.pdf',
-            status=''
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_fetch_latest_workload(self):
-        status = TrainingDataGenerationProcessor.fetch_latest_workload(
-            bot="tests2",
-            user="testUser2"
-        )
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_validate_history_id_no_response_generated(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_is_in_progress_true(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert status
-
-    def test_is_in_progress_exception(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.is_in_progress(
-                bot="tests2",
-            )
-
-    def test_set_status_update_status(self):
-        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
-        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            status=EVENT_STATUS.COMPLETED.value,
-            response=[TrainingDataGeneratorResponse(
-                intent="intent1",
-                training_examples=training_examples1,
-                response="this is response1"
-            ),
-                TrainingDataGeneratorResponse(
-                    intent="intent2",
-                    training_examples=training_examples2,
-                    response="this is response2"
-                )
-            ]
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        assert status['response'] is not None
-
-    def test_validate_history_id(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_validate_history_id_invalid(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
-
-    def test_update_is_persisted_flag(self):
-        training_data = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        doc_id = training_data['id']
-        persisted_training_examples = {
-            "intent1": ["example1"],
-            "intent2": ["example3", "example4"]
-        }
-        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        response = status['response']
-        assert response is not None
-        assert response[0]['intent'] == 'intent1'
-        assert response[0]['training_examples'][0]['training_example'] == 'example2'
-        assert not response[0]['training_examples'][0]['is_persisted']
-        assert response[0]['training_examples'][1]['training_example'] == 'example1'
-        assert response[0]['training_examples'][1]['is_persisted']
-        assert response[1]['intent'] == 'intent2'
-        assert response[1]['training_examples'][0]['training_example'] == 'example3'
-        assert response[1]['training_examples'][0]['is_persisted']
-        assert response[1]['training_examples'][1]['training_example'] == 'example4'
-        assert response[1]['training_examples'][1]['is_persisted']
-
-    def test_is_in_progress_false(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert not status
-
-    def test_get_training_data_processor_history(self):
-        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
-        assert len(history) == 1
-
-    def test_daily_file_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
-        TrainingDataGenerationProcessor.set_status(
-            "tests", "testUser", "Initiated")
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-        assert actual_response is False
-
-    def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
-        assert actual_response is True
-
-    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
-        with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-
-        assert str(exp.value) == "Daily file processing limit exceeded."
-
     def test_add_rule(self):
         processor = MongoProcessor()
         steps = [
@@ -8052,3 +7775,291 @@ class TestTrainingDataProcessor:
             Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+
+class TestTrainingDataProcessor:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection())
+
+    def test_set_status_new_status(self):
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            document_path='document/doc.pdf',
+            status=''
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_fetch_latest_workload(self):
+        status = TrainingDataGenerationProcessor.fetch_latest_workload(
+            bot="tests2",
+            user="testUser2"
+        )
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_validate_history_id_no_response_generated(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_is_in_progress_true(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert status
+
+    def test_is_in_progress_exception(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.is_in_progress(
+                bot="tests2",
+            )
+
+    def test_set_status_update_status(self):
+        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
+        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            status=EVENT_STATUS.COMPLETED.value,
+            response=[TrainingDataGeneratorResponse(
+                intent="intent1",
+                training_examples=training_examples1,
+                response="this is response1"
+            ),
+                TrainingDataGeneratorResponse(
+                    intent="intent2",
+                    training_examples=training_examples2,
+                    response="this is response2"
+                )
+            ]
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        assert status['response'] is not None
+
+    def test_validate_history_id(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_validate_history_id_invalid(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
+
+    def test_update_is_persisted_flag(self):
+        training_data = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        doc_id = training_data['id']
+        persisted_training_examples = {
+            "intent1": ["example1"],
+            "intent2": ["example3", "example4"]
+        }
+        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        response = status['response']
+        assert response is not None
+        assert response[0]['intent'] == 'intent1'
+        assert response[0]['training_examples'][0]['training_example'] == 'example2'
+        assert not response[0]['training_examples'][0]['is_persisted']
+        assert response[0]['training_examples'][1]['training_example'] == 'example1'
+        assert response[0]['training_examples'][1]['is_persisted']
+        assert response[1]['intent'] == 'intent2'
+        assert response[1]['training_examples'][0]['training_example'] == 'example3'
+        assert response[1]['training_examples'][0]['is_persisted']
+        assert response[1]['training_examples'][1]['training_example'] == 'example4'
+        assert response[1]['training_examples'][1]['is_persisted']
+
+    def test_is_in_progress_false(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert not status
+
+    def test_get_training_data_processor_history(self):
+        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
+        assert len(history) == 1
+
+    def test_daily_file_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
+        TrainingDataGenerationProcessor.set_status(
+            "tests", "testUser", "Initiated")
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+        assert actual_response is False
+
+    def test_daily_file_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
+        assert actual_response is True
+
+    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+
+        assert str(exp.value) == "Daily file processing limit exceeded."
+
+
+class TestAgentProcessor:
+
+    def test_get_agent(self, monkeypatch):
+        def mongo_store(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_from_cache(self):
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_from_cache_does_not_exists(self):
+        with pytest.raises(AppException):
+            agent = AgentProcessor.get_agent("test")
+            assert isinstance(agent, Agent)
+
+
+class TestModelProcessor:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection())
+        yield None
+        Utility.environment['notifications']['enable'] = False
+
+    @pytest.fixture
+    def test_set_training_status_inprogress(self):
+        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
+        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
+        return model_training
+
+    def test_set_training_status_Done(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Done",
+                                           model_path="model_path"
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
+        index = ids.index(training_status_inprogress_id)
+        assert model_training.count() == 4
+        assert training_status_inprogress_id in ids
+        assert model_training[index].bot == "tests"
+        assert model_training[index].user == "testUser"
+        assert model_training[index].status == "Done"
+        assert model_training[index].model_path == "model_path"
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Fail",
+                                           model_path=None,
+                                           exception="exception occurred while training model."
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Fail")
+
+        assert model_training.__len__() == 1
+        assert model_training.first().id == training_status_inprogress_id
+        assert model_training.first().bot == "tests"
+        assert model_training.first().user == "testUser"
+        assert model_training.first().status == "Fail"
+        assert model_training.first().model_path is None
+        assert model_training.first().exception == "exception occurred while training model."
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_is_training_inprogress_False(self):
+        actual_response = ModelProcessor.is_training_inprogress("tests")
+        assert actual_response is False
+
+    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
+        assert actual_response is True
+
+    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_training_inprogress("tests")
+
+        assert str(exp.value) == "Previous model training in progress."
+
+    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        assert actual_response is False
+
+    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        assert actual_response is True
+
+    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+
+        assert str(exp.value) == "Daily model training limit exceeded."
+
+    def test_get_training_history(self):
+        actual_response = ModelProcessor.get_training_history("tests")
+        assert actual_response
