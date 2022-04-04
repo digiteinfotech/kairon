@@ -3,6 +3,7 @@ import os
 import urllib.parse
 
 from googleapiclient.http import HttpRequest
+from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
 from kairon.shared.data.data_objects import Slots
 
@@ -16,7 +17,8 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
-    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction
+    Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
+    PipedriveLeadsAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2425,3 +2427,76 @@ class TestActions:
         saved_action = GoogleSearchAction.objects(name='google_action', bot='test_google_search', status=True).get()
         assert saved_action.num_results == 1
         assert saved_action.failure_response == 'I have failed to process your request.'
+
+    def test_get_pipedrive_leads_action_config_not_found(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='pipedrive_leads_action', type=ActionType.pipedrive_leads_action.value, bot=bot, user=user).save()
+        with pytest.raises(ActionFailure, match='Pipedrive leads action not found'):
+            ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
+
+    def test_get_pipedrive_leads_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+
+        with patch('pipedrive.client.Client'):
+            PipedriveLeadsAction(
+                name='pipedrive_leads_action', bot=bot, user=user, domain='digite751', api_token='ASDFGHJKL',
+                title='new user detected', response='Lead successfully added',
+                metadata={'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}).save()
+        action, a_type = ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
+        assert a_type == 'pipedrive_leads_action'
+        action.pop('_id')
+        action.pop('timestamp')
+        assert action == {
+            'name': 'pipedrive_leads_action', 'domain': 'digite751', 'api_token': 'ASDFGHJKL',
+            'title': 'new user detected', 'response': 'Lead successfully added', 'bot': 'test_action_server',
+            'user': 'test_user', 'status': True, 'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+
+    def test_prepare_pipedrive_metadata(self):
+        bot = 'test_action_server'
+        slots = {"name": "udit pandey", "organization": "digite", "email": "pandey.udit867@gmail.com", 'phone': '9876543210'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        action, a_type = ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
+        metadata = ActionUtility.prepare_pipedrive_metadata(tracker, action)
+        assert metadata == {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
+
+    def test_prepare_message_trail_as_str(self):
+        events = [{"event": "bot", 'text': 'hello'}, {"event": "user", "text": "how are you"},
+                  {"event": "bot", 'text': 'good'}, {"event": "user", "text": "ok bye"}]
+        _, conversation = ActionUtility.prepare_message_trail_as_str(events)
+        assert conversation == 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+
+    def test_validate_pipedrive_credentials(self):
+        with patch('pipedrive.client.Client'):
+            assert not ActionUtility.validate_pipedrive_credentials('https://digite751.pipedrive.com/', 'ASDFGHJKL')
+
+    def test_validate_pipedrive_credentials_failure(self):
+        def __mock_exception(*args, **kwargs):
+            raise UnauthorizedError('Invalid authentication', {'error_code': 401})
+        with patch('pipedrive.client.Client', __mock_exception):
+            with pytest.raises(ActionFailure):
+                ActionUtility.validate_pipedrive_credentials('https://digite751.pipedrive.com/', 'ASDFGHJKL')
+
+    def test_create_pipedrive_lead(self):
+        conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
+        with patch('pipedrive.client.Client'):
+            ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected',
+                                                conversation, **metadata)
+
+    def test_create_pipedrive_lead_failure(self):
+        conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                    'phone': '9876543210'}
+
+        def __mock_exception(*args, **kwargs):
+            raise BadRequestError('Invalid request raised', {'error_code': 402})
+
+        with patch('pipedrive.client.Client._request', __mock_exception):
+            with pytest.raises(BadRequestError):
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected',
+                                                    conversation, **metadata)

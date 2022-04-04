@@ -17,6 +17,7 @@ from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
+from pipedrive.exceptions import UnauthorizedError
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -48,7 +49,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -2012,7 +2013,7 @@ class TestMongoProcessor:
         assert actions
         assert isinstance(actions, dict)
         assert len(actions["http_action"]) == 1
-        processor.delete_http_action(bot="test_http", user="http_creator")
+        processor.delete_bot_actions(bot="test_http", user="http_creator")
         actions = processor.load_http_action("test_http")
         assert not actions['http_action']
         assert isinstance(actions, dict)
@@ -2606,7 +2607,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 0
+        assert domain.user_actions.__len__() == 5
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2634,7 +2635,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -3021,34 +3022,37 @@ class TestMongoProcessor:
         with patch('kairon.shared.utils.SMTP'):
             with patch('kairon.shared.actions.data_objects.ZendeskAction.validate'):
                 with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
-                    processor = MongoProcessor()
-                    actions = UploadFile(filename="actions.yml",
-                                         file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
-                    files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
-                        'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
-                    print(non_event_validation_summary)
-                    assert non_event_validation_summary['summary'] == {'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
-                                    'email_actions': [], 'google_search_actions': [], 'jira_actions': [],
-                                    'zendesk_actions': [],
-                                    }
-                    assert non_event_validation_summary['component_count']['http_actions'] == 4
-                    assert non_event_validation_summary['component_count']['jira_actions'] == 2
-                    assert non_event_validation_summary['component_count']['google_search_actions'] == 2
-                    assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
-                    assert non_event_validation_summary['component_count']['email_actions'] == 2
-                    assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
-                    assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
-                    assert non_event_validation_summary['validation_failed'] is False
-                    assert files_received == {'actions'}
-                    assert not is_event_data
-                    saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
-                    assert len(saved_actions['http_action']) == 4
-                    assert len(saved_actions['slot_set_action']) == 3
-                    assert len(saved_actions['form_validation_action']) == 4
-                    assert len(saved_actions['jira_action']) == 2
-                    assert len(saved_actions['google_search_action']) == 2
-                    assert len(saved_actions['zendesk_action']) == 2
-                    assert len(saved_actions['email_action']) == 2
+                    with patch('pipedrive.client.Client'):
+                        processor = MongoProcessor()
+                        actions = UploadFile(filename="actions.yml",
+                                             file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
+                        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+                            'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
+                        assert non_event_validation_summary['summary'] == {
+                            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
+                            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
+                            'pipedrive_leads_actions': []
+                        }
+                        assert non_event_validation_summary['component_count']['http_actions'] == 4
+                        assert non_event_validation_summary['component_count']['jira_actions'] == 2
+                        assert non_event_validation_summary['component_count']['google_search_actions'] == 2
+                        assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
+                        assert non_event_validation_summary['component_count']['email_actions'] == 2
+                        assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
+                        assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
+                        assert non_event_validation_summary['component_count']['pipedrive_leads_actions'] == 2
+                        assert non_event_validation_summary['validation_failed'] is False
+                        assert files_received == {'actions'}
+                        assert not is_event_data
+                        saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
+                        assert len(saved_actions['http_action']) == 4
+                        assert len(saved_actions['slot_set_action']) == 3
+                        assert len(saved_actions['form_validation_action']) == 4
+                        assert len(saved_actions['jira_action']) == 2
+                        assert len(saved_actions['google_search_action']) == 2
+                        assert len(saved_actions['zendesk_action']) == 2
+                        assert len(saved_actions['email_action']) == 2
+                        assert len(saved_actions['pipedrive_leads_action']) == 2
 
     def test_save_component_properties_all(self):
         config = {"nlu_epochs": 200,
@@ -5835,6 +5839,27 @@ class TestMongoProcessor:
         with patch('zenpy.Zenpy'):
             assert processor.add_zendesk_action(action, bot, user)
 
+    def test_add_zendesk_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "zendesk_action", "type": "ZENDESK_ACTION"},
+        ]
+        story_dict = {'name': "story with zendesk action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with zendesk action", bot=bot,
+                                events__name='zendesk_action', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with zendesk action']
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "zendesk_action", "type": "ZENDESK_ACTION"},
+        ]
+        processor.delete_complex_story('story with zendesk action', 'STORY', bot, user)
+
     def test_add_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
@@ -5965,130 +5990,190 @@ class TestMongoProcessor:
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
 
+    def test_delete_zendesk_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('zendesk_action', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='zendesk_action', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            PipedriveLeadsAction.objects(name='zendesk_action', status=True, bot=bot).get()
 
-# pylint: disable=R0201
-class TestAgentProcessor:
+    def test_add_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with patch('pipedrive.client.Client'):
+            assert processor.add_pipedrive_action(action, bot, user)
+        assert Actions.objects(name='pipedrive_leads', status=True, bot=bot).get()
+        assert PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
 
-    def test_get_agent(self, monkeypatch):
-        def mongo_store(*args, **kwargs):
-            return None
+    def test_add_pipedrive_leads_action_required_metadata_absent(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(ValidationError, match='metadata: name is required'):
+            with patch('pipedrive.client.Client'):
+                assert processor.add_pipedrive_action(action, bot, user)
 
-        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        agent = AgentProcessor.get_agent("tests")
-        assert isinstance(agent, Agent)
+    def test_add_pipedrive_leads_action_invalid_auth(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
 
-    def test_get_agent_from_cache(self):
-        agent = AgentProcessor.get_agent("tests")
-        assert isinstance(agent, Agent)
+        def __mock_exception(*args, **kwargs):
+            raise UnauthorizedError('Invalid authentication', {'error_code': 401})
 
-    def test_get_agent_from_cache_does_not_exists(self):
-        with pytest.raises(AppException):
-            agent = AgentProcessor.get_agent("test")
-            assert isinstance(agent, Agent)
+        with pytest.raises(ValidationError, match='Invalid authentication*'):
+            with patch('pipedrive.client.Client', __mock_exception):
+                assert processor.add_pipedrive_action(action, bot, user)
 
+    def test_add_pipedrive_leads_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "pipedrive_leads", "type": "PIPEDRIVE_LEADS_ACTION"},
+        ]
+        story_dict = {'name': "story with pipedrive leads", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with pipedrive leads", bot=bot,
+                                events__name='pipedrive_leads', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with pipedrive leads']
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "pipedrive_leads", "type": "PIPEDRIVE_LEADS_ACTION"},
+        ]
+        processor.delete_complex_story('story with pipedrive leads', 'STORY', bot, user)
 
-class TestModelProcessor:
+    def test_add_pipedrive_leads_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_pipedrive_action(action, bot, user)
 
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
-        yield None
-        Utility.environment['notifications']['enable'] = False
+    def test_add_pipedrive_leads_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads_action',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        Actions(name='pipedrive_leads_action', type=ActionType.pipedrive_leads_action.value, bot=bot, user=user).save()
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_pipedrive_action(action, bot, user)
 
-    @pytest.fixture
-    def test_set_training_status_inprogress(self):
-        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
-        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
-        return model_training
+    def test_list_pipedrive_leads_action_masked(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_pipedrive_actions(bot))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == '12345***'
+        assert actions[0]['domain'] == 'https://digite751.pipedrive.com/'
+        assert actions[0]['response'] == 'I have failed to create lead for you'
+        assert actions[0]['title'] == 'new lead'
+        assert actions[0]['metadata'] == {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
 
-    def test_set_training_status_Done(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+    def test_edit_pipedrive_leads_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_invalid_metadata',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': '12345678',
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+        with pytest.raises(AppException, match='Action with name "pipedrive_invalid_metadata" not found'):
+            processor.edit_pipedrive_action(action, bot, user)
 
-        ModelProcessor.set_training_status(bot="tests",
-                                           user="testUser",
-                                           status="Done",
-                                           model_path="model_path"
-                                           )
-        model_training = ModelTraining.objects(bot="tests", status="Done")
-        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
-        index = ids.index(training_status_inprogress_id)
-        assert model_training.count() == 4
-        assert training_status_inprogress_id in ids
-        assert model_training[index].bot == "tests"
-        assert model_training[index].user == "testUser"
-        assert model_training[index].status == "Done"
-        assert model_training[index].model_path == "model_path"
-        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+    def test_edit_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'pipedrive_leads',
+            'domain': 'https://digite7.pipedrive.com/',
+            'api_token': 'asdfghjklertyui',
+            'title': 'new lead generated',
+            'response': 'Failed to create lead for you',
+            'metadata': {'name': 'name', 'email': 'email', 'phone': 'phone'}
+        }
+        with patch('pipedrive.client.Client'):
+            assert not processor.edit_pipedrive_action(action, bot, user)
 
-    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+    def test_list_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_pipedrive_actions(bot, False))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == 'asdfghjklertyui'
+        assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
+        assert actions[0]['response'] == 'Failed to create lead for you'
+        assert actions[0]['title'] == 'new lead generated'
+        assert actions[0]['metadata'] == {'name': 'name', 'email': 'email', 'phone': 'phone'}
 
-        ModelProcessor.set_training_status(bot="tests",
-                                           user="testUser",
-                                           status="Fail",
-                                           model_path=None,
-                                           exception="exception occurred while training model."
-                                           )
-        model_training = ModelTraining.objects(bot="tests", status="Fail")
+        actions = list(processor.list_pipedrive_actions(bot, True))
+        assert actions[0]['name'] == 'pipedrive_leads'
+        assert actions[0]['api_token'] == 'asdfghjklert***'
+        assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
+        assert actions[0]['response'] == 'Failed to create lead for you'
+        assert actions[0]['title'] == 'new lead generated'
+        assert actions[0]['metadata'] == {'name': 'name', 'email': 'email', 'phone': 'phone'}
 
-        assert model_training.__len__() == 1
-        assert model_training.first().id == training_status_inprogress_id
-        assert model_training.first().bot == "tests"
-        assert model_training.first().user == "testUser"
-        assert model_training.first().status == "Fail"
-        assert model_training.first().model_path is None
-        assert model_training.first().exception == "exception occurred while training model."
-        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
-
-    def test_is_training_inprogress_False(self):
-        actual_response = ModelProcessor.is_training_inprogress("tests")
-        assert actual_response is False
-
-    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
-        assert test_set_training_status_inprogress.__len__() == 1
-        assert test_set_training_status_inprogress.first().bot == "tests"
-        assert test_set_training_status_inprogress.first().user == "testUser"
-        assert test_set_training_status_inprogress.first().status == "Inprogress"
-
-        actual_response = ModelProcessor.is_training_inprogress("tests", False)
-        assert actual_response is True
-
-    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
-        with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_training_inprogress("tests")
-
-        assert str(exp.value) == "Previous model training in progress."
-
-    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
-        assert actual_response is False
-
-    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
-        assert actual_response is True
-
-    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
-        with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
-
-        assert str(exp.value) == "Daily model training limit exceeded."
-
-    def test_get_training_history(self):
-        actual_response = ModelProcessor.get_training_history("tests")
-        assert actual_response
+    def test_delete_pipedrive_leads_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('pipedrive_leads', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='pipedrive_leads', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
 
     def test_push_notifications_enabled_message_type_event(self):
         bot = "test"
@@ -6632,8 +6717,11 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        assert actions == {'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
-                           'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': []}
+        assert actions == {
+            'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
+            'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
+            'pipedrive_leads_action': []
+        }
 
     def test_add_complex_story_with_action(self):
         processor = MongoProcessor()
@@ -6653,7 +6741,7 @@ class TestModelProcessor:
         assert actions == {
             'actions': ['action_check'],
             'http_action': [], 'jira_action': [],
-            'slot_set_action': [], 'zendesk_action': [],
+            'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
     def test_add_complex_story(self):
@@ -6671,7 +6759,7 @@ class TestModelProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [], 'zendesk_action': [],
+        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
@@ -6948,12 +7036,11 @@ class TestModelProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [],
-                           'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
-                           'utterances': ['utter_offer_help',
-                                          'utter_default',
-                                          'utter_please_rephrase']}
+        assert actions == {
+            'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
+            'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
+            'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
+                                                                             'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -7041,170 +7128,6 @@ class TestModelProcessor:
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
                                 delete_dependencies=False)
 
-
-class TestTrainingDataProcessor:
-
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
-
-    def test_set_status_new_status(self):
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            document_path='document/doc.pdf',
-            status=''
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_fetch_latest_workload(self):
-        status = TrainingDataGenerationProcessor.fetch_latest_workload(
-            bot="tests2",
-            user="testUser2"
-        )
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_validate_history_id_no_response_generated(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_is_in_progress_true(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert status
-
-    def test_is_in_progress_exception(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.is_in_progress(
-                bot="tests2",
-            )
-
-    def test_set_status_update_status(self):
-        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
-        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            status=EVENT_STATUS.COMPLETED.value,
-            response=[TrainingDataGeneratorResponse(
-                intent="intent1",
-                training_examples=training_examples1,
-                response="this is response1"
-            ),
-                TrainingDataGeneratorResponse(
-                    intent="intent2",
-                    training_examples=training_examples2,
-                    response="this is response2"
-                )
-            ]
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        assert status['response'] is not None
-
-    def test_validate_history_id(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_validate_history_id_invalid(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
-
-    def test_update_is_persisted_flag(self):
-        training_data = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        doc_id = training_data['id']
-        persisted_training_examples = {
-            "intent1": ["example1"],
-            "intent2": ["example3", "example4"]
-        }
-        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        response = status['response']
-        assert response is not None
-        assert response[0]['intent'] == 'intent1'
-        assert response[0]['training_examples'][0]['training_example'] == 'example2'
-        assert not response[0]['training_examples'][0]['is_persisted']
-        assert response[0]['training_examples'][1]['training_example'] == 'example1'
-        assert response[0]['training_examples'][1]['is_persisted']
-        assert response[1]['intent'] == 'intent2'
-        assert response[1]['training_examples'][0]['training_example'] == 'example3'
-        assert response[1]['training_examples'][0]['is_persisted']
-        assert response[1]['training_examples'][1]['training_example'] == 'example4'
-        assert response[1]['training_examples'][1]['is_persisted']
-
-    def test_is_in_progress_false(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert not status
-
-    def test_get_training_data_processor_history(self):
-        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
-        assert len(history) == 1
-
-    def test_daily_file_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
-        TrainingDataGenerationProcessor.set_status(
-            "tests", "testUser", "Initiated")
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-        assert actual_response is False
-
-    def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
-        assert actual_response is True
-
-    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
-        with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-
-        assert str(exp.value) == "Daily file processing limit exceeded."
-
     def test_add_rule(self):
         processor = MongoProcessor()
         steps = [
@@ -7221,7 +7144,7 @@ class TestTrainingDataProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [], 'zendesk_action': [],
-            'http_action': [], 'google_search_action': [],
+            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -7650,7 +7573,6 @@ class TestTrainingDataProcessor:
             with pytest.raises(AppException, match="Action exists!"):
                 processor.add_email_action(email_config, "test_bot", "tests")
 
-
     def test_edit_email_action(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config",
@@ -7795,7 +7717,6 @@ class TestTrainingDataProcessor:
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='test_action', status=True, bot=bot).get()
 
-
     def test_list_google_search_action_masked(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -7854,3 +7775,291 @@ class TestTrainingDataProcessor:
             Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+
+class TestTrainingDataProcessor:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection())
+
+    def test_set_status_new_status(self):
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            document_path='document/doc.pdf',
+            status=''
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_fetch_latest_workload(self):
+        status = TrainingDataGenerationProcessor.fetch_latest_workload(
+            bot="tests2",
+            user="testUser2"
+        )
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.INITIATED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+
+    def test_validate_history_id_no_response_generated(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_is_in_progress_true(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert status
+
+    def test_is_in_progress_exception(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.is_in_progress(
+                bot="tests2",
+            )
+
+    def test_set_status_update_status(self):
+        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
+        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
+                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
+        TrainingDataGenerationProcessor.set_status(
+            bot="tests2",
+            user="testUser2",
+            status=EVENT_STATUS.COMPLETED.value,
+            response=[TrainingDataGeneratorResponse(
+                intent="intent1",
+                training_examples=training_examples1,
+                response="this is response1"
+            ),
+                TrainingDataGeneratorResponse(
+                    intent="intent2",
+                    training_examples=training_examples2,
+                    response="this is response2"
+                )
+            ]
+        )
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        assert status['response'] is not None
+
+    def test_validate_history_id(self):
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
+
+    def test_validate_history_id_invalid(self):
+        with pytest.raises(AppException):
+            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
+
+    def test_update_is_persisted_flag(self):
+        training_data = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        doc_id = training_data['id']
+        persisted_training_examples = {
+            "intent1": ["example1"],
+            "intent2": ["example3", "example4"]
+        }
+        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
+        status = TrainingDataGenerator.objects(
+            bot="tests2",
+            user="testUser2").get()
+        assert status['bot'] == 'tests2'
+        assert status['user'] == 'testUser2'
+        assert status['status'] == EVENT_STATUS.COMPLETED.value
+        assert status['document_path'] == 'document/doc.pdf'
+        assert status['start_timestamp'] is not None
+        assert status['last_update_timestamp'] is not None
+        assert status['end_timestamp'] is not None
+        response = status['response']
+        assert response is not None
+        assert response[0]['intent'] == 'intent1'
+        assert response[0]['training_examples'][0]['training_example'] == 'example2'
+        assert not response[0]['training_examples'][0]['is_persisted']
+        assert response[0]['training_examples'][1]['training_example'] == 'example1'
+        assert response[0]['training_examples'][1]['is_persisted']
+        assert response[1]['intent'] == 'intent2'
+        assert response[1]['training_examples'][0]['training_example'] == 'example3'
+        assert response[1]['training_examples'][0]['is_persisted']
+        assert response[1]['training_examples'][1]['training_example'] == 'example4'
+        assert response[1]['training_examples'][1]['is_persisted']
+
+    def test_is_in_progress_false(self):
+        status = TrainingDataGenerationProcessor.is_in_progress(
+            bot="tests2",
+            raise_exception=False
+        )
+        assert not status
+
+    def test_get_training_data_processor_history(self):
+        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
+        assert len(history) == 1
+
+    def test_daily_file_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
+        TrainingDataGenerationProcessor.set_status(
+            "tests", "testUser", "Initiated")
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+        assert actual_response is False
+
+    def test_daily_file_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
+        assert actual_response is True
+
+    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
+
+        assert str(exp.value) == "Daily file processing limit exceeded."
+
+
+class TestAgentProcessor:
+
+    def test_get_agent(self, monkeypatch):
+        def mongo_store(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_from_cache(self):
+        agent = AgentProcessor.get_agent("tests")
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_from_cache_does_not_exists(self):
+        with pytest.raises(AppException):
+            agent = AgentProcessor.get_agent("test")
+            assert isinstance(agent, Agent)
+
+
+class TestModelProcessor:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection())
+        yield None
+        Utility.environment['notifications']['enable'] = False
+
+    @pytest.fixture
+    def test_set_training_status_inprogress(self):
+        ModelProcessor.set_training_status("tests", "testUser", "Inprogress")
+        model_training = ModelTraining.objects(bot="tests", status="Inprogress")
+        return model_training
+
+    def test_set_training_status_Done(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Done",
+                                           model_path="model_path"
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Done")
+        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
+        index = ids.index(training_status_inprogress_id)
+        assert model_training.count() == 4
+        assert training_status_inprogress_id in ids
+        assert model_training[index].bot == "tests"
+        assert model_training[index].user == "testUser"
+        assert model_training[index].status == "Done"
+        assert model_training[index].model_path == "model_path"
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_set_training_status_Fail(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+        training_status_inprogress_id = test_set_training_status_inprogress.first().id
+
+        ModelProcessor.set_training_status(bot="tests",
+                                           user="testUser",
+                                           status="Fail",
+                                           model_path=None,
+                                           exception="exception occurred while training model."
+                                           )
+        model_training = ModelTraining.objects(bot="tests", status="Fail")
+
+        assert model_training.__len__() == 1
+        assert model_training.first().id == training_status_inprogress_id
+        assert model_training.first().bot == "tests"
+        assert model_training.first().user == "testUser"
+        assert model_training.first().status == "Fail"
+        assert model_training.first().model_path is None
+        assert model_training.first().exception == "exception occurred while training model."
+        assert ModelTraining.objects(bot="tests", status="Inprogress").__len__() == 0
+
+    def test_is_training_inprogress_False(self):
+        actual_response = ModelProcessor.is_training_inprogress("tests")
+        assert actual_response is False
+
+    def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
+        assert test_set_training_status_inprogress.__len__() == 1
+        assert test_set_training_status_inprogress.first().bot == "tests"
+        assert test_set_training_status_inprogress.first().user == "testUser"
+        assert test_set_training_status_inprogress.first().status == "Inprogress"
+
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
+        assert actual_response is True
+
+    def test_is_training_inprogress_exception(self, test_set_training_status_inprogress):
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_training_inprogress("tests")
+
+        assert str(exp.value) == "Previous model training in progress."
+
+    def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        assert actual_response is False
+
+    def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        assert actual_response is True
+
+    def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        with pytest.raises(AppException) as exp:
+            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+
+        assert str(exp.value) == "Daily model training limit exceeded."
+
+    def test_get_training_history(self):
+        actual_response = ModelProcessor.get_training_history("tests")
+        assert actual_response

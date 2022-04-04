@@ -114,6 +114,19 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["error_code"] == 0
             assert actual["data"]
             assert Utility.check_empty_string(actual["message"])
+            headers = list(response.headers.get_all())
+            assert headers[0] == ('Server', 'Secure')
+            assert headers[1] == ('Content-Type', 'application/json')
+            assert headers[3] == ('Access-Control-Allow-Origin', '*')
+            assert headers[4] == ('Access-Control-Allow-Headers', 'x-requested-with')
+            assert headers[5] == ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            assert headers[6] == ('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+            assert headers[7] == ('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self'; form-action 'self';")
+            assert headers[8] == ('X-Content-Type-Options', 'no-sniff')
+            assert headers[9] == ('Referrer-Policy', 'origin')
+            assert headers[10] == ('Permissions-Policy',
+                                   'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
+            assert headers[11] == ('Cache-Control', 'no-store')
 
     def test_chat_with_user(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -313,6 +326,19 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["error_code"] == 0
         assert actual["data"] is None
         assert actual["message"] == "Reloading Model!"
+        headers = list(response.headers.get_all())
+        assert headers[0] == ('Server', 'Secure')
+        assert headers[1] == ('Content-Type', 'application/json')
+        assert headers[3] == ('Access-Control-Allow-Origin', '*')
+        assert headers[4] == ('Access-Control-Allow-Headers', 'x-requested-with')
+        assert headers[5] == ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        assert headers[6] == ('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+        assert headers[7] == ('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self'; form-action 'self';")
+        assert headers[8] == ('X-Content-Type-Options', 'no-sniff')
+        assert headers[9] == ('Referrer-Policy', 'origin')
+        assert headers[10] == ('Permissions-Policy',
+                               'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
+        assert headers[11] == ('Cache-Control', 'no-store')
 
     def test_reload_exception(self):
         response = self.fetch(

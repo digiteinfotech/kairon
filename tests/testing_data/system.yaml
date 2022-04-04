@@ -95,3 +95,12 @@ channels:
       - app_secret
       - page_access_token
       - verity_token
+
+integrations:
+  pipedrive:
+    required_fields:
+      - name
+    optional_fields:
+      - org_name
+      - email
+      - phone

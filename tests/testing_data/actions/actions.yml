@@ -164,3 +164,22 @@ email_action:
   - udit.pandey@digite.com
   - ritika.gupta@digite.com
   response: email sent
+
+pipedrive_leads_action:
+- name: action_pipedrive_leads
+  domain: https://digite751.pipedrive.com
+  api_token: asdfghjk456
+  title: new lead generated
+  response: Lead created for you
+  metadata:
+    name: name_slot
+    org_name: organization_slot
+    email: email_slot
+    phone: phone_slot
+- name: action_create_lead
+  domain: https://digite7.pipedrive.com
+  api_token: asdfghjk456dfghjk
+  title: lead detected
+  response: Thankyou for your time
+  metadata:
+    name: name_slot
