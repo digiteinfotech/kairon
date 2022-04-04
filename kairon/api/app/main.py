@@ -21,10 +21,12 @@ from mongoengine.errors import (
     InvalidQueryError,
 )
 from pymongo.errors import PyMongoError
-from secure import SecureHeaders
+from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
+    CacheControl, Secure, PermissionsPolicy
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.api.app.routers import auth, bot, augment, history, user, account, action
+from kairon.api.app.routers import auth, augment, history, user, account
+from kairon.api.app.routers.bot import action, bot
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -32,7 +34,34 @@ from kairon.shared.utils import Utility
 from jwt import PyJWTError
 
 logging.basicConfig(level="DEBUG")
-secure_headers = SecureHeaders()
+hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
+referrer = ReferrerPolicy().no_referrer()
+csp = (
+    ContentSecurityPolicy().default_src("'self'")
+        .frame_ancestors("'self'")
+        .form_action("'self'")
+        .base_uri("'self'")
+        .connect_src("'self'" "api.spam.com")
+        .frame_src("'self'")
+        .img_src("'self'", "static.spam.com")
+)
+cache_value = CacheControl().must_revalidate()
+content = XContentTypeOptions()
+server = Server().set("Secure")
+permissions_value = (
+    PermissionsPolicy().accelerometer("").autoplay("").camera("").document_domain("").encrypted_media("")
+        .fullscreen("").geolocation("").gyroscope("").magnetometer("").microphone("").midi("").payment("")
+        .picture_in_picture("").sync_xhr("").usb("").geolocation("self", "'spam.com'").vibrate()
+)
+secure_headers = Secure(
+    server=server,
+    csp=csp,
+    hsts=hsts,
+    referrer=referrer,
+    permissions=permissions_value,
+    cache=cache_value,
+    content=content
+)
 
 app = FastAPI()
 app.add_middleware(
@@ -53,7 +82,7 @@ if apm_client:
 async def add_secure_headers(request: Request, call_next):
     """add security headers"""
     response = await call_next(request)
-    secure_headers.starlette(response)
+    secure_headers.framework.fastapi(response)
     return response
 
 
@@ -71,7 +100,6 @@ async def log_requests(request: Request, call_next):
     logger.info(
         f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
     )
-
     return response
 
 

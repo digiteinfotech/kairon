@@ -70,6 +70,13 @@ def test_api_wrong_login():
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'api.spam.com; frame-src 'self'; img-src 'self' static.spam.com",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=(), geolocation=(self 'spam.com'), vibrate=()"}
 
 
 def test_account_registration_error():
@@ -122,6 +129,12 @@ def test_account_registration():
     )
     actual = response.json()
     assert actual["message"] == "Account Registered!"
+    assert response.headers == {'content-length': '75', 'content-type': 'application/json', 'server': 'Secure',
+                         'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                         'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0', 'x-content-type-options': 'nosniff',
+                         'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'api.spam.com; frame-src 'self'; img-src 'self' static.spam.com",
+                         'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                         'permissions-policy': "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=(), geolocation=(self 'spam.com'), vibrate=()"}
 
 
 def test_api_wrong_password():
@@ -190,11 +203,18 @@ def test_add_bot():
         "/api/account/bot",
         json={"data": "covid-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
+    )
+    assert response.headers == {'content-length': '67', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'api.spam.com; frame-src 'self'; img-src 'self' static.spam.com",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=(), geolocation=(self 'spam.com'), vibrate=()"}
+    response = response.json()
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
     assert response['success']
-
 
 def test_list_bots():
     response = client.get(
