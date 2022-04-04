@@ -9,7 +9,7 @@ pytest-cov==2.10.1
 pytest-xdist==2.1.0
 pytest-asyncio==0.14.0
 responses==0.12.0
-pandas==1.1.4
+pandas==1.4.2
 mongoengine==0.23.1
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.5
@@ -17,7 +17,7 @@ py3dns==3.2.1
 black==21.12b0
 uvicorn>=0.12.3
 validators
-secure==0.2.1
+secure
 password-strength==0.0.3.post2
 loguru
 transformers==4.5.0
