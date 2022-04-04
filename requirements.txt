@@ -17,7 +17,7 @@ py3dns==3.2.1
 black==21.12b0
 uvicorn>=0.12.3
 validators
-secure==0.2.1
+secure
 password-strength==0.0.3.post2
 loguru
 transformers==4.5.0

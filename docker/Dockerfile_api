@@ -17,7 +17,7 @@ RUN python -m pip install pandas
 RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install python-multipart
 RUN python -m pip install validators
-RUN python -m pip install secure==0.2.1
+RUN python -m pip install secure
 RUN python -m spacy download en_core_web_md
 RUN python -m spacy link en_core_web_md en
 RUN python -m pip install password-strength
