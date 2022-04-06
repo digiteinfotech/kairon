@@ -52,3 +52,4 @@ blinker
 jira
 zenpy
 pipedrive-python-lib
+ujson>=5.2.0 # not directly required, pinned by Snyk to avoid a vulnerability
