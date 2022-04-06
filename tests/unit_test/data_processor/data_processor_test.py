@@ -5369,37 +5369,41 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
-                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {
-                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
-                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
-                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
-                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
-        )
-        responses.add(
-            'GET',
-            f'{url}/rest/api/2/issuetype',
-            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
-                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
-                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
-                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
-                   'description': 'A small, distinct piece of work.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
-                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
-                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
-                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                  'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL',
+                  'description': '', 'lead': {
+                    'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                    'accountId': '6205e1585d18ad00729aa75f', 'avatarUrls': {
+                        '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                    'displayName': 'Udit Pandey', 'active': True}, 'components': [], 'issueTypes': [
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                     'description': 'A small, distinct piece of work.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                     'name': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                     'description': 'A collection of related bugs, stories, and tasks.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                     'name': 'Epic', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                     'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                     'name': 'Bug', 'subtask': True, 'avatarId': 10316, 'hierarchyLevel': -1}],
+                  'assigneeType': 'UNASSIGNED', 'versions': [], 'name': 'helicopter', 'roles': {
+                    'atlassian-addons-project-access': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10007',
+                    'Administrator': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10004',
+                    'Viewer': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10006',
+                    'Member': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10005'}, 'avatarUrls': {
+                    '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                    '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                    '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                    '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'},
+                  'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                  'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                  'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}
         )
         processor = MongoProcessor()
         assert processor.add_jira_action(action, bot, user)
@@ -5475,37 +5479,41 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
-                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {
-                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
-                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
-                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
-                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
-        )
-        responses.add(
-            'GET',
-            f'{url}/rest/api/2/issuetype',
-            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
-                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
-                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
-                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
-                   'description': 'A small, distinct piece of work.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
-                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
-                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
-                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                  'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL',
+                  'description': '', 'lead': {
+                    'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                    'accountId': '6205e1585d18ad00729aa75f', 'avatarUrls': {
+                        '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                    'displayName': 'Udit Pandey', 'active': True}, 'components': [], 'issueTypes': [
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                     'description': 'A small, distinct piece of work.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                     'name': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                     'description': 'A collection of related bugs, stories, and tasks.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                     'name': 'Epic', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                     'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                     'name': 'Bug', 'subtask': True, 'avatarId': 10316, 'hierarchyLevel': -1}],
+                  'assigneeType': 'UNASSIGNED', 'versions': [], 'name': 'helicopter', 'roles': {
+                    'atlassian-addons-project-access': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10007',
+                    'Administrator': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10004',
+                    'Viewer': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10006',
+                    'Member': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10005'}, 'avatarUrls': {
+                    '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                    '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                    '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                    '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'},
+                  'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                  'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                  'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}
         )
         processor = MongoProcessor()
         assert processor.add_jira_action(action, bot, user)
@@ -5569,11 +5577,12 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'errorMessages': ["No project could be found with key 'HAL'."], 'errors': {}},
+            status=404
         )
         processor = MongoProcessor()
-        with pytest.raises(ValidationError, match='Invalid project key'):
+        with pytest.raises(ValidationError):
             processor.add_jira_action(action, bot, user)
 
     @responses.activate
@@ -5598,37 +5607,41 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
-                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {
-                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
-                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
-                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
-                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
-        )
-        responses.add(
-            'GET',
-            f'{url}/rest/api/2/issuetype',
-            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
-                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
-                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
-                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
-                   'description': 'A small, distinct piece of work.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
-                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
-                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
-                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                  'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL',
+                  'description': '', 'lead': {
+                    'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                    'accountId': '6205e1585d18ad00729aa75f', 'avatarUrls': {
+                        '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                    'displayName': 'Udit Pandey', 'active': True}, 'components': [], 'issueTypes': [
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                     'description': 'A small, distinct piece of work.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                     'name': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                     'description': 'A collection of related bugs, stories, and tasks.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                     'name': 'Epic', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                     'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                     'name': 'Bug', 'subtask': True, 'avatarId': 10316, 'hierarchyLevel': -1}],
+                  'assigneeType': 'UNASSIGNED', 'versions': [], 'name': 'helicopter', 'roles': {
+                    'atlassian-addons-project-access': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10007',
+                    'Administrator': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10004',
+                    'Viewer': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10006',
+                    'Member': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10005'}, 'avatarUrls': {
+                    '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                    '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                    '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                    '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'},
+                  'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                  'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                  'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}
         )
         processor = MongoProcessor()
         with pytest.raises(ValidationError, match=f"No issue type '{issue_type}' exists"):
@@ -5655,37 +5668,41 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
-                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {
-                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
-                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
-                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
-                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
-        )
-        responses.add(
-            'GET',
-            f'{url}/rest/api/2/issuetype',
-            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
-                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
-                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
-                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
-                   'description': 'A small, distinct piece of work.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
-                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
-                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
-                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                  'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL',
+                  'description': '', 'lead': {
+                    'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                    'accountId': '6205e1585d18ad00729aa75f', 'avatarUrls': {
+                        '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                    'displayName': 'Udit Pandey', 'active': True}, 'components': [], 'issueTypes': [
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                     'description': 'A small, distinct piece of work.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                     'name': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                     'description': 'A collection of related bugs, stories, and tasks.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                     'name': 'Subtask', 'subtask': True, 'avatarId': 10307, 'hierarchyLevel': 1},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                     'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                     'name': 'Bug', 'subtask': True, 'avatarId': 10316, 'hierarchyLevel': -1}],
+                  'assigneeType': 'UNASSIGNED', 'versions': [], 'name': 'helicopter', 'roles': {
+                    'atlassian-addons-project-access': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10007',
+                    'Administrator': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10004',
+                    'Viewer': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10006',
+                    'Member': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10005'}, 'avatarUrls': {
+                    '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                    '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                    '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                    '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'},
+                  'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                  'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                  'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}
         )
         processor = MongoProcessor()
         with pytest.raises(ValidationError, match="parent key is required for issues of type 'Subtask'"):
@@ -5728,37 +5745,41 @@ class TestMongoProcessor:
         )
         responses.add(
             'GET',
-            f'{url}/rest/api/2/project',
-            json=[{'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
-                   'self': f'{url}/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL', 'name': 'helicopter',
-                   'avatarUrls': {
-                       '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408'},
-                   'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
-                   'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
-                   'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}]
-        )
-        responses.add(
-            'GET',
-            f'{url}/rest/api/2/issuetype',
-            json=[{'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
-                   'description': 'Subtasks track small pieces of work that are part of a larger task.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
-                   'name': 'Subtask', 'untranslatedName': 'Subtask', 'subtask': True, 'avatarId': 10316,
-                   'hierarchyLevel': -1, 'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
-                   'description': 'A small, distinct piece of work.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
-                   'name': 'Task', 'untranslatedName': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10000', 'id': '10000',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/images/icons/issuetypes/epic.svg', 'name': 'Epic',
-                   'untranslatedName': 'Epic', 'subtask': False, 'hierarchyLevel': 1},
-                  {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
-                   'description': 'A collection of related bugs, stories, and tasks.',
-                   'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
-                   'name': 'Bug', 'untranslatedName': 'Bug', 'subtask': False, 'avatarId': 10307, 'hierarchyLevel': 1,
-                   'scope': {'type': 'PROJECT', 'project': {'id': '10000'}}}]
+            f'{url}/rest/api/2/project/HEL',
+            json={'expand': 'description,lead,issueTypes,url,projectKeys,permissions,insight',
+                  'self': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000', 'id': '10000', 'key': 'HEL',
+                  'description': '', 'lead': {
+                    'self': 'https://udit-pandey.atlassian.net/rest/api/2/user?accountId=6205e1585d18ad00729aa75f',
+                    'accountId': '6205e1585d18ad00729aa75f', 'avatarUrls': {
+                        '48x48': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '24x24': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '16x16': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png',
+                        '32x32': 'https://secure.gravatar.com/avatar/6864b14113f03cbe6d55af5006b12efe?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FUP-0.png'},
+                    'displayName': 'Udit Pandey', 'active': True}, 'components': [], 'issueTypes': [
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10001', 'id': '10001',
+                     'description': 'A small, distinct piece of work.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium',
+                     'name': 'Task', 'subtask': False, 'avatarId': 10318, 'hierarchyLevel': 0},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10002', 'id': '10002',
+                     'description': 'A collection of related bugs, stories, and tasks.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10307?size=medium',
+                     'name': 'Subtask', 'subtask': True, 'avatarId': 10307, 'hierarchyLevel': 1},
+                    {'self': 'https://udit-pandey.atlassian.net/rest/api/2/issuetype/10003', 'id': '10003',
+                     'description': 'Subtasks track small pieces of work that are part of a larger task.',
+                     'iconUrl': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10316?size=medium',
+                     'name': 'Bug', 'subtask': True, 'avatarId': 10316, 'hierarchyLevel': -1}],
+                  'assigneeType': 'UNASSIGNED', 'versions': [], 'name': 'helicopter', 'roles': {
+                    'atlassian-addons-project-access': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10007',
+                    'Administrator': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10004',
+                    'Viewer': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10006',
+                    'Member': 'https://udit-pandey.atlassian.net/rest/api/2/project/10000/role/10005'}, 'avatarUrls': {
+                    '48x48': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408',
+                    '24x24': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=small',
+                    '16x16': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=xsmall',
+                    '32x32': 'https://udit-pandey.atlassian.net/rest/api/2/universal_avatar/view/type/project/avatar/10408?size=medium'},
+                  'projectTypeKey': 'software', 'simplified': True, 'style': 'next-gen', 'isPrivate': False,
+                  'properties': {}, 'entityId': '8a851ebf-72eb-461d-be68-4c2c28805440',
+                  'uuid': '8a851ebf-72eb-461d-be68-4c2c28805440'}
         )
         processor = MongoProcessor()
         assert not processor.edit_jira_action(action, bot, user)

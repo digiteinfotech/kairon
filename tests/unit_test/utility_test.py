@@ -486,7 +486,7 @@ class TestUtility:
             smtp_userid = None
             tls = False
 
-            await Utility.trigger_email(to_email,
+            await Utility.trigger_email([to_email],
                                         subject,
                                         body,
                                         content_type=content_type,
@@ -525,7 +525,7 @@ class TestUtility:
             assert {} == kwargs
 
             assert args[0] == sender_email
-            assert args[1] == to_email
+            assert args[1] == [to_email]
             assert str(args[2]).__contains__(subject)
             assert str(args[2]).__contains__(body)
 
@@ -543,7 +543,7 @@ class TestUtility:
             smtp_userid = None
             tls = True
 
-            await Utility.trigger_email(to_email,
+            await Utility.trigger_email([to_email],
                                         subject,
                                         body,
                                         content_type=content_type,
@@ -579,7 +579,7 @@ class TestUtility:
             assert {} == kwargs
 
             assert args[0] == sender_email
-            assert args[1] == to_email
+            assert args[1] == [to_email]
             assert str(args[2]).__contains__(subject)
             assert str(args[2]).__contains__(body)
 
@@ -597,7 +597,7 @@ class TestUtility:
             smtp_userid = "test_user"
             tls = True
 
-            await Utility.trigger_email(to_email,
+            await Utility.trigger_email([to_email],
                                         subject,
                                         body,
                                         content_type=content_type,
@@ -633,7 +633,7 @@ class TestUtility:
             assert {} == kwargs
 
             assert args[0] == sender_email
-            assert args[1] == to_email
+            assert args[1] == [to_email]
             assert str(args[2]).__contains__(subject)
             assert str(args[2]).__contains__(body)
 
@@ -688,7 +688,7 @@ class TestUtility:
             assert {} == kwargs
 
             assert args[0] == sender_email
-            assert args[1] == to_email
+            assert args[1] == [to_email]
             assert str(args[2]).__contains__(subject)
             assert str(args[2]).__contains__(body)
 

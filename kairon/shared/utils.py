@@ -656,7 +656,7 @@ class Utility:
         :param content_type: "plain" or "html" content
         :return: None
         """
-        await Utility.trigger_email(email,
+        await Utility.trigger_email([email],
                                     subject,
                                     body,
                                     content_type=content_type,
@@ -1021,7 +1021,7 @@ class Utility:
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
             token = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
-            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token)
+            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
             return json.loads(response)
         else:
             raise AppException("Agent config not found!")

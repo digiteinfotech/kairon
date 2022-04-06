@@ -405,24 +405,13 @@ class ActionUtility:
 
     @staticmethod
     def validate_jira_action(url: str, username: str, api_token: str, project_key: str, issue_type: str, parent_key: str = None):
-        is_valid_proj = False
-        project_id = None
         try:
             jira = ActionUtility.get_jira_client(url, username, api_token)
-            projects = jira.projects()
-            for proj in projects:
-                if proj.raw and proj.raw.get('key') == project_key:
-                    is_valid_proj = True
-                    project_id = proj.id
-                    break
-            if not is_valid_proj:
+            project_meta = jira.project(project_key)
+            if not project_meta:
                 raise ActionFailure('Invalid project key')
-            issue_types = jira.issue_types()
-            issue_types = {
-                i_type.name for i_type in issue_types
-                if i_type.raw and i_type.raw.get('scope', {}).get('type') == 'PROJECT' and
-                   i_type.raw.get('scope', {}).get('project', {}).get('id', None) == project_id
-            }
+            issue_types = project_meta.issueTypes
+            issue_types = {i_type.name for i_type in issue_types}
             if issue_type not in issue_types:
                 raise ActionFailure(f"No issue type '{issue_type}' exists")
             if issue_type == 'Subtask' and parent_key is None:

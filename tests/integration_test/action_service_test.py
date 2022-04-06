@@ -844,7 +844,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 smtp_password="test",
                 from_email="test@demo.com",
                 subject="test",
-                to_email="test@test.com",
+                to_email=["test@test.com"],
                 response="Email Triggered",
                 bot="bot",
                 user="user"
@@ -915,7 +915,7 @@ class TestActionServer(AsyncHTTPTestCase):
         assert {} == kwargs
 
         assert args[0] == action.from_email
-        assert args[1] == "test@test.com"
+        assert args[1] == ["test@test.com"]
         assert str(args[2]).__contains__(action.subject)
         assert str(args[2]).__contains__("Content-Type: text/html")
         assert str(args[2]).__contains__("Subject: default test")

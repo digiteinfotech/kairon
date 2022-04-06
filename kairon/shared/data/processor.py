@@ -2698,10 +2698,10 @@ class MongoProcessor:
         """
         for action in GoogleSearchAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
             action['api_key'] = Utility.decrypt_message(action['api_key'])
             if mask_characters:
                 action['api_key'] = action['api_key'][:-3] + '***'
+            action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('timestamp')
@@ -3936,7 +3936,7 @@ class MongoProcessor:
 
         zendesk_action = ZendeskAction(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(
-            action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
+            action['name'], bot, user, action_type=ActionType.zendesk_action.value, raise_exception=False
         )
         return zendesk_action
 

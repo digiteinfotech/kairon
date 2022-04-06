@@ -164,11 +164,14 @@ class AccountProcessor:
     @staticmethod
     def allow_bot_and_generate_invite_url(bot: Text, email: Text, user: Text, bot_account: int,
                                           role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value):
-        bot_details = AccountProcessor.allow_access_to_bot(bot, email, user, bot_account, role)
+        token = Utility.generate_token(email)
+        link = f'{Utility.email_conf["app"]["url"]}/{bot}/invite/accept/{token}'
         if Utility.email_conf["email"]["enable"]:
-            token = Utility.generate_token(email)
-            link = f'{Utility.email_conf["app"]["url"]}/{bot}/invite/accept/{token}'
-            return bot_details['name'], link
+            activity_status = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value
+        else:
+            activity_status = ACTIVITY_STATUS.ACTIVE.value
+        bot_details = AccountProcessor.allow_access_to_bot(bot, email, user, bot_account, role, activity_status)
+        return bot_details['name'], link
 
     @staticmethod
     def allow_access_to_bot(bot: Text, accessor_email: Text, user: Text,

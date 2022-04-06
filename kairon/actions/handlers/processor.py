@@ -201,17 +201,18 @@ class ActionProcessor:
         bot_response = action_config.get("response")
         to_email = action_config['to_email']
         try:
-            body = ActionUtility.prepare_email_body(tracker.events, action_config['subject'], to_email)
-            await Utility.trigger_email(email=to_email,
-                                        subject=f"{tracker.sender_id} {action_config['subject']}",
-                                        body=body,
-                                        smtp_url=action_config['smtp_url'],
-                                        smtp_port=action_config['smtp_port'],
-                                        sender_email=action_config['from_email'],
-                                        smtp_password=action_config['smtp_password'],
-                                        smtp_userid=action_config.get("smtp_userid"),
-                                        tls=action_config['tls'],
-                                        )
+            for mail in to_email:
+                body = ActionUtility.prepare_email_body(tracker.events, action_config['subject'], mail)
+                await Utility.trigger_email(email=[mail],
+                                            subject=f"{tracker.sender_id} {action_config['subject']}",
+                                            body=body,
+                                            smtp_url=action_config['smtp_url'],
+                                            smtp_port=action_config['smtp_port'],
+                                            sender_email=action_config['from_email'],
+                                            smtp_password=action_config['smtp_password'],
+                                            smtp_userid=action_config.get("smtp_userid"),
+                                            tls=action_config['tls'],
+                                            )
 
         except Exception as e:
             logger.exception(e)

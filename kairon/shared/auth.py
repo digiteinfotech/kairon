@@ -54,17 +54,18 @@ class Authentication:
             if user is None:
                 raise credentials_exception
             user_model = User(**user)
-            if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
-                Authentication.validate_integration_token(payload, request.path_params.get('bot'))
+            if payload.get("type") != TOKEN_TYPE.LOGIN.value:
+                if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
+                    Authentication.validate_integration_token(payload, request.path_params.get('bot'))
                 alias_user = request.headers.get("X-USER")
-                if Utility.check_empty_string(alias_user):
+                if Utility.check_empty_string(alias_user) and payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail="Alias user missing for integration",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
                 user_model.is_integration_user = True
-                user_model.alias_user = alias_user
+                user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
             return user_model
         except PyJWTError:

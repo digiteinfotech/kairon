@@ -53,8 +53,9 @@ class TornadoAuthenticate:
             if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                 TornadoAuthenticate.validate_integration_token(payload, kwargs.get('bot'))
             alias_user = request.headers.get("X-USER")
-            if Utility.check_empty_string(alias_user):
+            if Utility.check_empty_string(alias_user) and payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                 raise Exception("Alias user missing for integration")
+            alias_user = alias_user or username
             user_model.alias_user = alias_user
             user_model.is_integration_user = True
             user_model.role = payload.get('role')
