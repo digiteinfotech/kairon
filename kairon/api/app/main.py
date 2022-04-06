@@ -52,9 +52,8 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer("").autoplay("").camera("").document_domain("").encrypted_media("")
-        .fullscreen("").geolocation("").gyroscope("").magnetometer("").microphone("").midi("").payment("")
-        .picture_in_picture("").sync_xhr("").usb("").geolocation().vibrate()
+    PermissionsPolicy().accelerometer().autoplay().camera().document_domain().encrypted_media().fullscreen().vibrate()
+        .geolocation().gyroscope().magnetometer().microphone().midi().payment().picture_in_picture().sync_xhr().usb()
 )
 secure_headers = Secure(
     server=server,
