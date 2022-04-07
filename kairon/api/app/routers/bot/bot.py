@@ -1001,7 +1001,7 @@ async def get_training_data_count(
 async def get_chat_client_config_url(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     access_token = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value, expiry=120,
+        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value,
         access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
     )
     url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
