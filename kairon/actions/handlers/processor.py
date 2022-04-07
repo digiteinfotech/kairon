@@ -273,7 +273,7 @@ class ActionProcessor:
         bot_response = action_config.get("response")
         summary = f"{tracker.sender_id} {action_config['summary']}"
         try:
-            _, msgtrail = ActionUtility.prepare_message_trail(tracker.events)
+            _, msgtrail = ActionUtility.prepare_message_trail_as_str(tracker.events)
             ActionUtility.create_jira_issue(
                 url=action_config['url'],
                 username=action_config['user_name'],
