@@ -466,9 +466,9 @@ class TrainingDataValidator(Validator):
                     continue
                 if action.get('validation_semantic') and not isinstance(action['validation_semantic'], dict):
                     data_error.append(f'Invalid validation semantic: {action["name"]}')
-                if action['name'] in actions_present:
-                    data_error.append(f'Duplicate action found: {action["name"]}')
-                actions_present.add(action["name"])
+                if f"{action['name']}_{action['slot']}" in actions_present:
+                    data_error.append(f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
+                actions_present.add(f"{action['name']}_{action['slot']}")
             else:
                 data_error.append('Invalid action configuration format. Dictionary expected.')
 

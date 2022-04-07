@@ -522,7 +522,7 @@ class TestTrainingDataValidator:
         assert is_data_invalid
         assert len(error_summary['http_actions']) == 4
         assert len(error_summary['slot_set_actions']) == 4
-        assert len(error_summary['form_validation_actions']) == 5
+        assert len(error_summary['form_validation_actions']) == 4
         assert len(error_summary['email_actions']) == 3
         assert len(error_summary['jira_actions']) == 4
         assert len(error_summary['google_search_actions']) == 2
