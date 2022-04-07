@@ -1224,7 +1224,7 @@ class MongoProcessor:
         except DoesNotExist as e:
             logging.info(e)
             configs = Configs._from_son(
-                read_config_file("./template/config/default.yml")
+                read_config_file("./template/config/kairon-default.yml")
             )
         return configs
 

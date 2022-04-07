@@ -1,0 +1,25 @@
+language: en
+pipeline:
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: ConveRTFeaturizer
+    model_url: "https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz"
+  - constrain_similarities: true
+    epochs: 100
+    name: DIETClassifier
+  - name: FallbackClassifier
+    threshold: 0.7
+  - name: EntitySynonymMapper
+  - name: ResponseSelector
+    epochs: 100
+
+policies:
+  - name: MemoizationPolicy
+  - epochs: 200
+    max_history: 5
+    name: TEDPolicy
+  - core_fallback_action_name: "action_default_fallback"
+    core_fallback_threshold: 0.3
+    enable_fallback_prediction: true
+    name: RulePolicy

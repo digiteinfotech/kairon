@@ -551,7 +551,7 @@ class ExecuteTask(SequentialTaskSet):
         @task
         def set_config(self):
             with self.client.put(f"/api/bot/{self.user.bot_id}/config",
-                                 json=read_config_file('./template/config/default.yml'),
+                                 json=read_config_file('./template/config/kairon-default.yml'),
                                  headers={"Authorization": self.user.auth_token},
                                  catch_response=True) as response:
                 if response.text is None or not response.text.strip():

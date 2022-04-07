@@ -85,8 +85,8 @@ class TestAccountProcessor:
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         assert config['language']
-        assert config['pipeline'][6]['name'] == 'FallbackClassifier'
-        assert config['pipeline'][6]['threshold'] == 0.7
+        assert config['pipeline'][5]['name'] == 'FallbackClassifier'
+        assert config['pipeline'][5]['threshold'] == 0.7
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.3
@@ -149,8 +149,8 @@ class TestAccountProcessor:
         assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         assert config['language']
-        assert config['pipeline'][6]['name'] == 'FallbackClassifier'
-        assert config['pipeline'][6]['threshold'] == 0.7
+        assert config['pipeline'][5]['name'] == 'FallbackClassifier'
+        assert config['pipeline'][5]['threshold'] == 0.7
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.3

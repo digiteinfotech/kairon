@@ -218,6 +218,7 @@ def test_add_bot():
     assert response['error_code'] == 0
     assert response['success']
 
+
 def test_list_bots():
     response = client.get(
         "/api/account/bot",
@@ -2244,7 +2245,8 @@ def test_get_config_templates():
     )
 
     actual = response.json()
-    assert any("default" == template['name'] for template in actual['data']['config-templates'])
+    templates = [template['name'] for template in actual['data']['config-templates']]
+    assert templates == ['long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default']
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
@@ -2254,7 +2256,7 @@ def test_set_config_templates():
     response = client.post(
         f"/api/bot/{pytest.bot}/templates/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"data": "default"}
+        json={"data": "rasa-default"}
     )
 
     actual = response.json()
@@ -2295,7 +2297,7 @@ def test_set_config():
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json=read_config_file('./template/config/default.yml')
+        json=read_config_file('./template/config/kairon-default.yml')
     )
 
     actual = response.json()
@@ -2306,7 +2308,7 @@ def test_set_config():
 
 
 def test_set_config_policy_error():
-    data = read_config_file('./template/config/default.yml')
+    data = read_config_file('./template/config/kairon-default.yml')
     data['policies'].append({"name": "TestPolicy"})
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
@@ -2323,7 +2325,7 @@ def test_set_config_policy_error():
 
 
 def test_set_config_pipeline_error():
-    data = read_config_file('./template/config/default.yml')
+    data = read_config_file('./template/config/kairon-default.yml')
     data['pipeline'].append({"name": "TestFeaturizer"})
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
@@ -2339,7 +2341,7 @@ def test_set_config_pipeline_error():
 
 
 def test_set_config_pipeline_error_empty_policies():
-    data = read_config_file('./template/config/default.yml')
+    data = read_config_file('./template/config/kairon-default.yml')
     data['policies'] = []
     response = client.put(
         f"/api/bot/{pytest.bot}/config",

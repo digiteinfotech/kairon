@@ -3078,36 +3078,21 @@ class TestMongoProcessor:
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {
-            "language": "en",
-            "pipeline": [
-                {"name": "WhitespaceTokenizer"},
-                {"name": "RegexFeaturizer"},
-                {"name": "LexicalSyntacticFeaturizer"},
-                {"name": "CountVectorsFeaturizer"},
-                {"name": "CountVectorsFeaturizer",
-                 "analyzer": "char_wb",
-                 "min_ngram": 1,
-                 "max_ngram": 4},
-                {"name": "DIETClassifier",
-                 "epochs": 200},
-                {"name": "FallbackClassifier",
-                 "threshold": 0.6},
-                {"name": "EntitySynonymMapper"},
-                {"name": "ResponseSelector",
-                 "epochs": 300}
-            ],
-            "policies": [
-                {"name": "MemoizationPolicy"},
-                {"name": "TEDPolicy",
-                 "epochs": 400},
-                {"name": "RulePolicy",
-                 'core_fallback_threshold': 0.3,
-                 'core_fallback_action_name': 'action_default_fallback'}]
-        }
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
+                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
+                                                   {'constrain_similarities': True, 'epochs': 200,
+                                                    'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.6},
+                                                   {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
+                                 {'core_fallback_action_name': 'action_default_fallback',
+                                  'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_get_config_properties(self):
@@ -3156,7 +3141,7 @@ class TestMongoProcessor:
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.6
 
@@ -3188,32 +3173,18 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {
-            "language": "en",
-            "pipeline": [
-                {"name": "WhitespaceTokenizer"},
-                {"name": "RegexFeaturizer"},
-                {"name": "LexicalSyntacticFeaturizer"},
-                {"name": "CountVectorsFeaturizer"},
-                {"name": "CountVectorsFeaturizer",
-                 "analyzer": "char_wb",
-                 "min_ngram": 1,
-                 "max_ngram": 4},
-                {"name": "DIETClassifier",
-                 "epochs": 200},
-                {'name': 'FallbackClassifier',
-                 'threshold': 0.7},
-                {"name": "EntitySynonymMapper"},
-                {"name": "ResponseSelector",
-                 "epochs": 300}
-            ],
-            "policies": [
-                {"name": "MemoizationPolicy"},
-                {"name": "TEDPolicy",
-                 "epochs": 400},
-                {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
-                 'core_fallback_threshold': 0.3}]
-        }
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
+                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
+                                                   {'constrain_similarities': True, 'epochs': 200,
+                                                    'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
+                                 {'core_fallback_action_name': 'action_default_fallback',
+                                  'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
@@ -3256,10 +3227,10 @@ class TestMongoProcessor:
 
     def test_list_epochs_for_components_not_present(self):
         configs = Configs._from_son(
-            read_config_file("./template/config/default.yml")
+            read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][5]
-        del configs['pipeline'][7]
+        del configs['pipeline'][4]
+        del configs['pipeline'][6]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
@@ -3276,10 +3247,10 @@ class TestMongoProcessor:
 
     def test_save_component_properties_component_not_exists(self):
         configs = Configs._from_son(
-            read_config_file("./template/config/default.yml")
+            read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][5]
-        del configs['pipeline'][7]
+        del configs['pipeline'][4]
+        del configs['pipeline'][6]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_component_not_exists', 'test')
@@ -3303,7 +3274,7 @@ class TestMongoProcessor:
     def test_save_component_fallback_not_configured(self):
         Actions(name='action_say_bye', bot='test_fallback_not_configured', user='test').save()
         configs = Configs._from_son(
-            read_config_file("./template/config/default.yml")
+            read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
         del configs['pipeline'][6]
         del configs['policies'][2]
@@ -3315,32 +3286,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        expected = {
-            "language": "en",
-            "pipeline": [
-                {"name": "WhitespaceTokenizer"},
-                {"name": "RegexFeaturizer"},
-                {"name": "LexicalSyntacticFeaturizer"},
-                {"name": "CountVectorsFeaturizer"},
-                {"name": "CountVectorsFeaturizer",
-                 "analyzer": "char_wb",
-                 "min_ngram": 1,
-                 "max_ngram": 4},
-                {"name": "DIETClassifier",
-                 "epochs": 100},
-                {"name": "FallbackClassifier",
-                 "threshold": 0.8},
-                {"name": "EntitySynonymMapper"},
-                {"name": "ResponseSelector",
-                 "epochs": 100}
-            ],
-            "policies": [
-                {"name": "MemoizationPolicy"},
-                {"name": "TEDPolicy",
-                 "epochs": 200},
-                {"name": "RulePolicy", 'core_fallback_action_name': 'action_say_bye',
-                 'core_fallback_threshold': 0.3}]
-        }
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
+                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
+                                                   {'constrain_similarities': True, 'epochs': 100,
+                                                    'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.8},
+                                                   {'name': 'ResponseSelector', 'epochs': 100}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                                 {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
+                                  'core_fallback_threshold': 0.3}]}
         assert config == expected
 
     def test_save_component_properties_nlu_fallback_only(self):
@@ -3352,33 +3307,19 @@ class TestMongoProcessor:
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
-        expected = {
-            "language": "en",
-            "pipeline": [
-                {"name": "WhitespaceTokenizer"},
-                {"name": "RegexFeaturizer"},
-                {"name": "LexicalSyntacticFeaturizer"},
-                {"name": "CountVectorsFeaturizer"},
-                {"name": "CountVectorsFeaturizer",
-                 "analyzer": "char_wb",
-                 "min_ngram": 1,
-                 "max_ngram": 4},
-                {"name": "DIETClassifier",
-                 "epochs": 100},
-                {"name": "FallbackClassifier",
-                 "threshold": 0.6},
-                {"name": "EntitySynonymMapper"},
-                {"name": "ResponseSelector",
-                 "epochs": 100}
-            ],
-            "policies": [
-                {"name": "MemoizationPolicy"},
-                {"name": "TEDPolicy",
-                 "epochs": 200},
-                {"name": "RulePolicy", 'core_fallback_action_name': 'action_default_fallback',
-                 'core_fallback_threshold': 0.3}]
-        }
+        assert len(rule_policy) == 4
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
+                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
+                                                   {'constrain_similarities': True, 'epochs': 100,
+                                                    'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.6},
+                                                   {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'ResponseSelector', 'epochs': 100}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                                 {'core_fallback_action_name': 'action_default_fallback',
+                                  'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
@@ -3390,7 +3331,7 @@ class TestMongoProcessor:
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.7
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
 
     def test_save_component_properties_action_fallback_only(self):
         nlu_fallback = {'action_fallback': 'action_say_bye'}
@@ -3400,35 +3341,20 @@ class TestMongoProcessor:
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {
-            "language": "en",
-            "pipeline": [
-                {"name": "WhitespaceTokenizer"},
-                {"name": "RegexFeaturizer"},
-                {"name": "LexicalSyntacticFeaturizer"},
-                {"name": "CountVectorsFeaturizer"},
-                {"name": "CountVectorsFeaturizer",
-                 "analyzer": "char_wb",
-                 "min_ngram": 1,
-                 "max_ngram": 4},
-                {"name": "DIETClassifier",
-                 "epochs": 100},
-                {'name': 'FallbackClassifier', 'threshold': 0.7},
-                {"name": "EntitySynonymMapper"},
-                {"name": "ResponseSelector",
-                 "epochs": 100}
-            ],
-            "policies": [
-                {"name": "MemoizationPolicy"},
-                {"name": "TEDPolicy",
-                 "epochs": 200},
-                {"core_fallback_action_name": "action_say_bye",
-                 "core_fallback_threshold": 0.3,
-                 "name": "RulePolicy"}]
-        }
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
+                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
+                                                   {'constrain_similarities': True, 'epochs': 100,
+                                                    'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'ResponseSelector', 'epochs': 100}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                                 {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
+                                  'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_save_component_properties_all_action_fallback_update(self):
@@ -3439,7 +3365,7 @@ class TestMongoProcessor:
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -3452,7 +3378,7 @@ class TestMongoProcessor:
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -3465,7 +3391,7 @@ class TestMongoProcessor:
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -3478,7 +3404,7 @@ class TestMongoProcessor:
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 3
+        assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
