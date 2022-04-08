@@ -1,7 +1,7 @@
 from typing import Dict, Text
 
 from mongoengine import DoesNotExist
-
+from loguru import logger
 from .data_objects import Channels
 from datetime import datetime
 from kairon.shared.utils import Utility
@@ -70,6 +70,7 @@ class ChatDataProcessor:
         :return: Dict
         """
         config = Channels.objects(bot=bot, connector_type=connector_type).exclude("user").get().to_mongo().to_dict()
+        logger.debug(config)
         config.pop("timestamp")
         channel_params = Utility.environment['channels'][config['connector_type']]
         for require_field in channel_params['required_fields']:

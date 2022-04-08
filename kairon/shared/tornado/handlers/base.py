@@ -1,9 +1,11 @@
 from abc import ABC
 
-from tornado.web import RequestHandler
+from tornado.escape import json_encode
+from tornado.web import RequestHandler, Finish
 from tornado.httputil import HTTPServerRequest
 from ..auth import TornadoAuthenticate
-from typing import Text
+from typing import Text, Any, Union
+from loguru import logger
 
 
 class BaseHandler(RequestHandler, ABC):
@@ -31,3 +33,22 @@ class BaseHandler(RequestHandler, ABC):
 
     def authenticate_channel(self, token: Text, bot: Text, request: HTTPServerRequest):
         return TornadoAuthenticate.get_current_user_and_bot_for_channel(token, bot, request)
+
+    def prepare(self):
+        logger.debug(self.request)
+
+    def _handle_request_exception(self, e) -> None:
+        if isinstance(e, Finish):
+            # Not an error; just finish the request without logging.
+            if not self._finished:
+                self.finish(*e.args)
+            return
+        logger.exception(e)
+
+    def write_error(self, status_code: int, **kwargs: Any) -> None:
+        msg = kwargs.get('msg') or self._reason
+        self.write(json_encode({"data": None, "success": False, "error_code": 422, "message": msg}))
+
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+        super().write(chunk)
+        logger.debug(chunk)

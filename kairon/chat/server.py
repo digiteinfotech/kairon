@@ -19,7 +19,7 @@ def make_app():
         (r"/api/bot/([^/]+)/chat", ChatHandler),
         (r"/api/bot/slack/([^/]+)/([^/]+)", SlackHandler),
         (r"/api/bot/telegram/([^/]+)/([^/]+)", TelegramHandler),
-        (r"/api/bot/hangout/([^/]+)/([^/]+)", HangoutHandler),
+        (r"/api/bot/hangouts/([^/]+)/([^/]+)", HangoutHandler),
         (r"/api/bot/messenger/([^/]+)/([^/]+)", MessengerHandler),
         (r"/api/bot/([^/]+)/reload", ReloadHandler),
     ], compress_response=True, debug=False)
