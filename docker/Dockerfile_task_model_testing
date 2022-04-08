@@ -2,9 +2,9 @@ FROM amazonlinux:latest
 
 SHELL ["/bin/bash", "-c"]
 
-ENV IMPORTER_HOME=/app
+ENV MODEL_TESTER_HOME=/app
 
-WORKDIR ${IMPORTER_HOME}
+WORKDIR ${MODEL_TESTER_HOME}
 RUN yum update -y
 RUN yum -y install wget make gcc openssl-devel bzip2-devel
 RUN amazon-linux-extras install python3.8
@@ -44,8 +44,8 @@ RUN mkdir testing_data
 RUN mkdir models
 RUN chmod 777 -R /tmp
 
-COPY kairon ${IMPORTER_HOME}/kairon
-COPY system.yaml ${IMPORTER_HOME}/
+COPY kairon ${MODEL_TESTER_HOME}/kairon
+COPY system.yaml ${MODEL_TESTER_HOME}/
 
 ENV BOT default
 ENV USER default

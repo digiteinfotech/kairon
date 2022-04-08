@@ -27,6 +27,9 @@ RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install blinker
+RUN python -m pip install jira
+RUN python -m pip install zenpy
+RUN python -m pip install pipedrive-python-lib
 RUN mkdir ssl
 RUN mkdir training_data
 RUN chmod 777 -R /tmp
