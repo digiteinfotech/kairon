@@ -7,6 +7,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.models import User
+from kairon.shared.tornado.exception import ServiceHandlerException
 from kairon.shared.utils import Utility
 from typing import Text
 
@@ -34,9 +35,7 @@ class TornadoAuthenticate:
         :param request: http request object
         :return: dict of user details
         """
-        credentials_exception = Exception({"status_code": 401,
-                                           "detail": "Could not validate credentials",
-                                           "headers": {"WWW-Authenticate": "Bearer"}})
+        credentials_exception = ServiceHandlerException("Could not validate credentials", 401, {"WWW-Authenticate": "Bearer"})
         try:
             payload = Utility.decode_limited_access_token(token)
             username: str = payload.get("sub")
@@ -50,11 +49,12 @@ class TornadoAuthenticate:
             raise credentials_exception
         user_model = User(**user)
         if payload.get("type") != TOKEN_TYPE.LOGIN.value:
+            TornadoAuthenticate.validate_bot_request(kwargs.get('bot'), payload.get('bot'))
             if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
-                TornadoAuthenticate.validate_integration_token(payload, kwargs.get('bot'))
+                TornadoAuthenticate.validate_integration_token(payload)
             alias_user = request.headers.get("X-USER")
             if Utility.check_empty_string(alias_user) and payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
-                raise Exception("Alias user missing for integration")
+                raise ServiceHandlerException("Alias user missing for integration", 401)
             alias_user = alias_user or username
             user_model.alias_user = alias_user
             user_model.is_integration_user = True
@@ -84,16 +84,12 @@ class TornadoAuthenticate:
         user = TornadoAuthenticate.get_current_user(request, **kwargs)
         bot_id = kwargs.get('bot')
         if Utility.check_empty_string(bot_id):
-            raise Exception({"status_code": 422,
-                             "detail": "Bot is required",
-                             "headers": {"WWW-Authenticate": "Bearer"}})
+            raise ServiceHandlerException("Bot is required", 422, {"WWW-Authenticate": "Bearer"})
         if not user.is_integration_user:
             AccountProcessor.fetch_role_for_user(user.email, bot_id)
         bot = AccountProcessor.get_bot(bot_id)
         if not bot["status"]:
-            raise Exception({"status_code": 422,
-                             "detail": "Inactive Bot Please contact system admin!",
-                             "headers": {"WWW-Authenticate": "Bearer"}})
+            raise ServiceHandlerException("Inactive Bot Please contact system admin!", 422, {"WWW-Authenticate": "Bearer"})
         user.active_bot = bot_id
         return user
 
@@ -103,15 +99,11 @@ class TornadoAuthenticate:
     ):
         user = TornadoAuthenticate.get_user_from_token(token, request)
         if Utility.check_empty_string(bot):
-            raise Exception({"status_code": 422,
-                             "detail": "Bot is required",
-                             "headers": {"WWW-Authenticate": "Bearer"}})
+            raise ServiceHandlerException("Bot is required", 422, {"WWW-Authenticate": "Bearer"})
         AccountProcessor.fetch_role_for_user(user.email, bot)
         bot = AccountProcessor.get_bot(bot)
         if not bot["status"]:
-            raise Exception({"status_code": 422,
-                             "detail": "Inactive Bot Please contact system admin!",
-                             "headers": {"WWW-Authenticate": "Bearer"}})
+            raise ServiceHandlerException("Inactive Bot Please contact system admin!", 422, {"WWW-Authenticate": "Bearer"})
         user.active_bot = bot
         return user
 
@@ -122,29 +114,33 @@ class TornadoAuthenticate:
         requested_endpoint = request.uri
         matches = any(re.match(allowed_endpoint, requested_endpoint) for allowed_endpoint in access_limit)
         if not matches:
-            raise Exception(
-                 'Access denied for this endpoint'
-            )
+            raise ServiceHandlerException('Access denied for this endpoint', 401)
 
     @staticmethod
-    def validate_integration_token(payload: dict, accessing_bot: Text):
+    def validate_integration_token(payload: dict):
         """
-        Validates:
-        1. whether integration token with this payload is active.
-        2. the bot which is being accessed is the same bot for which the integration was generated.
+        Validates whether integration token with this payload is active.
 
         :param payload: Auth token claims dict.
-        :param accessing_bot: bot for which the request was made.
         """
-        exception = Exception({'status_code': 401, 'detail': 'Access to bot is denied'})
+        exception = ServiceHandlerException('Access to bot is denied', 401)
         name = payload.get('name')
         bot = payload.get('bot')
         user = payload.get('sub')
         iat = payload.get('iat')
         role = payload.get('role')
-        if not Utility.check_empty_string(accessing_bot) and accessing_bot != bot:
-            raise exception
         try:
             IntegrationProcessor.verify_integration_token(name, bot, user, iat, role)
         except Exception:
             raise exception
+
+    @staticmethod
+    def validate_bot_request(bot_in_request_path: str, bot_in_token: str):
+        """
+        Validates the bot which is being accessed is the same bot for which the integration was generated.
+
+        :param bot_in_request_path: bot for which the request was made.
+        :param bot_in_token: bot which is present in auth token claims.
+        """
+        if not Utility.check_empty_string(bot_in_request_path) and bot_in_request_path != bot_in_token:
+            raise ServiceHandlerException('Access to bot is denied', 401)

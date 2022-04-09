@@ -1174,7 +1174,7 @@ class TestAccountProcessor:
         user = 'test_user'
         name = 'integration_token_with_access_limit'
         payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint'], 'role': 'admin'}
-        assert not Authentication.validate_integration_token(payload, None)
+        assert not Authentication.validate_integration_token(payload)
 
     def test_validate_integration_token_not_exists(self):
         bot = 'test1'
@@ -1182,7 +1182,7 @@ class TestAccountProcessor:
         name = 'integration_not_exists'
         payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat}
         with pytest.raises(HTTPException):
-            Authentication.validate_integration_token(payload, None)
+            Authentication.validate_integration_token(payload)
 
     def test_validate_integration_token_accessing_different_bot(self):
         bot = 'test1'
@@ -1191,7 +1191,7 @@ class TestAccountProcessor:
         name = 'integration_not_exists'
         payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat}
         with pytest.raises(HTTPException):
-            Authentication.validate_integration_token(payload, bot_2)
+            Authentication.validate_bot_request(bot, bot_2)
 
     def test_list_integrations_after_update(self):
         bot = 'test'
@@ -1261,7 +1261,7 @@ class TestAccountProcessor:
         name = 'integration_token_with_access_limit'
         payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
         with pytest.raises(HTTPException):
-            Authentication.validate_integration_token(payload, None)
+            Authentication.validate_integration_token(payload)
 
     def test_update_integration_delete_integration_token(self):
         bot = 'test1'
@@ -1294,7 +1294,7 @@ class TestAccountProcessor:
         name = 'integration_token_with_access_limit'
         payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
         with pytest.raises(HTTPException):
-            Authentication.validate_integration_token(payload, None)
+            Authentication.validate_integration_token(payload)
 
     def test_add_feedback(self):
         AccountProcessor.add_feedback(4.5, 'test', feedback='product is good')

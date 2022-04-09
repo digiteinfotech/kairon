@@ -212,7 +212,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert not actual["data"]
-        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Access to bot is denied\'}'
+        assert actual["message"] == 'Access to bot is denied'
 
     def test_chat_with_bot_using_deleted_token(self):
         access_token = Authentication.generate_integration_token(bot, "test@chat.com", name='integration_token_1')
@@ -231,7 +231,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert not actual["data"]
-        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Access to bot is denied\'}'
+        assert actual["message"] == 'Access to bot is denied'
 
     def test_chat_different_bot(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -350,7 +350,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert actual["data"] is None
-        assert actual["message"] == '{\'status_code\': 401, \'detail\': \'Could not validate credentials\', \'headers\': {\'WWW-Authenticate\': \'Bearer\'}}'
+        assert actual["message"] == "Could not validate credentials"
 
     @patch('kairon.chat.handlers.channels.slack.SlackHandler.is_request_from_slack_authentic')
     @patch('kairon.shared.utils.Utility.get_local_mongo_store')
@@ -415,8 +415,8 @@ class TestChatServer(AsyncHTTPTestCase):
                              "event_context": "4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUEtUTUFDU1UiLCJhaWQiOiJBUEtUWFJQTUsiLCJjaWQiOiJEUEtUWTgxVU0ifQ"})
         )
         actual = response.body.decode("utf8")
-        self.assertEqual(response.code, 500)
-        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
 
     @patch('kairon.chat.handlers.channels.telegram.TelegramOutput')
     @patch('kairon.shared.utils.Utility.get_local_mongo_store')
@@ -442,7 +442,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_hangout_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
-            f"/api/bot/hangout/{bot}/123",
+            f"/api/bot/hangouts/{bot}/123",
             method="POST",
             body=json.dumps({
                 "type": "MESSAGE",
@@ -457,15 +457,15 @@ class TestChatServer(AsyncHTTPTestCase):
                 }
             }))
         actual = response.body.decode("utf8")
-        self.assertEqual(response.code, 500)
-        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
 
     @patch('kairon.shared.utils.Utility.get_local_mongo_store')
     def test_hangout_auth_failed_hangout_verify(self, mock_store):
         mock_store.return_value = self.empty_store
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
-            f"/api/bot/hangout/{bot}/{token}",
+            f"/api/bot/hangouts/{bot}/{token}",
             method="POST",
             headers={"Authorization": "Bearer Test"},
             body=json.dumps({
@@ -481,7 +481,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 }
             }))
         actual = response.body.decode("utf8")
-        self.assertEqual(response.code, 500)
+        self.assertEqual(response.code, 422)
 
     def test_messenger_invalid_auth(self):
         patch.dict(Utility.environment['action'], {"url": None})
@@ -544,5 +544,5 @@ class TestChatServer(AsyncHTTPTestCase):
                 }]
             }))
         actual = response.body.decode("utf8")
-        self.assertEqual(response.code, 500)
-        assert actual == "<html><title>500: Internal Server Error</title><body>500: Internal Server Error</body></html>"
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
