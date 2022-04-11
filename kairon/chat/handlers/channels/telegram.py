@@ -172,7 +172,7 @@ class TelegramHandler(InputChannel, BaseHandler):
         out_channel = TelegramOutput(telegram['config']['access_token'])
         request_dict = json_decode(self.request.body)
         update = Update.de_json(request_dict)
-        if not out_channel.get_me().username == telegram['config'].get("bot_name"):
+        if not out_channel.get_me().username == telegram['config'].get("username_for_bot"):
             logger.debug("Invalid access token, check it matches Telegram")
             self.write("failed")
             return

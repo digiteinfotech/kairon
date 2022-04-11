@@ -7428,7 +7428,7 @@ def test_list_integrations():
 def test_add_channel_config_error():
     data = {"connector_type": "custom",
             "config": {
-                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                 "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
@@ -7454,12 +7454,12 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['slack_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
             "config": {
-                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"}}
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"}}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
         json=data,
@@ -7469,7 +7469,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['slack_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
          'type': 'value_error'}]
 
 
@@ -7477,7 +7477,7 @@ def test_add_channel_config(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
     data = {"connector_type": "slack",
             "config": {
-                "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                 "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
@@ -8038,7 +8038,7 @@ def test_channels_params():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
-    assert ["slack_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
+    assert ["bot_user_oAuth_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
     assert ["slack_channel"] == actual['data']['slack']['optional_fields']
 
 

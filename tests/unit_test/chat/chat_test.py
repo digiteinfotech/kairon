@@ -25,13 +25,13 @@ class TestChat:
         with pytest.raises(ValidationError, match="Invalid channel type custom"):
             ChatDataProcessor.save_channel_config({"connector_type": "custom",
                                                    "config": {
-                                                       "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                                       "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                                        "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                                   "test",
                                                   "test")
 
         with pytest.raises(ValidationError,
-                           match=escape("Missing ['slack_token', 'slack_signing_secret'] all or any in config")):
+                           match=escape("Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config")):
             ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                    "config": {
                                                        "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
@@ -39,10 +39,10 @@ class TestChat:
                                                   "test")
 
         with pytest.raises(ValidationError,
-                           match=escape("Missing ['slack_token', 'slack_signing_secret'] all or any in config")):
+                           match=escape("Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config")):
             ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                    "config": {
-                                                       "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                                       "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                                    }},
                                                   "test",
                                                   "test")
@@ -50,7 +50,7 @@ class TestChat:
     def test_save_channel_config(self):
         ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                "config": {
-                                                   "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                                   "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                                    "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                               "test",
                                               "test")
@@ -58,13 +58,13 @@ class TestChat:
     def test_update_channel_config(self):
         ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                "config": {
-                                                   "slack_token": "Test-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                                   "bot_user_oAuth_token": "Test-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                                    "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                               "test",
                                               "test")
         slack = ChatDataProcessor.get_channel_config("slack", "test", mask_characters=False)
         assert slack.get("connector_type") == "slack"
-        assert str(slack["config"].get("slack_token")).startswith("Test")
+        assert str(slack["config"].get("bot_user_oAuth_token")).startswith("Test")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
     def test_list_channel_config(self):
@@ -72,25 +72,25 @@ class TestChat:
         slack = channels[0]
         assert channels.__len__() == 1
         assert slack.get("connector_type") == "slack"
-        assert str(slack["config"].get("slack_token")).__contains__("***")
+        assert str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
         channels = list(ChatDataProcessor.list_channel_config("test", mask_characters=False))
         slack = channels[0]
         assert channels.__len__() == 1
         assert slack.get("connector_type") == "slack"
-        assert not str(slack["config"].get("slack_token")).__contains__("***")
+        assert not str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
     def test_get_channel_config_slack(self):
         slack = ChatDataProcessor.get_channel_config("slack", "test")
         assert slack.get("connector_type") == "slack"
-        assert str(slack["config"].get("slack_token")).__contains__("***")
+        assert str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
         slack = ChatDataProcessor.get_channel_config("slack", "test", mask_characters=False)
         assert slack.get("connector_type") == "slack"
-        assert not str(slack["config"].get("slack_token")).__contains__("***")
+        assert not str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
     def test_delete_channel_config_slack(self):
@@ -113,7 +113,7 @@ class TestChat:
                                                "config": {
                                                    "access_token": access_token,
                                                    "webhook_url": webhook,
-                                                   "bot_name": "test"}},
+                                                   "username_for_bot": "test"}},
                                               "test",
                                               "test")
 
@@ -134,6 +134,6 @@ class TestChat:
                                                        "config": {
                                                            "access_token": access_token,
                                                            "webhook_url": webhook,
-                                                           "bot_name": "test"}},
+                                                           "username_for_bot": "test"}},
                                                       "test",
                                                       "test")

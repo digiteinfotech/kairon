@@ -45,7 +45,7 @@ start_training(bot2, "test@chat.com")
 bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
 ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                        "config": {
-                                           "slack_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                                           "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                       bot, user="test@chat.com")
 responses.start()
@@ -64,7 +64,7 @@ with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_e
     ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                            "config": {
                                                "access_token": "xoxb-801939352912-801478018484",
-                                               "bot_name": "test"}},
+                                               "username_for_bot": "test"}},
                                           bot, user="test@chat.com")
 ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                        "config": {

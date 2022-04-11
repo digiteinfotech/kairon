@@ -402,7 +402,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
         content_type = self.request.headers.get("content-type")
         conversation_granularity = "sender"
         slack_config = ChatDataProcessor.get_channel_config("slack", bot=bot, mask_characters=False)
-        slack_token = slack_config['config']['slack_token']
+        slack_token = slack_config['config']['bot_user_oAuth_token']
         slack_signing_secret = slack_config['config']['slack_signing_secret']
         slack_channel = slack_config['config'].get('slack_channel')
         self.set_status(HTTPStatus.OK)

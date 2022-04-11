@@ -77,14 +77,14 @@ notifications:
 channels:
   slack:
     required_fields:
-      - slack_token
+      - bot_user_oAuth_token
       - slack_signing_secret
     optional_fields:
       - slack_channel
   telegram:
     required_fields:
       - access_token
-      - bot_name
+      - username_for_bot
     api:
       url: https://api.telegram.org
   hangouts:
