@@ -5,6 +5,7 @@ tracker:
   type: ${TRACKER_TYPE:"bot"}
   url: ${TRACKER_URL:"mongodb://test_kairon:27016/conversation"}
   collection: ${TRACKER_COLLECTION:"conversations"}
+  archive_db: ${ARCHIVE_DB:"conversations_archive"}
 
 elasticsearch:
   enable: ${ENABLE_APM:false}

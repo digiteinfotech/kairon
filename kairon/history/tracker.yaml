@@ -5,6 +5,7 @@ tracker:
   type: ${TRACKER_TYPE:"static"}
   url: ${TRACKER_URL:"mongodb://localhost:27017/rasa"}
   collection: ${TRACKER_COLLECTION:"conversations"}
+  archive_db: ${ARCHIVE_DB:"conversations_archive"}
 
 elasticsearch:
   enable: ${ENABLE_APM:false}

@@ -108,3 +108,45 @@ class EventsTrigger:
         except Exception as e:
             logger.error(str(e))
             ModelTestingLogProcessor.log_test_result(bot, user, exception=str(e), event_status=EVENT_STATUS.FAIL.value)
+
+    @staticmethod
+    def trigger_history_deletion(bot: Text, user: Text, month: int = 1):
+        """
+        Triggers model testing event.
+        @param bot: bot id.
+        @param user: kairon username.
+        @param month: default is current month and max is last 6 months
+        @return:
+        """
+        from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
+        from kairon.history.processor import HistoryProcessor
+        from kairon.exceptions import AppException
+        from kairon.shared.data.processor import MongoProcessor
+
+        try:
+            # Check history endpoint
+            mongo_processor = MongoProcessor()
+            history_endpoint = mongo_processor.get_history_server_endpoint(bot)
+            if history_endpoint.get('type') and history_endpoint['type'] != 'kairon':
+                raise AppException('Cannot initiate delete. History server not managed by Kairon!')
+
+            event_url = Utility.get_event_url("HISTORY_DELETION")
+            if not Utility.check_empty_string(event_url):
+                env_var = {'BOT': bot, 'USER': user, 'MONTH': month}
+                event_request = Utility.build_event_request(env_var)
+                Utility.http_request("POST",
+                                     event_url,
+                                     None, user, event_request)
+                HistoryDeletionLogProcessor.add_log(bot, user, month, status=EVENT_STATUS.TASKSPAWNED.value)
+            else:
+                HistoryDeletionLogProcessor.add_log(bot, user, month, status=EVENT_STATUS.INPROGRESS.value)
+                HistoryProcessor.delete_bot_history(bot, month)
+                HistoryDeletionLogProcessor.add_log(bot, user, status=EVENT_STATUS.COMPLETED.value)
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            HistoryDeletionLogProcessor.add_log(bot, user, exception=f'Failed to trigger the event. {e}',
+                                                status=EVENT_STATUS.FAIL.value)
+
+        except Exception as e:
+            logger.error(str(e))
+            HistoryDeletionLogProcessor.add_log(bot, user, exception=str(e), status=EVENT_STATUS.FAIL.value)

@@ -636,3 +636,14 @@ class ChatClientConfig(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+
+@push_notification.apply
+class ConversationsHistoryDeleteLogs(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    month = DateTimeField(default=None)
+    status = StringField(default=None)
+    start_timestamp = DateTimeField(default=None)
+    end_timestamp = DateTimeField(default=None)
+    exception = StringField(default=None)

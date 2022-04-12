@@ -3,12 +3,15 @@ from typing import Text
 
 from fastapi import APIRouter, Security
 from fastapi import Query
+from starlette.background import BackgroundTasks
 from starlette.responses import StreamingResponse
 from io import BytesIO
 
 from kairon.api.models import Response
+from kairon.events.events import EventsTrigger
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS
+from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
@@ -382,3 +385,27 @@ async def total_sessions(month: int = Query(default=1, ge=1, le=6), current_user
         f'/api/history/{current_user.get_bot()}/metrics/sessions/total',
         {'month': month}
     )
+
+
+@router.put("/delete/{sender}", response_model=Response)
+async def delete_user_chat_history(
+    sender: Text, month: int = Query(default=3, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Deletes user chat history up to certain months  min 3 month max 6 months
+    """
+    return ChatHistoryUtils.delete_user_history(bot=current_user.get_bot(), sender=sender, month=month)
+
+
+@router.put("/delete", response_model=Response)
+async def delete_bot_conversations_history(
+    background_tasks: BackgroundTasks,
+    month: int = Query(default=3, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Deletes bot chat history for all users up to certain months  min 1 month max 6 months
+    """
+    HistoryDeletionLogProcessor.is_event_in_progress(bot=current_user.get_bot())
+    background_tasks.add_task(EventsTrigger.trigger_history_deletion, bot=current_user.get_bot(), user=current_user.get_user(),
+                              month=month)
+    return {"message": "Delete chat history initiated. It may take a while. Check logs!"}

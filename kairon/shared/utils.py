@@ -760,6 +760,10 @@ class Utility:
         elif "TESTING" == event_type:
             if Utility.environment.get('model') and Utility.environment['model']['test'].get('event_url'):
                 url = Utility.environment['model']['test'].get('event_url')
+        elif "HISTORY_DELETION" == event_type:
+            if Utility.environment.get('history_server') and Utility.environment['history_server'].get('deletion') and \
+                    Utility.environment['history_server']['deletion'].get('event_url'):
+                url = Utility.environment['history_server']['deletion'].get('event_url')
         else:
             raise AppException("Invalid event type received")
         if Utility.check_empty_string(url) and raise_exc:
