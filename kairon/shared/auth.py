@@ -55,7 +55,7 @@ class Authentication:
                 raise credentials_exception
             user_model = User(**user)
             if payload.get("type") != TOKEN_TYPE.LOGIN.value:
-                Authentication.validate_bot_request(payload.get('bot'), request.path_params.get('bot'))
+                Authentication.validate_bot_request(request.path_params.get('bot'), payload.get('bot'))
                 if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                     Authentication.validate_integration_token(payload)
                 alias_user = request.headers.get("X-USER")
