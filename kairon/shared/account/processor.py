@@ -86,7 +86,7 @@ class AccountProcessor:
         bot = Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
         bot_id = bot['_id'].__str__()
         if not is_new_account:
-            AccountProcessor.allow_access_to_bot(bot_id, user, user, account, ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
+            AccountProcessor.__allow_access_to_bot(bot_id, user, user, account, ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.ACTIVE.value)
         BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
         config = processor.load_config(bot_id)
@@ -153,7 +153,6 @@ class AccountProcessor:
         for bot in BotAccess.objects(accessor_email=email, bot_account__ne=account_id,
                                      status=ACTIVITY_STATUS.ACTIVE.value):
             bot_details = AccountProcessor.get_bot(bot['bot'])
-            bot_details.pop('status')
             bot_details['_id'] = bot_details['_id'].__str__()
             shared_bots.append(bot_details)
         return {
@@ -166,17 +165,19 @@ class AccountProcessor:
                                           role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value):
         token = Utility.generate_token(email)
         link = f'{Utility.email_conf["app"]["url"]}/{bot}/invite/accept/{token}'
+        if role == ACCESS_ROLES.OWNER.value:
+            raise AppException('There can be only 1 owner per bot')
         if Utility.email_conf["email"]["enable"]:
             activity_status = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value
         else:
             activity_status = ACTIVITY_STATUS.ACTIVE.value
-        bot_details = AccountProcessor.allow_access_to_bot(bot, email, user, bot_account, role, activity_status)
+        bot_details = AccountProcessor.__allow_access_to_bot(bot, email, user, bot_account, role, activity_status)
         return bot_details['name'], link
 
     @staticmethod
-    def allow_access_to_bot(bot: Text, accessor_email: Text, user: Text,
-                            bot_account: int, role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
-                            activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
+    def __allow_access_to_bot(bot: Text, accessor_email: Text, user: Text,
+                              bot_account: int, role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+                              activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
         """
         Adds bot to a user account.
 
@@ -187,7 +188,7 @@ class AccountProcessor:
         :param activity_status: can be one of active, inactive or deleted.
         :param role: can be one of admin, designer or tester.
         """
-        bot_details = AccountProcessor.get_bot(bot)
+        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         Utility.is_exist(BotAccess, 'User is already a collaborator', accessor_email=accessor_email, bot=bot,
                          status__ne=ACTIVITY_STATUS.DELETED.value)
         BotAccess(
@@ -203,7 +204,8 @@ class AccountProcessor:
     @staticmethod
     def update_bot_access(bot: Text, accessor_email: Text, user: Text,
                           role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
-                          status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value):
+                          status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
+                          validate_ownership_modification: bool = True):
         """
         Adds bot to a user account.
 
@@ -212,13 +214,25 @@ class AccountProcessor:
         :param user: user adding the new member
         :param role: can be one of admin, designer or tester.
         :param status: can be one of active, inactive or deleted.
+        :param validate_ownership_modification: whether ownership is being modified
         """
-        AccountProcessor.get_bot(bot)
+        AccountProcessor.get_bot_and_validate_status(bot)
+        AccountProcessor.__update_role(bot, accessor_email, user, role, status, validate_ownership_modification)
+
+    @staticmethod
+    def __update_role(bot: Text, accessor_email: Text, user: Text,
+                      role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+                      status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
+                      validate_ownership_modification: bool = True):
+        AccountProcessor.get_user(accessor_email)
         try:
-            bot_access = BotAccess.objects(accessor_email=accessor_email, bot=bot).get()
-            if Utility.email_conf["email"]["enable"]:
-                if status != ACTIVITY_STATUS.DELETED.value and bot_access.status == ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value:
-                    raise AppException('User is yet to accept the invite')
+            bot_access = BotAccess.objects(
+                accessor_email=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+            ).get()
+            if Utility.email_conf["email"]["enable"] and bot_access.status == ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value:
+                raise AppException('User is yet to accept the invite')
+            if validate_ownership_modification and ACCESS_ROLES.OWNER.value in {role, bot_access.role}:
+                raise AppException('Ownership modification denied')
             bot_access.role = role
             bot_access.user = user
             bot_access.status = status
@@ -228,6 +242,25 @@ class AccountProcessor:
             raise AppException('User not yet invited to collaborate')
 
     @staticmethod
+    def transfer_ownership(account: int, bot: Text, current_owner: Text, to_user: Text):
+        AccountProcessor.get_bot_and_validate_status(bot)
+        AccountProcessor.__update_role(bot, to_user, current_owner, ACCESS_ROLES.OWNER.value, validate_ownership_modification=False)
+        AccountProcessor.__update_role(bot, current_owner, current_owner, ACCESS_ROLES.ADMIN.value, validate_ownership_modification=False)
+        AccountProcessor.__change_bot_account(bot, to_user)
+        UserActivityLogger.add_log(
+            account,
+            UserActivityType.transfer_ownership.value,
+            current_owner, bot,
+            [f'Ownership transferred to {to_user}']
+        )
+
+    @staticmethod
+    def __change_bot_account(bot_id: Text, to_owner: Text):
+        user = AccountProcessor.get_user(to_owner)
+        Bot.objects(id=bot_id, status=True).update(set__account=user['account'])
+        BotAccess.objects(bot=bot_id, status__ne=ACTIVITY_STATUS.DELETED.value).update(set__bot_account=user['account'])
+
+    @staticmethod
     def accept_bot_access_invite(token: Text, bot: Text):
         """
         Activate user's access to bot.
@@ -235,8 +268,8 @@ class AccountProcessor:
         :param token: token sent in the link
         :param bot: bot id
         """
-        bot_details = AccountProcessor.get_bot(bot)
         accessor_email = Utility.verify_token(token)
+        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         AccountProcessor.get_user_details(accessor_email)
         try:
             bot_access = BotAccess.objects(accessor_email=accessor_email, bot=bot,
@@ -247,6 +280,31 @@ class AccountProcessor:
             return bot_access.user, bot_details['name'], bot_access.accessor_email, bot_access.role
         except DoesNotExist:
             raise AppException('No pending invite found for this bot and user')
+
+    @staticmethod
+    def list_active_invites(user: Text):
+        """
+        List active bot invites.
+
+        :param user: account username
+        """
+        for invite in BotAccess.objects(accessor_email=user, status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
+            invite = invite.to_mongo().to_dict()
+            bot_details = AccountProcessor.get_bot(invite['bot'])
+            invite['bot_name'] = bot_details['name']
+            invite.pop('_id')
+            invite.pop('bot_account')
+            invite.pop('status')
+            yield invite
+
+    @staticmethod
+    def search_user(txt: Text):
+        """
+        List active bot invites.
+
+        :param txt: name to search
+        """
+        return User.objects().search_text(txt).order_by("$text_score").limit(5)
 
     @staticmethod
     def remove_bot_access(bot: Text, **kwargs):
@@ -263,6 +321,16 @@ class AccountProcessor:
         else:
             active_bot_access = BotAccess.objects(bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value)
         active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
+
+    @staticmethod
+    def remove_member(bot: Text, accessor_email: Text):
+        Utility.is_exist(
+            BotAccess,
+            'Bot owner cannot be removed',
+            accessor_email=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value,
+            role=ACCESS_ROLES.OWNER.value
+        )
+        AccountProcessor.remove_bot_access(bot, accessor_email=accessor_email)
 
     @staticmethod
     def list_bot_accessors(bot: Text):
@@ -288,6 +356,19 @@ class AccountProcessor:
             return Bot.objects().get(id=id).to_mongo().to_dict()
         except:
             raise DoesNotExist("Bot does not exists!")
+
+    @staticmethod
+    def get_bot_and_validate_status(bot_id: str):
+        """
+        fetches bot details
+
+        :param bot_id: bot id
+        :return: bot details
+        """
+        bot = AccountProcessor.get_bot(bot_id)
+        if not bot["status"]:
+            raise AppException("Inactive Bot Please contact system admin!")
+        return bot
 
     @staticmethod
     def add_user(
@@ -388,7 +469,14 @@ class AccountProcessor:
         return user
 
     @staticmethod
-    async def account_setup(account_setup: Dict, user: Text):
+    def get_user_details_and_filter_bot_info_for_integration_user(email: Text, is_integration_user: bool, bot: Text = None):
+        user_details = AccountProcessor.get_complete_user_details(email)
+        if is_integration_user:
+            user_details['bots'] = Utility.filter_bot_details_for_integration_user(bot, user_details['bots'])
+        return user_details
+
+    @staticmethod
+    async def account_setup(account_setup: Dict):
         """
         create new account
 
@@ -403,6 +491,7 @@ class AccountProcessor:
         mail_to = None
         email_enabled = Utility.email_conf["email"]["enable"]
         link = None
+        user = account_setup.get("email")
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
             bot = AccountProcessor.add_bot('Hi-Hello', account["_id"], user, True)
@@ -414,9 +503,9 @@ class AccountProcessor:
                 account=account["_id"].__str__(),
                 user=user
             )
-            AccountProcessor.allow_access_to_bot(bot["_id"].__str__(), account_setup.get("email"),
-                                                 account_setup.get("email"), account['_id'],
-                                                 ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
+            AccountProcessor.__allow_access_to_bot(bot["_id"].__str__(), account_setup.get("email"),
+                                                   account_setup.get("email"), account['_id'],
+                                                   ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.ACTIVE.value)
             await MongoProcessor().save_from_path(
                 "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
@@ -451,7 +540,7 @@ class AccountProcessor:
             "password": SecretStr("Changeit@123"),
         }
         try:
-            user, mail, link = await AccountProcessor.account_setup(account, user="sysadmin")
+            user, mail, link = await AccountProcessor.account_setup(account)
             return user, mail, link
         except Exception as e:
             logging.info(str(e))

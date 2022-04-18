@@ -10,8 +10,8 @@ from kairon.shared.constants import UserActivityType
 class UserActivityLogger:
 
     @staticmethod
-    def add_log(account: int, a_type: UserActivityType, email: Text = None, bot: Text = None):
-        UserActivityLog(account=account, user=email, type=a_type, bot=bot).save()
+    def add_log(account: int, a_type: UserActivityType, email: Text = None, bot: Text = None, message: list = None):
+        UserActivityLog(account=account, user=email, type=a_type, bot=bot, message=message).save()
 
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):

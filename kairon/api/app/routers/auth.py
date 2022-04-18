@@ -8,7 +8,7 @@ from kairon import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import ADMIN_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
 from kairon.shared.models import User
 
 router = APIRouter()
@@ -62,7 +62,7 @@ async def update_integration_token(
 
 @router.get("/{bot}/integration/token/list", response_model=Response)
 async def get_integrations(
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     List available integrations.

@@ -3362,7 +3362,7 @@ class MongoProcessor:
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
 
-        AccountProcessor.get_bot(bot)
+        AccountProcessor.get_bot_and_validate_status(bot)
         bot_accessor = next(AccountProcessor.list_bot_accessors(bot))['accessor_email']
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()

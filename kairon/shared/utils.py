@@ -1233,3 +1233,13 @@ class Utility:
         response_json = json.loads(response)
         if 'error_code' in response_json:
             raise ValidationError(response_json['description'])
+
+    @staticmethod
+    def filter_bot_details_for_integration_user(bot: Text, available_bots: dict):
+        for bot_details in available_bots['account_owned']:
+            if bot_details['_id'] == bot:
+                return {'account_owned': [bot_details], 'shared': []}
+
+        for bot_details in available_bots['shared']:
+            if bot_details['_id'] == bot:
+                return {'account_owned': [], 'shared': [bot_details]}

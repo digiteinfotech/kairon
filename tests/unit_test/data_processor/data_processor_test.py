@@ -3586,7 +3586,7 @@ class TestMongoProcessor:
 
     def test_save_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
         def _mock_list_bot_accessors(*args, **kwargs):
             yield {'accessor_email': 'user@integration.com'}
@@ -3605,7 +3605,7 @@ class TestMongoProcessor:
 
     def test_save_chat_client_config(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
         def _mock_list_bot_accessors(*args, **kwargs):
             yield {'accessor_email': 'user@integration.com'}
@@ -3625,7 +3625,7 @@ class TestMongoProcessor:
 
     def test_get_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com'}
+            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True}
 
         def _mock_list_bot_accessors(*args, **kwargs):
             yield {'accessor_email': 'user@integration.com'}
@@ -3643,7 +3643,7 @@ class TestMongoProcessor:
 
     def test_get_chat_client_config(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
         def _mock_list_bot_accessors(*args, **kwargs):
             yield {'accessor_email': 'user@integration.com'}
@@ -3660,7 +3660,7 @@ class TestMongoProcessor:
             raise AppException('Config not found')
 
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test', 'account': 1, 'user': 'user@integration.com'}
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
         def _mock_list_bot_accessors(*args, **kwargs):
             yield {'accessor_email': 'user@integration.com'}

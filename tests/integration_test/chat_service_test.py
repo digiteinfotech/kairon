@@ -29,8 +29,7 @@ loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email
                                                                           "last_name": "Chat",
                                                                           "password": "testChat@12",
                                                                           "confirm_password": "testChat@12",
-                                                                          "account": "ChatTesting"}).dict(),
-                                                       "sysadmin"))
+                                                                          "account": "ChatTesting"}).dict()))
 
 token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"

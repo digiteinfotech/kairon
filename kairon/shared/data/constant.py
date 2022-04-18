@@ -126,6 +126,7 @@ class SLOT_MAPPING_TYPE(str, Enum):
 
 
 class ACCESS_ROLES(str, Enum):
+    OWNER = "owner"
     ADMIN = "admin"
     DESIGNER = "designer"
     TESTER = "tester"
