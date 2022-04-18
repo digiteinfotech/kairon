@@ -1621,8 +1621,8 @@ class HistoryProcessor:
         :param timestamp_req: the timestamp based on month up to which chat to be archived
         :return: none
         """
-        archive_db = Utility.environment['tracker']['archive_db']
-        client, message = HistoryProcessor.get_mongo_connection()
+        archive_db = Utility.environment['history_server']['deletion']['archive_db']
+        client, _ = HistoryProcessor.get_mongo_connection()
         archive_collection = f"{collection}.{sender_id}"
 
         with client as client:
@@ -1654,7 +1654,7 @@ class HistoryProcessor:
         :param timestamp_req: the timestamp based on month up to which chat to be archived
         :return: none
         """
-        client, message = HistoryProcessor.get_mongo_connection()
+        client, _ = HistoryProcessor.get_mongo_connection()
 
         with client as client:
             try:

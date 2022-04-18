@@ -66,13 +66,3 @@ async def word_cloud(request: HistoryQuery = HistoryQuery(),
     sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
                                                     request.stopword_list, request.month)
     return {"data": sentence, "message": message}
-
-
-@router.put("/delete/{sender}", response_model=Response)
-async def delete_user_chat_history(sender: Text,
-                                   request: HistoryQuery = HistoryQuery(),
-                                   collection: str = Depends(Authentication.authenticate_and_get_collection)):
-    """Deletes user chat history up to certain months ago"""
-
-    HistoryProcessor.delete_user_history(collection, sender, request.month)
-    return {"message": 'Conversations deleted'}

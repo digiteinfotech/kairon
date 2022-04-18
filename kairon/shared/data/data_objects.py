@@ -642,6 +642,7 @@ class ChatClientConfig(Document):
 class ConversationsHistoryDeleteLogs(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
+    sender_id = StringField(default=None)
     month = DateTimeField(default=None)
     status = StringField(default=None)
     start_timestamp = DateTimeField(default=None)

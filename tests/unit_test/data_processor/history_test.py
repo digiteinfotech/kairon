@@ -76,6 +76,7 @@ class TestHistory:
         monkeypatch.setattr(Collection, 'aggregate', mock_archive)
         monkeypatch.setattr(Collection, 'update', mock_archive)
         monkeypatch.setattr(Collection, 'find', mock_find)
+        monkeypatch.setitem(Utility.environment, 'history_server', {'deletion': {'archive_db': 'conversations_archive'}})
 
     @pytest.fixture
     def get_connection_delete_history(self):
@@ -86,7 +87,6 @@ class TestHistory:
     def test_delete_user_history(self, mock_delete_chat):
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
-
         HistoryProcessor.delete_user_history(collection=collection,
                                              sender_id=sender_id, month=16)
         assert True

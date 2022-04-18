@@ -445,18 +445,16 @@ class ChatHistoryUtils:
         return queries_not_present
 
     @staticmethod
-    def delete_user_history(bot: Text, sender: Text, month: int = 1):
+    def validate_history_endpoint(bot: Text):
+        """
+        Checks if the history endpoint is managed by kairon or client user
+        :param bot: bot id
+        :return: none
+        """
         # Check history endpoint
         from kairon.shared.data.processor import MongoProcessor
 
         mongo_processor = MongoProcessor()
         history_endpoint = mongo_processor.get_history_server_endpoint(bot)
         if history_endpoint.get('type') and history_endpoint['type'] != 'kairon':
-            raise AppException('Cannot initiate delete. History server not managed by Kairon!')
-
-        return Utility.trigger_history_server_request(
-            bot,
-            f'/api/history/{bot}/conversations/delete/{sender}',
-            {'month': month},
-            request_method='PUT'
-        )
+            raise AppException(f'History server not managed by Kairon!. Manually delete the collection:{bot}')

@@ -765,16 +765,3 @@ def test_total_sessions_with_request(mock_db_client):
     assert actual["message"]
     assert actual["success"]
 
-
-def test_delete_user_chat_history(get_connection_delete_history, mock_archive_history):
-
-    response = client.put(
-        f"/api/history/{pytest.bot}/conversations/delete/5e564fbcdcf0d5fad89e3acd",
-        json={'month': 3},
-        headers={"Authorization": 'Bearer ' + Utility.environment['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["message"] == f'Conversations deleted'
-    assert actual["success"]

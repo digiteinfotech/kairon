@@ -8,6 +8,8 @@ import pytest
 
 from kairon.api.app.main import app
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.data_objects import ConversationsHistoryDeleteLogs
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
@@ -58,9 +60,20 @@ def _mock_user_role(*args, **kwargs):
     return {'role': 'tester'}
 
 
+def _mock_user_role_admin(*args, **kwargs):
+    return {'role': 'admin'}
+
+
 @pytest.fixture(scope='function')
 def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role)
+    monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
+    monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
+
+
+@pytest.fixture(scope='function')
+def mock_auth_admin(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role_admin)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
 
@@ -890,64 +903,34 @@ def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
-def test_delete_user_chat_history_kairon_client_kairon_endpoint(mock_auth, mock_mongo_processor_endpoint_not_configured):
-    responses.add(
-        responses.PUT,
-        f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/delete/5e564fbcdcf0d5fad89e3acd",
-        status=200,
-        json={"message": 'Conversations for user deleted'},
-        match=[responses.json_params_matcher({'month': 3})]
-    )
-    response = client.put(
+def test_delete_user_chat_history_kairon_client_kairon_endpoint(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
+                                                                monkeypatch):
+    response = client.delete(
         f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd?month=3",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    assert responses.calls[0].request.headers['Authorization'] == 'Bearer ' + Utility.environment['history_server']['token']
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["message"] == 'Conversations for user deleted'
+    assert actual["message"] == 'Delete user history initiated. It may take a while. Check logs!'
     assert actual["success"]
 
 
 @responses.activate
-def test_delete_user_chat_history_kairon_client_user_endpoint(mock_auth, mock_mongo_processor):
-    responses.add(
-        responses.PUT,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/delete/5e564fbcdcf0d5fad89e3acd",
-        status=200,
-        json={"message": 'Conversations for user deleted'},
-        match=[responses.json_params_matcher({'month': 1})],
-    )
-    response = client.put(
+def test_delete_user_chat_history_kairon_client_user_endpoint(mock_auth_admin, mock_mongo_processor):
+    response = client.delete(
         f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    #assert responses.calls[len(responses.calls) - 1].request.headers['Authorization'] == 'Bearer test_token'
 
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Cannot initiate delete. History server not managed by Kairon!'
+    assert actual["message"] == f'History server not managed by Kairon!. Manually delete the collection:{pytest.bot}'
     assert not actual["success"]
 
 
 @responses.activate
-def test_delete_bot_chat_history_kairon_client_kairon_endpoint(mock_auth, mock_mongo_processor_endpoint_not_configured):
-
-    response = client.put(
-        f"/api/history/{pytest.bot}/delete?month=3",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    #assert responses.calls[0].request.headers['Authorization'] == 'Bearer ' + Utility.environment['history_server']['token']
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["message"] == 'Delete chat history initiated. It may take a while. Check logs!'
-    assert actual["success"]
-
-
-@responses.activate
-def test_delete_bot_chat_history_kairon_client_event(mock_auth, mock_mongo_processor, monkeypatch):
+def test_delete_user_chat_history_kairon_client_event(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
     event_url = 'http://event.url'
     monkeypatch.setitem(Utility.environment['history_server']['deletion'], 'event_url', event_url)
     responses.add("POST",
@@ -955,12 +938,99 @@ def test_delete_bot_chat_history_kairon_client_event(mock_auth, mock_mongo_proce
                   json={"message": "Event triggered successfully!"},
                   status=200)
 
-    response = client.put(
-        f"/api/history/{pytest.bot}/delete",
+    response = client.delete(
+        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    #assert responses.calls[len(responses.calls) - 1].request.headers['Authorization'] == 'Bearer test_token'
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Delete user history initiated. It may take a while. Check logs!'
+    assert actual["success"]
+
+
+@responses.activate
+def test_delete_user_chat_history_kairon_client_event_exists(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
+                                                                monkeypatch):
+    response = client.delete(
+        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd?month=3",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Event already in progress! Check logs.'
+    assert not actual["success"]
+
+    # update status
+    log = ConversationsHistoryDeleteLogs.objects(bot=pytest.bot, status=EVENT_STATUS.TASKSPAWNED.value).get()
+    log.status = EVENT_STATUS.COMPLETED.value
+    log.save()
+
+
+def test_delete_bot_chat_history_kairon_client_kairon_endpoint(mock_auth_admin, mock_mongo_processor_endpoint_not_configured):
+
+    response = client.delete(
+        f"/api/history/{pytest.bot}/bot/delete?month=3",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["message"] == 'Delete chat history initiated. It may take a while. Check logs!'
     assert actual["success"]
+
+
+@responses.activate
+def test_delete_bot_chat_history_kairon_client_user_endpoint(mock_auth_admin, mock_mongo_processor):
+    response = client.delete(
+        f"/api/history/{pytest.bot}/bot/delete",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f'History server not managed by Kairon!. Manually delete the collection:{pytest.bot}'
+    assert not actual["success"]
+
+
+@responses.activate
+def test_delete_bot_chat_history_kairon_client_event(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
+    event_url = 'http://event.url'
+    monkeypatch.setitem(Utility.environment['history_server']['deletion'], 'event_url', event_url)
+    responses.add("POST",
+                  event_url,
+                  json={"message": "Event triggered successfully!"},
+                  status=200)
+
+    response = client.delete(
+        f"/api/history/{pytest.bot}/bot/delete",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Delete chat history initiated. It may take a while. Check logs!'
+    assert actual["success"]
+
+
+def test_get_delete_history_logs(mock_auth_admin, mock_mongo_processor_endpoint_not_configured):
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/delete/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual["data"]) == 4
+    assert actual['data'][0]['status'] == EVENT_STATUS.TASKSPAWNED.value
+    assert actual['data'][0]['bot'] == pytest.bot
+    assert actual['data'][0]['user'] == 'integration@demo.com'
+    # update status
+    log = ConversationsHistoryDeleteLogs.objects(bot=pytest.bot, status=EVENT_STATUS.TASKSPAWNED.value).get()
+    log.status = EVENT_STATUS.COMPLETED.value
+    log.save()
+
+
