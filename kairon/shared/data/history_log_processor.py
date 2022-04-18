@@ -7,9 +7,7 @@ from loguru import logger
 
 
 class HistoryDeletionLogProcessor:
-    """
-    This Class contains logic for conversations history deletion log processor
-    """
+    """This Class contains logic for conversations history deletion log processor"""
 
     @staticmethod
     def add_log(bot: str, user: str, month: int = None, status: str = None, exception: str = None, sender_id: str = None):

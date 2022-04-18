@@ -1682,7 +1682,7 @@ class HistoryProcessor:
         :param timestamp_req: the timestamp based on month before which users present
         :return: list of user id
         """
-        client, message = HistoryProcessor.get_mongo_connection()
+        client, _ = HistoryProcessor.get_mongo_connection()
 
         with client as client:
             db = client.get_database()
