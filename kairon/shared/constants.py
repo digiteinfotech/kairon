@@ -10,13 +10,15 @@ DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'a
 
 SYSTEM_TRIGGERED_UTTERANCES = {'utter_default', 'utter_please_rephrase'}
 
-ADMIN_ACCESS = [ACCESS_ROLES.ADMIN.value]
+OWNER_ACCESS = [ACCESS_ROLES.OWNER.value]
 
-DESIGNER_ACCESS = [ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value]
+ADMIN_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value]
 
-TESTER_ACCESS = [ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value]
+DESIGNER_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value]
 
-CHAT_ACCESS = [ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value, ACCESS_ROLES.CHAT.value]
+TESTER_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value]
+
+CHAT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value, ACCESS_ROLES.CHAT.value]
 
 
 class SLOT_SET_TYPE(str, Enum):
@@ -36,3 +38,4 @@ class UserActivityType(str, Enum):
     delete_user = "delete_user"
     delete_bot = "delete_bot"
     delete_account = "delete_account"
+    transfer_ownership = "transfer_ownership"
