@@ -1592,3 +1592,136 @@ class HistoryProcessor:
                 new_session,
                 message
             )
+
+    @staticmethod
+    def delete_user_history(collection: Text, sender_id: Text, month: int = 3):
+
+        """
+        Deletes chat history for specific user in a bot
+
+        Archives conversations based on month to conversations_archive DB
+
+        :param month: default is current month and max is last 6 months
+        :param collection: collection to connect to
+        :param sender_id: user id
+        :return: string message
+        """
+        timestamp_req = Utility.get_timestamp_previous_month(month)
+        HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id, timestamp_req=timestamp_req)
+        HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id, timestamp_req=timestamp_req)
+
+    @staticmethod
+    def archive_user_history(collection: Text, sender_id: Text, timestamp_req: float):
+
+        """
+        Archives conversations based on month to conversations_archive DB
+
+        :param collection: collection to connect to
+        :param sender_id: user id
+        :param timestamp_req: the timestamp based on month up to which chat to be archived
+        :return: none
+        """
+        archive_db = Utility.environment['history_server']['deletion']['archive_db']
+        client, _ = HistoryProcessor.get_mongo_connection()
+        archive_collection = f"{collection}.{sender_id}"
+
+        with client as client:
+            try:
+                db = client.get_database()
+                conversations = db.get_collection(collection)
+                conversations.aggregate([{"$match": {"sender_id": sender_id}},
+                                         {"$unwind": {"path": "$events"}},
+                                         {"$match": {"events.timestamp": {
+                                             "$lt": timestamp_req}}},
+                                         {"$unset": "_id"},
+                                         {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
+                                                     "on": "_id",
+                                                     "whenMatched": "keepExisting",
+                                                     "whenNotMatched": "insert"}}
+                                         ])
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)
+
+    @staticmethod
+    def delete_user_conversations(collection: Text, sender_id: Text, timestamp_req: float):
+
+        """
+        Removes archived conversations events from existing collection
+
+        :param collection: collection to connect to
+        :param sender_id: user id
+        :param timestamp_req: the timestamp based on month up to which chat to be archived
+        :return: none
+        """
+        client, _ = HistoryProcessor.get_mongo_connection()
+
+        with client as client:
+            try:
+                db = client.get_database()
+                conversations = db.get_collection(collection)
+
+                # Remove Archived Events
+                conversations.update({'sender_id': sender_id},
+                                     {'$pull': {
+                                         'events': {'timestamp': {'$lt': timestamp_req}}}}
+                                     )
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)
+
+    @staticmethod
+    def fetch_chat_users_for_delete(collection: Text, timestamp_req: float):
+
+        """
+        Fetch users.
+
+        Fetches user list who has conversation with the agent before specified month
+
+        :param collection: collection to connect to
+        :param timestamp_req: the timestamp based on month before which users present
+        :return: list of user id
+        """
+        client, _ = HistoryProcessor.get_mongo_connection()
+
+        with client as client:
+            db = client.get_database()
+            conversations = db.get_collection(collection)
+            try:
+                values = conversations.find({"events.timestamp": {"$lt": timestamp_req}},
+                                            {"_id": 0, "sender_id": 1})
+                users = [
+                    sender["sender_id"]
+                    for sender in values
+                ]
+                return users
+            except Exception as e:
+                logger.error(e)
+                raise AppException(e)
+
+    @staticmethod
+    def delete_bot_history(collection: Text, month: int = 1):
+
+        """
+        Deletes chat history for all users in a bot
+
+        Archives conversations based on month to conversations_archive DB
+
+        :param month: default is current month and max is last 6 months
+        :param collection: collection to connect to
+        :return: string message
+        """
+        timestamp_req = Utility.get_timestamp_previous_month(month)
+        client, message = HistoryProcessor.get_mongo_connection()
+        message = ' '.join([message, f',  collection: {collection}'])
+        try:
+            users = HistoryProcessor.fetch_chat_users_for_delete(collection=collection, timestamp_req=timestamp_req)
+
+            for sender_id in users:
+                HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id, timestamp_req=timestamp_req)
+
+                HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id, timestamp_req=timestamp_req)
+            return message
+        except Exception as e:
+            logger.error(e)
+            raise AppException(e)

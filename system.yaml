@@ -69,6 +69,9 @@ elasticsearch:
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
   token: ${KAIRON_HISTORY_SERVER_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
+  deletion:
+    event_url: ${HISTORY_DELETION_EVENT_URL}
+    archive_db: ${ARCHIVE_DB:"conversations_archive"}
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}

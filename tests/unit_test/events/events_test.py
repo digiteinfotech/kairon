@@ -13,6 +13,7 @@ from rasa.shared.importers.rasa import RasaFileImporter
 from kairon import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
+from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
@@ -978,3 +979,31 @@ class TestEvents:
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    def test_trigger_history_deletion_for_bot(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        month = 1
+        sender_id = None
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['history_server']['deletion'], "event_url", event_url)
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!"},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'MONTH', 'value': month}, {'name': 'SENDER_ID', 'value': sender_id}])],
+                      )
+        responses.start()
+        EventsTrigger.trigger_history_deletion(bot, user, month)
+        responses.stop()
+
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert logs[0]['status'] == EVENT_STATUS.TASKSPAWNED.value
+

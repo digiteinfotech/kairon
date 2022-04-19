@@ -66,4 +66,3 @@ async def word_cloud(request: HistoryQuery = HistoryQuery(),
     sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
                                                     request.stopword_list, request.month)
     return {"data": sentence, "message": message}
-
