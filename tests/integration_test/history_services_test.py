@@ -7,6 +7,7 @@ from kairon.history.main import app
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 from kairon.history.processor import HistoryProcessor
+from pymongo.collection import Collection
 
 client = TestClient(app)
 
@@ -33,6 +34,13 @@ def mock_db_client(monkeypatch):
 
     monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 
+@pytest.fixture
+def get_connection_delete_history():
+    os.environ["system_file"] = "./tests/testing_data/system.yaml"
+    Utility.load_environment()
+    connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+    os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
+    Utility.load_environment()
 
 def history_users(*args, **kwargs):
     return [
@@ -57,6 +65,19 @@ def user_history(*args, **kwargs):
 def history_conversations(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversations_history.json"))
     return json_data, 'connecting to db, '
+
+
+@pytest.fixture
+def mock_archive_history(monkeypatch):
+    def archive_msg(*args, **kwargs):
+        return f'User history archived in {pytest.bot}.5e564fbcdcf0d5fad89e3acd'
+
+    def mock_find(*args, **kwargs):
+        return [{'sender_id': 'fshaikh@digite.com'}]
+
+    monkeypatch.setattr(Collection, 'aggregate', archive_msg)
+    monkeypatch.setattr(Collection, 'update', archive_msg)
+    monkeypatch.setattr(Collection, 'find', mock_find)
 
 
 @pytest.fixture
@@ -743,3 +764,4 @@ def test_total_sessions_with_request(mock_db_client):
     assert actual["data"] == {}
     assert actual["message"]
     assert actual["success"]
+

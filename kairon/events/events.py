@@ -108,3 +108,41 @@ class EventsTrigger:
         except Exception as e:
             logger.error(str(e))
             ModelTestingLogProcessor.log_test_result(bot, user, exception=str(e), event_status=EVENT_STATUS.FAIL.value)
+
+    @staticmethod
+    def trigger_history_deletion(bot: Text, user: Text, month: int = 1, sender_id: Text = None):
+        """
+        Triggers model testing event.
+        @param bot: bot id.
+        @param user: kairon username.
+        @param month: default is current month and max is last 6 months
+        @param sender_id: sender id
+        @return:
+        """
+        from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
+        from kairon.history.processor import HistoryProcessor
+
+        try:
+            event_url = Utility.get_event_url("HISTORY_DELETION")
+            if not Utility.check_empty_string(event_url):
+                env_var = {'BOT': bot, 'USER': user, 'MONTH': month, 'SENDER_ID': sender_id}
+                event_request = Utility.build_event_request(env_var)
+                Utility.http_request("POST",
+                                     event_url,
+                                     None, user, event_request)
+                HistoryDeletionLogProcessor.add_log(bot, user, month, status=EVENT_STATUS.TASKSPAWNED.value, sender_id=sender_id)
+            else:
+                HistoryDeletionLogProcessor.add_log(bot, user, month, status=EVENT_STATUS.INPROGRESS.value, sender_id=sender_id)
+                if not Utility.check_empty_string(sender_id):
+                    HistoryProcessor.delete_user_history(bot, sender_id, month)
+                else:
+                    HistoryProcessor.delete_bot_history(bot, month)
+                HistoryDeletionLogProcessor.add_log(bot, user, status=EVENT_STATUS.COMPLETED.value, sender_id=sender_id)
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            HistoryDeletionLogProcessor.add_log(bot, user, exception=f'Failed to trigger the event. {e}',
+                                                status=EVENT_STATUS.FAIL.value)
+
+        except Exception as e:
+            logger.error(str(e))
+            HistoryDeletionLogProcessor.add_log(bot, user, exception=str(e), status=EVENT_STATUS.FAIL.value)

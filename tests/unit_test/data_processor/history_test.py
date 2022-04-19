@@ -6,11 +6,11 @@ import pytest
 from mongomock import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
-
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
+from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.utils import Utility
-
+from mongoengine import connect
 
 class TestHistory:
 
@@ -64,6 +64,49 @@ class TestHistory:
             return client, 'Loading host:mongodb://test_kairon:27016, db:conversation, collection:conversations'
 
         monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
+
+    @pytest.fixture
+    def mock_delete_chat(self, monkeypatch):
+        def mock_archive(*args, **kwargs):
+            return f'User chat history archived'
+
+        def mock_find(*args, **kwargs):
+            return [{'sender_id': 'fshaikh@digite.com'}]
+
+        monkeypatch.setattr(Collection, 'aggregate', mock_archive)
+        monkeypatch.setattr(Collection, 'update', mock_archive)
+        monkeypatch.setattr(Collection, 'find', mock_find)
+        monkeypatch.setitem(Utility.environment, 'history_server', {'deletion': {'archive_db': 'conversations_archive'}})
+
+    @pytest.fixture
+    def get_connection_delete_history(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    def test_delete_user_history(self, mock_delete_chat):
+        collection = '5ebc195d5b04bcbaa45c70cc'
+        sender_id = 'fshaikh@digite.com'
+        HistoryProcessor.delete_user_history(collection=collection,
+                                             sender_id=sender_id, month=16)
+        assert True
+
+    def test_delete_bot_history(self, mock_delete_chat):
+        collection = '5f1928bda7c0280ca4869da3'
+        msg = HistoryProcessor.delete_bot_history(collection=collection,
+                                                  month=7)
+
+        assert msg == f"Loading host:mongodb://test_kairon:27016, db:conversation ,  collection: 5f1928bda7c0280ca4869da3"
+
+    def test_is_event_in_progress(self, get_connection_delete_history):
+        assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3')
+
+    def test_is_event_in_progress_failure(self, get_connection_delete_history):
+        HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user', 1, status='In progress')
+        assert HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
+
+        with pytest.raises(AppException, match='Event already in progress! Check logs.'):
+            HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3')
 
     def test_fetch_chat_users_db_error(self, mock_db_timeout):
         with pytest.raises(AppException) as e:
