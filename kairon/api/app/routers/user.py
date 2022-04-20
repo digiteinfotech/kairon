@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path, Security
 
-from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
@@ -17,9 +17,10 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
     """
     returns the details of the current logged-in user
     """
-    return {
-        "data": {"user": AccountProcessor.get_complete_user_details(current_user.email)}
-    }
+    user_details = AccountProcessor.get_user_details_and_filter_bot_info_for_integration_user(
+        current_user.email, current_user.is_integration_user, current_user.get_bot()
+    )
+    return {"data": {"user": user_details}}
 
 
 @router.post("/{bot}/member", response_model=Response)
@@ -74,8 +75,21 @@ async def update_bot_access_for_user(
     return Response(message='User access updated')
 
 
+@router.put("/{bot}/owner/change", response_model=Response)
+async def transfer_ownership(
+        request_data: TextData,
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
+):
+    """
+    Transfers ownership to provided user.
+    """
+    AccountProcessor.transfer_ownership(current_user.account, bot, current_user.get_user(), request_data.data)
+    return Response(message='Ownership transferred')
+
+
 @router.delete("/{bot}/member/{user}", response_model=Response)
-async def remove_user_from_bot(
+async def remove_member_from_bot(
         user: str = Path(default=None, description="user mail id", example="user@kairon.ai"),
         bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
@@ -83,7 +97,7 @@ async def remove_user_from_bot(
     """
     Removes user from accessing the bot.
     """
-    AccountProcessor.remove_bot_access(bot, accessor_email=user)
+    AccountProcessor.remove_member(bot, accessor_email=user)
     return Response(message='User removed')
 
 
@@ -96,3 +110,21 @@ async def list_users_for_bot(
     Lists active/inactive/invited users of a bot.
     """
     return Response(data=list(AccountProcessor.list_bot_accessors(bot)))
+
+
+@router.get("/invites/active", response_model=Response)
+async def list_active_bot_invites(current_user: User = Security(Authentication.get_current_user)):
+    """
+    Lists active bot invites.
+    """
+    return Response(data={'active_invites': list(AccountProcessor.list_active_invites(current_user.get_user()))})
+
+
+@router.get("/search", response_model=Response)
+async def search_user(
+        request_data: TextData, current_user: User = Security(Authentication.get_current_user)
+):
+    """
+    Lists active bot invites.
+    """
+    return Response(data={'matching_users': list(AccountProcessor.search_user(request_data.data))})

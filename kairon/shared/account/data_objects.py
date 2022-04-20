@@ -7,7 +7,7 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument
+    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -38,6 +38,7 @@ class User(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    meta = {"indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}
 
     def validate(self, clean=True):
         if (
@@ -127,3 +128,4 @@ class UserActivityLog(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     account = LongField(required=True)
     bot = StringField()
+    message = ListField(StringField(), default=None)

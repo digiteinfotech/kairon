@@ -77,6 +77,12 @@ class BotAccessRequest(BaseModel):
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
+    @validator("role")
+    def validate_role(cls, v, values, **kwargs):
+        if v == ACCESS_ROLES.OWNER.value:
+            raise ValueError("There can be only 1 owner per bot")
+        return v
+
 
 class EndPointBot(BaseModel):
     url: str

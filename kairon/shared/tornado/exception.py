@@ -6,4 +6,4 @@ class ServiceHandlerException(Exception):
         if not headers:
             headers = {}
         self.headers = headers
-        super(Exception, self).__init__(message)
+        super().__init__(message)

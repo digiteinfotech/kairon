@@ -65,6 +65,7 @@ class Authentication:
                         detail="Alias user missing for integration",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
+                user_model.active_bot = payload.get('bot')
                 user_model.is_integration_user = True
                 user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
@@ -96,13 +97,7 @@ class Authentication:
                 detail=f"{security_scopes.scopes} access is required to perform this operation on the bot",
                 headers={"WWW-Authenticate": authenticate_value},
             )
-        bot = AccountProcessor.get_bot(bot_id)
-        if not bot["status"]:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Inactive Bot Please contact system admin!",
-                headers={"WWW-Authenticate": authenticate_value},
-            )
+        AccountProcessor.get_bot_and_validate_status(bot_id)
         user.active_bot = bot_id
         return user
 
@@ -277,7 +272,7 @@ class Authentication:
         if existing_user:
             AccountProcessor.get_user_details(user_details['email'])
         else:
-            await AccountProcessor.account_setup(user_details, "sysadmin")
+            await AccountProcessor.account_setup(user_details)
             tmp_token = Utility.generate_token(user_details['email'])
             await AccountProcessor.confirm_email(tmp_token)
         access_token = Authentication.create_access_token(data={"sub": user_details["email"]})

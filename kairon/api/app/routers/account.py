@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security
 from fastapi import BackgroundTasks
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData
+from kairon.shared.constants import OWNER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
@@ -14,7 +15,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     """
     Registers a new account
     """
-    user, mail, url = await AccountProcessor.account_setup(register_account.dict(), "sysadmin")
+    user, mail, url = await AccountProcessor.account_setup(register_account.dict())
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
@@ -80,20 +81,26 @@ async def list_bots(current_user: User = Depends(Authentication.get_current_user
     List bots for account.
     """
     bots = AccountProcessor.get_accessible_bot_details(current_user.account, current_user.email)
+    if current_user.is_integration_user:
+        bots = Utility.filter_bot_details_for_integration_user(current_user.get_bot(), bots)
     return Response(data=bots)
 
 
 @router.put("/bot/{bot}", response_model=Response)
-async def update_bot(bot: str, request: TextData, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def update_bot(
+        bot: str, request: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
+):
     """
     Update name of the bot.
     """
     AccountProcessor.update_bot(request.data, bot)
-    return {'message': 'Bot name updated'}
+    return {'message': 'Name updated'}
 
 
 @router.delete("/bot/{bot}", response_model=Response)
-async def delete_bot(bot: str, current_user: User = Depends(Authentication.get_current_user_and_bot)):
+async def delete_bot(
+        bot: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)):
     """
     Deletes bot.
     """
