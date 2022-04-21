@@ -2878,6 +2878,7 @@ def test_train_on_different_bot(monkeypatch):
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+    monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/train",
@@ -2888,6 +2889,27 @@ def test_train_on_different_bot(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+
+
+def test_train_insufficient_data(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    def _mock_training_limit(*arge, **kwargs):
+        return False
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot_2}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Please add at least 2 stories and 2 intents before training the bot!"
 
 
 def test_delete_bot():

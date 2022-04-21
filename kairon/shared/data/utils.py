@@ -426,6 +426,18 @@ class DataUtility:
         )
         return channel_endpoint
 
+    @staticmethod
+    def validate_existing_data_train(bot: Text):
+
+        from kairon.shared.data.data_objects import Stories
+        from kairon.shared.data.data_objects import Intents
+
+        intent_count = Intents.objects(bot=bot, status=True).count()
+        stories_count = Stories.objects(bot=bot, status=True).count()
+
+        if intent_count < 2 or stories_count < 2:
+            raise AppException('Please add at least 2 stories and 2 intents before training the bot!')
+
 
 class ChatHistoryUtils:
 
