@@ -121,8 +121,13 @@ class ComponentConfig(BaseModel):
 
     @validator('nlu_epochs', 'response_epochs', 'ted_epochs')
     def validate_epochs(cls, v):
+        from kairon.shared.utils import Utility
+
         if v is not None and v < 1:
             raise ValueError("Choose a positive number as epochs")
+        elif v > Utility.environment['model']['config_properties']['epoch_max_limit']:
+            epoch_max_limit = Utility.environment['model']['config_properties']['epoch_max_limit']
+            raise ValueError(f"Please choose a epoch between 1 and {epoch_max_limit}")
         return v
 
     @validator("nlu_confidence_threshold", "action_fallback_threshold")
