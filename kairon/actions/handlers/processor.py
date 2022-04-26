@@ -125,26 +125,26 @@ class ActionProcessor:
     @staticmethod
     async def __process_slot_set_action(tracker: Tracker, action_config: dict):
         message = []
+        reset_slots = {}
         status = 'SUCCESS'
-
-        if action_config['type'] == SLOT_SET_TYPE.FROM_VALUE.value:
-            message.append(f"Setting slot '{action_config['slot']}' to '{action_config['value']}'.")
-            value = action_config['value']
-        else:
-            message.append(f"Resetting slot '{action_config['slot']}' value to None.")
-            value = None
+        for slots_to_reset in action_config['set_slots']:
+            if slots_to_reset['type'] == SLOT_SET_TYPE.FROM_VALUE.value:
+                reset_slots[slots_to_reset['name']] = slots_to_reset['value']
+                message.append(f"Setting slot '{slots_to_reset['name']}' to '{slots_to_reset['value']}'.")
+            else:
+                reset_slots[slots_to_reset['name']] = None
+                message.append(f"Resetting slot '{slots_to_reset['name']}' value to None.")
 
         ActionServerLogs(
             type=ActionType.slot_set_action.value,
             intent=tracker.get_intent_of_latest_message(),
             action=action_config['name'],
             sender=tracker.sender_id,
-            bot_response=value,
             messages=message,
             bot=tracker.get_slot("bot"),
             status=status
         ).save()
-        return {action_config['slot']: value}
+        return reset_slots
 
     @staticmethod
     async def __process_form_validation_action(dispatcher: CollectingDispatcher, tracker: Tracker, form_validations):

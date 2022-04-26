@@ -18,7 +18,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction
+    PipedriveLeadsAction, SetSlots
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -1290,9 +1290,7 @@ class TestActions:
         action_name = "test_slot_set_action_from_value"
         action = SlotSetAction(
             name=action_name,
-            slot="location",
-            type="from_value",
-            value="Bengaluru",
+            set_slots=[SetSlots(name="location", type="from_value", value="Bengaluru")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
@@ -1319,11 +1317,8 @@ class TestActions:
         action_name = "test_slot_set_action_reset_slot"
         action = SlotSetAction(
             name=action_name,
-            slot="location",
-            type="reset_slot",
-            value="Bengaluru",
-            bot="5f50fd0a56b698ca10d35d2e",
-            user="user"
+            set_slots=[SetSlots(name="location", type="reset_slot", value="Bengaluru")],
+            bot="5f50fd0a56b698ca10d35d2e", user="user"
         )
 
         def _get_action(*arge, **kwargs):
@@ -1365,12 +1360,11 @@ class TestActions:
         bot = 'test_actions'
         user = 'test'
         Actions(name='action_get_user', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
-        SlotSetAction(name='action_get_user', slot='user', type='from_value', value='name', bot=bot, user=user).save()
+        SlotSetAction(name='action_get_user', set_slots=[SetSlots(name='user', type='from_value', value='name')],
+                      bot=bot, user=user).save()
         config, action_type = ActionUtility.get_action_config(bot, 'action_get_user')
         assert config['name'] == 'action_get_user'
-        assert config['slot'] == 'user'
-        assert config['type'] == 'from_value'
-        assert config['value'] == 'name'
+        assert config['set_slots'] == [{'name': 'user', 'type': 'from_value', 'value': 'name'}]
         assert action_type == ActionType.slot_set_action.value
 
     def test_get_action_config_http_action(self):

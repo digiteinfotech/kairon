@@ -463,11 +463,15 @@ class Forms(BaseModel):
     settings: List[FormSettings]
 
 
-class SlotSetActionRequest(BaseModel):
+class SetSlots(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
-    slot: str
     type: SLOT_SET_TYPE
     value: Any = None
+
+
+class SlotSetActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    set_slots: List[SetSlots]
 
 
 class EmailActionRequest(BaseModel):

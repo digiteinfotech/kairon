@@ -6448,7 +6448,8 @@ def test_delete_slot_mapping_non_existing():
 
 
 def test_add_slot_set_action():
-    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    request = {'name': 'action_set_name_slot', 'set_slots': [
+        {'name': 'name', 'type': 'from_value', 'value': 5}, {'name': 'age', 'type': 'reset_slot'}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6461,7 +6462,7 @@ def test_add_slot_set_action():
 
 
 def test_add_slot_set_action_slot_not_exists():
-    request = {'name': 'action_set_new_user_slot', 'slot': 'new_user', 'type': 'from_value', 'value': False}
+    request = {'name': 'action_set_new_user_slot', 'set_slots': [{'name': 'new_user', 'type': 'from_value', 'value': False}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6482,11 +6483,12 @@ def test_list_slot_set_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"][0] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    assert actual["data"][0] == {'name': 'action_set_name_slot', 'set_slots': [
+        {'name': 'name', 'type': 'from_value', 'value': 5}, {'name': 'age', 'type': 'reset_slot'}]}
 
 
 def test_edit_slot_set_action():
-    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 'age'}
+    request = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 'age'}]}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6499,7 +6501,7 @@ def test_edit_slot_set_action():
 
 
 def test_edit_slot_set_action_slot_not_exists():
-    request = {'name': 'action_set_name_slot', 'slot': 'non_existant', 'type': 'from_value', 'value': 'age'}
+    request = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'non_existant', 'type': 'from_value', 'value': 'age'}]}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6866,7 +6868,7 @@ def test_add_form_case_insensitivity():
 
 
 def test_add_slot_set_action_case_insensitivity():
-    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 5}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6885,8 +6887,8 @@ def test_add_slot_set_action_case_insensitivity():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'slot': 'name', 'type': 'from_value',
-                                 'value': 5}
+    assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'set_slots': [{'name': 'name', 'type': 'from_value',
+                                 'value': 5}]}
 
 
 def test_add_http_action_case_insensitivity():

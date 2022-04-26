@@ -59,18 +59,21 @@ http_action:
 
 slot_set_action:
 - name: slot_set_action_1
-  slot: auth
-  type: reset_slot
+  set_slots:
+    - name: auth
+      type: reset_slot
 - name: slot_set_action_2
-  slot: auth_token
-  type: from_value
-  value: asdfghjklqwertyuiop
+  set_slots:
+  - name: auth_token
+    type: from_value
+    value: asdfghjklqwertyuiop
 - name: slot_set_action_3
-  slot: user_details
-  type: from_value
-  value:
-    - name: udit
-      last_name: pandey
+  set_slots:
+  - name: user_details
+    type: from_value
+    value:
+      - name: udit
+        last_name: pandey
 
 form_validation_action:
 - name: form_validation_action_1

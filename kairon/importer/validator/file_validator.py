@@ -439,8 +439,14 @@ class TrainingDataValidator(Validator):
                 if len(required_fields.difference(set(action.keys()))) > 0:
                     data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
                     continue
-                if action['type'] not in {s_type.value for s_type in SLOT_SET_TYPE}:
-                    data_error.append(f'Invalid action type: {action["type"]}')
+                if not isinstance(action.get('set_slots'), list):
+                    data_error.append(f'Invalid field set_slots: {action.get("name")}. List expected.')
+                    continue
+                for slot in action.get('set_slots'):
+                    if slot.get('type') not in {s_type.value for s_type in SLOT_SET_TYPE}:
+                        data_error.append(f'Invalid slot type {slot.get("type")}: {action["name"]}')
+                    if Utility.check_empty_string(slot.get('name')):
+                        data_error.append(f'Slot name cannot be empty: {action["name"]}')
                 if action['name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["name"]}')
                 actions_present.add(action["name"])
