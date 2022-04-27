@@ -2878,6 +2878,7 @@ def test_train_on_different_bot(monkeypatch):
 
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+    monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/train",
@@ -2888,6 +2889,27 @@ def test_train_on_different_bot(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+
+
+def test_train_insufficient_data(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    def _mock_training_limit(*arge, **kwargs):
+        return False
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot_2}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Please add at least 2 stories and 2 intents before training the bot!"
 
 
 def test_delete_bot():
@@ -4680,8 +4702,8 @@ def test_get_editable_config():
 
 def test_set_epoch_and_fallback():
     request = {"nlu_epochs": 200,
-               "response_epochs": 300,
-               "ted_epochs": 400,
+               "response_epochs": 100,
+               "ted_epochs": 150,
                "nlu_confidence_threshold": 0.7,
                'action_fallback_threshold': 0.3,
                "action_fallback": "action_default_fallback"}
@@ -4768,6 +4790,31 @@ def test_set_epoch_and_fallback_negative_epochs():
     assert actual["message"][0] == {'loc': ['body', 'response_epochs'], 'msg': 'Choose a positive number as epochs',
                                     'type': 'value_error'}
     assert actual["message"][1] == {'loc': ['body', 'ted_epochs'], 'msg': 'Choose a positive number as epochs',
+                                    'type': 'value_error'}
+
+
+def test_set_epoch_and_fallback_max_epochs():
+
+    epoch_max_limit = Utility.environment['model']['config_properties']['epoch_max_limit']
+    response = client.put(f"/api/bot/{pytest.bot}/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json={'nlu_epochs': epoch_max_limit+1})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'nlu_epochs'], 'msg': f'Please choose a epoch between 1 and {epoch_max_limit}',
+         'type': 'value_error'}]
+
+    response = client.put(f"/api/bot/{pytest.bot}/config/properties",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+                          json={'response_epochs': -1, 'ted_epochs': epoch_max_limit+1, 'nlu_epochs': 200})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"][0] == {'loc': ['body', 'response_epochs'], 'msg': 'Choose a positive number as epochs',
+                                    'type': 'value_error'}
+    assert actual["message"][1] == {'loc': ['body', 'ted_epochs'], 'msg': f'Please choose a epoch between 1 and {epoch_max_limit}',
                                     'type': 'value_error'}
 
 

@@ -49,6 +49,8 @@ model:
     event_url: ${IMPORTER_EVENT_URL}
   agent:
     url: ${AGENT_URL}
+  config_properties:
+    epoch_max_limit: ${EPOCH_MAX_LIMIT:200}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}

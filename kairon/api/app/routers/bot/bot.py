@@ -405,6 +405,7 @@ async def train(
     """
     Trains the chatbot
     """
+    DataUtility.validate_existing_data_train(bot=current_user.get_bot())
     DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email,
                             'train')
     return {"message": "Model training started."}
