@@ -648,3 +648,14 @@ class ConversationsHistoryDeleteLogs(Document):
     start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     exception = StringField(default=None)
+
+
+@push_notification.apply
+class BotAssets(Document):
+    asset_type = StringField(required=True)
+    path = StringField(required=True)
+    url = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow())
+    status = BooleanField(default=True)
