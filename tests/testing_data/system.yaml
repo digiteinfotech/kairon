@@ -101,6 +101,12 @@ channels:
       - page_access_token
       - verity_token
 
+  instagram:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verity_token
+
 integrations:
   pipedrive:
     required_fields:

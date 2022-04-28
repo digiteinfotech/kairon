@@ -545,3 +545,67 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 422)
         assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
+
+    def test_instagram_invalid_auth(self):
+        patch.dict(Utility.environment['action'], {"url": None})
+        response = self.fetch(
+            f"/api/bot/instagram/{bot}/123",
+            headers={"X-Hub-Signature": "invalid"},
+            method="POST",
+            body=json.dumps({
+                "object": "page",
+                "entry": [{
+                    "id": "104610528288640",
+                    "time": 1646648478575,
+                    "messaging": [{
+                        "sender": {
+                            "id": "4237571439620831"
+                        },
+                        "recipient": {
+                            "id": "104610528288640"
+                        },
+                        "timestamp": 1646647205156,
+                        "message": {
+                            "mid": "m_J-gcviaJSGp427f7jzL2PBygi_iiuvCXf2eCu2qb-kr9onZGEYfSoC7TctL84humv0mbtH7GsQ0vmELAGS74Ew",
+                            "text": "hi",
+                            "nlp": {
+                                "intents": [],
+                                "entities": {
+                                    "wit$location:location": [{
+                                        "id": "624173841772436",
+                                        "name": "wit$location",
+                                        "role": "location",
+                                        "start": 0,
+                                        "end": 2,
+                                        "body": "hi",
+                                        "confidence": 0.3146,
+                                        "entities": [],
+                                        "suggested": True,
+                                        "value": "hi",
+                                        "type": "value"
+                                    }]
+                                },
+                                "traits": {
+                                    "wit$sentiment": [{
+                                        "id": "5ac2b50a-44e4-466e-9d49-bad6bd40092c",
+                                        "value": "positive",
+                                        "confidence": 0.7336
+                                    }],
+                                    "wit$greetings": [{
+                                        "id": "5900cc2d-41b7-45b2-b21f-b950d3ae3c5c",
+                                        "value": "true",
+                                        "confidence": 0.9999
+                                    }]
+                                },
+                                "detected_locales": [{
+                                    "locale": "mr_IN",
+                                    "confidence": 0.7365
+                                }]
+                            }
+                        }
+                    }]
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
