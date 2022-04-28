@@ -85,3 +85,40 @@ history_server:
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}
+
+channels:
+  slack:
+    required_fields:
+      - bot_user_oAuth_token
+      - slack_signing_secret
+    optional_fields:
+      - slack_channel
+  telegram:
+    required_fields:
+      - access_token
+      - username_for_bot
+    api:
+      url: https://api.telegram.org
+  hangouts:
+    required_fields:
+      - project_id
+  messenger:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verity_token
+
+  instagram:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verity_token
+
+integrations:
+  pipedrive:
+    required_fields:
+      - name
+    optional_fields:
+      - org_name
+      - email
+      - phone
