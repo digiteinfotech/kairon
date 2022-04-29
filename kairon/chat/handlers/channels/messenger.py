@@ -333,7 +333,7 @@ class MessengerHandler(InputChannel, BaseHandler):
         self.set_status(HTTPStatus.OK)
         messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
 
-        fb_verify = messenger_conf["config"]["verity_token"]
+        fb_verify = messenger_conf["config"]["verify_token"]
 
         if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == fb_verify:
             hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
@@ -412,7 +412,7 @@ class InstagramHandler(MessengerHandler):
         self.set_status(HTTPStatus.OK)
         messenger_conf = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
 
-        fb_verify = messenger_conf["config"]["verity_token"]
+        fb_verify = messenger_conf["config"]["verify_token"]
 
         if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == fb_verify:
             hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
@@ -428,7 +428,7 @@ class InstagramHandler(MessengerHandler):
 
     async def post(self, bot: str, token: str):
         super().authenticate_channel(token, bot, self.request)
-        messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
+        messenger_conf = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
 
         fb_secret = messenger_conf["config"]["app_secret"]
         page_access_token = messenger_conf["config"]["page_access_token"]

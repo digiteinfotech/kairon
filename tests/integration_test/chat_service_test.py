@@ -75,7 +75,7 @@ ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        "config": {
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
                                            "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
-                                           "verity_token": "kairon-messenger-token",
+                                           "verify_token": "kairon-messenger-token",
                                        }
                                        },
                                       bot, user="test@chat.com")
