@@ -10,7 +10,7 @@ before_script:
 
 test:
   tags:
-    - dspg_dev
+    - kairon
   stage: test
   script:
     - python3.8 -V
