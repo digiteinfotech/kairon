@@ -124,7 +124,7 @@ async def shutdown():
 async def startlette_exception_handler(request, exc):
     """ This function logs the Starlette HTTP error detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
 
     return JSONResponse(
         Response(
@@ -137,7 +137,7 @@ async def startlette_exception_handler(request, exc):
 async def http_exception_handler(request, exc):
     """ This function logs the Assertion error detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -147,7 +147,7 @@ async def http_exception_handler(request, exc):
 async def validation_exception_handler(request, exc: RequestValidationError):
     """ logs the RequestValidationError detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=exc.errors()).dict()
     )
@@ -157,7 +157,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
 async def app_does_not_exist_exception_handler(request, exc):
     """ logs the DoesNotExist error detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -167,7 +167,7 @@ async def app_does_not_exist_exception_handler(request, exc):
 async def pymongo_exception_handler(request, exc):
     """ logs the PyMongoError detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -177,7 +177,7 @@ async def pymongo_exception_handler(request, exc):
 async def app_validation_exception_handler(request, exc):
     """ logs the ValidationError detected and returns the
         appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -187,7 +187,7 @@ async def app_validation_exception_handler(request, exc):
 async def mongoengine_operation_exception_handler(request, exc):
     """ logs the OperationError detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -197,7 +197,7 @@ async def mongoengine_operation_exception_handler(request, exc):
 async def mongoengine_notregistered_exception_handler(request, exc):
     """ logs the NotRegistered error detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -207,7 +207,7 @@ async def mongoengine_notregistered_exception_handler(request, exc):
 async def mongoengine_invalid_document_exception_handler(request, exc):
     """ logs the InvalidDocumentError detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -217,7 +217,7 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
 async def mongoengine_lookup_exception_handler(request, exc):
     """ logs the LookUpError detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -227,7 +227,7 @@ async def mongoengine_lookup_exception_handler(request, exc):
 async def mongoengine_multiple_objects_exception_handler(request, exc):
     """ logs the MultipleObjectsReturned error detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )
@@ -237,7 +237,7 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
 async def mongoengine_invalid_query_exception_handler(request, exc):
     """ logs the InvalidQueryError detected and returns the
             appropriate message and details of the error """
-    logger.debug(exc)
+    logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )

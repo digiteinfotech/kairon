@@ -7,6 +7,7 @@ from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -20,7 +21,8 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest
 )
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType
+from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
 from kairon.shared.data.data_objects import TrainingExamples
@@ -1348,3 +1350,44 @@ async def delete_channel_config(
     """
     ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
     return Response(message='Channel deleted')
+
+
+@router.put("/assets/{asset_type}", response_model=Response)
+async def upload_bot_assets(
+        asset_type: str, asset: UploadFile = File(...),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Uploads bot assets to repository.
+    """
+    data = {"url": await AssetsProcessor.add_asset(current_user.get_bot(), current_user.get_user(), asset, asset_type)}
+    UserActivityLogger.add_log(
+        current_user.account, UserActivityType.add_asset, current_user.get_user(), current_user.get_bot(),
+        [f"asset_type={asset_type}"]
+    )
+    return Response(message='Asset added', data=data)
+
+
+@router.delete("/assets/{asset_type}", response_model=Response)
+async def delete_bot_assets(
+        asset_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes bot assets from repository.
+    """
+    AssetsProcessor.delete_asset(current_user.get_bot(), current_user.get_user(), asset_type)
+    UserActivityLogger.add_log(
+        current_user.account, UserActivityType.delete_asset, current_user.get_user(), current_user.get_bot(),
+        [f"asset_type={asset_type}"]
+    )
+    return Response(message='Asset deleted')
+
+
+@router.get("/assets", response_model=Response)
+async def list_bot_assets(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes bot assets from repository.
+    """
+    return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
