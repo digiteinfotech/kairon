@@ -2485,6 +2485,15 @@ def test_add_member(monkeypatch):
     assert response['error_code'] == 0
     assert response['success']
 
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration2@demo.ai", "role": "designer"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'An invitation has been sent to the user'
+    assert response['error_code'] == 0
+    assert response['success']
+
 
 def test_add_member_as_owner(monkeypatch):
     response = client.post(
@@ -2516,16 +2525,16 @@ def test_list_bot_invites():
 
 def test_search_users(monkeypatch):
     def __mock_list_bot_invites(*args, **kwargs):
-        return ["integration@demo.ai", "integration@demo.com"]
+        return ["integration@demo.ai", "integration2@demo.com"]
 
     monkeypatch.setattr(AccountProcessor, "search_user", __mock_list_bot_invites)
 
-    response = client.get(
+    response = client.post(
         f"/api/user/search",
         json={'data': 'inte'},
         headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
     ).json()
-    assert response['data']['matching_users'] == ["integration@demo.ai", "integration@demo.com"]
+    assert response['data']['matching_users'] == ["integration@demo.ai", "integration2@demo.com"]
     assert response['error_code'] == 0
     assert response['success']
 
@@ -2551,8 +2560,35 @@ def test_accept_bot_invite(monkeypatch):
     monkeypatch.setattr(AccountProcessor, 'get_user_details', mock_smtp)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     response = client.post(
-        f"/api/user/{pytest.add_member_bot}/member/invite/accept",
+        f"/api/user/{pytest.add_member_bot}/invite/accept",
         json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoidXNlckBrYWlyb24uY"}
+    ).json()
+    assert response['message'] == 'Invitation accepted'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_accept_bot_invite_logged_in_user():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        "/api/user/invites/active",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
+    ).json()
+    assert response['data']['active_invites'][0]['accessor_email'] == "integration2@demo.ai"
+    assert response['data']['active_invites'][0]['role'] == 'designer'
+    assert response['data']['active_invites'][0]['bot_name'] == 'Hi-Hello'
+
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member/invite/accept",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
     ).json()
     assert response['message'] == 'Invitation accepted'
     assert response['error_code'] == 0
@@ -2593,9 +2629,12 @@ def test_list_members():
     assert response['data'][1]['accessor_email'] == 'integration@demo.ai'
     assert response['data'][1]['role'] == 'tester'
     assert response['data'][1]['status']
-    assert response['data'][2]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
+    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['role'] == 'designer'
+    assert response['data'][3]['status']
 
 
 def test_transfer_ownership():
@@ -2620,9 +2659,12 @@ def test_transfer_ownership():
     assert response['data'][1]['accessor_email'] == 'integration@demo.ai'
     assert response['data'][1]['role'] == 'owner'
     assert response['data'][1]['status']
-    assert response['data'][2]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
+    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['role'] == 'designer'
+    assert response['data'][3]['status']
 
 
 def test_list_members_2():

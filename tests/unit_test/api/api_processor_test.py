@@ -216,7 +216,7 @@ class TestAccountProcessor:
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         token = Utility.generate_token("pandey.udit867@gmail.com")
         with pytest.raises(DoesNotExist, match='User does not exist!'):
-            AccountProcessor.accept_bot_access_invite(token, bot_id)
+            AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
 
     def test_update_bot_access_user_not_allowed(self):
         AccountProcessor.add_account('pandey.udit867@gmail.com', 'pandey.udit867@gmail.com')
@@ -234,7 +234,7 @@ class TestAccountProcessor:
 
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         token = Utility.generate_token("udit.pandey@digite.com")
-        AccountProcessor.accept_bot_access_invite(token, bot_id)
+        AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
         assert BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
                                  role='designer', status='active', bot_account=pytest.account).get()
 
@@ -265,18 +265,18 @@ class TestAccountProcessor:
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         token = Utility.generate_token("pandey.udit867@gmail.com")
         with pytest.raises(AppException, match='No pending invite found for this bot and user'):
-            AccountProcessor.accept_bot_access_invite(token, bot_id)
+            AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
 
     def test_accept_bot_access_invite_token_expired(self):
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InBhbmRleS51ZGl0ODY3QGdtYWlsLmNvbSIsImV4cCI6MTUxNjIzOTAyMn0.dP8a4rHXb9dBrPFKfKD3_tfKu4NdwfSz213F15qej18'
         with pytest.raises(AppException, match='Invalid token'):
-            AccountProcessor.accept_bot_access_invite(token, bot_id)
+            AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
 
     def test_accept_bot_access_invite_invalid_bot(self):
-        token = Utility.generate_token("pandey.udit867@gmail.com")
+        token = Utility.generate_token("fshaikh@digite.com")
         with pytest.raises(DoesNotExist, match='Bot does not exists!'):
-            AccountProcessor.accept_bot_access_invite(token, '61cb4e2f7c7ac78d2fa8fab7')
+            AccountProcessor.validate_request_and_accept_bot_access_invite(token, '61cb4e2f7c7ac78d2fa8fab7')
 
     def test_list_bot_accessors_2(self):
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
