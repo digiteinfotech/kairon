@@ -2527,7 +2527,8 @@ def test_list_bot_invites():
 
 def test_search_users(monkeypatch):
     def __mock_list_bot_invites(*args, **kwargs):
-        return ["integration@demo.ai", "integration2@demo.com"]
+        for item in ["integration@demo.ai", "integration2@demo.com"]:
+            yield item
 
     monkeypatch.setattr(AccountProcessor, "search_user", __mock_list_bot_invites)
 

@@ -314,7 +314,8 @@ class AccountProcessor:
 
         :param txt: name to search
         """
-        return User.objects().search_text(txt).order_by("$text_score").limit(5)
+        for user in User.objects().search_text(txt).order_by("$text_score").limit(5):
+            yield user.email
 
     @staticmethod
     def remove_bot_access(bot: Text, **kwargs):
