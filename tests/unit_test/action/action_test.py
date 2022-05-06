@@ -50,7 +50,7 @@ class TestActions:
         http_url = 'http://localhost:8080/mock'
         # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-
+        responses.reset()
         responses.add(
             method=responses.GET,
             url=http_url,

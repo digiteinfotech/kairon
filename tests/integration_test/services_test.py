@@ -21,6 +21,7 @@ from kairon.api.app.main import app
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
@@ -8363,6 +8364,329 @@ def test_list_assets_not_exists():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['assets'] == []
+
+
+def test_get_live_agent_config_params():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/agents/live/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == Utility.environment["live_agents"]
+
+
+def test_get_live_agent_config_none():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["agent"] is None
+
+
+@responses.activate
+def test_add_live_agent_config_agent_not_supported():
+    config = {"agent_type": "livechat", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+              "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+              "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == [
+        {'loc': ['body', 'agent_type'], 'msg': 'Agent system not supported', 'type': 'value_error'}]
+
+
+@responses.activate
+def test_add_live_agent_config_required_fields_not_exists():
+    config = {"agent_type": "chatwoot", "config": {"api_access_token": "asdfghjklty67"},
+              "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+              "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == [
+        {'loc': ['body', 'config'], 'msg': "Missing ['api_access_token', 'account_id'] all or any in config",
+         'type': 'value_error'}]
+
+    config = {"agent_type": "chatwoot", "config": {"account_id": "12"},
+              "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+              "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == [
+        {'loc': ['body', 'config'], 'msg': "Missing ['api_access_token', 'account_id'] all or any in config",
+         'type': 'value_error'}]
+
+
+@responses.activate
+def test_add_live_agent_config_invalid_credentials():
+    config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+              "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+              "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+
+    responses.start()
+    responses.reset()
+    responses.add(
+        "GET",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        status=404,
+        body="Not found"
+    )
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Unable to connect. Please verify credentials."
+
+
+@responses.activate
+def test_add_live_agent_config_triggers_not_added():
+    config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+              "override_bot": False}
+
+    add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
+    add_inbox_response = json.loads(add_inbox_response)
+    responses.start()
+    responses.reset()
+    responses.add(
+        "GET",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json={"payload": []}
+    )
+    responses.add(
+        "POST",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json=add_inbox_response
+    )
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == [
+        {'loc': ['body', 'override_bot'], 'msg': 'At least 1 intent or action is required to perform agent handoff',
+         'type': 'value_error'}]
+
+    config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+              "override_bot": False, "trigger_on_intents": [],
+              "trigger_on_actions": []}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == [
+        {'loc': ['body', 'override_bot'], 'msg': 'At least 1 intent or action is required to perform agent handoff',
+         'type': 'value_error'}]
+
+
+@responses.activate
+def test_add_live_agent_config():
+    config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+              "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+              "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+
+    add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
+    add_inbox_response = json.loads(add_inbox_response)
+    responses.reset()
+    responses.add(
+        "GET",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json={"payload": []}
+    )
+    responses.add(
+        "POST",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json=add_inbox_response
+    )
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Live agent system added'
+
+
+def test_get_live_agent_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
+    add_inbox_response = json.loads(add_inbox_response)
+    assert actual["data"]["agent"]
+    actual["data"]["agent"].pop("timestamp")
+    assert actual["data"]["agent"] == {"agent_type": "chatwoot",
+                                       "config": {"account_id": "***", "api_access_token": "asdfghjklt***",
+                                                  "inbox_identifier": add_inbox_response["inbox_identifier"]},
+                                       "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                                       "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+
+
+@responses.activate
+def test_update_live_agent_config():
+    add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
+    add_inbox_response = json.loads(add_inbox_response)
+    add_inbox_response["inbox_identifier"] = "sdghghj5466789fghjk"
+    list_inbox_response = open("tests/testing_data/live_agent/list_inboxes_response.json").read()
+    list_inbox_response = json.loads(list_inbox_response)
+    list_inbox_response["payload"][1]["inbox_identifier"] = add_inbox_response["inbox_identifier"]
+    config = {"agent_type": "chatwoot", "config": {"account_id": "13", "api_access_token": "jfjdjhsk567890",
+                                                   "inbox_identifier": add_inbox_response["inbox_identifier"]},
+              "override_bot": True}
+    responses.reset()
+    responses.add(
+        "GET",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json=list_inbox_response
+    )
+    responses.add(
+        "POST",
+        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        json=add_inbox_response
+    )
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=config
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Live agent system added'
+
+
+def test_get_live_agent_config_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["agent"]
+    actual["data"]["agent"].pop("timestamp")
+    assert actual["data"]["agent"] == {"agent_type": "chatwoot",
+                                       "config": {"account_id": "***", "api_access_token": "jfjdjhsk567***",
+                                                  "inbox_identifier": "sdghghj5466789fghjk"},
+                                       "override_bot": True, "trigger_on_intents": [], "trigger_on_actions": []}
+
+
+def test_delete_live_agent_config():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Live agent system deleted'
+
+
+def test_get_live_agent_config_after_delete():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/agents/live",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["agent"] is None
+
+
+def test_get_end_user_metrics_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_get_end_user_metrics():
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 5
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 2
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
 
 
 def test_delete_account():

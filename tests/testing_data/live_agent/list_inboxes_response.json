@@ -1,0 +1,192 @@
+{
+  "payload": [
+    {
+      "id": 14035,
+      "avatar_url": "",
+      "channel_id": 2316,
+      "name": "test",
+      "channel_type": "Channel::Api",
+      "greeting_enabled": false,
+      "greeting_message": null,
+      "working_hours_enabled": false,
+      "enable_email_collect": true,
+      "csat_survey_enabled": false,
+      "enable_auto_assignment": true,
+      "out_of_office_message": null,
+      "working_hours": [
+        {
+          "day_of_week": 0,
+          "closed_all_day": true,
+          "open_hour": null,
+          "open_minutes": null,
+          "close_hour": null,
+          "close_minutes": null,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 1,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 2,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 3,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 4,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 5,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 6,
+          "closed_all_day": true,
+          "open_hour": null,
+          "open_minutes": null,
+          "close_hour": null,
+          "close_minutes": null,
+          "open_all_day": false
+        }
+      ],
+      "timezone": "UTC",
+      "callback_webhook_url": null,
+      "allow_messages_after_resolved": true,
+      "widget_color": null,
+      "website_url": null,
+      "hmac_mandatory": false,
+      "welcome_title": null,
+      "welcome_tagline": null,
+      "web_widget_script": null,
+      "website_token": null,
+      "selected_feature_flags": null,
+      "reply_time": null,
+      "phone_number": null,
+      "webhook_url": "",
+      "inbox_identifier": "G9aiymXKjzvKXx9YHg2ojyrK"
+    },
+    {
+      "id": 14036,
+      "avatar_url": "",
+      "channel_id": 2317,
+      "name": "kairon-bot",
+      "channel_type": "Channel::Api",
+      "greeting_enabled": false,
+      "greeting_message": null,
+      "working_hours_enabled": false,
+      "enable_email_collect": true,
+      "csat_survey_enabled": false,
+      "enable_auto_assignment": true,
+      "out_of_office_message": null,
+      "working_hours": [
+        {
+          "day_of_week": 0,
+          "closed_all_day": true,
+          "open_hour": null,
+          "open_minutes": null,
+          "close_hour": null,
+          "close_minutes": null,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 1,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 2,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 3,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 4,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 5,
+          "closed_all_day": false,
+          "open_hour": 9,
+          "open_minutes": 0,
+          "close_hour": 17,
+          "close_minutes": 0,
+          "open_all_day": false
+        },
+        {
+          "day_of_week": 6,
+          "closed_all_day": true,
+          "open_hour": null,
+          "open_minutes": null,
+          "close_hour": null,
+          "close_minutes": null,
+          "open_all_day": false
+        }
+      ],
+      "timezone": "UTC",
+      "callback_webhook_url": null,
+      "allow_messages_after_resolved": true,
+      "widget_color": null,
+      "website_url": null,
+      "hmac_mandatory": false,
+      "welcome_title": null,
+      "welcome_tagline": null,
+      "web_widget_script": null,
+      "website_token": null,
+      "selected_feature_flags": null,
+      "reply_time": null,
+      "phone_number": null,
+      "webhook_url": null,
+      "inbox_identifier": "tSaxZWrxyFowmFHzWwhkjnfc"
+    }
+  ]
+}
