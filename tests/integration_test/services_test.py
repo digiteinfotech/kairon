@@ -1019,6 +1019,37 @@ def test_add_response():
     assert len(actual["data"]) == 2
 
 
+def test_add_custom_response():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/json/utter_custom",
+        json={"data":{"question": "Wow! How are you?"}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Response added!"
+    response = client.get(
+        f"/api/bot/{pytest.bot}/utterance",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 1
+
+
+def test_get_custom_responses():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert len(actual["data"]) == 1
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_add_response_upper_case():
     response = client.post(
         f"/api/bot/{pytest.bot}/response/Utter_Greet",
@@ -1061,6 +1092,18 @@ def test_add_response_duplicate():
     assert actual["message"] == "Utterance already exists!"
 
 
+def test_add_custom_response_duplicate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/json/utter_custom",
+        json={"data":{"question": "Wow! How are you?"}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Utterance already exists!"
+
+
 def test_add_empty_response():
     response = client.post(
         f"/api/bot/{pytest.bot}/response/utter_greet",
@@ -1071,6 +1114,18 @@ def test_add_empty_response():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Utterance text cannot be empty or blank spaces"
+
+
+def test_add_custom_empty_response():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/json/utter_custom",
+        json={"data": ""},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Utterance must be dict type and must not be empty"
 
 
 def test_remove_response():
@@ -1179,7 +1234,7 @@ def test_remove_response_empty_id():
     assert actual["message"] == "Utterance Id cannot be empty or spaces"
 
 
-def test_remove_response_():
+def test_edit_response():
     training_examples = client.get(
         f"/api/bot/{pytest.bot}/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1194,6 +1249,52 @@ def test_remove_response_():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Utterance updated!"
+
+
+def test_edit_custom_response():
+    training_examples = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    response = client.put(
+        f"/api/bot/{pytest.bot}/response/json/utter_custom/" + training_examples["data"][0]["_id"],
+        json={"data": {"question": "How are you?"}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance updated!"
+
+
+def test_remove_custom_utterance():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/response/json/utter_custom",
+        json={"data": {"question": "are you ok?"}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"]["_id"]
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/response/False",
+        json={"data": actual["data"]["_id"]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance removed!"
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/response/True",
+        json={"data": "utter_custom"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Utterance removed!"
 
 
 def test_add_story():

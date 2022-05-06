@@ -1774,6 +1774,26 @@ class MongoProcessor:
             utterances={"text": utterance}, name=name, bot=bot, user=user, form_attached=form_attached
         )
 
+    def add_custom_response(self, utterance: Dict, name: Text, bot: Text, user: Text, form_attached: str = None):
+        """
+        saves bot json utterance
+        :param utterance: text utterance
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :param form_attached: form for which this utterance was created
+        :return: json utterance id
+        """
+        if not (isinstance(utterance, dict) and utterance):
+            raise AppException("Utterance must be dict type and must not be empty")
+        if Utility.check_empty_string(name):
+            raise AppException("Utterance name cannot be empty or blank spaces")
+        if form_attached and not Utility.is_exist(Forms, raise_error=False, name=form_attached, bot=bot, status=True):
+            raise AppException(f"Form '{form_attached}' does not exists")
+        return self.add_response(
+            utterances={"custom": utterance}, name=name, bot=bot, user=user, form_attached=form_attached
+        )
+
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text, form_attached: str = None):
         """
         save bot utterance
@@ -1812,6 +1832,22 @@ class MongoProcessor:
         :raises: DoesNotExist: if utterance does not exist
         """
         self.edit_response(id, {"text": utterance}, name, bot, user)
+
+    def edit_custom_response(
+            self, id: Text, utterance: Dict, name: Text, bot: Text, user: Text
+    ):
+        """
+        update the json bot utterance
+
+        :param id: utterance id against which the utterance is updated
+        :param utterance: json utterance value
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: DoesNotExist: if utterance does not exist
+        """
+        self.edit_response(id, {"custom": utterance}, name, bot, user)
 
     def edit_response(
             self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
@@ -1858,13 +1894,16 @@ class MongoProcessor:
         )
         for value in values:
             val = None
+            resp_type = None
             if value.text:
                 val = list(
                     self.__prepare_response_Text([value.text.to_mongo().to_dict()])
                 )[0]
+                resp_type = "text"
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
-            yield {"_id": value.id.__str__(), "value": val}
+                resp_type = "json"
+            yield {"_id": value.id.__str__(), "value": val, "type": resp_type}
 
     def __fetch_list_of_response(self, bot: Text):
         saved_responses = list(

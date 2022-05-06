@@ -904,15 +904,63 @@ class TestMongoProcessor:
         assert response.name == "utter_happy"
         assert response.text.text == "Great"
 
+    def test_add_custom_response(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser")
+        response = Responses.objects(
+            bot="tests", name="utter_custom", custom__custom=jsondata
+        ).get()
+        assert response.name == "utter_custom"
+        assert response.custom.custom == jsondata
+
     def test_add_text_response_case_insensitive(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.add_text_response("Great", "Utter_Happy", "tests", "testUser")
 
+    def test_add_custom_response_case_insensitive(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        with pytest.raises(AppException, match='Utterance already exists!'):
+            processor.add_custom_response(jsondata, "UTTER_CUSTOM", "tests", "testUser")
+
     def test_add_text_response_duplicate(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             processor.add_text_response("Great", "utter_happy", "tests", "testUser")
+
+    def test_add_custom_response_duplicate(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        with pytest.raises(AppException, match='Utterance already exists!'):
+            processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser")
+
+    def test_add_custom_dict_check_response(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Utterance must be dict type and must not be empty"):
+            processor.add_custom_response("Greetings", "utter_happy", "tests", "testUser")
 
     def test_get_text_response(self):
         processor = MongoProcessor()
@@ -924,6 +972,20 @@ class TestMongoProcessor:
             for item in actual
             if "text" in item["value"]
         )
+
+    def test_get_custom_response(self):
+        processor = MongoProcessor()
+        actual = list(processor.get_response("utter_custom", "tests"))
+        actual = actual[0]
+        actual.pop("_id")
+        assert actual == {'value': {'custom': {'type': 'section',
+                                               'text': {'text': 'Make a bet on when the world will end:',
+                                                        'type': 'mrkdwn', 'accessory': {'type': 'datepicker',
+                                                                                        'initial_date': '2019-05-21',
+                                                                                        'placeholder': {
+                                                                                            'type': 'plain_text',
+                                                                                            'text': 'Select a date'}}}}},
+                          'type': 'json'}
 
     def test_get_text_response_empty_utterance(self):
         processor = MongoProcessor()
@@ -952,20 +1014,48 @@ class TestMongoProcessor:
         with pytest.raises(AppException):
             processor.add_text_response(None, "utter_happy", "tests", "testUser")
 
+    def test_add_none_custom_response(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.add_custom_response(None, "utter_custom", "tests", "testUser")
+
     def test_add_empty_text_Response(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.add_text_response("", "utter_happy", "tests", "testUser")
+
+    def test_add_empty_custom_response(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.add_custom_response("", "utter_custom", "tests", "testUser")
 
     def test_add_blank_text_response(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.add_text_response("", "utter_happy", "tests", "testUser")
 
+    def test_add_blank_custom_response(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            processor.add_custom_response("", "utter_custom", "tests", "testUser")
+
     def test_add_none_response_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.add_text_response("Greet", None, "tests", "testUser")
+
+    def test_add_none_custom_response_name(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        with pytest.raises(AppException):
+            processor.add_custom_response(jsondata, None, "tests", "testUser")
 
     def test_add_empty_response_name(self):
         processor = MongoProcessor()
@@ -976,6 +1066,46 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException):
             processor.add_text_response("Welcome", " ", "tests", "testUser")
+
+    def test_edit_custom_responses_duplicate(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "button",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser")
+        responses = list(processor.get_response("utter_custom", "tests"))
+        with pytest.raises(AppException, match="Utterance already exists!"):
+            processor.edit_custom_response(responses[0]["_id"], jsondata, name="utter_happy", bot="tests",
+                                         user="testUser")
+
+    def test_edit_custom_responses_empty(self):
+        processor = MongoProcessor()
+        jsondata = {}
+        responses = list(processor.get_response("utter_custom", "tests"))
+        with pytest.raises(ValidationError, match="Utterance must be dict type and must not be empty"):
+            processor.edit_custom_response(responses[0]["_id"], jsondata, name="utter_custom", bot="tests",
+                                         user="testUser")
+
+    def test_edit_custom_responses(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "button",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        responses = list(processor.get_response("utter_custom", "tests"))
+        processor.edit_custom_response(responses[0]["_id"], jsondata, name="utter_custom", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_custom", "tests"))
+        assert any(response['value']['custom'] == jsondata and response['type'] == "json"
+                   for response in responses if "custom" in response['value'])
 
     def test_get_session_config(self):
         processor = MongoProcessor()
@@ -6716,7 +6846,7 @@ class TestMongoProcessor:
                                           'utter_good_feedback',
                                           'utter_bad_feedback',
                                           'utter_default',
-                                          'utter_please_rephrase']}
+                                          'utter_please_rephrase', 'utter_custom']}
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -7100,7 +7230,7 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase']}
+                           'utter_please_rephrase', 'utter_custom']}
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()
