@@ -7,6 +7,7 @@ from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -20,7 +21,8 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest
 )
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType
+from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
 from kairon.shared.data.data_objects import TrainingExamples
@@ -243,6 +245,22 @@ async def add_responses(
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
+@router.post("/response/json/{utterance}", response_model=Response)
+async def add_custom_responses(
+        request_data: DictData,
+        utterance: constr(to_lower=True, strip_whitespace=True),
+        form_attached: Optional[str] = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Adds utterance value in particular utterance
+    """
+    utterance_id = mongo_processor.add_custom_response(
+        request_data.data, utterance, current_user.get_bot(), current_user.get_user(), form_attached
+    )
+    return {"message": "Response added!", "data": {"_id": utterance_id}}
+
+
 @router.put("/response/{utterance}/{id}", response_model=Response)
 async def edit_responses(
         utterance: str,
@@ -254,6 +272,28 @@ async def edit_responses(
     Updates existing utterance value
     """
     mongo_processor.edit_text_response(
+        id,
+        request_data.data,
+        utterance,
+        current_user.get_bot(),
+        current_user.get_user(),
+    )
+    return {
+        "message": "Utterance updated!",
+    }
+
+
+@router.put("/response/json/{utterance}/{id}", response_model=Response)
+async def edit_custom_responses(
+        utterance: str,
+        id: str,
+        request_data: DictData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Updates existing utterance value
+    """
+    mongo_processor.edit_response(
         id,
         request_data.data,
         utterance,
@@ -405,6 +445,7 @@ async def train(
     """
     Trains the chatbot
     """
+    DataUtility.validate_existing_data_train(bot=current_user.get_bot())
     DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email,
                             'train')
     return {"message": "Model training started."}
@@ -1347,3 +1388,44 @@ async def delete_channel_config(
     """
     ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
     return Response(message='Channel deleted')
+
+
+@router.put("/assets/{asset_type}", response_model=Response)
+async def upload_bot_assets(
+        asset_type: str, asset: UploadFile = File(...),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Uploads bot assets to repository.
+    """
+    data = {"url": await AssetsProcessor.add_asset(current_user.get_bot(), current_user.get_user(), asset, asset_type)}
+    UserActivityLogger.add_log(
+        current_user.account, UserActivityType.add_asset, current_user.get_user(), current_user.get_bot(),
+        [f"asset_type={asset_type}"]
+    )
+    return Response(message='Asset added', data=data)
+
+
+@router.delete("/assets/{asset_type}", response_model=Response)
+async def delete_bot_assets(
+        asset_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes bot assets from repository.
+    """
+    AssetsProcessor.delete_asset(current_user.get_bot(), current_user.get_user(), asset_type)
+    UserActivityLogger.add_log(
+        current_user.account, UserActivityType.delete_asset, current_user.get_user(), current_user.get_bot(),
+        [f"asset_type={asset_type}"]
+    )
+    return Response(message='Asset deleted')
+
+
+@router.get("/assets", response_model=Response)
+async def list_bot_assets(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes bot assets from repository.
+    """
+    return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})

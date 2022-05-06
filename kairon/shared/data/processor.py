@@ -39,7 +39,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction
+    PipedriveLeadsAction, SetSlots
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
@@ -1774,6 +1774,26 @@ class MongoProcessor:
             utterances={"text": utterance}, name=name, bot=bot, user=user, form_attached=form_attached
         )
 
+    def add_custom_response(self, utterance: Dict, name: Text, bot: Text, user: Text, form_attached: str = None):
+        """
+        saves bot json utterance
+        :param utterance: text utterance
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :param form_attached: form for which this utterance was created
+        :return: json utterance id
+        """
+        if not (isinstance(utterance, dict) and utterance):
+            raise AppException("Utterance must be dict type and must not be empty")
+        if Utility.check_empty_string(name):
+            raise AppException("Utterance name cannot be empty or blank spaces")
+        if form_attached and not Utility.is_exist(Forms, raise_error=False, name=form_attached, bot=bot, status=True):
+            raise AppException(f"Form '{form_attached}' does not exists")
+        return self.add_response(
+            utterances={"custom": utterance}, name=name, bot=bot, user=user, form_attached=form_attached
+        )
+
     def add_response(self, utterances: Dict, name: Text, bot: Text, user: Text, form_attached: str = None):
         """
         save bot utterance
@@ -1812,6 +1832,22 @@ class MongoProcessor:
         :raises: DoesNotExist: if utterance does not exist
         """
         self.edit_response(id, {"text": utterance}, name, bot, user)
+
+    def edit_custom_response(
+            self, id: Text, utterance: Dict, name: Text, bot: Text, user: Text
+    ):
+        """
+        update the json bot utterance
+
+        :param id: utterance id against which the utterance is updated
+        :param utterance: json utterance value
+        :param name: utterance name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: DoesNotExist: if utterance does not exist
+        """
+        self.edit_response(id, {"custom": utterance}, name, bot, user)
 
     def edit_response(
             self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
@@ -1858,13 +1894,16 @@ class MongoProcessor:
         )
         for value in values:
             val = None
+            resp_type = None
             if value.text:
                 val = list(
                     self.__prepare_response_Text([value.text.to_mongo().to_dict()])
                 )[0]
+                resp_type = "text"
             elif value.custom:
                 val = value.custom.to_mongo().to_dict()
-            yield {"_id": value.id.__str__(), "value": val}
+                resp_type = "json"
+            yield {"_id": value.id.__str__(), "value": val, "type": resp_type}
 
     def __fetch_list_of_response(self, bot: Text):
         saved_responses = list(
@@ -3706,17 +3745,18 @@ class MongoProcessor:
             raise AppException(f'No slot mapping exists for slot: {name}')
 
     def add_slot_set_action(self, action: dict, bot: Text, user: Text):
-        if Utility.check_empty_string(action.get("name")) or Utility.check_empty_string(action.get("slot")):
-            raise AppException('Slot setting action name and slot cannot be empty or spaces')
-        Utility.is_exist(Actions, f'Slot setting action "{action["name"]}" exists', name__iexact=action['name'],
-                         bot=bot, status=True)
-        if not Utility.is_exist(Slots, raise_error=False, name=action['slot'], bot=bot, status=True):
-            raise AppException(f'Slot with name "{action["slot"]}" not found')
-        SlotSetAction(name=action["name"],
-                      slot=action["slot"],
-                      type=action["type"],
-                      value=action.get("value"),
-                      bot=bot, user=user).save()
+        set_slots = []
+        if Utility.check_empty_string(action.get("name")):
+            raise AppException('name cannot be empty or spaces')
+        Utility.is_exist(Actions, "Action exists!", name__iexact=action['name'], bot=bot, status=True)
+        Utility.is_exist(SlotSetAction, "Action exists!", name__iexact=action['name'], bot=bot, status=True)
+        for slot in action["set_slots"]:
+            if Utility.check_empty_string(slot.get("name")):
+                raise AppException('slot name cannot be empty or spaces')
+            if not Utility.is_exist(Slots, raise_error=False, name=slot['name'], bot=bot, status=True):
+                raise AppException(f'Slot with name "{slot["name"]}" not found')
+            set_slots.append(SetSlots(**slot))
+        SlotSetAction(name=action["name"], set_slots=set_slots, bot=bot, user=user).save()
         self.add_action(action["name"], bot, user, action_type=ActionType.slot_set_action.value)
 
     @staticmethod
@@ -3727,13 +3767,16 @@ class MongoProcessor:
 
     @staticmethod
     def edit_slot_set_action(action: dict, bot: Text, user: Text):
+        set_slots = []
         try:
-            if not Utility.is_exist(Slots, raise_error=False, name=action.get('slot'), bot=bot, status=True):
-                raise AppException(f'Slot with name "{action.get("slot")}" not found')
+            for slot in action["set_slots"]:
+                if Utility.check_empty_string(slot.get("name")):
+                    raise AppException('slot name cannot be empty or spaces')
+                if not Utility.is_exist(Slots, raise_error=False, name=slot['name'], bot=bot, status=True):
+                    raise AppException(f'Slot with name "{slot["name"]}" not found')
+                set_slots.append(SetSlots(**slot))
             slot_set_action = SlotSetAction.objects(name=action.get('name'), bot=bot, status=True).get()
-            slot_set_action.slot = action['slot']
-            slot_set_action.type = action['type']
-            slot_set_action.value = action.get('value')
+            slot_set_action.set_slots = set_slots
             slot_set_action.user = user
             slot_set_action.timestamp = datetime.utcnow()
             slot_set_action.save()

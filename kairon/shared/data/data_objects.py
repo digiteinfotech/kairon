@@ -341,6 +341,10 @@ class ResponseText(EmbeddedDocument):
 class ResponseCustom(EmbeddedDocument):
     custom = DictField(required=True)
 
+    def validate(self, clean=True):
+        if not (isinstance(self.custom, dict) and self.custom):
+            raise ValidationError("Utterance must be dict type and must not be empty")
+
 
 @push_notification.apply
 class Responses(Document):
@@ -648,3 +652,14 @@ class ConversationsHistoryDeleteLogs(Document):
     start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     exception = StringField(default=None)
+
+
+@push_notification.apply
+class BotAssets(Document):
+    asset_type = StringField(required=True)
+    path = StringField(required=True)
+    url = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow())
+    status = BooleanField(default=True)

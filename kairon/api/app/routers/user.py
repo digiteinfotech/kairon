@@ -44,15 +44,32 @@ async def allow_bot_for_user(
         return {"message": "User added"}
 
 
-@router.post("/{bot}/member/invite/accept", response_model=Response)
-async def accept_bot_collaboration_invite(
+@router.post("/{bot}/invite/accept", response_model=Response)
+async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks: BackgroundTasks,
         token: TextData, bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183")
 ):
     """
-    Accepts a bot collaboration invitation.
+    Accepts a bot collaboration invitation sent via mail.
     """
-    bot_admin, bot_name, accessor_email, role = AccountProcessor.accept_bot_access_invite(token.data, bot)
+    bot_admin, bot_name, accessor_email, role = AccountProcessor.validate_request_and_accept_bot_access_invite(token.data, bot)
+    if Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
+                                  first_name=bot_admin, accessor_email=accessor_email,
+                                  bot_name=bot_name, role=role)
+    return {"message": "Invitation accepted"}
+
+
+@router.post("/{bot}/member/invite/accept", response_model=Response)
+async def accept_bot_collaboration_invite(
+        background_tasks: BackgroundTasks,
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user)
+):
+    """
+    Accepts a bot collaboration invitation for logged in user.
+    """
+    bot_admin, bot_name, accessor_email, role = AccountProcessor.accept_bot_access_invite(bot, current_user.get_user())
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=bot_admin, accessor_email=accessor_email,
@@ -120,7 +137,7 @@ async def list_active_bot_invites(current_user: User = Security(Authentication.g
     return Response(data={'active_invites': list(AccountProcessor.list_active_invites(current_user.get_user()))})
 
 
-@router.get("/search", response_model=Response)
+@router.post("/search", response_model=Response)
 async def search_user(
         request_data: TextData, current_user: User = Security(Authentication.get_current_user)
 ):

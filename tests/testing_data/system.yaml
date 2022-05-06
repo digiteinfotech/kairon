@@ -10,6 +10,12 @@ user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
 
+storage:
+  assets:
+    root_dir: ${BOT_ASSETS_ROOT_DIRECTORY:"application"}
+    bucket: ${BOT_ASSETS_BUCKET:"ui-bucket"}
+    allowed_extensions: ${BOT_ASSETS_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg"]}
+
 security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
   algorithm: "HS256"
@@ -49,6 +55,8 @@ model:
     event_url: ${IMPORTER_EVENT_URL}
   agent:
     url: ${AGENT_URL}
+  config_properties:
+    epoch_max_limit: ${EPOCH_MAX_LIMIT:200}
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
@@ -97,7 +105,13 @@ channels:
     required_fields:
       - app_secret
       - page_access_token
-      - verity_token
+      - verify_token
+
+  instagram:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verify_token
 
 integrations:
   pipedrive:

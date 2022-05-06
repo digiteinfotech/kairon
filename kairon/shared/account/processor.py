@@ -261,7 +261,7 @@ class AccountProcessor:
         BotAccess.objects(bot=bot_id, status__ne=ACTIVITY_STATUS.DELETED.value).update(set__bot_account=user['account'])
 
     @staticmethod
-    def accept_bot_access_invite(token: Text, bot: Text):
+    def validate_request_and_accept_bot_access_invite(token: Text, bot: Text):
         """
         Activate user's access to bot.
 
@@ -269,8 +269,18 @@ class AccountProcessor:
         :param bot: bot id
         """
         accessor_email = Utility.verify_token(token)
-        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         AccountProcessor.get_user_details(accessor_email)
+        return AccountProcessor.accept_bot_access_invite(bot, accessor_email)
+
+    @staticmethod
+    def accept_bot_access_invite(bot: Text, accessor_email: Text):
+        """
+        Activate user's access to bot.
+
+        :param accessor_email: user invited to bot
+        :param bot: bot id
+        """
+        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         try:
             bot_access = BotAccess.objects(accessor_email=accessor_email, bot=bot,
                                            status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value).get()
@@ -304,7 +314,8 @@ class AccountProcessor:
 
         :param txt: name to search
         """
-        return User.objects().search_text(txt).order_by("$text_score").limit(5)
+        for user in User.objects().search_text(txt).order_by("$text_score").limit(5):
+            yield user.email
 
     @staticmethod
     def remove_bot_access(bot: Text, **kwargs):

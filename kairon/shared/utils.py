@@ -20,6 +20,7 @@ from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 import requests
 import yaml
+from botocore.exceptions import ClientError
 from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -1243,3 +1244,27 @@ class Utility:
         for bot_details in available_bots['shared']:
             if bot_details['_id'] == bot:
                 return {'account_owned': [], 'shared': [bot_details]}
+
+    @staticmethod
+    def upload_bot_assets_to_s3(bot, asset_type, file_path):
+        from kairon.shared.cloud.utils import CloudUtility
+
+        bucket = Utility.environment['storage']['assets'].get('bucket')
+        root_dir = Utility.environment['storage']['assets'].get('root_dir')
+        extension = Path(file_path).suffix
+        if extension not in Utility.environment['storage']['assets'].get('allowed_extensions'):
+            raise AppException(f'Only {Utility.environment["storage"]["assets"].get("allowed_extensions")} type files allowed')
+        output_filename = os.path.join(root_dir, bot, f"{asset_type}{extension}")
+        try:
+            url = CloudUtility.upload_file(file_path, bucket, output_filename)
+            return url, output_filename
+        except ClientError as e:
+            logger.exception(e)
+            raise AppException("File upload failed")
+
+    @staticmethod
+    def delete_bot_assets_on_s3(file):
+        from kairon.shared.cloud.utils import CloudUtility
+
+        bucket = Utility.environment['storage']['assets'].get('bucket')
+        CloudUtility.delete_file(bucket, file)
