@@ -341,6 +341,10 @@ class ResponseText(EmbeddedDocument):
 class ResponseCustom(EmbeddedDocument):
     custom = DictField(required=True)
 
+    def validate(self, clean=True):
+        if not (isinstance(self.custom, dict) and self.custom):
+            raise ValidationError("Utterance must be dict type and must not be empty")
+
 
 @push_notification.apply
 class Responses(Document):
