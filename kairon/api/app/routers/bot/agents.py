@@ -20,6 +20,7 @@ async def live_agent_config_params(
 ):
     """
     Retrieves live agent config parameters.
+
     Includes required and optional fields for storing the config.
     """
     return Response(data=Utility.environment['live_agents'])
@@ -33,10 +34,8 @@ async def save_live_agent_config(
     """
     Stores live agent config.
     """
-    channel_endpoint = LiveAgentsProcessor.save_config(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
-    )
-    return Response(message='Live agent system added', data=channel_endpoint)
+    LiveAgentsProcessor.save_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Live agent system added')
 
 
 @router.get("/live", response_model=Response)

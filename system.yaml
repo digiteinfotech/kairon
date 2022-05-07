@@ -106,7 +106,6 @@ channels:
       - app_secret
       - page_access_token
       - verify_token
-
   instagram:
     required_fields:
       - app_secret

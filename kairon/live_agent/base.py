@@ -4,10 +4,9 @@ from typing import Text, List, Dict, Optional
 
 class LiveAgentBase(ABC):
 
-    """
-    Base class for live agents.
-    """
+    """Base class for live agents."""
 
+    @classmethod
     @abstractmethod
     def from_config(cls, config: dict):
         raise NotImplementedError("Provider not implemented")
@@ -29,7 +28,7 @@ class LiveAgentBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def send_message(self, message: Text, destination: Text):
+    def send_message(self, message: Text, destination: Text, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod

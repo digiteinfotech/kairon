@@ -14,7 +14,8 @@ class LiveAgentsProcessor:
     @staticmethod
     def save_config(configuration: Dict, bot: Text, user: Text):
         """
-        save or updates live agent configuration
+        Save or updates live agent configuration.
+
         :param configuration: config dict
         :param bot: bot id
         :param user: user id
@@ -38,6 +39,7 @@ class LiveAgentsProcessor:
     def delete_config(bot: Text):
         """
         Delete a particular live agent configuration for bot
+
         :param bot: bot id
         :return: None
         """
@@ -46,7 +48,8 @@ class LiveAgentsProcessor:
     @staticmethod
     def get_config(bot: Text, mask_characters=True, raise_error: bool = True):
         """
-        fetch particular live agent config for bot
+        Fetch particular live agent config for bot.
+
         :param bot: bot id
         :param mask_characters: whether to mask the security keys default is True
         :param raise_error: raise exception if config not found
@@ -70,6 +73,7 @@ class LiveAgentsProcessor:
     def get_contact(bot: Text, sender_id: Text, agent_type: Text):
         """
         Retrieve chatwoot contact metadata for a particular bot, sender and agent type.
+
         :param bot: bot id
         :param sender_id: end user identifier
         :param agent_type: agent type(eg: chatwoot)
@@ -84,6 +88,7 @@ class LiveAgentsProcessor:
     def save_contact(bot: Text, sender_id: Text, agent_type: Text, metadata: Dict):
         """
         Add contact metadata for a particular bot, sender and agent type.
+
         :param bot: bot id
         :param sender_id: end user identifier
         :param agent_type: agent type(eg: chatwoot)

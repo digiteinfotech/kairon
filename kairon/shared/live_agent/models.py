@@ -14,7 +14,7 @@ class LiveAgentRequest(BaseModel):
     override_bot: bool = False
 
     @validator("agent_type")
-    def validate_connector_type(cls, v, values, **kwargs):
+    def validate_agent_type(cls, v, values, **kwargs):
         if v not in Utility.get_live_agents():
             raise ValueError("Agent system not supported")
         return v

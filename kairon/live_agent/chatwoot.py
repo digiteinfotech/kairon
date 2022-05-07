@@ -10,6 +10,13 @@ from kairon.shared.live_agent.processor import LiveAgentsProcessor
 class ChatwootLiveAgent(LiveAgent):
 
     def __init__(self, api_access_token: Text, account_id: int, inbox_identifier: Text = None):
+        """
+        Constructor for ChatwootLiveAgent.
+
+        :param api_access_token: chatwoot user api access token
+        :param account_id: chatwoot account id
+        :param inbox_identifier: chatwoot inbox identifier. None, by default.
+        """
         self.api_access_token = api_access_token
         self.account_id = account_id
         self.inbox_identifier = inbox_identifier
@@ -201,7 +208,7 @@ class ChatwootLiveAgent(LiveAgent):
         request_body = {"name": name, "channel": {"type": "api"}}
         url = self.inboxes_endpoint.format(account_id=self.account_id)
         return Utility.execute_http_request(
-            "POST", url, request_body, headers, validate_status=True, err_msg=f"Failed to create inbox: "
+            "POST", url, request_body, headers, validate_status=True, err_msg="Failed to create inbox: "
         )
 
     def create_conversation(self, contact_identifier: Text):
@@ -220,5 +227,5 @@ class ChatwootLiveAgent(LiveAgent):
             inbox_identifier=self.inbox_identifier, contact_identifier=contact_identifier
         )
         return Utility.execute_http_request(
-            "POST", url, headers=headers, validate_status=True, err_msg=f"Failed to create conversation: "
+            "POST", url, headers=headers, validate_status=True, err_msg="Failed to create conversation: "
         )

@@ -7,7 +7,6 @@ from rasa.shared.core.trackers import DialogueStateTracker
 
 
 class KaironMessageProcessor(MessageProcessor):
-
     """
     Class overriding MessageProcessor implementation from rasa.
     This is done to also retrieve model predictions along with the message response.
@@ -80,7 +79,8 @@ class KaironMessageProcessor(MessageProcessor):
     async def log_message(
         self, message: UserMessage, should_save_tracker: bool = True
     ):
-        """Log `message` on tracker belonging to the message's conversation_id.
+        """
+        Log `message` on tracker belonging to the message's conversation_id.
 
         Optionally save the tracker if `should_save_tracker` is `True`. Tracker saving
         can be skipped if the tracker returned by this method is used for further

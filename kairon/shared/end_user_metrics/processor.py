@@ -9,6 +9,7 @@ class EndUserMetricsProcessor:
     """
     Data processor to add custom end user metrics.
     """
+
     @staticmethod
     def add_log(log_type: MetricTypes, bot: Text, sender_id: Text, **kwargs):
         """

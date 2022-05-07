@@ -9,7 +9,6 @@ from kairon.shared.live_agent.processor import LiveAgentsProcessor
 
 
 class LiveAgent(LiveAgentBase, ABC):
-
     """
     Class overriding LiveAgentBase class and provides implementation for
     fetching live agent implementation.

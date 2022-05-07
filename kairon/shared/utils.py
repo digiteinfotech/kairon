@@ -1289,7 +1289,8 @@ class Utility:
             request_method: str, http_url: str, request_body: dict = None, headers: dict = None,
             return_json: bool = True, **kwargs
     ):
-        """Executes http urls provided.
+        """
+        Executes http urls provided.
 
         :param http_url: HTTP url to be executed
         :param request_method: One of GET, PUT, POST, DELETE

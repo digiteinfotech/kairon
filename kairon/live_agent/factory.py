@@ -23,5 +23,5 @@ class LiveAgentFactory:
         :param config: agent configuration as dict.
         """
         if not LiveAgentFactory.agent_systems.get(agent_type):
-            raise AppException(f'Agent system not supported')
+            raise AppException('Agent system not supported')
         return LiveAgentFactory.agent_systems[agent_type].from_config(config)
