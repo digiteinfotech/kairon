@@ -39,3 +39,5 @@ class UserActivityType(str, Enum):
     delete_bot = "delete_bot"
     delete_account = "delete_account"
     transfer_ownership = "transfer_ownership"
+    add_asset = "add_asset"
+    delete_asset = "delete_asset"
