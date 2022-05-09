@@ -122,12 +122,23 @@ class Actions(Document):
             raise ValidationError("Action name cannot start with utter_")
 
 
+class SetSlots(EmbeddedDocument):
+    name = StringField(required=True)
+    type = StringField(required=True, choices=[type.value for type in SLOT_SET_TYPE])
+    value = DynamicField()
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
 @push_notification.apply
 class SlotSetAction(Document):
     name = StringField(required=True)
-    slot = StringField(required=True)
-    type = StringField(required=True, choices=[type.value for type in SLOT_SET_TYPE])
-    value = DynamicField()
+    set_slots = ListField(EmbeddedDocumentField(SetSlots), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -139,7 +150,8 @@ class SlotSetAction(Document):
 
     def clean(self):
         self.name = self.name.strip().lower()
-        self.slot = self.slot.strip().lower()
+        for slot_to_set in self.set_slots:
+            slot_to_set.validate()
 
 
 @push_notification.apply

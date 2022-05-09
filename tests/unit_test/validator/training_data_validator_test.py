@@ -422,11 +422,15 @@ class TestTrainingDataValidator:
                                      [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]
                                      ],
                      'slot_set_action': [
-                         {'name': 'set_cuisine', 'slot': 'cuisine', 'type': 'from_value', 'value': '100'},
-                         {'name': 'set_num_people', 'slot': 'num_people', 'type': 'reset_slot'},
-                         {'': 'action', 'slot': 'outside_seat', 'type': 'slot', 'value': 'yes'},
-                         {'name': 'action', 'slot': 'outside_seat', 'type': 'slot'},
-                         {'name': 'set_num_people', 'slot': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}},
+                         {'name': 'set_cuisine', 'set_slots': [{'name': 'cuisine', 'type': 'from_value', 'value': '100'}]},
+                         {'name': 'set_num_people', 'set_slots': [{'name': 'num_people', 'type': 'reset_slot'}]},
+                         {'': 'action', 'set_slots': [{'name': 'outside_seat', 'type': 'slot', 'value': 'yes'}]},
+                         {'name': 'action', 'set_slots': [{'name': 'outside_seat', 'type': 'slot'}]},
+                         {'name': 'set_num_people', 'set_slots': [{'name': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
+                         {'name': 'set_multiple', 'set_slots': [{'name': 'num_p', 'type': 'reset_slot'}, {'name': 'num_people', 'type': 'from_value', 'value': {'resp': 1}}]},
+                         {'name': 'set_none', 'set_slots': None},
+                         {'name': 'set_no_name', 'set_slots': [{' ': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
+                         {'name': 'set_none_name', 'set_slots': [{None: 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
                          [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
                      'form_validation_action': [
                          {'name': 'validate_action', 'slot': 'cuisine', 'validation_semantic': None,
@@ -521,13 +525,13 @@ class TestTrainingDataValidator:
         is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
         assert is_data_invalid
         assert len(error_summary['http_actions']) == 4
-        assert len(error_summary['slot_set_actions']) == 4
+        assert len(error_summary['slot_set_actions']) == 7
         assert len(error_summary['form_validation_actions']) == 4
         assert len(error_summary['email_actions']) == 3
         assert len(error_summary['jira_actions']) == 4
         assert len(error_summary['google_search_actions']) == 2
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
-        assert component_count == {'http_actions': 7, 'slot_set_actions': 6, 'form_validation_actions': 6,
+        assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 6,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5}

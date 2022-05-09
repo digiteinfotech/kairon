@@ -8,6 +8,7 @@ from zipfile import ZipFile
 
 import pytest
 import responses
+from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
@@ -19,6 +20,7 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api.app.main import app
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
@@ -6495,7 +6497,8 @@ def test_delete_slot_mapping_non_existing():
 
 
 def test_add_slot_set_action():
-    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    request = {'name': 'action_set_name_slot', 'set_slots': [
+        {'name': 'name', 'type': 'from_value', 'value': 5}, {'name': 'age', 'type': 'reset_slot'}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6508,7 +6511,7 @@ def test_add_slot_set_action():
 
 
 def test_add_slot_set_action_slot_not_exists():
-    request = {'name': 'action_set_new_user_slot', 'slot': 'new_user', 'type': 'from_value', 'value': False}
+    request = {'name': 'action_set_new_user_slot', 'set_slots': [{'name': 'new_user', 'type': 'from_value', 'value': False}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6529,11 +6532,12 @@ def test_list_slot_set_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"][0] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    assert actual["data"][0] == {'name': 'action_set_name_slot', 'set_slots': [
+        {'name': 'name', 'type': 'from_value', 'value': 5}, {'name': 'age', 'type': 'reset_slot'}]}
 
 
 def test_edit_slot_set_action():
-    request = {'name': 'action_set_name_slot', 'slot': 'name', 'type': 'from_value', 'value': 'age'}
+    request = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 'age'}]}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6546,7 +6550,7 @@ def test_edit_slot_set_action():
 
 
 def test_edit_slot_set_action_slot_not_exists():
-    request = {'name': 'action_set_name_slot', 'slot': 'non_existant', 'type': 'from_value', 'value': 'age'}
+    request = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'non_existant', 'type': 'from_value', 'value': 'age'}]}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6913,7 +6917,7 @@ def test_add_form_case_insensitivity():
 
 
 def test_add_slot_set_action_case_insensitivity():
-    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'slot': 'name', 'type': 'from_value', 'value': 5}
+    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 5}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -6932,8 +6936,8 @@ def test_add_slot_set_action_case_insensitivity():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'slot': 'name', 'type': 'from_value',
-                                 'value': 5}
+    assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'set_slots': [{'name': 'name', 'type': 'from_value',
+                                 'value': 5}]}
 
 
 def test_add_http_action_case_insensitivity():
@@ -8258,6 +8262,107 @@ def test_get_channel_endpoint_not_configured():
     assert actual["error_code"] == 422
     assert not actual["data"]
     assert actual["message"] == 'Channel not configured'
+
+
+def test_add_asset(monkeypatch):
+    def __mock_file_upload(*args, **kwargs):
+        return 'https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml'
+    monkeypatch.setattr(CloudUtility, "upload_file", __mock_file_upload)
+    monkeypatch.setitem(Utility.environment['storage']['assets'], 'allowed_extensions', ['.yml'])
+
+    file = {"asset": open("tests/testing_data/valid_yml/actions.yml", "rb")}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/assets/actions_yml",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['url'] == "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"
+    assert actual["message"] == 'Asset added'
+
+
+def test_add_asset_failure(monkeypatch):
+    def __mock_file_upload(*args, **kwargs):
+        api_resp = {'Error': {'Code': '400', 'Message': 'Bad Request'},
+                                'ResponseMetadata': {'RequestId': 'BQFVQHD1KSD5V6RZ',
+                                                     'HostId': 't2uudD7x2V+rRHO4dp2XBqdmAOaWwlnsII7gs1JbYcrntVKRaZSpHxNPJEww+s5dCzCQOg2uero=',
+                                                     'HTTPStatusCode': 400,
+                                                     'HTTPHeaders': {'x-amz-bucket-region': 'us-east-1',
+                                                                     'x-amz-request-id': 'BQFVQHD1KSD5V6RZ',
+                                                                     'x-amz-id-2': 't2uudD7x2V+rRHO4dp2XBqdmAOaWwlnsII7gs1JbYcrntVKRaZSpHxNPJEww+s5dCzCQOg2uero=',
+                                                                     'content-type': 'application/xml',
+                                                                     'date': 'Wed, 27 Apr 2022 08:53:05 GMT',
+                                                                     'server': 'AmazonS3', 'connection': 'close'},
+                                                     'RetryAttempts': 3}}
+        raise ClientError(api_resp, "PutObject")
+
+    monkeypatch.setattr(CloudUtility, "upload_file", __mock_file_upload)
+    monkeypatch.setitem(Utility.environment['storage']['assets'], 'allowed_extensions', ['.yml'])
+
+    file = {"asset": open("tests/testing_data/valid_yml/actions.yml", "rb")}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/assets/actions_yml",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == 'File upload failed'
+
+
+def test_list_assets():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/assets",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['assets'] == [{'asset_type': 'actions_yml', 'url': 'https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml'}]
+
+
+def test_delete_asset(monkeypatch):
+    def __mock_delete_file(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(CloudUtility, "delete_file", __mock_delete_file)
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/assets/actions_yml",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Asset deleted'
+
+
+def test_delete_asset_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/assets/actions_yml",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Asset does not exists"
+
+
+def test_list_assets_not_exists():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/assets",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['assets'] == []
 
 
 def test_delete_account():

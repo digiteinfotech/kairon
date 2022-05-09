@@ -4953,12 +4953,11 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Slots(name='name', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
+        action = {'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}]}
         processor.add_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
-        assert SlotSetAction.objects(name='action_set_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, slot='name',
-                                     bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_slot', bot=bot, user=user, status=True).get()
 
     def test_add_story_with_slot_set_action(self):
         processor = MongoProcessor()
@@ -4990,64 +4989,63 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
+        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
         processor.add_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
-        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.FROM_VALUE.value, value='5',
-                                     slot='name', bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', bot=bot, user=user, status=True).get()
 
     def test_add_slot_set_action_reset(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
         Slots(name='location', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_location_slot', 'slot': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        action = {'name': 'action_set_location_slot', 'set_slots': [{'name': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}]}
         processor.add_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_location_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
-        assert SlotSetAction.objects(name='action_set_location_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value=None,
-                                     slot='location', bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_location_slot', bot=bot, user=user, status=True).get()
 
     def test_add_slot_set_action_already_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                                                                 'value': '5'}]}
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_slot_set_action(action, bot, user)
 
     def test_add_slot_set_action_name_empty(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+        action = {'name': ' ', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
-        action = {'name': None, 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+        action = {'name': None, 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
     def test_add_slot_set_action_slot_empty(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_slot_name', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+        action = {'name': 'action_set_slot_name', 'set_slots': [{'name': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='slot name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
-        action = {'name': 'action_set_slot_name', 'slot': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match='Slot setting action name and slot cannot be empty or spaces'):
+        action = {'name': 'action_set_slot_name', 'set_slots': [{'name': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='slot name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
     def test_add_slot_set_action_slot_not_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_slot_non_existant', 'slot': 'non_existant',
-                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+        action = {'name': 'action_set_slot_non_existant', 'set_slots': [{'name': 'non_existant',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='Slot with name "non_existant" not found'):
             processor.add_slot_set_action(action, bot, user)
 
     def test_add_slot_set_action_simple_action_with_same_name_present(self):
@@ -5055,21 +5053,21 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Actions(name='action_trigger_some_api', bot=bot, user=user).save()
-        action = {'name': 'action_trigger_some_api', 'slot': 'some_api',
-                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}
-        with pytest.raises(AppException, match=f'Slot setting action "{action["name"]}" exists'):
+        action = {'name': 'action_trigger_some_api', 'set_slots': [{'name': 'some_api',
+                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_slot_set_action(action, bot, user)
 
     def test_list_slot_set_actions(self):
         processor = MongoProcessor()
         bot = 'test'
         actions = processor.list_slot_set_actions(bot)
-        assert len(actions) == 3
-        assert actions[0] == {'name': 'action_set_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value}
-        assert actions[1] == {'name': 'action_set_name_slot', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                              'value': '5'}
-        assert actions[2] == {'name': 'action_set_location_slot', 'slot': 'location',
-                              'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        print(actions)
+        assert actions == [{'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': 'from_value'}]},
+                           {'name': 'action_set_name_slot',
+                            'set_slots': [{'name': 'name', 'type': 'from_value', 'value': '5'}]},
+                           {'name': 'action_set_location_slot',
+                            'set_slots': [{'name': 'location', 'type': 'reset_slot'}]}]
 
     def test_list_slot_set_actions_not_present(self):
         processor = MongoProcessor()
@@ -5082,20 +5080,19 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Slots(name='name_new', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_name_slot', 'slot': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
-                  'value': 'name'}
+        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
+                  'value': 'name'}]}
         processor.edit_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
-        assert SlotSetAction.objects(name='action_set_name_slot', type=SLOT_SET_TYPE.RESET_SLOT.value, value='name',
-                                     slot='name_new', bot=bot, user=user, status=True).get()
+        assert SlotSetAction.objects(name='action_set_name_slot', bot=bot, user=user, status=True).get()
 
     def test_edit_slot_set_action_not_present(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_non_existant', 'slot': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}
+        action = {'name': 'action_non_existant', 'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -5103,17 +5100,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'slot': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}
-        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}]}
+        with pytest.raises(AppException, match=f'Slot with name "slot_non_existant" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
     def test_edit_slot_set_action_name_empty(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': ' ', 'slot': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}
+        action = {'name': ' ', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -5121,9 +5118,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'slot': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}
-        with pytest.raises(AppException, match=f'Slot with name "{action["slot"]}" not found'):
+        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                  'value': 'name'}]}
+        with pytest.raises(AppException, match="slot name cannot be empty or spaces"):
             processor.edit_slot_set_action(action, bot, user)
 
     def test_delete_slot_set_action(self):
@@ -5151,7 +5148,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Slots(name='age', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_age_slot', 'slot': 'age', 'type': SLOT_SET_TYPE.RESET_SLOT.value}
+        action = {'name': 'action_set_age_slot', 'set_slots': [{'name': 'age', 'type': SLOT_SET_TYPE.RESET_SLOT.value}]}
         processor.add_slot_set_action(action, bot, user)
         steps = [
             {"name": "greet", "type": "INTENT"},
