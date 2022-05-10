@@ -7,6 +7,7 @@ from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
+from elasticmock import elasticmock
 
 
 class TestAgentProcessor:
@@ -67,3 +68,17 @@ class TestAgentProcessor:
 
     def test_get_agent_not_cached(self, mock_agent_properties):
         assert AgentProcessor.get_agent(pytest.bot)
+
+    def test_get_agent_custom_metric_apm_disabled(self, mock_agent_properties):
+        assert AgentProcessor.get_agent(pytest.bot)
+        assert AgentProcessor.cache_provider.len() >= 1
+
+    @elasticmock
+    def test_get_agent_custom_metric_apm_enabled(self, monkeypatch):
+
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
+        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
+
+        assert AgentProcessor.get_agent(pytest.bot)
+        assert AgentProcessor.cache_provider.len() >= 1

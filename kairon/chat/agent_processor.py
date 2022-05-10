@@ -29,6 +29,7 @@ class AgentProcessor:
         """
         if not AgentProcessor.cache_provider.is_exists(bot):
             AgentProcessor.reload(bot)
+        Utility.record_custom_metric_apm(num_models=AgentProcessor.cache_provider.len())
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod

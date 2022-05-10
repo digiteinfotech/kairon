@@ -1048,6 +1048,12 @@ class Utility:
             return make_apm_client(config)
 
     @staticmethod
+    def record_custom_metric_apm(**kwargs):
+        import elasticapm
+        if Utility.environment['elasticsearch']['enable']:
+            elasticapm.label(**kwargs)
+
+    @staticmethod
     def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET',
                                        return_json: bool = True):
         from kairon.shared.data.processor import MongoProcessor

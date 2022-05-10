@@ -33,6 +33,14 @@ class AgentCache:
         """
         pass
 
+    def len(self):
+        """
+        fetches number of models loaded in cache
+
+        :return: pass
+        """
+        pass
+
 
 class InMemoryAgentCache(AgentCache):
 
@@ -68,3 +76,10 @@ class InMemoryAgentCache(AgentCache):
         :return: True/False
         """
         return bot in self.cache.keys()
+
+    def len(self):
+        """
+        fetches number of models loaded in cache
+        :return: integer
+        """
+        return len(self.cache)
