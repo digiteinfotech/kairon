@@ -6,6 +6,7 @@ from rasa.core.agent import Agent
 from kairon.chat.cache import AgentCache
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
+from .agent.agent import KaironAgent
 from .cache import InMemoryAgentCache
 from ..shared.utils import Utility
 
@@ -28,6 +29,7 @@ class AgentProcessor:
         """
         if not AgentProcessor.cache_provider.is_exists(bot):
             AgentProcessor.reload(bot)
+        Utility.record_custom_metric_apm(num_models=AgentProcessor.cache_provider.len())
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
@@ -46,9 +48,7 @@ class AgentProcessor:
             model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
-            agent = Agent.load(
-                model_path, action_endpoint=action_endpoint, tracker_store=mongo_store
-            )
+            agent = KaironAgent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store)
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
             logging.exception(e)

@@ -23,6 +23,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType
 from kairon.shared.data.assets_processor import AssetsProcessor
+from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
 from kairon.shared.data.data_objects import TrainingExamples
@@ -1429,3 +1430,16 @@ async def list_bot_assets(
     Deletes bot assets from repository.
     """
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
+
+
+@router.get("/metrics/user/logs", response_model=Response)
+async def end_user_metrics(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    List end user logs.
+    """
+    return Response(
+        data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
+    )

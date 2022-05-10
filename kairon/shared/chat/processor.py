@@ -15,7 +15,7 @@ class ChatDataProcessor:
     def save_channel_config(configuration: Dict, bot: Text, user: Text):
         """
         save or updates channel configuration
-        :param config: config dict
+        :param configuration: config dict
         :param bot: bot id
         :param user: user id
         :return: None
