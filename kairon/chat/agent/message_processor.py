@@ -36,7 +36,6 @@ class KaironMessageProcessor(MessageProcessor):
             self.domain,
         )
 
-        parse_data["slots"] = [f"{s.name}: {s.value}" for s in tracker.slots.values()]
         return parse_data
 
     async def _predict_and_execute_next_action(
@@ -104,7 +103,7 @@ class KaironMessageProcessor(MessageProcessor):
         self, message: UserMessage
     ):
         """Handle a single message with this processor."""
-        response = {"nlu": None, "action": None, "response": None, "events": None}
+        response = {"nlu": None, "action": None, "response": None, "slots": None, "events": None}
 
         # preprocess message if necessary
         tracker, intent_predictions = await self.log_message(message, should_save_tracker=False)
@@ -122,6 +121,7 @@ class KaironMessageProcessor(MessageProcessor):
 
         actions_predictions = await self._predict_and_execute_next_action(message.output_channel, tracker)
         response["action"] = actions_predictions
+        response["slots"] = [f"{s.name}: {s.value}" for s in tracker.slots.values()]
 
         # save tracker state to continue conversation from this state
         self._save_tracker(tracker)

@@ -347,7 +347,7 @@ class ActionProcessor:
         bot_response = action_config.get("response")
         title = f"{tracker.sender_id} {action_config['title']}"
         try:
-            conversation_as_str = ActionUtility.prepare_message_trail_as_str(tracker.events)
+            _, conversation_as_str = ActionUtility.prepare_message_trail_as_str(tracker.events)
             metadata = ActionUtility.prepare_pipedrive_metadata(tracker, action_config)
             ActionUtility.create_pipedrive_lead(
                 domain=action_config['domain'],

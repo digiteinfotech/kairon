@@ -6,7 +6,6 @@ from typing import Any, List
 from urllib.parse import urlencode, quote_plus
 
 import requests
-from jira import JIRA
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -393,6 +392,8 @@ class ActionUtility:
 
     @staticmethod
     def get_jira_client(url: str, username: str, api_token: str):
+        from jira import JIRA
+
         try:
             return JIRA(
                 server=url,
@@ -500,9 +501,11 @@ class ActionUtility:
             organization = ActionUtility.create_pipedrive_organization(domain, api_token, **kwargs)
             kwargs['org_id'] = organization['id']
         person = ActionUtility.create_pipedrive_person(domain, api_token, **kwargs)
-        payload = {'title': title, 'person_id': person['data']['id'], 'organization_id': kwargs.get('org_id')}
-        lead = client.leads.create_lead(payload)
-        kwargs['lead_id'] = lead['data']['id']
+        payload = {'title': title, 'person_id': person['id'], 'organization_id': kwargs.get('org_id')}
+        response = client.leads.create_lead(payload)
+        if response.get("success") is not True:
+            raise ActionFailure(f'Failed to create lead: {response}')
+        kwargs['lead_id'] = response['data']['id']
         ActionUtility.create_pipedrive_note(domain, api_token, conversation, **kwargs)
 
     @staticmethod
@@ -512,7 +515,10 @@ class ActionUtility:
         client = Client(domain=domain)
         client.set_api_token(api_token)
         payload = {'name': kwargs.get('org_name')}
-        return client.organizations.create_organization(payload)
+        response = client.organizations.create_organization(payload)
+        if response.get("success") is not True:
+            raise ActionFailure(f'Failed to create organization: {response}')
+        return response['data']
 
     @staticmethod
     def create_pipedrive_person(domain: str, api_token: str, **kwargs):
@@ -523,7 +529,10 @@ class ActionUtility:
         email = [kwargs['email']] if kwargs.get('email') else None
         phone = [kwargs['phone']] if kwargs.get('phone') else None
         payload = {'name': kwargs.get('name'), 'org_id': kwargs.get('org_id'), 'email': email, 'phone': phone}
-        return client.persons.create_person(payload)
+        response = client.persons.create_person(payload)
+        if response.get("success") is not True:
+            raise ActionFailure(f'Failed to create person: {response}')
+        return response['data']
 
     @staticmethod
     def create_pipedrive_note(domain: str, api_token: str, conversation: str, **kwargs):
@@ -532,7 +541,10 @@ class ActionUtility:
         client = Client(domain=domain)
         client.set_api_token(api_token)
         payload = {'content': conversation, 'lead_id': kwargs.get('lead_id')}
-        return client.notes.create_note(payload)
+        response = client.notes.create_note(payload)
+        if response.get("success") is not True:
+            raise ActionFailure(f'Failed to attach note: {response}')
+        return response['data']
 
 
 class ExpressionEvaluator:
