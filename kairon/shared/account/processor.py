@@ -100,6 +100,7 @@ class AccountProcessor:
         for bot in Bot.objects(account=account_id, status=True):
             bot = bot.to_mongo().to_dict()
             bot.pop('status')
+            bot['role'] = ACCESS_ROLES.OWNER.value
             bot['_id'] = bot['_id'].__str__()
             yield bot
 
@@ -154,6 +155,7 @@ class AccountProcessor:
                                      status=ACTIVITY_STATUS.ACTIVE.value):
             bot_details = AccountProcessor.get_bot(bot['bot'])
             bot_details['_id'] = bot_details['_id'].__str__()
+            bot_details['role'] = bot['role']
             shared_bots.append(bot_details)
         return {
             'account_owned': account_bots,
