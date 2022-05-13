@@ -50,7 +50,7 @@ class TestActions:
         http_url = 'http://localhost:8080/mock'
         # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-
+        responses.reset()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -2478,9 +2478,27 @@ class TestActions:
     def test_create_pipedrive_lead(self):
         conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
         metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
-        with patch('pipedrive.client.Client'):
-            ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected',
-                                                conversation, **metadata)
+
+        def __mock_create_organization(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_person(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_leads(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_note(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization):
+            with patch('pipedrive.persons.Persons.create_person', __mock_create_person):
+                with patch('pipedrive.leads.Leads.create_lead', __mock_create_leads):
+                    with patch('pipedrive.notes.Notes.create_note', __mock_create_note):
+                        ActionUtility.create_pipedrive_lead(
+                            'https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected', conversation,
+                            **metadata
+                        )
 
     def test_create_pipedrive_lead_failure(self):
         conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
@@ -2490,7 +2508,104 @@ class TestActions:
         def __mock_exception(*args, **kwargs):
             raise BadRequestError('Invalid request raised', {'error_code': 402})
 
+        def __mock_create_organization(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_person(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_leads_failure(*args, **kwargs):
+            return {"success": False, "data": {"id": 2}}
+
         with patch('pipedrive.client.Client._request', __mock_exception):
             with pytest.raises(BadRequestError):
                 ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected',
                                                     conversation, **metadata)
+        with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization):
+            with patch('pipedrive.persons.Persons.create_person', __mock_create_person):
+                with patch('pipedrive.leads.Leads.create_lead', __mock_create_leads_failure):
+                    with pytest.raises(ActionFailure, match='Failed to create lead: *'):
+                        ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                            'new user detected',
+                                                            conversation, **metadata)
+
+    def test_create_pipedrive_organization_failure(self):
+        conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                    'phone': '9876543210'}
+
+        def __mock_exception(*args, **kwargs):
+            raise BadRequestError('Invalid request raised', {'error_code': 402})
+
+        def __mock_create_organization_failure(*args, **kwargs):
+            return {"success": False, "data": {"id": 2}}
+
+        with patch('pipedrive.client.Client._request', __mock_exception):
+            with pytest.raises(BadRequestError):
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                    'new user detected',
+                                                    conversation, **metadata)
+        with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization_failure):
+            with pytest.raises(ActionFailure, match='Failed to create organization: *'):
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                    'new user detected', conversation, **metadata)
+
+    def test_create_pipedrive_person_failure(self):
+        conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                    'phone': '9876543210'}
+
+        def __mock_exception(*args, **kwargs):
+            raise BadRequestError('Invalid request raised', {'error_code': 402})
+
+        def __mock_create_organization(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_person_failure(*args, **kwargs):
+            return {"success": False, "data": {"id": 2}}
+
+        with patch('pipedrive.client.Client._request', __mock_exception):
+            with pytest.raises(BadRequestError):
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                    'new user detected', conversation, **metadata)
+
+        with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization):
+            with patch('pipedrive.persons.Persons.create_person', __mock_create_person_failure):
+                with pytest.raises(ActionFailure, match='Failed to create person: *'):
+                    ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                        'new user detected',
+                                                        conversation, **metadata)
+
+    def test_create_pipedrive_note_failure(self):
+        conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                    'phone': '9876543210'}
+
+        def __mock_exception(*args, **kwargs):
+            raise BadRequestError('Invalid request raised', {'error_code': 402})
+
+        def __mock_create_note_failure(*args, **kwargs):
+            return {"success": False, "data": {"id": 2}}
+
+        def __mock_create_organization(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_person(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        def __mock_create_leads(*args, **kwargs):
+            return {"success": True, "data": {"id": 2}}
+
+        with patch('pipedrive.client.Client._request', __mock_exception):
+            with pytest.raises(BadRequestError):
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                    'new user detected',
+                                                    conversation, **metadata)
+        with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization):
+            with patch('pipedrive.persons.Persons.create_person', __mock_create_person):
+                with patch('pipedrive.leads.Leads.create_lead', __mock_create_leads):
+                    with patch('pipedrive.notes.Notes.create_note', __mock_create_note_failure):
+                        with pytest.raises(ActionFailure, match='Failed to attach note: *'):
+                            ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                                'new user detected',
+                                                                conversation, **metadata)

@@ -121,3 +121,12 @@ integrations:
       - org_name
       - email
       - phone
+
+live_agents:
+  chatwoot:
+    required_fields:
+      - api_access_token
+      - account_id
+    optional_fields:
+      - inbox_identifier
+      - agent_away_message

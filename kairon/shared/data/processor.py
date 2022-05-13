@@ -3414,7 +3414,8 @@ class MongoProcessor:
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = bot_accessor
         token = Authentication.generate_integration_token(
-            bot, bot_accessor, expiry=30, access_limit=['/api/bot/.+/chat'], token_type=TOKEN_TYPE.DYNAMIC.value
+            bot, bot_accessor, expiry=30,
+            access_limit=['/api/bot/.+/chat', '/api/bot/.+/agent/live/.+'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
         return client_config

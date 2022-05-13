@@ -243,12 +243,17 @@ class TestAccountProcessor:
         assert invite == []
 
     def test_update_bot_access(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        assert account_bot_info['role'] == 'owner'
+        bot_id = account_bot_info['_id']
         assert not AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin',
                                                       ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
         bot_access = BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com").get()
         assert bot_access.role == ACCESS_ROLES.ADMIN.value
         assert bot_access.status == ACTIVITY_STATUS.ACTIVE.value
+        shared_bot_info = AccountProcessor.get_accessible_bot_details(4, "udit.pandey@digite.com")['shared'][0]
+        assert shared_bot_info['role'] == 'admin'
+        assert shared_bot_info['_id'] == bot_id
 
         with pytest.raises(AppException, match='Ownership modification denied'):
             AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin',
@@ -409,8 +414,8 @@ class TestAccountProcessor:
         user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
 
         pytest.deleted_account = user_detail['account'].__str__()
-        bot_response_1 = AccountProcessor.add_bot("delete_account_bot_1", pytest.deleted_account, "ritika@digite.com", False)
-        bot_response_2 = AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
+        AccountProcessor.add_bot("delete_account_bot_1", pytest.deleted_account, "ritika@digite.com", False)
+        AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
         account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
 
         assert len(account_bots_before_delete) == 3

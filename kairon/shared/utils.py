@@ -40,6 +40,7 @@ from pymongo.uri_parser import (
 )
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from smart_config import ConfigLoader
+from urllib3.util import parse_url
 from validators import ValidationFailure
 from validators import email as mail_check
 from websockets import connect
@@ -1211,7 +1212,7 @@ class Utility:
             }
         }
         payload = json.dumps(payload)
-        asyncio.run(Utility.websocket_request(push_server_endpoint, payload))
+        asyncio.create_task(Utility.websocket_request(push_server_endpoint, payload))
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
@@ -1232,6 +1233,20 @@ class Utility:
             return list(Utility.environment['channels'].keys())
         else:
             return []
+
+    @staticmethod
+    def get_live_agents():
+        return list(Utility.environment.get('live_agents', {}).keys())
+
+    @staticmethod
+    def validate_live_agent_config(agent_type, config, error):
+        if agent_type in list(Utility.environment.get('live_agents', {}).keys()):
+            for required_field in Utility.environment['live_agents'][agent_type]['required_fields']:
+                if required_field not in config:
+                    raise error(
+                        f"Missing {Utility.environment['live_agents'][agent_type]['required_fields']} all or any in config")
+        else:
+            raise error("Agent system not supported")
 
     @staticmethod
     def register_telegram_webhook(access_token, webhook_url):
@@ -1274,3 +1289,56 @@ class Utility:
 
         bucket = Utility.environment['storage']['assets'].get('bucket')
         CloudUtility.delete_file(bucket, file)
+
+    @staticmethod
+    def execute_http_request(
+            request_method: str, http_url: str, request_body: dict = None, headers: dict = None,
+            return_json: bool = True, **kwargs
+    ):
+        """
+        Executes http urls provided.
+
+        :param http_url: HTTP url to be executed
+        :param request_method: One of GET, PUT, POST, DELETE
+        :param request_body: Request body to be sent with the request
+        :param headers: header for the HTTP request
+        :param return_json: return api output as json
+        :param kwargs:
+            validate_status: To validate status_code in response. False by default.
+            expected_status_code: 200 by default
+            err_msg: error message to be raised in case expected status code not received
+        :return: dict/response object
+        """
+        if not headers:
+            headers = {}
+
+        if request_body is None:
+            request_body = {}
+
+        try:
+            if request_method.lower() == 'get':
+                response = requests.get(http_url, headers=headers)
+            elif request_method.lower() in ['post', 'put', 'delete']:
+                response = requests.request(
+                    request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
+                )
+            else:
+                raise AppException("Invalid request method!")
+            logger.debug("raw response: " + str(response.text))
+            logger.debug("status " + str(response.status_code))
+        except requests.exceptions.ConnectTimeout:
+            _, _, host, _, _, _, _ = parse_url(http_url)
+            raise AppException(f"Failed to connect to service: {host}")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to execute the url: {str(e)}")
+
+        if kwargs.get('validate_status', False) and response.status_code != kwargs.get('expected_status_code', 200):
+            if Utility.check_empty_string(kwargs.get('err_msg')):
+                raise AppException("err_msg cannot be empty")
+            raise AppException(f"{kwargs['err_msg']}{response.reason}")
+
+        if return_json:
+            response = response.json()
+
+        return response

@@ -1,9 +1,10 @@
 from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
-
+from kairon.shared.data.signals import push_notification
 from kairon.shared.utils import Utility
 
 
+@push_notification.apply
 class Channels(Document):
     bot = StringField(required=True)
     connector_type = StringField(required=True, choices=Utility.get_channels)

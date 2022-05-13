@@ -3,7 +3,11 @@ import shutil
 import tempfile
 import uuid
 from io import BytesIO
+from unittest import mock
+
 import pytest
+import requests
+import responses
 from fastapi import UploadFile
 from mongoengine import connect
 from websockets import InvalidStatusCode
@@ -712,3 +716,33 @@ class TestUtility:
             mock.side_effect = _mock_websocket_connect_exception
             with pytest.raises(InvalidStatusCode):
                 await Utility.websocket_request(url, msg)
+
+    def test_execute_http_request_connection_error(self):
+        def __mock_connection_error(*args, **kwargs):
+            raise requests.exceptions.ConnectTimeout()
+        with mock.patch("kairon.shared.utils.requests.request") as mocked:
+            mocked.side_effect = __mock_connection_error
+            with pytest.raises(AppException, match='Failed to connect to service: test.com'):
+                Utility.execute_http_request("POST", "http://test.com/endpoint")
+
+    def test_execute_http_request_exception(self):
+        def __mock_connection_error(*args, **kwargs):
+            raise Exception("Server not found")
+        with mock.patch("kairon.shared.utils.requests.request") as mocked:
+            mocked.side_effect = __mock_connection_error
+            with pytest.raises(AppException, match='Failed to execute the url: Server not found'):
+                Utility.execute_http_request("POST", "http://test.com/endpoint")
+
+    def test_execute_http_request_invalid_request(self):
+        with pytest.raises(AppException, match="Invalid request method!"):
+            Utility.execute_http_request("OPTIONS", "http://test.com/endpoint")
+
+    @responses.activate
+    def test_execute_http_request_empty_error_msg(self):
+        responses.add(
+            "POST",
+            "https://app.chatwoot.com/public/api/v1/accounts",
+            status=404
+        )
+        with pytest.raises(AppException, match="err_msg cannot be empty"):
+            Utility.execute_http_request("POST", "https://app.chatwoot.com/public/api/v1/accounts", validate_status=True)
