@@ -8374,7 +8374,7 @@ def test_get_live_agent_config_params():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == Utility.environment["live_agents"]
+    assert actual["data"] == Utility.system_metadata["live_agents"]
 
 
 def test_get_live_agent_config_none():
@@ -8687,6 +8687,17 @@ def test_get_end_user_metrics():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
+
+
+def test_get_roles():
+    response = client.get(
+        f"/api/user/roles/access",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == Utility.system_metadata["roles"]
 
 
 def test_delete_account():

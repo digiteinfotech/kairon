@@ -23,7 +23,7 @@ async def live_agent_config_params(
 
     Includes required and optional fields for storing the config.
     """
-    return Response(data=Utility.environment['live_agents'])
+    return Response(data=Utility.system_metadata['live_agents'])
 
 
 @router.put("/live", response_model=Response)

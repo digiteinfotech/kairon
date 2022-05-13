@@ -1319,7 +1319,7 @@ async def channels_params(
     """
     Stores the channel config.
     """
-    return Response(data=Utility.environment['channels'])
+    return Response(data=Utility.system_metadata['channels'])
 
 
 @router.get("/channels", response_model=Response)

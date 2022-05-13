@@ -103,7 +103,7 @@ class TestChat:
         webhook = urlencode({'url': "https://test@test.com/api/bot/telegram/tests/test"}, quote_via=quote_plus)
         responses.add("GET",
                       json={'result': True},
-                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
+                      url=f"{Utility.system_metadata['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
 
         def __mock_endpoint(*args):
             return f"https://test@test.com/api/bot/telegram/tests/test"
@@ -124,7 +124,7 @@ class TestChat:
         webhook = urlencode(webhook, quote_via=quote_plus)
         responses.add("GET",
                       json={'result': False, 'error_code': 400, 'description': "Invalid Webhook!"},
-                      url=f"{Utility.environment['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
+                      url=f"{Utility.system_metadata['channels']['telegram']['api']['url']}/bot{access_token}/setWebhook?{webhook}")
         with pytest.raises(ValidationError, match="Invalid Webhook!"):
             def __mock_endpoint(*args):
                 return f"https://test@test.com/api/bot/telegram/tests/test"

@@ -23,6 +23,14 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
     return {"data": {"user": user_details}}
 
 
+@router.get("/roles/access", response_model=Response)
+async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user)):
+    """
+    Lists roles and what components they can have access to.
+    """
+    return Response(data=Utility.system_metadata["roles"])
+
+
 @router.post("/{bot}/member", response_model=Response)
 async def allow_bot_for_user(
         allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,

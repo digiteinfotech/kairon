@@ -1,0 +1,43 @@
+channels:
+  slack:
+    required_fields:
+      - bot_user_oAuth_token
+      - slack_signing_secret
+    optional_fields:
+      - slack_channel
+  telegram:
+    required_fields:
+      - access_token
+      - username_for_bot
+    api:
+      url: https://api.telegram.org
+  hangouts:
+    required_fields:
+      - project_id
+  messenger:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verify_token
+  instagram:
+    required_fields:
+      - app_secret
+      - page_access_token
+      - verify_token
+
+actions:
+  pipedrive:
+    required_fields:
+      - name
+    optional_fields:
+      - org_name
+      - email
+      - phone
+
+live_agents:
+  chatwoot:
+    required_fields:
+      - api_access_token
+      - account_id
+    optional_fields:
+      - inbox_identifier

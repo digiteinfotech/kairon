@@ -70,7 +70,6 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files_as_zip(bot: Text, training_file: File):
-        from rasa.shared.constants import DEFAULT_DATA_PATH
         tmp_dir = tempfile.mkdtemp()
         try:
             zipped_file = os.path.join(tmp_dir, training_file.filename)

@@ -291,5 +291,5 @@ async def list_integration_fields(
     """
     List required and optional fields for integrated actions.
     """
-    return Response(data=Utility.environment['integrations'])
+    return Response(data=Utility.system_metadata['actions'])
 
