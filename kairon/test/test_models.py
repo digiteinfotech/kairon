@@ -2,7 +2,6 @@ import os
 import random
 from typing import Dict, Text, Optional, Set
 
-import requests
 from loguru import logger
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
@@ -271,7 +270,7 @@ class ModelTester:
                 merged_predictions, NO_ENTITY_TAG, NO_ENTITY
             )
 
-            report, precision, f1, accuracy = get_evaluation_metrics(
+            _, precision, f1, accuracy = get_evaluation_metrics(
                     merged_targets,
                     merged_predictions,
                     output_dict=False,

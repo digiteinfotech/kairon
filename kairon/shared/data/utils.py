@@ -69,7 +69,6 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files_as_zip(bot: Text, training_file: File):
-        from rasa.shared.constants import DEFAULT_DATA_PATH
         tmp_dir = tempfile.mkdtemp()
         try:
             zipped_file = os.path.join(tmp_dir, training_file.filename)
@@ -89,6 +88,7 @@ class DataUtility:
         """
         Checks whether at least one of the required files are present and
         finds other files required for validation during import.
+        
         @param bot_data_home_dir: path where data exists
         @param delete_dir_on_exception: whether directory needs to be deleted in case of exception.
         """
@@ -313,13 +313,13 @@ class DataUtility:
         )
 
     @staticmethod
-    def validate_flow_events(events, type, name):
+    def validate_flow_events(events, event_type, name):
         from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
         Utility.validate_document_list(events)
-        if type == "STORY" and events[0].type != "user":
+        if event_type == "STORY" and events[0].type != "user":
             raise ValidationError("First event should be an user")
 
-        if type == "RULE":
+        if event_type == "RULE":
             if events[0].name == RULE_SNIPPET_ACTION_NAME and events[0].type == "action":
                 if events[1].type != "user":
                     raise ValidationError('First event should be an user or conversation_start action')
@@ -336,7 +336,7 @@ class DataUtility:
                 intents = intents + 1
             if events[i].type == "user" and events[j].type == "user":
                 raise ValidationError("Found 2 consecutive user events")
-            if type == "RULE" and intents > 1:
+            if event_type == "RULE" and intents > 1:
                 raise ValidationError(
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 

@@ -69,7 +69,7 @@ class AugmentationUtils:
 
         cosine_scores = util.cos_sim(embeddings1, embeddings2)
 
-        for i in range(len(sentences)):
+        for i, _ in enumerate(sentences):
             if round(float(cosine_scores[0][i]), 4) > threshold:
                 yield sentences[i]
         return
