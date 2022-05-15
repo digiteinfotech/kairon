@@ -7,6 +7,7 @@ from loguru import logger
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
 from kairon.exceptions import AppException
+from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 
@@ -332,17 +333,22 @@ class TestDataGenerator:
 
     @staticmethod
     def augment_sentences(input_text: list):
+        from kairon import Utility
+
         final_augmented_text = []
         all_input_text = []
         all_stop_words = []
         all_entities = []
+        similarity_threshold = Utility.environment["model"]["test"]["augmentation_similarity_threshold"]
         for text in input_text or []:
             stopwords = []
             entity_names = []
             if text.get('entities'):
                 stopwords = [entity['value'] for entity in text['entities']]
                 entity_names = [entity['entity'] for entity in text['entities']]
-            final_augmented_text.extend(TestDataGenerator.__augment_sentences_with_mistakes_and_entities(text['text'], stopwords, entity_names))
+            augmented_text = TestDataGenerator.__augment_sentences_with_mistakes_and_entities(text['text'], stopwords, entity_names)
+            augmented_text = list(AugmentationUtils.get_similar(augmented_text, text['text'], similarity_threshold))
+            final_augmented_text.extend(augmented_text)
             all_input_text.append(text['text'])
             if stopwords:
                 all_stop_words.extend(stopwords)
@@ -352,32 +358,26 @@ class TestDataGenerator:
         if all_input_text:
             augmented_text = TestDataGenerator.fetch_augmented_text_in_batches(all_input_text)
 
-            final_augmented_text.extend(TestDataGenerator.__augment_entities(augmented_text,
-                                                                             list(all_stop_words),
-                                                                             list(all_entities)))
+            final_augmented_text.extend(
+                TestDataGenerator.__augment_entities(augmented_text, list(all_stop_words), list(all_entities))
+            )
             final_augmented_text.extend(augmented_text)
         return final_augmented_text
 
     @staticmethod
     def fetch_augmented_text_in_batches(text: list):
-        from kairon import Utility
+        from augmentation.paraphrase.paraphrasing import ParaPhrasing
 
         augmented_text = []
 
         for i in range(0, len(text), 10):
-            resp = requests.post(Utility.environment["augmentation"]["paraphrase_url"], json=text[i:i + 10])
-            logger.debug(f'Augmentation Request: {Utility.environment["augmentation"]["paraphrase_url"]}')
-            logger.debug(f'Response code: {resp.status_code}')
-            if resp.status_code == 200:
-                data = resp.json()
-                if data['data'].get('paraphrases'):
-                    augmented_text.extend(data['data'].get('paraphrases'))
+            augmented_text.extend(ParaPhrasing.paraphrases(text[i:i + 10]))
 
         return augmented_text
 
     @staticmethod
     def __augment_sentences_with_mistakes_and_entities(input_text: str, stopwords, entity_names):
-        augmented_text = list(DataUtility.augment_sentences([input_text], stopwords))
+        augmented_text = list(AugmentationUtils.augment_sentences_with_errors([input_text], stopwords))
         augmented_text = TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
         return augmented_text
 
@@ -393,7 +393,7 @@ class TestDataGenerator:
                         final_augmented_text.extend(list(
                             map(
                                 lambda synonym: txt.replace(word, f'[{synonym}]({entity_names[i]})'),
-                                DataUtility.generate_synonym(word))
+                                AugmentationUtils.generate_synonym(word))
                         ))
         else:
             final_augmented_text = input_text
