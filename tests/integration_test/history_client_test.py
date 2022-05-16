@@ -60,6 +60,10 @@ def _mock_user_role(*args, **kwargs):
     return {'role': 'tester'}
 
 
+def _mock_user_role_designer(*args, **kwargs):
+    return {'role': 'tester'}
+
+
 def _mock_user_role_admin(*args, **kwargs):
     return {'role': 'admin'}
 
@@ -74,6 +78,13 @@ def mock_auth(monkeypatch):
 @pytest.fixture(scope='function')
 def mock_auth_admin(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role_admin)
+    monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
+    monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
+
+
+@pytest.fixture(scope='function')
+def mock_auth_designer(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role_designer)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
 
@@ -620,7 +631,7 @@ def mock_list_bots(monkeypatch):
 
 
 @responses.activate
-def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mongo_processor, mock_list_bots):
+def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
     file = open('./tests/testing_data/history/conversation.json')
     responses.add(
         responses.GET,
@@ -637,12 +648,53 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth, mock_mong
         f"/api/history/{pytest.bot}/conversations/download",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    assert response.status_code == 200
     assert response.content.decode('utf-8')
     assert f"conversation_history_test{datetime.date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
 
 
 @responses.activate
-def test_download_conversation_with_error_with_kairon_client(mock_auth, mock_mongo_processor, mock_list_bots):
+def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={'error_code': 422, 'message': "No data available!", 'success': False}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert actual["message"] == "['owner', 'admin'] access is required to perform this operation on the bot"
+    assert not actual["success"]
+    
+    
+@responses.activate
+def test_download_conversation_with_error_with_kairon_client_access_denied2(mock_auth_designer, mock_mongo_processor, mock_list_bots):
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        status=200,
+        match=[responses.json_params_matcher({'month': 1})],
+        json={'error_code': 422, 'message': "No data available!", 'success': False}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert actual["message"] == "['owner', 'admin'] access is required to perform this operation on the bot"
+    assert not actual["success"]
+
+
+@responses.activate
+def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",

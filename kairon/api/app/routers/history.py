@@ -227,7 +227,7 @@ async def flat_conversations(month: int = Query(default=1, ge=1, le=6), current_
 @router.get("/conversations/download")
 async def download_conversations(
         month: int = Query(default=1, ge=1, le=6),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
     Downloads conversation history of the bot, for the specified months
@@ -405,8 +405,8 @@ async def delete_user_chat_history(
 
 @router.delete("/bot/delete", response_model=Response)
 async def delete_bot_conversations_history(
-    background_tasks: BackgroundTasks,
-    month: int = Query(default=3, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        background_tasks: BackgroundTasks, month: int = Query(default=3, ge=1, le=6),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes bot chat history for all users up to certain months  min 1 month max 6 months

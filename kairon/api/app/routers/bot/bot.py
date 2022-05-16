@@ -21,7 +21,7 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest
 )
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.models import User
@@ -511,7 +511,7 @@ async def upload_data_generation_file(
 @router.get("/download/data")
 async def download_data(
         background_tasks: BackgroundTasks,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Downloads training data nlu.md, domain.yml, stories.md, config.yml files
@@ -529,7 +529,7 @@ async def download_data(
 @router.get("/download/model")
 async def download_model(
         background_tasks: BackgroundTasks,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Downloads latest trained model file
@@ -552,7 +552,7 @@ async def download_model(
 @router.post("/test", response_model=Response)
 async def test_model(
         background_tasks: BackgroundTasks,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Run tests on a trained model.
@@ -579,7 +579,7 @@ async def model_testing_logs(
 
 
 @router.get("/endpoint", response_model=Response)
-async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS), ):
+async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     """
     Fetches the http and mongo endpoint for the bot
     """
@@ -593,7 +593,7 @@ async def get_endpoint(current_user: User = Security(Authentication.get_current_
 async def set_endpoint(
         background_tasks: BackgroundTasks,
         endpoint: Endpoint,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
     Saves or Updates the bot endpoint configuration
@@ -611,7 +611,7 @@ async def set_endpoint(
 async def delete_endpoint(
         endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
                                                                       "history_endpoint", example="bot_endpoint"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes the bot endpoint configuration
@@ -624,7 +624,7 @@ async def delete_endpoint(
 
 
 @router.get("/config", response_model=Response)
-async def get_config(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS), ):
+async def get_config(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches bot pipeline and polcies configurations
     """
@@ -762,7 +762,7 @@ async def add_training_data(
 @router.put("/update/data/generator/status", response_model=Response)
 async def update_training_data_generator_status(
         request_data: TrainingDataGeneratorStatusModel,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Update training data generator status
@@ -880,7 +880,7 @@ async def get_data_importer_logs(
 @router.post("/validate", response_model=Response)
 async def validate_training_data(
         background_tasks: BackgroundTasks,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Validates bot training data.
@@ -1003,7 +1003,7 @@ async def get_training_data_count(
 
 @router.get("/chat/client/config/url", response_model=Response)
 async def get_chat_client_config_url(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     access_token = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value,
         access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
@@ -1023,7 +1023,7 @@ async def get_client_config_using_uid(uid: str):
 
 @router.get("/chat/client/config", response_model=Response)
 async def get_client_config(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot())
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
@@ -1324,7 +1324,7 @@ async def channels_params(
 
 @router.get("/channels", response_model=Response)
 async def list_channel_config(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
     Returns list of channels for bot.
     """

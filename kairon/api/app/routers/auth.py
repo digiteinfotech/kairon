@@ -62,7 +62,7 @@ async def update_integration_token(
 
 @router.get("/{bot}/integration/token/list", response_model=Response)
 async def get_integrations(
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
     List available integrations.

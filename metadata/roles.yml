@@ -220,11 +220,11 @@ roles:
           addIntegrationToken: false
           updateIntegrationToken: false
           revokeIntegrationToken: false
-          getIntegrationToken: true
-          addActionServerUrl: true
-          updateActionServerUrl: true
-          addHistoryServerUrl: true
-          updateHistoryServerUrl: true
+          getIntegrationToken: false
+          addActionServerUrl: false
+          updateActionServerUrl: false
+          addHistoryServerUrl: false
+          updateHistoryServerUrl: false
           addMember: false
           updateMember: false
           getMember: true
@@ -233,7 +233,7 @@ roles:
       - chatHistory:
           viewHistory: true
           deleteHistory: false
-          downloadHistory: true
+          downloadHistory: false
           viewDeletionLogs: false
       - dataValidationLogs:
           viewLogs: true
@@ -245,14 +245,14 @@ roles:
   tester:
     menu:
       chatbots: true
-      common: true
+      common: false
       conversations: true
       components: true
-      advancedConfigurations: true
+      advancedConfigurations: false
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
-      integrations: true
+      integrations: false
       administration: false
       chatHistory: true
       analytics: true
@@ -278,11 +278,11 @@ roles:
           delete: false
       - advancedConfigurations:
           uploadFiles: false
-          fileDownload: true
-          modelDownload: true
+          fileDownload: false
+          modelDownload: false
           dataValidationLogs: true
       - trainingHistory:
-          reloadModel: false
+          reloadModel: true
           testModel: false
           viewModelTrainingLogs: true
           viewModelTestingLogs: true
@@ -292,16 +292,16 @@ roles:
       - configureClient:
           save: false
           get: true
-          generate: true
+          generate: false
       - integrations:
-          - get: true
+          - get: false
           - save: false
           - getEndpoint: false
       - administration:
           addIntegrationToken: false
           updateIntegrationToken: false
           revokeIntegrationToken: false
-          getIntegrationToken: true
+          getIntegrationToken: false
           addActionServerUrl: false
           updateActionServerUrl: false
           addHistoryServerUrl: false

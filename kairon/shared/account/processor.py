@@ -216,8 +216,10 @@ class AccountProcessor:
         :param status: can be one of active, inactive or deleted.
         :param validate_ownership_modification: whether ownership is being modified
         """
-        AccountProcessor.get_bot_and_validate_status(bot)
+        bot_info = AccountProcessor.get_bot_and_validate_status(bot)
+        owner_info = AccountProcessor.get_bot_owner(bot)
         AccountProcessor.__update_role(bot, accessor_email, user, role, status, validate_ownership_modification)
+        return bot_info["name"], owner_info["accessor_email"]
 
     @staticmethod
     def __update_role(bot: Text, accessor_email: Text, user: Text,
@@ -242,8 +244,12 @@ class AccountProcessor:
             raise AppException('User not yet invited to collaborate')
 
     @staticmethod
+    def get_bot_owner(bot: Text):
+        return BotAccess.objects(bot=bot, role=ACCESS_ROLES.OWNER.value).get().to_mongo().to_dict()
+
+    @staticmethod
     def transfer_ownership(account: int, bot: Text, current_owner: Text, to_user: Text):
-        AccountProcessor.get_bot_and_validate_status(bot)
+        bot_info = AccountProcessor.get_bot_and_validate_status(bot)
         AccountProcessor.__update_role(bot, to_user, current_owner, ACCESS_ROLES.OWNER.value, validate_ownership_modification=False)
         AccountProcessor.__update_role(bot, current_owner, current_owner, ACCESS_ROLES.ADMIN.value, validate_ownership_modification=False)
         AccountProcessor.__change_bot_account(bot, to_user)
@@ -253,6 +259,7 @@ class AccountProcessor:
             current_owner, bot,
             [f'Ownership transferred to {to_user}']
         )
+        return bot_info["name"]
 
     @staticmethod
     def __change_bot_account(bot_id: Text, to_owner: Text):
@@ -561,6 +568,7 @@ class AccountProcessor:
                 conversation=open('template/emails/conversation.html', 'r').read(),
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
+                update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -573,6 +581,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['conversation'] = system_properties['mail_templates']['conversation']
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
+        Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
 
     @staticmethod
     async def confirm_email(token: str):

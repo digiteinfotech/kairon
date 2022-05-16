@@ -2601,7 +2601,9 @@ def test_list_members():
     assert response['data'][2]['status']
 
 
-def test_transfer_ownership():
+def test_transfer_ownership(monkeypatch):
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/owner/change",
         json={"data": "integration@demo.ai"},
@@ -2669,7 +2671,7 @@ def test_update_member_role_not_exists(monkeypatch):
     assert not response['success']
 
 
-def test_update_member_role():
+def test_update_member_role(monkeypatch):
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
@@ -2693,6 +2695,8 @@ def test_update_member_role():
     actual = response.json()
     assert actual["message"] == "Account Registered!"
 
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
