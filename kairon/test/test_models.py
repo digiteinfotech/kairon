@@ -346,7 +346,7 @@ class TestDataGenerator:
                 stopwords = [entity['value'] for entity in text['entities']]
                 entity_names = [entity['entity'] for entity in text['entities']]
             augmented_text = TestDataGenerator.__augment_sentences_with_mistakes_and_entities(text['text'], stopwords, entity_names)
-            augmented_text = list(AugmentationUtils.get_similar(augmented_text, text['text'], similarity_threshold))
+            augmented_text = AugmentationUtils.get_similar(augmented_text, text['text'], similarity_threshold)
             final_augmented_text.extend(augmented_text)
             all_input_text.append(text['text'])
             if stopwords:

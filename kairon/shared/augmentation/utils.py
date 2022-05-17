@@ -1,3 +1,4 @@
+import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from itertools import chain
 from nlpaug.augmenter.char import KeyboardAug
@@ -68,8 +69,6 @@ class AugmentationUtils:
         embeddings2 = AugmentationUtils.similarity_model.encode(sentences, convert_to_tensor=True)
 
         cosine_scores = util.cos_sim(embeddings1, embeddings2)
-
-        for i, _ in enumerate(sentences):
-            if round(float(cosine_scores[0][i]), 4) > threshold:
-                yield sentences[i]
-        return
+        cosine_scores = np.asarray(cosine_scores[0], dtype=np.float)
+        sentences = np.asarray(sentences, dtype=np.str)
+        return sentences[cosine_scores > threshold].tolist()
