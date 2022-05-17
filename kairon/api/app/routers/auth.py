@@ -8,7 +8,7 @@ from kairon import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS
 from kairon.shared.models import User
 
 router = APIRouter()
