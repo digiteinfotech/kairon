@@ -8,6 +8,7 @@ import responses
 from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
+from augmentation.paraphrase.paraphrasing import ParaPhrasing
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
@@ -189,7 +190,7 @@ class TestModelTesting:
         return _read_and_get_data
 
     @pytest.mark.asyncio
-    async def test_data_generator(self, load_data):
+    async def test_data_generator(self, load_data, monkeypatch):
         bot = 'test_events_bot'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -197,6 +198,11 @@ class TestModelTesting:
         nlu_path = 'tests/testing_data/model_tester/nlu_failures/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+
+        def __mock_resp(*args, **kwargs):
+            return []
+
+        monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
         nlu_path, stories_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
@@ -220,6 +226,11 @@ class TestModelTesting:
         nlu_path = 'tests/testing_data/model_tester/nlu_success/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+
+        def __mock_resp(*args, **kwargs):
+            return ["agree", "right", "exactly"]
+
+        monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
         nlu_path, stories_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
@@ -230,7 +241,7 @@ class TestModelTesting:
             TestDataGenerator.create(bot, True)
 
     @pytest.mark.asyncio
-    async def test_data_generator_samples_threshold(self, load_data):
+    async def test_data_generator_samples_threshold(self, load_data, monkeypatch):
         bot = 'test_threshold'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -238,6 +249,12 @@ class TestModelTesting:
         nlu_path = 'tests/testing_data/model_tester/threshold/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/threshold/stories.yml'
         await load_data(config_path, domain_path, nlu_path, stories_path, bot, user)
+
+        def __mock_resp(*args, **kwargs):
+            return []
+
+        monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
+
         nlu_path, stories_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)

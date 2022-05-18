@@ -12,6 +12,7 @@ RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install pyyaml
+RUN python -m pip install sentence-transformers
 RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install validators
@@ -45,6 +46,7 @@ RUN mkdir models
 RUN chmod 777 -R /tmp
 
 COPY kairon ${MODEL_TESTER_HOME}/kairon
+COPY augmentation ${RASA_NLU_HOME}/augmentation
 COPY system.yaml ${MODEL_TESTER_HOME}/
 
 ENV BOT default
