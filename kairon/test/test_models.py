@@ -356,11 +356,11 @@ class TestDataGenerator:
 
         if all_input_text:
             augmented_text = TestDataGenerator.fetch_augmented_text_in_batches(all_input_text)
-
             final_augmented_text.extend(
                 TestDataGenerator.__augment_entities(augmented_text, list(all_stop_words), list(all_entities))
             )
             final_augmented_text.extend(augmented_text)
+            final_augmented_text.extend(all_input_text)
         return final_augmented_text
 
     @staticmethod
@@ -377,7 +377,9 @@ class TestDataGenerator:
     @staticmethod
     def __augment_sentences_with_mistakes_and_entities(input_text: str, stopwords, entity_names):
         augmented_text = list(AugmentationUtils.augment_sentences_with_errors([input_text], stopwords))
-        augmented_text = TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
+        augmented_text.extend(
+            TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
+        )
         return augmented_text
 
     @staticmethod
@@ -394,8 +396,6 @@ class TestDataGenerator:
                                 lambda synonym: txt.replace(word, f'[{synonym}]({entity_names[i]})'),
                                 AugmentationUtils.generate_synonym(word))
                         ))
-        else:
-            final_augmented_text = input_text
         return final_augmented_text
 
     @staticmethod
@@ -416,7 +416,7 @@ class TestDataGenerator:
             elif len(training_examples) > test_data_threshold:
                 training_examples = random.sample(training_examples, test_data_threshold)
         else:
-            return []
+            return
 
         augmented_examples = TestDataGenerator.augment_sentences(training_examples)
         for example in augmented_examples:
@@ -428,4 +428,4 @@ class TestDataGenerator:
             yield message
 
         if not augmented_examples:
-            return []
+            return
