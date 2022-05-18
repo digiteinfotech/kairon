@@ -53,6 +53,7 @@ class Utility:
     """Class contains logic for various utilities"""
     environment = {}
     email_conf = {}
+    system_metadata = {}
     password_policy = PasswordPolicy.from_names(
         length=8,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -146,6 +147,20 @@ class Utility:
         :return: None
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
+        Utility.load_system_metadata()
+
+    @staticmethod
+    def load_system_metadata():
+        """
+        Loads the metadata for various actions including integrations
+        and role based access control.
+
+        :return: None
+        """
+        parent_dir = "./metadata"
+        files = next(os.walk(parent_dir), (None, None, []))[2]
+        for file in files:
+            Utility.system_metadata.update(Utility.load_yaml(os.path.join(parent_dir, file)))
 
     @staticmethod
     def retrieve_field_values(
@@ -612,6 +627,34 @@ class Utility:
             body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
             subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+        elif mail_type == 'update_role_member_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_member_mail_body'])
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('STATUS', kwargs.get('status', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        elif mail_type == 'update_role_owner_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
+            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('STATUS', kwargs.get('status', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        elif mail_type == 'transfer_ownership_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
+            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'password_generated':
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
@@ -1216,11 +1259,11 @@ class Utility:
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
-        if channel in list(Utility.environment['channels'].keys()):
-            for required_field in Utility.environment['channels'][channel]['required_fields']:
+        if channel in list(Utility.system_metadata['channels'].keys()):
+            for required_field in Utility.system_metadata['channels'][channel]['required_fields']:
                 if required_field not in config:
                     raise error(
-                        f"Missing {Utility.environment['channels'][channel]['required_fields']} all or any in config")
+                        f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config")
                 else:
                     if encrypt:
                         config[required_field] = Utility.encrypt_message(config[required_field])
@@ -1229,28 +1272,28 @@ class Utility:
 
     @staticmethod
     def get_channels():
-        if Utility.environment.get("channels"):
-            return list(Utility.environment['channels'].keys())
+        if Utility.system_metadata.get("channels"):
+            return list(Utility.system_metadata['channels'].keys())
         else:
             return []
 
     @staticmethod
     def get_live_agents():
-        return list(Utility.environment.get('live_agents', {}).keys())
+        return list(Utility.system_metadata.get('live_agents', {}).keys())
 
     @staticmethod
     def validate_live_agent_config(agent_type, config, error):
-        if agent_type in list(Utility.environment.get('live_agents', {}).keys()):
-            for required_field in Utility.environment['live_agents'][agent_type]['required_fields']:
+        if agent_type in list(Utility.system_metadata.get('live_agents', {}).keys()):
+            for required_field in Utility.system_metadata['live_agents'][agent_type]['required_fields']:
                 if required_field not in config:
                     raise error(
-                        f"Missing {Utility.environment['live_agents'][agent_type]['required_fields']} all or any in config")
+                        f"Missing {Utility.system_metadata['live_agents'][agent_type]['required_fields']} all or any in config")
         else:
             raise error("Agent system not supported")
 
     @staticmethod
     def register_telegram_webhook(access_token, webhook_url):
-        api = Utility.environment['channels']['telegram']['api']['url']
+        api = Utility.system_metadata['channels']['telegram']['api']['url']
         response = Utility.http_request("GET", url=f"{api}/bot{access_token}/setWebhook", json_dict={"url": webhook_url})
         response_json = json.loads(response)
         if 'error_code' in response_json:

@@ -32,7 +32,7 @@ class LiveAgents(Document):
         metadata = agent.complete_prerequisites(**bot_info)
         if metadata:
             document.config.update(metadata)
-        for required_field in Utility.environment['live_agents'][document.agent_type]['required_fields']:
+        for required_field in Utility.system_metadata['live_agents'][document.agent_type]['required_fields']:
             document.config[required_field] = Utility.encrypt_message(document.config[required_field])
 
 
