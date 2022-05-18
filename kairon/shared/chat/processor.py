@@ -53,7 +53,7 @@ class ChatDataProcessor:
         for channel in Channels.objects(bot=bot).exclude("user", "timestamp", "id"):
             data = channel.to_mongo().to_dict()
             data.pop("timestamp")
-            channel_params = Utility.environment['channels'][data['connector_type']]
+            channel_params = Utility.system_metadata['channels'][data['connector_type']]
             for require_field in channel_params['required_fields']:
                 data['config'][require_field] = Utility.decrypt_message(data['config'][require_field])
                 if mask_characters:
@@ -72,7 +72,7 @@ class ChatDataProcessor:
         config = Channels.objects(bot=bot, connector_type=connector_type).exclude("user").get().to_mongo().to_dict()
         logger.debug(config)
         config.pop("timestamp")
-        channel_params = Utility.environment['channels'][config['connector_type']]
+        channel_params = Utility.system_metadata['channels'][config['connector_type']]
         for require_field in channel_params['required_fields']:
             config['config'][require_field] = Utility.decrypt_message(config['config'][require_field])
             if mask_characters:
