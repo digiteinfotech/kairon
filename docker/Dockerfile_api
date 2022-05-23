@@ -10,6 +10,7 @@ RUN amazon-linux-extras install python3.8
 RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
+RUN python -m pip install sentence-transformers
 RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install cython
@@ -56,6 +57,7 @@ RUN mkdir models
 RUN chmod 777 -R /tmp
 
 COPY kairon ${RASA_NLU_HOME}/kairon
+COPY augmentation ${RASA_NLU_HOME}/augmentation
 COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom

@@ -40,6 +40,7 @@ from pymongo.uri_parser import (
 )
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from smart_config import ConfigLoader
+from urllib3.util import parse_url
 from validators import ValidationFailure
 from validators import email as mail_check
 from websockets import connect
@@ -52,6 +53,7 @@ class Utility:
     """Class contains logic for various utilities"""
     environment = {}
     email_conf = {}
+    system_metadata = {}
     password_policy = PasswordPolicy.from_names(
         length=8,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -145,6 +147,20 @@ class Utility:
         :return: None
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
+        Utility.load_system_metadata()
+
+    @staticmethod
+    def load_system_metadata():
+        """
+        Loads the metadata for various actions including integrations
+        and role based access control.
+
+        :return: None
+        """
+        parent_dir = "./metadata"
+        files = next(os.walk(parent_dir), (None, None, []))[2]
+        for file in files:
+            Utility.system_metadata.update(Utility.load_yaml(os.path.join(parent_dir, file)))
 
     @staticmethod
     def retrieve_field_values(
@@ -611,6 +627,34 @@ class Utility:
             body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
             subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+        elif mail_type == 'update_role_member_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_member_mail_body'])
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('STATUS', kwargs.get('status', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        elif mail_type == 'update_role_owner_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
+            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('STATUS', kwargs.get('status', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        elif mail_type == 'transfer_ownership_mail':
+            body = Utility.email_conf['email']['templates']['update_role']
+            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
+            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            subject = Utility.email_conf['email']['templates']['update_role_subject']
+            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'password_generated':
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
@@ -1211,15 +1255,15 @@ class Utility:
             }
         }
         payload = json.dumps(payload)
-        asyncio.run(Utility.websocket_request(push_server_endpoint, payload))
+        asyncio.create_task(Utility.websocket_request(push_server_endpoint, payload))
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
-        if channel in list(Utility.environment['channels'].keys()):
-            for required_field in Utility.environment['channels'][channel]['required_fields']:
+        if channel in list(Utility.system_metadata['channels'].keys()):
+            for required_field in Utility.system_metadata['channels'][channel]['required_fields']:
                 if required_field not in config:
                     raise error(
-                        f"Missing {Utility.environment['channels'][channel]['required_fields']} all or any in config")
+                        f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config")
                 else:
                     if encrypt:
                         config[required_field] = Utility.encrypt_message(config[required_field])
@@ -1228,14 +1272,28 @@ class Utility:
 
     @staticmethod
     def get_channels():
-        if Utility.environment.get("channels"):
-            return list(Utility.environment['channels'].keys())
+        if Utility.system_metadata.get("channels"):
+            return list(Utility.system_metadata['channels'].keys())
         else:
             return []
 
     @staticmethod
+    def get_live_agents():
+        return list(Utility.system_metadata.get('live_agents', {}).keys())
+
+    @staticmethod
+    def validate_live_agent_config(agent_type, config, error):
+        if agent_type in list(Utility.system_metadata.get('live_agents', {}).keys()):
+            for required_field in Utility.system_metadata['live_agents'][agent_type]['required_fields']:
+                if required_field not in config:
+                    raise error(
+                        f"Missing {Utility.system_metadata['live_agents'][agent_type]['required_fields']} all or any in config")
+        else:
+            raise error("Agent system not supported")
+
+    @staticmethod
     def register_telegram_webhook(access_token, webhook_url):
-        api = Utility.environment['channels']['telegram']['api']['url']
+        api = Utility.system_metadata['channels']['telegram']['api']['url']
         response = Utility.http_request("GET", url=f"{api}/bot{access_token}/setWebhook", json_dict={"url": webhook_url})
         response_json = json.loads(response)
         if 'error_code' in response_json:
@@ -1274,3 +1332,56 @@ class Utility:
 
         bucket = Utility.environment['storage']['assets'].get('bucket')
         CloudUtility.delete_file(bucket, file)
+
+    @staticmethod
+    def execute_http_request(
+            request_method: str, http_url: str, request_body: dict = None, headers: dict = None,
+            return_json: bool = True, **kwargs
+    ):
+        """
+        Executes http urls provided.
+
+        :param http_url: HTTP url to be executed
+        :param request_method: One of GET, PUT, POST, DELETE
+        :param request_body: Request body to be sent with the request
+        :param headers: header for the HTTP request
+        :param return_json: return api output as json
+        :param kwargs:
+            validate_status: To validate status_code in response. False by default.
+            expected_status_code: 200 by default
+            err_msg: error message to be raised in case expected status code not received
+        :return: dict/response object
+        """
+        if not headers:
+            headers = {}
+
+        if request_body is None:
+            request_body = {}
+
+        try:
+            if request_method.lower() == 'get':
+                response = requests.get(http_url, headers=headers)
+            elif request_method.lower() in ['post', 'put', 'delete']:
+                response = requests.request(
+                    request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
+                )
+            else:
+                raise AppException("Invalid request method!")
+            logger.debug("raw response: " + str(response.text))
+            logger.debug("status " + str(response.status_code))
+        except requests.exceptions.ConnectTimeout:
+            _, _, host, _, _, _, _ = parse_url(http_url)
+            raise AppException(f"Failed to connect to service: {host}")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to execute the url: {str(e)}")
+
+        if kwargs.get('validate_status', False) and response.status_code != kwargs.get('expected_status_code', 200):
+            if Utility.check_empty_string(kwargs.get('err_msg')):
+                raise AppException("err_msg cannot be empty")
+            raise AppException(f"{kwargs['err_msg']}{response.reason}")
+
+        if return_json:
+            response = response.json()
+
+        return response

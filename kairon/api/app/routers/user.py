@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path, Security
 
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
@@ -21,6 +22,14 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
         current_user.email, current_user.is_integration_user, current_user.get_bot()
     )
     return {"data": {"user": user_details}}
+
+
+@router.get("/roles/access", response_model=Response)
+async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user)):
+    """
+    Lists roles and what components they can have access to.
+    """
+    return Response(data=Utility.system_metadata["roles"])
 
 
 @router.post("/{bot}/member", response_model=Response)
@@ -44,15 +53,32 @@ async def allow_bot_for_user(
         return {"message": "User added"}
 
 
-@router.post("/{bot}/member/invite/accept", response_model=Response)
-async def accept_bot_collaboration_invite(
+@router.post("/{bot}/invite/accept", response_model=Response)
+async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks: BackgroundTasks,
         token: TextData, bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183")
 ):
     """
-    Accepts a bot collaboration invitation.
+    Accepts a bot collaboration invitation sent via mail.
     """
-    bot_admin, bot_name, accessor_email, role = AccountProcessor.accept_bot_access_invite(token.data, bot)
+    bot_admin, bot_name, accessor_email, role = AccountProcessor.validate_request_and_accept_bot_access_invite(token.data, bot)
+    if Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
+                                  first_name=bot_admin, accessor_email=accessor_email,
+                                  bot_name=bot_name, role=role)
+    return {"message": "Invitation accepted"}
+
+
+@router.post("/{bot}/member/invite/accept", response_model=Response)
+async def accept_bot_collaboration_invite(
+        background_tasks: BackgroundTasks,
+        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        current_user: User = Security(Authentication.get_current_user)
+):
+    """
+    Accepts a bot collaboration invitation for logged in user.
+    """
+    bot_admin, bot_name, accessor_email, role = AccountProcessor.accept_bot_access_invite(bot, current_user.get_user())
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=bot_admin, accessor_email=accessor_email,
@@ -62,29 +88,46 @@ async def accept_bot_collaboration_invite(
 
 @router.put("/{bot}/member", response_model=Response)
 async def update_bot_access_for_user(
-        allow_bot: BotAccessRequest,
+        allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,
         bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Updates user's role or status.
     """
-    AccountProcessor.update_bot_access(bot, allow_bot.email,
-                                       current_user.get_user(),
-                                       allow_bot.role, allow_bot.activity_status)
+    bot_name, owner_email = AccountProcessor.update_bot_access(
+        bot, allow_bot.email, current_user.get_user(), allow_bot.role, allow_bot.activity_status
+    )
+    if Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='update_role_member_mail',
+                                  email=allow_bot.email, first_name=f'{current_user.first_name} {current_user.last_name}',
+                                  bot_name=bot_name, new_role=allow_bot.role, status=allow_bot.activity_status)
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='update_role_owner_mail', email=owner_email,
+                                  member_email=allow_bot.email, bot_name=bot_name, new_role=allow_bot.role,
+                                  first_name=f'{current_user.first_name} {current_user.last_name}',
+                                  status=allow_bot.activity_status)
     return Response(message='User access updated')
 
 
 @router.put("/{bot}/owner/change", response_model=Response)
 async def transfer_ownership(
-        request_data: TextData,
+        request_data: TextData, background_tasks: BackgroundTasks,
         bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
 ):
     """
     Transfers ownership to provided user.
     """
-    AccountProcessor.transfer_ownership(current_user.account, bot, current_user.get_user(), request_data.data)
+    bot_name = AccountProcessor.transfer_ownership(current_user.account, bot, current_user.get_user(), request_data.data)
+    if Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='update_role_member_mail',
+                                  email=request_data.data, bot_name=bot_name, new_role=ACCESS_ROLES.OWNER.value,
+                                  first_name=f'{current_user.first_name} {current_user.last_name}',
+                                  status=ACTIVITY_STATUS.ACTIVE.value)
+        background_tasks.add_task(Utility.format_and_send_mail, mail_type='transfer_ownership_mail',
+                                  email=current_user.get_user(), member_email=current_user.get_user(),
+                                  bot_name=bot_name, new_role=ACCESS_ROLES.OWNER.value,
+                                  first_name=f'{current_user.first_name} {current_user.last_name}')
     return Response(message='Ownership transferred')
 
 
@@ -120,7 +163,7 @@ async def list_active_bot_invites(current_user: User = Security(Authentication.g
     return Response(data={'active_invites': list(AccountProcessor.list_active_invites(current_user.get_user()))})
 
 
-@router.get("/search", response_model=Response)
+@router.post("/search", response_model=Response)
 async def search_user(
         request_data: TextData, current_user: User = Security(Authentication.get_current_user)
 ):
