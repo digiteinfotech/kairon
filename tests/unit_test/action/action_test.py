@@ -664,7 +664,7 @@ class TestActions:
             ]
         }
         response = ActionUtility.prepare_response("The value of ${data.0.a} in ${data.0.a.b} is ${data.0.a.b.d}", json2)
-        assert response == 'The value of {"b": {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}} in {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]} is [\'red\', \'buggy\', \'bumpers\']'
+        assert response == "The value of {'b': {'43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}} in {'43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']} is [\'red\', \'buggy\', \'bumpers\']"
 
     def test_prepare_response_key_not_present(self):
         json1 = json.dumps({
@@ -735,6 +735,142 @@ class TestActions:
     def test_prepare_response_as_string_and_expected_as_none(self):
         response = ActionUtility.prepare_response("The value of 2 in red is []", None)
         assert response == 'The value of 2 in red is []'
+
+    def test_prepare_response_as_string_and_expected_as_none(self):
+        response = ActionUtility.prepare_response("The value of 2 in red is []", None)
+        assert response == 'The value of 2 in red is []'
+
+    def test_prepare_response_list_field(self):
+        json1 = {
+            "data": {
+                "a": ['one', 'two', 'three'],
+                "b": 3
+            }
+        }
+        response = ActionUtility.prepare_response("List values ${lists(data.a)} Ordered Lists ${ordered_lists(data.a)}", json1)
+        assert response == 'List values one,two,three Ordered Lists 1.one\n2.two\n3.three'
+
+    def test_prepare_response_list_of_dict(self):
+        json1 = {
+            "data": [
+                {"a": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"},
+                {"d": ["four", 5, 6]}
+            ]}
+        response = ActionUtility.prepare_response("List values ${lists(data)}\n Ordered Lists ${ordered_lists(data)}", json1)
+        assert response == "List values a:['one', 'two', 'three'],b:3,c:second,d:['four', 5, 6]\n Ordered Lists 1.a:['one', 'two', 'three'],b:3\n2.c:second\n3.d:['four', 5, 6]"
+
+    def test_prepare_response_filtered_list(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"},
+                {"name": ["four", 5, 6]}
+            ]}
+        response = ActionUtility.prepare_response("List values ${lists(data,name)}\n Ordered Lists ${ordered_lists(data,name)}", json1)
+        assert response == "List values ['one', 'two', 'three'],['four', 5, 6]\n Ordered Lists 1.['one', 'two', 'three']\n2.['four', 5, 6]"
+
+    def test_prepare_response_non_list_fields(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        response = ActionUtility.prepare_response("Old pattern ${data.0.b} ${d.e} New pattern ${retrieve(data.0.b)} ${retrieve(d.e)}", json1)
+        assert response == "Old pattern 3 10 New pattern 3 10"
+
+    def test_prepare_response_combination_tokens(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        response = ActionUtility.prepare_response("Data: ${lists(data,b)} ${ordered_lists(data,b)}", json1)
+        assert response == "Data: 3 1.3"
+        response = ActionUtility.prepare_response("Duplicates: ${ordered_lists(data,b)} ${lists(data,b)} ${ordered_lists(data,b)}\
+        ${lists(data,b)} ${d.e} ${retrieve(d.e)} ${d.e} ${retrieve(d.e)}", json1)
+        assert response == "Duplicates: 1.3 3 1.3        3 10 10 10 10"
+
+    def test_prepare_response_default_placeholder(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        response = ActionUtility.prepare_response("${RESPONSE}", json1)
+        assert response == str(json1)
+
+    def test_prepare_response_empty_braces(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        with pytest.raises(ActionFailure,
+                           match="Unable to retrieve value for key from HTTP response: f-string: empty expression not allowed \(<string>, line 1\)"):
+            ActionUtility.prepare_response("Passing empty brackets ${lists(  )} ${} ", json1)
+
+    def test_prepare_response_empty_spaces_around_function(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        response = ActionUtility.prepare_response("Passing spaces ${ lists(data,b)} ${  ordered_lists(data,b)} ${  retrieve(d)}", json1)
+        assert response == "Passing spaces 3 1.3 {'e': 10}"
+
+    def test_prepare_response_not_list_field_invalid(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        with pytest.raises(ActionFailure, match="The mapped json key d is not of list type"):
+            ActionUtility.prepare_response("Passing spaces ${lists(d)}  ", json1)
+        with pytest.raises(ActionFailure, match="The mapped json key d is not of list type"):
+            ActionUtility.prepare_response("Passing spaces ${ordered_lists(d)}  ", json1)
+
+    def test_prepare_response_list_of_list_invalid(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: descriptor 'get' for 'dict' objects doesn't apply to a 'list' object"):
+            ActionUtility.prepare_response("Passing spaces ${lists(data.0.name)}  ", json1)
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: descriptor 'get' for 'dict' objects doesn't apply to a 'list' object"):
+            ActionUtility.prepare_response("Passing spaces ${ordered_lists(data.0.name)}  ", json1)
+
+    def test_prepare_response_empty_invalid_tokens(self):
+        json1 = {
+            "data": [
+                {"name": ['one', 'two', 'three'], "b": 3},
+                {"c": "second"}
+            ],
+            "d": {"e": 10}
+        }
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: 'lists()"):
+            ActionUtility.prepare_response("${lists()}  ", json1)
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: 'ordered_list()"):
+            ActionUtility.prepare_response("Fetch data ${lists(data)} ${ordered_list()}  ", json1)
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: Use of functions {'__import__'} not allowed"):
+            ActionUtility.prepare_response("Fetch ${__import__(sys)}", json1)
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: '()"):
+            ActionUtility.prepare_response("Use base class ${().__class__.base[0]}", json1)
 
     @pytest.mark.asyncio
     async def test_run_invalid_http_action(self, mock_get_http_action_exception):
@@ -1129,7 +1265,8 @@ class TestActions:
         assert output == 'I want rupee151. Also, want $51'
 
     def test_retrieve_value_from_response(self):
-        keys = ["a.b.3", 'a.b']
+        template = "${a.b.3} ${a.b}"
+        keys = ["a.b.3","a.b"]
         resp_msg = {
             "a": {
                 "b": {
@@ -1140,15 +1277,13 @@ class TestActions:
                 }
             }
         }
-        key_values = ActionUtility.retrieve_value_from_response(keys, resp_msg)
+        key_values = ActionUtility.retrieve_value_from_response(template, resp_msg, keys)
         assert key_values is not None
-        assert key_values['${a.b.3}'] == 2
-        assert key_values['${a.b}'] is not None
-        assert key_values['${a.b}']['3'] == 2
-        assert key_values['${a.b}']['d'][0] == 'red'
+        assert key_values == "2 {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}"
 
     def test_retrieve_value_from_response_invalid_key(self):
-        keys = ["d.e.f", 'g.h']
+        template = "${d.e.f} ${g.h}"
+        keys = ['d.e.f','g.h']
         resp_msg = {
             "a": {
                 "b": {
@@ -1160,7 +1295,7 @@ class TestActions:
             }
         }
         try:
-            ActionUtility.retrieve_value_from_response(keys, resp_msg)
+            ActionUtility.retrieve_value_from_response(template, resp_msg, keys)
             assert False
         except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''

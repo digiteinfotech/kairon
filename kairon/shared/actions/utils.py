@@ -17,6 +17,8 @@ from .models import ActionType, SlotValidationOperators, LogicalOperators, Actio
 from ..data.constant import SLOT_TYPE
 from ..data.data_objects import Slots
 from ..utils import Utility
+from functools import reduce
+from simpleeval import SimpleEval
 
 
 class ActionUtility:
@@ -303,28 +305,38 @@ class ActionUtility:
         return f'{results[0]["text"]}\nTo know more, please visit: {link}'
 
     @staticmethod
-    def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
+    def retrieve_value_from_response(response_template: str, http_response: Any, keys_with_placeholders: List[str]):
         """
         Retrieves values for user defined placeholders
-        :param grouped_keys: List of user defined keys
-        :param http_response: Response received from executing Http URL
-        :return: A dictionary of user defined placeholder and value from json
-        """
-        value_mapping = {}
-        try:
-            for punctuation_separated_key in grouped_keys:
-                keys = punctuation_separated_key.split(".")
-                json_search_region = http_response
-                for key in keys:
-                    if isinstance(json_search_region, dict):
-                        json_search_region = json_search_region[key]
-                    else:
-                        json_search_region = json_search_region[int(key)]
 
-                value_mapping['${' + punctuation_separated_key + '}'] = json_search_region
+        :param response_template: string of user defined response template
+        :param http_response: Response received from executing Http URL
+        :param keys_with_placeholders: List of placeholder keys
+        :return: formatted string response after calling respective token functions
+        """
+        try:
+            preprocessed_template = ResponseFormatter.preprocessor(response_template, keys_with_placeholders)
+
+            allowed_tokens = {
+                "lists": ResponseFormatter.lists,
+                "ordered_lists": ResponseFormatter.ordered_lists,
+                "retrieve": ResponseFormatter.retrieve,
+                "http_response": http_response
+            }
+            code = compile(f"f'''{preprocessed_template}'''", "<string>", "eval")
+            disallowed_tokens = set(code.co_names).difference(set(allowed_tokens))
+
+            if disallowed_tokens.__len__() > 0:
+                raise ActionFailure(f'Use of functions {str(disallowed_tokens)} not allowed')
+            else:
+                allowed_tokens.pop("http_response")
+                # instantiate SimpleEval Class with functions and names
+                s_eval = SimpleEval(functions=allowed_tokens, names={"http_response": http_response})
+                # Evaluate expression
+                formatted_response_string = s_eval.eval(f"f'''{preprocessed_template}'''")
+            return str(formatted_response_string)
         except Exception as e:
-            raise ActionFailure("Unable to retrieve value for key from HTTP response: " + str(e))
-        return value_mapping
+            raise ActionFailure(f"Unable to retrieve value for key from HTTP response: {e}")
 
     @staticmethod
     def attach_response(template, http_response):
@@ -347,7 +359,6 @@ class ActionUtility:
         :param http_response: Response received after executing Http URL.
         :return: Returns a response curated from user defined template and Http response.
         """
-        value_mapping = {}
         parsed_output = ActionUtility.attach_response(response_template, http_response)
         keys_with_placeholders = re.findall(r'\${(.+?)}', parsed_output)
         if not keys_with_placeholders:
@@ -359,14 +370,7 @@ class ActionUtility:
             if keys_with_placeholders is not None:
                 raise ActionFailure("Could not find value for keys in response")
 
-        value_mapping = ActionUtility.retrieve_value_from_response(keys_with_placeholders, http_response)
-        for key in value_mapping:
-            value_for_placeholder = value_mapping[key]
-            if isinstance(value_for_placeholder, dict):
-                parsed_output = parsed_output.replace(key, json.dumps(value_for_placeholder))
-            else:
-                parsed_output = parsed_output.replace(key, str(value_mapping[key]))
-
+        parsed_output = ActionUtility.retrieve_value_from_response(response_template, http_response, keys_with_placeholders)
         return parsed_output
 
     @staticmethod
@@ -777,3 +781,116 @@ class ExpressionEvaluator:
             SLOT_TYPE.ANY.value: text_data_validations
         }
         return operators
+
+
+class ResponseFormatter:
+    """
+    Utility class for http action response formatting
+    """
+    @staticmethod
+    def preprocessor(response_template: str, keys_with_placeholders: List[str]):
+        """
+        Method to preprocess the user defined response template in http action
+
+        :param response_template: user defined http response template input
+        :param keys_with_placeholders: List of key placeholders
+        """
+        template = response_template
+
+        for key in set(keys_with_placeholders):
+            # Check pattern ${<func_name>(<args>)} or ${<old_pattern_keys>} in template
+            func_name, args, old_pattern_keys = re.findall(r'(.+?)\((.+?)\)|(.+)', key)[0]
+            if func_name and args and not old_pattern_keys:
+                pattern = '${' + func_name + '(' + args + ')' + '}'
+                substitute = '{' + func_name + '("' + args + '",http_response)' + '}'
+                template = template.replace(pattern, substitute)
+            elif old_pattern_keys:
+                pattern = '${' + old_pattern_keys + '}'
+                template = template.replace(pattern, f'{{retrieve("{old_pattern_keys}", http_response)}}')
+            else:
+                raise ActionFailure(f'Token function {key} not defined properly')
+        return template
+
+    @staticmethod
+    def lists(parameters: str, http_response: Any):
+        """
+        Http response template function to display list field in input json
+
+        :param parameters: a string consisting of traversal keys and/or to display keys
+        :param http_response: dictionary of input http response
+        :return: formatted string
+        """
+        formatted_list = ResponseFormatter.traverse_list(parameters, http_response)
+        return ','.join(formatted_list)
+
+    @staticmethod
+    def ordered_lists(parameters: str, http_response: Any):
+        """
+        Http response template function  to display  list field in input json as ordered string
+
+        :param parameters: a string consisting of traversal keys and/or to display keys
+        :param http_response: dictionary of input http response
+        :return: formatted string
+        """
+        formatted_list = ResponseFormatter.traverse_list(parameters, http_response)
+        return '\n'.join([f'{ind + 1}.{val}' for ind, val in enumerate(formatted_list)])
+
+    @staticmethod
+    def retrieve(parameters: str, http_response: Any):
+        """
+        Http response template token function  to display fields not of list type in input json as string
+
+        :param parameters: a string consisting of traversal keys and/or to display keys
+        :param http_response: dictionary of input http response
+        :return: formatted string
+        """
+        keys = parameters.split(".")
+        json_search_region = http_response
+        for key in keys:
+            if isinstance(json_search_region, dict):
+                json_search_region = json_search_region[key]
+            else:
+                json_search_region = json_search_region[int(key)]
+        return json_search_region
+
+    @staticmethod
+    def traverse_list(parameters: str, http_response: Any):
+        """
+        it traverses the input response based on traversal keys and formats
+        the list value based on to display keys
+
+        :param parameters: a string consisting of traversal keys and/or to display keys
+        :param http_response: dictionary of input http response
+        :return: formatted list of strings
+        """
+        parameters_list = parameters.split(',')
+        traversal_keys, to_display_keys = (parameters_list[0], parameters_list[1:]) \
+            if parameters_list.__len__() > 1 else (parameters_list[0], [])
+        json_value = reduce(dict.get, traversal_keys.split('.'), http_response)
+        if isinstance(json_value, list):
+            formatted_list = ResponseFormatter.response_formatter(json_value, to_display_keys_list=to_display_keys)
+        else:
+            raise ActionFailure(f'The mapped json key {traversal_keys} is not of list type')
+        return formatted_list
+
+    @staticmethod
+    def response_formatter(json_value: Any, to_display_keys_list: List[str]):
+        """
+        it prepares final string curated from list field in response and display keys.
+        if display keys present returns only value of dictionary in list
+        else returns key plus value of dictionary in list.
+
+        :param json_value: the list field in json response arrived at using traversal keys
+        :param to_display_keys_list: list of to display keys passed by user in template
+        :return: formatted list of strings
+        """
+        if to_display_keys_list:
+            dict_mapping_func = lambda input_json: [f'{v}' for k, v in zip(input_json.keys(), input_json.values()) if
+                                                    k in to_display_keys_list]
+            formatted_list = [','.join(dict_mapping_func(val)) if isinstance(val, dict) else val for val in json_value]
+        else:
+            dict_mapping_func = lambda input_json: [f'{k}:{v}' for k, v in zip(input_json.keys(), input_json.values())]
+            formatted_list = [','.join(dict_mapping_func(val)) if isinstance(val, dict) else val for val in json_value]
+        # remove empty values from formatted list
+        formatted_list = list(filter(lambda x: x.__len__() > 0, formatted_list))
+        return formatted_list

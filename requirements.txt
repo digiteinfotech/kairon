@@ -53,3 +53,4 @@ blinker
 jira
 zenpy
 pipedrive-python-lib
+simpleeval==0.9.12
