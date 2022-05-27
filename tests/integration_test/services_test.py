@@ -8627,12 +8627,12 @@ def test_add_live_agent_config_triggers_not_added():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json={"payload": []}
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 
@@ -8677,12 +8677,12 @@ def test_add_live_agent_config():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json={"payload": []}
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 
@@ -8731,12 +8731,12 @@ def test_update_live_agent_config():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=list_inbox_response
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 

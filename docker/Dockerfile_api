@@ -62,6 +62,7 @@ COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
+COPY metadata ${RASA_NLU_HOME}/metadata
 
 ENV WORKER_TIMEOUT=240
 ENV APP_MODULE=kairon.api.app.main:app

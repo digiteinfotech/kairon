@@ -36,6 +36,7 @@ RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
 
 COPY kairon /app/kairon
+COPY metadata /app/metadata
 COPY email.yaml /app/email.yaml
 COPY system.yaml /app/system.yaml
 EXPOSE 8083

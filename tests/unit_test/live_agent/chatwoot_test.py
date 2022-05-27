@@ -24,7 +24,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json={"payload": []}
         )
         assert not ChatwootLiveAgent.from_config(config).validate_credentials()
@@ -38,7 +38,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inboxes
         )
         assert not ChatwootLiveAgent.from_config(config).validate_credentials()
@@ -51,7 +51,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inboxes
         )
         with pytest.raises(AppException, match=f"Unable to connect. Please verify credentials."):
@@ -63,7 +63,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             status=404,
             body="Not found"
         )
@@ -77,7 +77,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67"}
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inbox
         )
         metadata = ChatwootLiveAgent.from_config(config).complete_prerequisites(**{"bot_name": "test", "_id": "hello"})
@@ -91,7 +91,7 @@ class TestChatwootLiveAgent:
                   "inbox_identifier": inbox["inbox_identifier"]}
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inbox
         )
         metadata = ChatwootLiveAgent.from_config(config).complete_prerequisites(**{"bot_name": "test", "_id": "hello"})
@@ -138,7 +138,7 @@ class TestChatwootLiveAgent:
         )
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
                 "id": 7487848,
                 "content": "hello",
@@ -164,11 +164,22 @@ class TestChatwootLiveAgent:
             }
         )
         metadata = ChatwootLiveAgent.from_config(config).initiate_handoff("test", "udit")
-        assert metadata == {"destination": 2, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB"}
+        assert metadata == {"destination": 2, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                            'websocket_url': 'wss://app.chatwoot.com/cable'}
 
     @responses.activate
     def test_initiate_handoff_contact_exists(self):
         config = {"account_id": "12", "api_access_token": "asdfghjklty67", "inbox_identifier": "asdfghj345890dfghj"}
+        responses.add(
+            "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/asdfghj345890dfghj/contacts',
+            json={
+                "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                "id": 16951464,
+                "name": 'test@chat.com',
+                "email": None
+            }
+        )
         responses.add(
             "POST",
             'https://app.chatwoot.com/public/api/v1/inboxes/asdfghj345890dfghj/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
@@ -197,7 +208,7 @@ class TestChatwootLiveAgent:
         )
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
                 "id": 7487848,
                 "content": "hello",
@@ -223,7 +234,8 @@ class TestChatwootLiveAgent:
             }
         )
         metadata = ChatwootLiveAgent.from_config(config).initiate_handoff("test", "udit")
-        assert metadata == {"destination": 3, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB"}
+        assert metadata == {"destination": 3, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                            'websocket_url': 'wss://app.chatwoot.com/cable'}
 
     @responses.activate
     def test_send_message(self):
@@ -252,7 +264,7 @@ class TestChatwootLiveAgent:
             }}
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json=send_msg_response
         )
         response = ChatwootLiveAgent.from_config(config).send_message("hello", "2")
@@ -263,7 +275,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67", "inbox_identifier": "asdfghj345890dfghj"}
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             status=404,
         )
         with pytest.raises(AppException, match="Failed to send message: Not Found"):
@@ -274,7 +286,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67", "inbox_identifier": "asdfghj345890dfghj"}
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
             "id": 7487848,
             "content": "hello",
@@ -306,7 +318,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67", "inbox_identifier": "asdfghj345890dfghj"}
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             status=404
         )
         message_log = [{'user': 'Hi'}, {'bot': 'Hey! How are you?'}, {'user': 'who can i contact?'},
@@ -350,7 +362,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inboxes
         )
         resp = ChatwootLiveAgent.from_config(config).list_inbox()
@@ -361,7 +373,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67", "inbox_identifier": "sdfghjk678gfhjk"}
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             status=404
         )
         with pytest.raises(AppException, match="Failed to list inbox: Not Found"):
@@ -376,7 +388,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inboxes
         )
         resp = ChatwootLiveAgent.from_config(config).get_inbox()
@@ -391,7 +403,7 @@ class TestChatwootLiveAgent:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inboxes
         )
         with pytest.raises(AppException, match="Inbox with identifier asdfghjklty67 does not exists!"):
@@ -404,7 +416,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67"}
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json=inbox
         )
         resp = ChatwootLiveAgent.from_config(config).create_inbox("test")
@@ -415,7 +427,7 @@ class TestChatwootLiveAgent:
         config = {"account_id": "12", "api_access_token": "asdfghjklty67"}
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             status=404
         )
         with pytest.raises(AppException, match="Failed to create inbox: Not Found"):
