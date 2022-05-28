@@ -4,7 +4,6 @@ from urllib.parse import urljoin
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.live_agent.live_agent import LiveAgent
-from kairon.shared.live_agent.processor import LiveAgentsProcessor
 
 
 class ChatwootLiveAgent(LiveAgent):

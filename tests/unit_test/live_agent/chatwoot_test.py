@@ -27,7 +27,9 @@ class TestChatwootLiveAgent:
             f"https://app.chatwoot.com/api/v1/accounts/{config['account_id']}/inboxes",
             json={"payload": []}
         )
-        assert not ChatwootLiveAgent.from_config(config).validate_credentials()
+        agent = ChatwootLiveAgent.from_config(config)
+        assert agent.agent_type == "chatwoot"
+        assert not agent.validate_credentials()
 
     @responses.activate
     def test_validate_credentials_with_inbox_id(self):
