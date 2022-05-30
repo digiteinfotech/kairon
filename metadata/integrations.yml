@@ -46,3 +46,4 @@ live_agents:
       - account_id
     optional_fields:
       - inbox_identifier
+    websocket_url: wss://app.chatwoot.com/cable

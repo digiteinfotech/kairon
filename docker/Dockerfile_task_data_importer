@@ -37,6 +37,7 @@ RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 
 COPY kairon ${IMPORTER_HOME}/kairon
+COPY metadata /app/metadata
 COPY system.yaml ${IMPORTER_HOME}/
 
 ENV BOT default

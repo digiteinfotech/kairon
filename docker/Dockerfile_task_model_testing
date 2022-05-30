@@ -46,6 +46,7 @@ RUN mkdir models
 RUN chmod 777 -R /tmp
 
 COPY kairon ${MODEL_TESTER_HOME}/kairon
+COPY metadata /app/metadata
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 COPY system.yaml ${MODEL_TESTER_HOME}/
 

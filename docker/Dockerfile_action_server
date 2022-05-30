@@ -35,6 +35,7 @@ RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
 
 COPY kairon/actions /app/kairon/actions/
+COPY metadata /app/metadata
 COPY kairon/shared/actions /app/kairon/shared/actions
 COPY kairon/shared/account /app/kairon/shared/account
 COPY kairon/shared/tornado /app/kairon/shared/tornado

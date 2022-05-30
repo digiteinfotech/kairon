@@ -21,6 +21,7 @@ class Whatsapp:
     """Whatsapp input channel to parse incoming webhooks and send msgs."""
 
     def __init__(self, page_access_token: Text) -> None:
+        """Init whatsapp input channel."""
         self.page_access_token = page_access_token
         self.last_message: Dict[Text, Any] = {}
 
@@ -91,6 +92,7 @@ class WhatsappBot(OutputChannel):
         return "whatsapp"
 
     def __init__(self, whatsapp_client: WhatsappClient) -> None:
+        """Init whatsapp output channel."""
         self.whatsapp_client = whatsapp_client
         super().__init__()
 

@@ -1255,7 +1255,8 @@ class Utility:
             }
         }
         payload = json.dumps(payload)
-        asyncio.create_task(Utility.websocket_request(push_server_endpoint, payload))
+        io_loop = asyncio.get_event_loop()
+        io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):

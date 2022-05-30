@@ -3418,6 +3418,7 @@ class MongoProcessor:
             access_limit=['/api/bot/.+/chat', '/api/bot/.+/agent/live/.+'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
+        client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):

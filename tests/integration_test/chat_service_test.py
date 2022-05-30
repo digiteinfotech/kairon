@@ -953,12 +953,12 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.start()
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={"payload": []}
         )
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={"inbox_identifier": "tSaxZWrxyFowmFHzWwhMwi5y"}
         )
         LiveAgentsProcessor.save_config(config, bot_id, email)
@@ -1006,7 +1006,7 @@ class TestChatServer(AsyncHTTPTestCase):
         )
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
                 "id": 7487848,
                 "content": "hello",
@@ -1062,7 +1062,9 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert actual["data"]["response"]
                 assert actual["data"]["agent_handoff"] == {'initiate': True, 'type': 'chatwoot',
                                                            'additional_properties': {
-                                                               'destination': 2, 'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB'
+                                                               'destination': 2,
+                                                               'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
 
                 assert len(EndUserMetricsProcessor.get_logs(bot)) == 1
@@ -1075,6 +1077,16 @@ class TestChatServer(AsyncHTTPTestCase):
                 mock_agent.side_effect = self.mock_agent_response
                 responses.reset()
                 responses.start()
+                responses.add(
+                    "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+                    json={
+                        "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                        "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                        "id": 16951464,
+                        "name": 'test@chat.com',
+                        "email": None
+                    }
+                )
                 responses.add(
                     "POST",
                     'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
@@ -1103,7 +1115,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 )
                 responses.add(
                     "POST",
-                    'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/3/messages',
+                    'https://app.chatwoot.com/api/v1/accounts/12/conversations/3/messages',
                     json={
                         "id": 7487848,
                         "content": "who can i contact?",
@@ -1154,7 +1166,9 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert actual["data"]["response"]
                 assert actual["data"]["agent_handoff"] == {'initiate': True, 'type': 'chatwoot',
                                                            'additional_properties': {
-                                                               'destination': 3, 'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB'
+                                                               'destination': 3,
+                                                               'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
                 assert len(EndUserMetricsProcessor.get_logs(bot)) == 2
 
@@ -1163,7 +1177,7 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.start()
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
                 "id": 7487848,
                 "content": "hello, please resolve my ticket",
@@ -1209,7 +1223,7 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.start()
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             status=503,
             body="Temporarily unable to handle a request"
         )
@@ -1238,7 +1252,7 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.start()
         responses.add(
             "POST",
-            'https://app.chatwoot.com/public/api/v1/accounts/12/conversations/2/messages',
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
             json={
                 "id": 7487848,
                 "content": "need help",
@@ -1287,6 +1301,16 @@ class TestChatServer(AsyncHTTPTestCase):
                 mock_agent.side_effect = self.mock_agent_response
                 responses.reset()
                 responses.start()
+                responses.add(
+                    "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+                    json={
+                        "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                        "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                        "id": 16951464,
+                        "name": 'test@chat.com',
+                        "email": None
+                    }
+                )
                 responses.add(
                     "POST",
                     'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
