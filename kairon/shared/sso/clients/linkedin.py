@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 import httpx
 from fastapi_sso.sso.base import OpenID
@@ -59,7 +59,9 @@ class LinkedinSSO(KaironSSO):
             "useremail_endpoint": f"{cls.profile_url}/emailAddress?q=members&projection=(elements*(handle~))"
         }
 
-    async def process_login(self, code: str, request: Request) -> Optional[OpenID]:
+    async def process_login(
+            self, code: str, request: Request, *, params: Optional[Dict[str, Any]] = None
+    ) -> Optional[OpenID]:
         """
         This method should be called from callback endpoint to verify the user and request user info endpoint.
         This is low level, you should use {verify_and_process} instead.
