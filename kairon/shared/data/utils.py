@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-from itertools import chain
 from typing import Text, List, Dict
 import uuid
 from urllib.parse import urljoin
@@ -70,7 +69,6 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files_as_zip(bot: Text, training_file: File):
-        from rasa.shared.constants import DEFAULT_DATA_PATH
         tmp_dir = tempfile.mkdtemp()
         try:
             zipped_file = os.path.join(tmp_dir, training_file.filename)
@@ -90,6 +88,7 @@ class DataUtility:
         """
         Checks whether at least one of the required files are present and
         finds other files required for validation during import.
+        
         @param bot_data_home_dir: path where data exists
         @param delete_dir_on_exception: whether directory needs to be deleted in case of exception.
         """
@@ -314,13 +313,13 @@ class DataUtility:
         )
 
     @staticmethod
-    def validate_flow_events(events, type, name):
+    def validate_flow_events(events, event_type, name):
         from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
         Utility.validate_document_list(events)
-        if type == "STORY" and events[0].type != "user":
+        if event_type == "STORY" and events[0].type != "user":
             raise ValidationError("First event should be an user")
 
-        if type == "RULE":
+        if event_type == "RULE":
             if events[0].name == RULE_SNIPPET_ACTION_NAME and events[0].type == "action":
                 if events[1].type != "user":
                     raise ValidationError('First event should be an user or conversation_start action')
@@ -337,7 +336,7 @@ class DataUtility:
                 intents = intents + 1
             if events[i].type == "user" and events[j].type == "user":
                 raise ValidationError("Found 2 consecutive user events")
-            if type == "RULE" and intents > 1:
+            if event_type == "RULE" and intents > 1:
                 raise ValidationError(
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
@@ -373,44 +372,6 @@ class DataUtility:
         else:
             template_type = 'CUSTOM'
         return template_type
-
-    @staticmethod
-    def augment_sentences(sentences: list, stopwords: list = None, num_variations: int = 5):
-        from nlpaug.augmenter.char import KeyboardAug
-        from nlpaug.augmenter.word import SynonymAug
-        from nlpaug.flow import Sometimes
-        from nlpaug.augmenter.word import SpellingAug
-        from nlpaug.augmenter.word import AntonymAug
-
-        keyboard_aug = KeyboardAug(aug_char_min=1, aug_char_max=10, aug_char_p=0.3, aug_word_p=0.3,
-                                   aug_word_min=1, aug_word_max=10, stopwords=stopwords,
-                                   include_special_char=False, include_numeric=False, include_upper_case=True,
-                                   lang='en',
-                                   min_char=4)
-        synonym_aug = SynonymAug(aug_src='wordnet', aug_min=1, aug_max=4,
-                                 aug_p=0.3, stopwords=stopwords,
-                                 lang='eng')
-        antonym_aug = AntonymAug(aug_min=1, aug_max=10, aug_p=0.3, stopwords=stopwords, lang='eng')
-        spelling_aug = SpellingAug(aug_min=1, aug_max=10, aug_p=0.3, stopwords=stopwords, include_reverse=False)
-
-        aug = Sometimes([keyboard_aug, synonym_aug, spelling_aug, antonym_aug], aug_p=0.25)
-        augmented_text = aug.augment(sentences, n=num_variations)
-        return set(chain.from_iterable(augmented_text))
-
-    @staticmethod
-    def generate_synonym(entity: str, num_variations: int = 3):
-        from nltk.corpus import wordnet
-
-        synonyms = []
-        syn_sets = wordnet.synsets(entity)
-        for syn in syn_sets:
-            for word in syn.lemma_names():
-                if word != entity:
-                    synonyms.append(word)
-                    num_variations -= 1
-                if num_variations <= 0:
-                    return synonyms
-        return synonyms
 
     @staticmethod
     def get_channel_endpoint(channel_config: dict):

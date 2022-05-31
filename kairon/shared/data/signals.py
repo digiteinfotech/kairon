@@ -33,9 +33,7 @@ def push_notification(sender, document, **kwargs):
             metadata = document.to_mongo().to_dict()
 
             for key in metadata:
-                if isinstance(metadata[key], ObjectId):
-                    metadata[key] = metadata[key].__str__()
-                elif isinstance(metadata[key], datetime.datetime):
+                if isinstance(metadata[key], ObjectId) or isinstance(metadata[key], datetime.datetime):
                     metadata[key] = metadata[key].__str__()
 
             if sender.__name__ in message_type_events:

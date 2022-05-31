@@ -33,6 +33,7 @@ RUN python -m pip install ujson==5.1.0
 RUN python -m pip install blinker
 
 COPY kairon/ /app/kairon
+COPY metadata /app/metadata
 COPY system.yaml /app/
 COPY email.yaml /app/
 

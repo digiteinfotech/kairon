@@ -59,7 +59,7 @@ class LiveAgentsProcessor:
             config = LiveAgents.objects(bot=bot).exclude("bot", "user").get().to_mongo().to_dict()
             config.pop("_id")
             logger.debug(config)
-            agent_params = Utility.environment['live_agents'][config['agent_type']]
+            agent_params = Utility.system_metadata['live_agents'][config['agent_type']]
             for require_field in agent_params['required_fields']:
                 config['config'][require_field] = Utility.decrypt_message(config['config'][require_field])
                 if mask_characters:

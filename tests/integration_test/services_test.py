@@ -2742,7 +2742,9 @@ def test_list_members():
     assert response['data'][3]['status']
 
 
-def test_transfer_ownership():
+def test_transfer_ownership(monkeypatch):
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/owner/change",
         json={"data": "integration@demo.ai"},
@@ -2813,7 +2815,7 @@ def test_update_member_role_not_exists(monkeypatch):
     assert not response['success']
 
 
-def test_update_member_role():
+def test_update_member_role(monkeypatch):
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
@@ -2837,6 +2839,8 @@ def test_update_member_role():
     actual = response.json()
     assert actual["message"] == "Account Registered!"
 
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
@@ -8518,7 +8522,7 @@ def test_get_live_agent_config_params():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == Utility.environment["live_agents"]
+    assert actual["data"] == Utility.system_metadata["live_agents"]
 
 
 def test_get_live_agent_config_none():
@@ -8623,12 +8627,12 @@ def test_add_live_agent_config_triggers_not_added():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json={"payload": []}
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 
@@ -8673,12 +8677,12 @@ def test_add_live_agent_config():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json={"payload": []}
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 
@@ -8727,12 +8731,12 @@ def test_update_live_agent_config():
     responses.reset()
     responses.add(
         "GET",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=list_inbox_response
     )
     responses.add(
         "POST",
-        f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+        f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
         json=add_inbox_response
     )
 
@@ -8831,6 +8835,17 @@ def test_get_end_user_metrics():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
+
+
+def test_get_roles():
+    response = client.get(
+        f"/api/user/roles/access",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == Utility.system_metadata["roles"]
 
 
 def test_delete_account():
