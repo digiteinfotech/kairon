@@ -100,6 +100,7 @@ class AccountProcessor:
         for bot in Bot.objects(account=account_id, status=True):
             bot = bot.to_mongo().to_dict()
             bot.pop('status')
+            bot['role'] = ACCESS_ROLES.OWNER.value
             bot['_id'] = bot['_id'].__str__()
             yield bot
 
@@ -154,6 +155,7 @@ class AccountProcessor:
                                      status=ACTIVITY_STATUS.ACTIVE.value):
             bot_details = AccountProcessor.get_bot(bot['bot'])
             bot_details['_id'] = bot_details['_id'].__str__()
+            bot_details['role'] = bot['role']
             shared_bots.append(bot_details)
         return {
             'account_owned': account_bots,
@@ -216,8 +218,10 @@ class AccountProcessor:
         :param status: can be one of active, inactive or deleted.
         :param validate_ownership_modification: whether ownership is being modified
         """
-        AccountProcessor.get_bot_and_validate_status(bot)
+        bot_info = AccountProcessor.get_bot_and_validate_status(bot)
+        owner_info = AccountProcessor.get_bot_owner(bot)
         AccountProcessor.__update_role(bot, accessor_email, user, role, status, validate_ownership_modification)
+        return bot_info["name"], owner_info["accessor_email"]
 
     @staticmethod
     def __update_role(bot: Text, accessor_email: Text, user: Text,
@@ -242,8 +246,12 @@ class AccountProcessor:
             raise AppException('User not yet invited to collaborate')
 
     @staticmethod
+    def get_bot_owner(bot: Text):
+        return BotAccess.objects(bot=bot, role=ACCESS_ROLES.OWNER.value).get().to_mongo().to_dict()
+
+    @staticmethod
     def transfer_ownership(account: int, bot: Text, current_owner: Text, to_user: Text):
-        AccountProcessor.get_bot_and_validate_status(bot)
+        bot_info = AccountProcessor.get_bot_and_validate_status(bot)
         AccountProcessor.__update_role(bot, to_user, current_owner, ACCESS_ROLES.OWNER.value, validate_ownership_modification=False)
         AccountProcessor.__update_role(bot, current_owner, current_owner, ACCESS_ROLES.ADMIN.value, validate_ownership_modification=False)
         AccountProcessor.__change_bot_account(bot, to_user)
@@ -253,6 +261,7 @@ class AccountProcessor:
             current_owner, bot,
             [f'Ownership transferred to {to_user}']
         )
+        return bot_info["name"]
 
     @staticmethod
     def __change_bot_account(bot_id: Text, to_owner: Text):
@@ -261,7 +270,7 @@ class AccountProcessor:
         BotAccess.objects(bot=bot_id, status__ne=ACTIVITY_STATUS.DELETED.value).update(set__bot_account=user['account'])
 
     @staticmethod
-    def accept_bot_access_invite(token: Text, bot: Text):
+    def validate_request_and_accept_bot_access_invite(token: Text, bot: Text):
         """
         Activate user's access to bot.
 
@@ -269,8 +278,18 @@ class AccountProcessor:
         :param bot: bot id
         """
         accessor_email = Utility.verify_token(token)
-        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         AccountProcessor.get_user_details(accessor_email)
+        return AccountProcessor.accept_bot_access_invite(bot, accessor_email)
+
+    @staticmethod
+    def accept_bot_access_invite(bot: Text, accessor_email: Text):
+        """
+        Activate user's access to bot.
+
+        :param accessor_email: user invited to bot
+        :param bot: bot id
+        """
+        bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         try:
             bot_access = BotAccess.objects(accessor_email=accessor_email, bot=bot,
                                            status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value).get()
@@ -304,7 +323,8 @@ class AccountProcessor:
 
         :param txt: name to search
         """
-        return User.objects().search_text(txt).order_by("$text_score").limit(5)
+        for user in User.objects().search_text(txt).order_by("$text_score").limit(5):
+            yield user.email
 
     @staticmethod
     def remove_bot_access(bot: Text, **kwargs):
@@ -561,6 +581,7 @@ class AccountProcessor:
                 conversation=open('template/emails/conversation.html', 'r').read(),
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
+                update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -573,6 +594,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['conversation'] = system_properties['mail_templates']['conversation']
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
+        Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
 
     @staticmethod
     async def confirm_email(token: str):

@@ -1,6 +1,7 @@
 import pytest
 import os
 
+from kairon import cli
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
@@ -10,7 +11,6 @@ from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
 import argparse
-from kairon import cli
 
 
 class TestTrainingCli:

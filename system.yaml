@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://localhost/test"}
+  url: ${DATABASE_URL:"mongodb://192.168.100.38:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
@@ -51,6 +51,7 @@ model:
     event_url: ${TEST_EVENT_URL}
     dataset_threshold: ${TEST_DATA_THRESHOLD:10}
     dataset_percentage: ${TEST_DATA_PERCENTAGE:10}
+    augmentation_similarity_threshold: ${TEST_DATA_AUGMENTATION_SIMILARITY_THRESHOLD:0.70}
   data_importer:
     limit_per_day: ${IMPORTING_LIMIT_PER_DAY:5}
     event_url: ${IMPORTER_EVENT_URL}
@@ -84,40 +85,3 @@ history_server:
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}
-
-channels:
-  slack:
-    required_fields:
-      - bot_user_oAuth_token
-      - slack_signing_secret
-    optional_fields:
-      - slack_channel
-  telegram:
-    required_fields:
-      - access_token
-      - username_for_bot
-    api:
-      url: https://api.telegram.org
-  hangouts:
-    required_fields:
-      - project_id
-  messenger:
-    required_fields:
-      - app_secret
-      - page_access_token
-      - verify_token
-
-  instagram:
-    required_fields:
-      - app_secret
-      - page_access_token
-      - verify_token
-
-integrations:
-  pipedrive:
-    required_fields:
-      - name
-    optional_fields:
-      - org_name
-      - email
-      - phone

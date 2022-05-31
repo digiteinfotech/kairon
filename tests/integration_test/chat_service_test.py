@@ -5,15 +5,20 @@ from urllib.parse import urlencode, quote_plus
 
 from mock import patch
 from mongoengine import connect
+from rasa.core.agent import Agent
 from tornado.test.testing_test import AsyncHTTPTestCase
 
 from kairon.api.models import RegisterAccount
+from kairon.chat.agent.agent import KaironAgent
+from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
+from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
 import responses
@@ -47,6 +52,11 @@ ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                            "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
                                            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
                                       bot, user="test@chat.com")
+ChatDataProcessor.save_channel_config({
+    "connector_type": "whatsapp",
+    "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
+    bot, user="test@chat.com"
+)
 responses.start()
 encoded_url = urlencode({'url': f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus)
 responses.add("GET",
@@ -90,6 +100,33 @@ class TestChatServer(AsyncHTTPTestCase):
     def empty_store(self, *args, **kwargs):
         return None
 
+    def mock_agent_response(self, *args, **kwargs):
+        return {'nlu': {'text': '!@#$%^&*()', 'intent': {'name': 'nlu_fallback', 'confidence': 0.7}, 'entities': [],
+                        'intent_ranking': [{'name': 'nlu_fallback', 'confidence': 0.7},
+                                           {'id': 7699795435555413769, 'name': 'bot_challenge',
+                                            'confidence': 0.3011210560798645},
+                                           {'id': -8614851775639803374, 'name': 'mood_unhappy',
+                                            'confidence': 0.28137511014938354},
+                                           {'id': -7686226624851022724, 'name': 'deny',
+                                            'confidence': 0.2647826075553894},
+                                           {'id': -963050110453472522, 'name': 'affirm',
+                                            'confidence': 0.0759304016828537},
+                                           {'id': -4665925488010208305, 'name': 'goodbye',
+                                            'confidence': 0.028776828199625015},
+                                           {'id': -8510124799033185183, 'name': 'mood_great',
+                                            'confidence': 0.025189757347106934},
+                                           {'id': 7378347921649253395, 'name': 'greet',
+                                            'confidence': 0.022824246436357498}],
+                        'response_selector': {'all_retrieval_intents': [], 'default': {
+                            'response': {'id': None, 'responses': None, 'response_templates': None, 'confidence': 0.0,
+                                         'intent_response_key': None, 'utter_action': 'utter_None',
+                                         'template_name': 'utter_None'}, 'ranking': []}},
+                        'slots': ['kairon_action_response: None', 'bot: 6275ebcba06e09a1b818c70a',
+                                  'session_started_metadata: None']},
+                'action': ['utter_please_rephrase', 'action_listen'], 'response': [{'recipient_id': 'test@chat.com',
+                                                                                    'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
+                'events': None}
+
     def test_index(self):
         response = self.fetch("/")
         self.assertEqual(response.code, 200)
@@ -117,12 +154,12 @@ class TestChatServer(AsyncHTTPTestCase):
             assert headers[0] == ('Server', 'Secure')
             assert headers[1] == ('Content-Type', 'application/json')
             assert headers[3] == ('Access-Control-Allow-Origin', '*')
-            assert headers[4] == ('Access-Control-Allow-Headers', 'x-requested-with')
+            assert headers[4] == ('Access-Control-Allow-Headers', '*')
             assert headers[5] == ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
             assert headers[6] == ('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
             assert headers[7] == ('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self'; form-action 'self';")
             assert headers[8] == ('X-Content-Type-Options', 'no-sniff')
-            assert headers[9] == ('Referrer-Policy', 'origin')
+            assert headers[9] == ('Referrer-Policy', 'no-referrer')
             assert headers[10] == ('Permissions-Policy',
                                    'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
             assert headers[11] == ('Cache-Control', 'no-store')
@@ -329,12 +366,12 @@ class TestChatServer(AsyncHTTPTestCase):
         assert headers[0] == ('Server', 'Secure')
         assert headers[1] == ('Content-Type', 'application/json')
         assert headers[3] == ('Access-Control-Allow-Origin', '*')
-        assert headers[4] == ('Access-Control-Allow-Headers', 'x-requested-with')
+        assert headers[4] == ('Access-Control-Allow-Headers', '*')
         assert headers[5] == ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         assert headers[6] == ('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
         assert headers[7] == ('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self'; form-action 'self';")
         assert headers[8] == ('X-Content-Type-Options', 'no-sniff')
-        assert headers[9] == ('Referrer-Policy', 'origin')
+        assert headers[9] == ('Referrer-Policy', 'no-referrer')
         assert headers[10] == ('Permissions-Policy',
                                'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
         assert headers[11] == ('Cache-Control', 'no-store')
@@ -609,3 +646,704 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 422)
         assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
+
+    def test_whatsapp_invalid_token(self):
+        response = self.fetch(
+            f"/api/bot/whatsapp/{bot}/123",
+            headers={"hub.verify_token": "invalid", "hub.challenge": "return test"},
+            method="GET")
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
+
+    def test_whatsapp_channel_not_configured(self):
+        access_token = Authentication.generate_integration_token(
+            bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="whatsapp integration"
+        )
+
+        response = self.fetch(
+            f"/api/bot/whatsapp/{bot2}/{access_token}",
+            headers={"hub.verify_token": "valid"},
+            method="POST",
+            body=json.dumps({
+                "object": "whatsapp_business_account",
+                "entry": [{
+                    "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                    "changes": [{
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678"
+                            },
+                            "contacts": [{
+                                "profile": {
+                                    "name": "udit"
+                                },
+                                "wa_id": "wa-123456789"
+                            }],
+                            "messages": [{
+                                "from": "910123456789",
+                                "id": "wappmsg.ID",
+                                "timestamp": "21-09-2022 12:05:00",
+                                "text": {
+                                    "body": "hi"
+                                },
+                                "type": "text"
+                            }]
+                        },
+                        "field": "messages"
+                    }]
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 422)
+        assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Access denied for this endpoint"}'
+
+    def test_whatsapp_invalid_hub_signature(self):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return False
+
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wamid.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "body": "hi"
+                                    },
+                                    "type": "text"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        assert actual == 'not validated'
+
+    @responses.activate
+    def test_whatsapp_valid_text_message_request(self):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return True
+
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+        )
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "body": "hi"
+                                    },
+                                    "type": "text"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+
+    @responses.activate
+    def test_whatsapp_valid_button_message_request(self):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return True
+
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+        )
+
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "button": {
+                                        "text": "buy now",
+                                        "payload": "buy kairon for 1 billion"
+                                    },
+                                    "type": "button"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+
+    @responses.activate
+    def test_whatsapp_valid_attachment_message_request(self):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return True
+
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+        )
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/sdfghj567", json={}
+        )
+
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "id": "sdfghj567"
+                                    },
+                                    "type": "doument"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+
+    @responses.activate
+    def test_whatsapp_valid_unsupported_message_request(self):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return True
+
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+        )
+
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "body": "hi"
+                                    },
+                                    "type": "text"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+
+    @staticmethod
+    def add_live_agent_config(bot_id, email):
+        config = {
+            "agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+            "override_bot": False, "trigger_on_intents": ["nlu_fallback"],
+            "trigger_on_actions": ["action_default_fallback"]
+        }
+        responses.reset()
+        responses.start()
+        responses.add(
+            "GET",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            json={"payload": []}
+        )
+        responses.add(
+            "POST",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            json={"inbox_identifier": "tSaxZWrxyFowmFHzWwhMwi5y"}
+        )
+        LiveAgentsProcessor.save_config(config, bot_id, email)
+        responses.stop()
+
+    def test_chat_with_chatwoot_agent_fallback(self):
+        self.add_live_agent_config(bot, user["email"])
+        responses.reset()
+        responses.start()
+        responses.add(
+            "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+            json={
+                "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                "id": 16951464,
+                "name": 'test@chat.com',
+                "email": None
+            }
+        )
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
+            json={
+                "id": 2,
+                "inbox_id": 14036,
+                "contact_last_seen_at": 0,
+                "status": "open",
+                "agent_last_seen_at": 0,
+                "messages": [],
+                "contact": {
+                    "id": 16951464,
+                    "name": "test@chat.com",
+                    "email": None,
+                    "phone_number": None,
+                    "account_id": 69469,
+                    "created_at": "2022-05-04T15:40:58.190Z",
+                    "updated_at": "2022-05-04T15:40:58.190Z",
+                    "additional_attributes": {},
+                    "identifier": None,
+                    "custom_attributes": {},
+                    "last_activity_at": None,
+                    "label_list": []
+                }
+            }
+        )
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
+            json={
+                "id": 7487848,
+                "content": "hello",
+                "inbox_id": 14036,
+                "conversation_id": 2,
+                "message_type": 0,
+                "content_type": "text",
+                "content_attributes": {},
+                "created_at": 1651679560,
+                "private": False,
+                "source_id": None,
+                "sender": {
+                    "additional_attributes": {},
+                    "custom_attributes": {},
+                    "email": None,
+                    "id": 16951464,
+                    "identifier": None,
+                    "name": "test@chat.com",
+                    "phone_number": None,
+                    "thumbnail": "",
+                    "type": "contact"
+                }
+            }
+        )
+
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+            with patch.object(Agent, "handle_text") as mock_agent:
+                mock_agent.side_effect = self.mock_agent_response
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat",
+                    method="POST",
+                    body=json.dumps({"data": "!@#$%^&*()"}).encode('utf-8'),
+                    headers={"Authorization": token_type + " " + token},
+                    connect_timeout=0,
+                    request_timeout=0
+                )
+                responses.stop()
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert actual["success"]
+                assert actual["error_code"] == 0
+                assert actual["data"]
+                assert Utility.check_empty_string(actual["message"])
+                assert isinstance(actual["data"]["nlu"], dict)
+                assert actual["data"]["nlu"]["intent"]
+                assert actual["data"]["nlu"]["entities"] == []
+                assert actual["data"]["nlu"]["intent_ranking"]
+                assert actual["data"]["nlu"]["response_selector"]
+                assert actual["data"]["nlu"]["slots"]
+                assert isinstance(actual["data"]["action"], list)
+                assert actual["data"]["response"]
+                assert actual["data"]["agent_handoff"] == {'initiate': True, 'type': 'chatwoot',
+                                                           'additional_properties': {
+                                                               'destination': 2,
+                                                               'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
+                                                           }}
+
+                assert len(EndUserMetricsProcessor.get_logs(bot)) == 1
+
+    def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+            with patch.object(KaironAgent, "handle_text") as mock_agent:
+                mock_agent.side_effect = self.mock_agent_response
+                responses.reset()
+                responses.start()
+                responses.add(
+                    "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+                    json={
+                        "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                        "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                        "id": 16951464,
+                        "name": 'test@chat.com',
+                        "email": None
+                    }
+                )
+                responses.add(
+                    "POST",
+                    'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
+                    json={
+                        "id": 3,
+                        "inbox_id": 14036,
+                        "contact_last_seen_at": 0,
+                        "status": "open",
+                        "agent_last_seen_at": 0,
+                        "messages": [],
+                        "contact": {
+                            "id": 16951464,
+                            "name": "test@chat.com",
+                            "email": None,
+                            "phone_number": None,
+                            "account_id": 69469,
+                            "created_at": "2022-05-04T15:40:58.190Z",
+                            "updated_at": "2022-05-04T15:40:58.190Z",
+                            "additional_attributes": {},
+                            "identifier": None,
+                            "custom_attributes": {},
+                            "last_activity_at": None,
+                            "label_list": []
+                        }
+                    }
+                )
+                responses.add(
+                    "POST",
+                    'https://app.chatwoot.com/api/v1/accounts/12/conversations/3/messages',
+                    json={
+                        "id": 7487848,
+                        "content": "who can i contact?",
+                        "inbox_id": 14036,
+                        "conversation_id": 3,
+                        "message_type": 0,
+                        "content_type": "text",
+                        "content_attributes": {},
+                        "created_at": 1651679560,
+                        "private": False,
+                        "source_id": None,
+                        "sender": {
+                            "additional_attributes": {},
+                            "custom_attributes": {},
+                            "email": None,
+                            "id": 16951464,
+                            "identifier": None,
+                            "name": "test@chat.com",
+                            "phone_number": None,
+                            "thumbnail": "",
+                            "type": "contact"
+                        }
+                    }
+                )
+
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat",
+                    method="POST",
+                    body=json.dumps({"data": "@#$%^&*()_"}).encode('utf-8'),
+                    headers={"Authorization": token_type + " " + token},
+                    connect_timeout=0,
+                    request_timeout=0
+                )
+                responses.stop()
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert actual["success"]
+                assert actual["error_code"] == 0
+                assert actual["data"]
+                assert Utility.check_empty_string(actual["message"])
+                assert isinstance(actual["data"]["nlu"], dict)
+                assert actual["data"]["nlu"]["intent"]
+                assert actual["data"]["nlu"]["entities"] == []
+                assert actual["data"]["nlu"]["intent_ranking"]
+                assert actual["data"]["nlu"]["response_selector"]
+                assert actual["data"]["nlu"]["slots"]
+                assert isinstance(actual["data"]["action"], list)
+                assert actual["data"]["response"]
+                assert actual["data"]["agent_handoff"] == {'initiate': True, 'type': 'chatwoot',
+                                                           'additional_properties': {
+                                                               'destination': 3,
+                                                               'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
+                                                           }}
+                assert len(EndUserMetricsProcessor.get_logs(bot)) == 2
+
+    def test_chat_with_live_agent(self):
+        responses.reset()
+        responses.start()
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
+            json={
+                "id": 7487848,
+                "content": "hello, please resolve my ticket",
+                "inbox_id": 14036,
+                "conversation_id": 2,
+                "message_type": 0,
+                "content_type": "text",
+                "content_attributes": {},
+                "created_at": 1651679560,
+                "private": False,
+                "source_id": None,
+                "sender": {
+                    "additional_attributes": {},
+                    "custom_attributes": {},
+                    "email": None,
+                    "id": 16951464,
+                    "identifier": None,
+                    "name": "test@chat.com",
+                    "phone_number": None,
+                    "thumbnail": "",
+                    "type": "contact"
+                }
+            }
+        )
+        response = self.fetch(
+            f"/api/bot/{bot}/agent/live/2",
+            method="POST",
+            body=json.dumps({"data": "hello, please resolve my ticket"}).encode('utf-8'),
+            headers={"Authorization": token_type + " " + token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]
+        assert Utility.check_empty_string(actual["message"])
+        responses.stop()
+
+    def test_chat_with_live_agent_failed_to_send_message(self):
+        responses.reset()
+        responses.start()
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
+            status=503,
+            body="Temporarily unable to handle a request"
+        )
+        response = self.fetch(
+            f"/api/bot/{bot}/agent/live/2",
+            method="POST",
+            body=json.dumps({"data": "need help"}).encode('utf-8'),
+            headers={"Authorization": token_type + " " + token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == "Failed to send message: Service Unavailable"
+        responses.stop()
+
+    def test_chat_with_live_agent_with_integration_token(self):
+        access_token = Authentication.generate_integration_token(
+            bot, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/agent/live/.+'],
+            name="integration token for live agent chat"
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
+            json={
+                "id": 7487848,
+                "content": "need help",
+                "inbox_id": 14036,
+                "conversation_id": 2,
+                "message_type": 0,
+                "content_type": "text",
+                "content_attributes": {},
+                "created_at": 1651679560,
+                "private": False,
+                "source_id": None,
+                "sender": {
+                    "additional_attributes": {},
+                    "custom_attributes": {},
+                    "email": None,
+                    "id": 16951464,
+                    "identifier": None,
+                    "name": "test@chat.com",
+                    "phone_number": None,
+                    "thumbnail": "",
+                    "type": "contact"
+                }
+            }
+        )
+        response = self.fetch(
+            f"/api/bot/{bot}/agent/live/2",
+            method="POST",
+            body=json.dumps({"data": "need help"}).encode('utf-8'),
+            headers={"Authorization": token_type + " " + access_token, "X-USER": "test@chat.com"},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]
+        assert Utility.check_empty_string(actual["message"])
+        responses.stop()
+
+    def test_chat_with_chatwoot_agent_fallback_failed_to_initiate(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+            with patch.object(KaironAgent, "handle_text") as mock_agent:
+                mock_agent.side_effect = self.mock_agent_response
+                responses.reset()
+                responses.start()
+                responses.add(
+                    "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+                    json={
+                        "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                        "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                        "id": 16951464,
+                        "name": 'test@chat.com',
+                        "email": None
+                    }
+                )
+                responses.add(
+                    "POST",
+                    'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
+                    status=503,
+                    body="Temporarily unable to handle a request"
+                )
+
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat",
+                    method="POST",
+                    body=json.dumps({"data": "!@#$%^&*()"}).encode('utf-8'),
+                    headers={"Authorization": token_type + " " + token},
+                    connect_timeout=0,
+                    request_timeout=0
+                )
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert actual["success"]
+                assert actual["error_code"] == 0
+                assert actual["data"]
+                assert Utility.check_empty_string(actual["message"])
+                assert isinstance(actual["data"]["nlu"], dict)
+                assert actual["data"]["nlu"]["intent"]
+                assert actual["data"]["nlu"]["entities"] == []
+                assert actual["data"]["nlu"]["intent_ranking"]
+                assert actual["data"]["nlu"]["response_selector"]
+                assert actual["data"]["nlu"]["slots"]
+                assert isinstance(actual["data"]["action"], list)
+                assert actual["data"]["response"]
+                assert actual["data"]["agent_handoff"] == {'initiate': False, 'type': 'chatwoot',
+                                                           'additional_properties': None}
+                responses.reset()
+                responses.stop()
+                logs = EndUserMetricsProcessor.get_logs(bot)
+                assert len(logs) == 3
+                assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
