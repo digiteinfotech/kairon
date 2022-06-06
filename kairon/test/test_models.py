@@ -6,7 +6,6 @@ from loguru import logger
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 
 from kairon.exceptions import AppException
-from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 
@@ -332,6 +331,8 @@ class TestDataGenerator:
 
     @staticmethod
     def augment_sentences(input_text: list):
+        from kairon.shared.augmentation.utils import AugmentationUtils
+
         from kairon import Utility
 
         final_augmented_text = []
@@ -376,6 +377,8 @@ class TestDataGenerator:
 
     @staticmethod
     def __augment_sentences_with_mistakes_and_entities(input_text: str, stopwords, entity_names):
+        from kairon.shared.augmentation.utils import AugmentationUtils
+
         augmented_text = list(AugmentationUtils.augment_sentences_with_errors([input_text], stopwords))
         augmented_text.extend(
             TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
@@ -384,6 +387,8 @@ class TestDataGenerator:
 
     @staticmethod
     def __augment_entities(input_text: list, stopwords: list, entity_names: list):
+        from kairon.shared.augmentation.utils import AugmentationUtils
+
         final_augmented_text = []
 
         if input_text and stopwords:
