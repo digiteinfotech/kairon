@@ -28,6 +28,7 @@ class ValidationLogs(Document):
     training_examples = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     domain = EmbeddedDocumentField(DomainLog, default=DomainLog)
     config = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
+    chat_client_config = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     rules = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     actions = ListField()
     exception = StringField(default="")

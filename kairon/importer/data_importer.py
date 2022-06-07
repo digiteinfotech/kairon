@@ -53,4 +53,5 @@ class DataImporter:
                                                           self.validator.story_graph,
                                                           self.validator.intents,
                                                           self.validator.actions,
+                                                          self.validator.chat_client_config,
                                                           self.overwrite, self.files_to_save)

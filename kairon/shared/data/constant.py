@@ -165,7 +165,8 @@ ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
 ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
-REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions'}
+ALLOWED_CHAT_CLIENT_FORMATS = {"chat_client_config.yml", "chat_client_config.yaml"}
+REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', "chat_client_config"}
 COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
                    'http_actions': 0, 'jira_actions': 0, 'google_search_actions': 0, 'zendesk_actions': 0,
                    'email_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'rules': 0,

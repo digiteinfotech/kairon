@@ -14,7 +14,7 @@ from mongoengine.errors import ValidationError
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
-    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE
+    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_FORMATS
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
@@ -61,7 +61,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_ACTIONS_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS).union(ALLOWED_CHAT_CLIENT_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 
@@ -114,6 +114,8 @@ class DataUtility:
             requirements.add('rules')
         if ALLOWED_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
             requirements.add('actions')
+        if ALLOWED_CHAT_CLIENT_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('chat_client_config')
 
         if requirements == REQUIREMENTS:
             if delete_dir_on_exception:
@@ -123,7 +125,7 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None):
+                                  http_action: File = None, chat_client_config: File = None):
         """
         convert mongo data  to individual files
 
@@ -133,6 +135,7 @@ class DataUtility:
         :param config: config data
         :param rules: rules data
         :param http_action: http actions data
+        :param chat_client_config: chat client config data
         :return: files path
         """
         from rasa.shared.constants import DEFAULT_DATA_PATH
@@ -153,6 +156,8 @@ class DataUtility:
 
         training_file_loc['rules'] = await DataUtility.write_rule_data(data_path, rules)
         training_file_loc['http_action'] = await DataUtility.write_http_data(tmp_dir, http_action)
+        training_file_loc['chat_client_config'] = await DataUtility.write_chat_client_config_data(tmp_dir,
+                                                                                                  chat_client_config)
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
         training_file_loc['stories'] = stories_path
@@ -188,6 +193,22 @@ class DataUtility:
         if http_action and http_action.filename:
             http_path = os.path.join(temp_path, http_action.filename)
             Utility.write_to_file(http_path, await http_action.read())
+            return http_path
+        else:
+            return None
+
+    @staticmethod
+    async def write_chat_client_config_data(temp_path: str, chat_client_config: File = None):
+        """
+       writes the chat_client_config data to file and returns the file path
+
+       :param temp_path: path of the temporary directory
+       :param chat_client_config: chat_client_config data
+       :return: chat_client_config file path
+       """
+        if chat_client_config and chat_client_config.filename:
+            http_path = os.path.join(temp_path, chat_client_config.filename)
+            Utility.write_to_file(http_path, await chat_client_config.read())
             return http_path
         else:
             return None

@@ -96,6 +96,7 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
+            chat_client_config: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -108,13 +109,15 @@ class MongoProcessor:
         :param stories: stories data
         :param rules: rules data
         :param http_action: http_actions data
+        :param chat_client_config: chat client config data
         :param config: config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action,
+                                                                  chat_client_config)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -131,7 +134,8 @@ class MongoProcessor:
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions)
+        client_config = self.get_chat_client_config(bot)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -166,6 +170,7 @@ class MongoProcessor:
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, 'actions.yml')
+            chat_client_config_path = os.path.join(path, 'chat_client_config.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -174,9 +179,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
-            TrainingDataValidator.validate_custom_actions(actions)
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
+            TrainingDataValidator.validate_custom_actions(actions)
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, chat_client_config, overwrite,
                                     REQUIREMENTS.copy())
         except InvalidDomain as e:
             logging.exception(e)
@@ -190,7 +196,7 @@ class MongoProcessor:
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
-                           overwrite: bool = False, what: set = REQUIREMENTS.copy()):
+                           chat_client_config: Dict = None, overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
@@ -206,6 +212,8 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
+        if 'chat_client_config' in what :
+            self.save_chat_client_config(chat_client_config, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -3103,7 +3111,7 @@ class MongoProcessor:
         files_received = REQUIREMENTS - files_to_prepare
         is_event_data = False
 
-        if files_received.difference({'config', 'actions'}):
+        if files_received.difference({'config', 'actions', 'chat_client_config'}):
             is_event_data = True
         else:
             non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
@@ -3115,11 +3123,13 @@ class MongoProcessor:
         """
         actions = None
         config = None
+        chat_config = None
         validation_failed = False
         error_summary = {}
         component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'actions.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
+        chat_client_config_path = os.path.join(data_home_dir, 'chat_client_config.yml')
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             validation_failed, error_summary, actions_count = TrainingDataValidator.validate_custom_actions(actions)
@@ -3128,6 +3138,10 @@ class MongoProcessor:
             config = Utility.read_yaml(config_path)
             errors = TrainingDataValidator.validate_rasa_config(config)
             error_summary['config'] = errors
+        if os.path.exists(chat_client_config_path):
+            chat_config = Utility.read_yaml(chat_client_config_path)
+            errors = TrainingDataValidator.validate_chat_client_config(chat_config)
+            error_summary['chat_client_config'] = errors
 
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
@@ -3135,7 +3149,10 @@ class MongoProcessor:
                 files_to_save.add('actions')
             if config:
                 files_to_save.add('config')
-            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save)
+            if chat_config:
+                files_to_save.add('chat_client_config')
+            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save,
+                                    chat_client_config=chat_config)
         else:
             validation_failed = True
         return {'summary': error_summary, 'component_count': component_count, 'validation_failed': validation_failed}
@@ -3184,6 +3201,12 @@ class MongoProcessor:
             rules_path = os.path.join(data_path, "rules.yml")
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+
+        if 'chat_client_config' in which:
+            config_path = os.path.join(bot_data_home_dir, "chat_client_config.yml")
+            chat_client_config = self.get_chat_client_config(bot)
+            chat_config_as_str = yaml.dump(chat_client_config).encode()
+            Utility.write_to_file(config_path, chat_config_as_str)
 
     def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
         idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
@@ -3390,6 +3413,8 @@ class MongoProcessor:
         return settings
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
+        if not config:
+            return
         client_config = self.get_chat_client_config(bot)
         if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
             client_config.config['headers'].pop('authorization')

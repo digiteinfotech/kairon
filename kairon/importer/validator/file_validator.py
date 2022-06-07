@@ -70,7 +70,7 @@ class TrainingDataValidator(Validator):
                 domain_path=domain_path, training_data_paths=training_data_paths, config_file=config_path,
             )
             cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
-
+            cls.chat_client_config = Utility.read_yaml(os.path.join(root_dir, 'chat_client_config.yml'))
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
             exc = Utility.replace_file_name(str(e), root_dir)
@@ -675,6 +675,29 @@ class TrainingDataValidator(Validator):
         if not is_data_invalid and raise_exception:
             raise AppException("Invalid actions.yml. Check logs!")
 
+    def validate_chat_client_configuration(self, raise_exception: bool = True):
+        """
+        Validate kairon chat client configuration.
+        @param raise_exception: Set this flag to false to prevent raising exceptions.
+        @return:
+        """
+        data_error = TrainingDataValidator.validate_chat_client_config(self.chat_client_config)
+        self.summary.update({"chat_client_config": data_error})
+        if data_error and raise_exception:
+            raise AppException("Invalid chat_client_config.yml. Check logs!")
+
+    @staticmethod
+    def validate_chat_client_config(config: Dict):
+        """
+        Validate kairon chat client configuration.
+        @param config: chat client config.
+        @return: validation logs
+        """
+        data_error = []
+        if not isinstance(config, Dict):
+            data_error.append("Invalid chat client config, dictionary expected")
+        return data_error
+
     def validate_training_data(self, raise_exception: bool = True):
         """
         Validate training data.
@@ -687,6 +710,7 @@ class TrainingDataValidator(Validator):
             self.verify_nlu(raise_exception)
             self.validate_actions(raise_exception)
             self.validate_config(raise_exception)
+            self.validate_chat_client_configuration(raise_exception)
         except Exception as e:
             logger.error(str(e))
             raise AppException(e)
