@@ -8848,6 +8848,46 @@ def test_get_roles():
     assert actual["data"] == Utility.system_metadata["roles"]
 
 
+def test_generate_limited_access_temporary_token():
+    response = client.get(
+        f"/api/auth/{pytest.bot}/integration/token/temp",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["access_token"]
+    assert actual["data"]["token_type"]
+    assert actual["message"] == "This token will be shown only once. Please copy this somewhere safe." \
+                                "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
+    token = actual["data"]["access_token"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/chat/client/config/{actual['data']['access_token']}",
+        headers={"Authorization": pytest.token_type + " " + token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert isinstance(actual["data"], dict)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/slots",
+        headers={"Authorization": pytest.token_type + " " + token},
+    )
+    actual = response.json()
+    assert actual == {"success":False, "message":"Access denied for this endpoint", "data":None, "error_code":422}
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/intents",
+        json={"data": "happier"},
+        headers={"Authorization": pytest.token_type + " " + token},
+    )
+    actual = response.json()
+    assert actual == {"success": False, "message": "Access denied for this endpoint", "data": None, "error_code": 422}
+
+
 def test_delete_account():
     response_log = client.post(
         "/api/auth/login",
