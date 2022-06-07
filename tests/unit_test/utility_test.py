@@ -14,6 +14,7 @@ from websockets import InvalidStatusCode
 from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from unittest.mock import patch
@@ -141,13 +142,15 @@ class TestUtility:
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
         http_action_content = "http_actions:\n- action_name: action_performanceUsers1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        chat_client_config_content = "name: kairon\nbuttonType: button\nwelcomeMessage: Hello! How are you?\ncontainer: \"#root\"\nhost: https://localhost:8000/api/bot/chat\nuserType: custom\nuserStorage: ls".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action, chat_client_config)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
         assert os.path.exists(training_file_loc['stories'])
@@ -176,21 +179,30 @@ class TestUtility:
         assert os.path.exists(training_file_loc['root'])
 
     @pytest.mark.asyncio
-    async def test_write_training_data(self):
-        from kairon.shared.data.processor import MongoProcessor
-        processor = MongoProcessor()
-        await (
-            processor.save_from_path(
-                "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
+    async def test_write_training_data(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
+            monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
+            from kairon.shared.data.processor import MongoProcessor
+            processor = MongoProcessor()
+            await (
+                processor.save_from_path(
+                    "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
+                )
             )
-        )
-        training_data = processor.load_nlu("test_load_from_path_yml_training_files")
-        story_graph = processor.load_stories("test_load_from_path_yml_training_files")
-        domain = processor.load_domain("test_load_from_path_yml_training_files")
-        config = processor.load_config("test_load_from_path_yml_training_files")
-        http_action = processor.load_http_action("test_load_from_path_yml_training_files")
-        training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action)
-        assert os.path.exists(training_data_path)
+            training_data = processor.load_nlu("test_load_from_path_yml_training_files")
+            story_graph = processor.load_stories("test_load_from_path_yml_training_files")
+            domain = processor.load_domain("test_load_from_path_yml_training_files")
+            config = processor.load_config("test_load_from_path_yml_training_files")
+            http_action = processor.load_http_action("test_load_from_path_yml_training_files")
+            training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action)
+            assert os.path.exists(training_data_path)
 
     def test_write_training_data_with_rules(self):
         from kairon.shared.data.processor import MongoProcessor
@@ -332,19 +344,19 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'actions', 'config', 'domain'} == requirements
+        assert {'actions', 'chat_client_config','config', 'domain'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'domain', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'domain', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):

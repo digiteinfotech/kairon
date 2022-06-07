@@ -83,6 +83,7 @@ class DataImporterLogProcessor:
         action_summary = [{'type': s, 'count': component_count.get(s), 'data': summary.get(s)} for s in
                           summary.keys() if s in {f'{a_type.value}s' for a_type in ActionType}]
         doc.actions = action_summary
+        doc.chat_client_config = TrainingComponentLog(data=summary.get('chat_client_config'))
         doc.domain = DomainLog(
             intents_count=component_count['domain'].get('intents'),
             actions_count=component_count['domain'].get('actions'),
