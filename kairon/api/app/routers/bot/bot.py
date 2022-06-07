@@ -262,10 +262,10 @@ async def add_custom_responses(
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
-@router.put("/response/{utterance}/{id}", response_model=Response)
+@router.put("/response/{utterance}/{utterance_id}", response_model=Response)
 async def edit_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -273,7 +273,7 @@ async def edit_responses(
     Updates existing utterance value
     """
     mongo_processor.edit_text_response(
-        id,
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),
@@ -284,18 +284,18 @@ async def edit_responses(
     }
 
 
-@router.put("/response/json/{utterance}/{id}", response_model=Response)
+@router.put("/response/json/{utterance}/{utterance_id}", response_model=Response)
 async def edit_custom_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: DictData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Updates existing utterance value
     """
-    mongo_processor.edit_response(
-        id,
+    mongo_processor.edit_custom_response(
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),

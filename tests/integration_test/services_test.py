@@ -1268,6 +1268,15 @@ def test_edit_custom_response():
     assert actual["error_code"] == 0
     assert actual["message"] == "Utterance updated!"
 
+    training_examples = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    training_examples = training_examples.json()
+    assert training_examples["data"][0]["_id"]
+    assert training_examples["data"][0]['value'] == {'custom': {'question': 'How are you?'}}
+    assert training_examples["data"][0]['type'] == 'json'
+
 
 def test_remove_custom_utterance():
     response = client.post(
