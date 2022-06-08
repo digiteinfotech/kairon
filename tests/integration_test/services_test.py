@@ -8896,6 +8896,26 @@ def test_generate_limited_access_temporary_token():
     actual = response.json()
     assert actual == {"success": False, "message": "Access denied for this endpoint", "data": None, "error_code": 422}
 
+    response = client.post(
+        "/api/account/bot",
+        json={"data": "covid-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['error_code'] == 0
+
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    bot_2 = response['data']['account_owned'][1]['_id']
+
+    response = client.get(
+        f"/api/bot/{bot_2}/chat/client/config/{token}",
+    )
+    actual = response.json()
+    assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
+
 
 def test_delete_account():
     response_log = client.post(

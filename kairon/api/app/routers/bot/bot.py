@@ -1052,8 +1052,8 @@ async def get_chat_client_config_url(
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config_using_uid(uid: str):
-    decoded_uid = Utility.decode_limited_access_token(uid)
+async def get_client_config_using_uid(bot: str, uid: str):
+    decoded_uid = Utility.validate_bot_specific_token(bot, uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
