@@ -262,10 +262,10 @@ async def add_custom_responses(
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
-@router.put("/response/{utterance}/{id}", response_model=Response)
+@router.put("/response/{utterance}/{utterance_id}", response_model=Response)
 async def edit_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -273,7 +273,7 @@ async def edit_responses(
     Updates existing utterance value
     """
     mongo_processor.edit_text_response(
-        id,
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),
@@ -284,18 +284,18 @@ async def edit_responses(
     }
 
 
-@router.put("/response/json/{utterance}/{id}", response_model=Response)
+@router.put("/response/json/{utterance}/{utterance_id}", response_model=Response)
 async def edit_custom_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: DictData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Updates existing utterance value
     """
-    mongo_processor.edit_response(
-        id,
+    mongo_processor.edit_custom_response(
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),
@@ -1052,8 +1052,8 @@ async def get_chat_client_config_url(
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config_using_uid(uid: str):
-    decoded_uid = Utility.decode_limited_access_token(uid)
+async def get_client_config_using_uid(bot: str, uid: str):
+    decoded_uid = Utility.validate_bot_specific_token(bot, uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
