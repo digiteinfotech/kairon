@@ -895,6 +895,13 @@ class Utility:
             raise PyJWTError("Invalid token")
 
     @staticmethod
+    def validate_bot_specific_token(bot: Text, token: Text):
+        claims = Utility.decode_limited_access_token(token)
+        if bot != claims.get('sub'):
+            raise AppException("Invalid token")
+        return claims
+
+    @staticmethod
     def load_json_file(path: Text, raise_exc: bool = True):
         if not os.path.exists(path) and raise_exc:
             raise AppException('file not found')

@@ -48,6 +48,7 @@ RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
 
 ENV HF_HOME="/home/cache"
+ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
 COPY kairon ${MODEL_TESTER_HOME}/kairon
 COPY metadata ${MODEL_TESTER_HOME}/app/metadata
