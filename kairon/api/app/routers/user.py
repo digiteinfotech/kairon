@@ -5,7 +5,7 @@ from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
-from kairon.api.models import Response, BotAccessRequest, TextData, RecaptchaVerifiedTextData
+from kairon.api.models import Response, BotAccessRequest, RecaptchaVerifiedTextData
 from kairon.shared.models import User
 from fastapi import Depends
 from fastapi import BackgroundTasks

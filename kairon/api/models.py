@@ -31,7 +31,7 @@ class RecaptchaVerifiedRequest(BaseModel):
                 "POST", url, validate_status=True, err_msg="Failed to validate recaptcha: "
             )
             if not resp['success']:
-                raise AppException(f"Failed to validate recaptcha")
+                raise AppException("Failed to validate recaptcha")
         return values
 
 
@@ -57,7 +57,7 @@ class RequestData(BaseModel):
 
 class TextData(BaseModel):
     data: str
-    
+
 
 class RecaptchaVerifiedTextData(RecaptchaVerifiedRequest):
     data: str
