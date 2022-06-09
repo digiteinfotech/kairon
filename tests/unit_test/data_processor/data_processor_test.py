@@ -99,36 +99,32 @@ class TestMongoProcessor:
         return _read_and_get_data
 
     @pytest.mark.asyncio
-    async def test_load_from_path(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+    async def test_load_from_path(self):
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             processor = MongoProcessor()
             result = await (
                 processor.save_from_path(
                     "./tests/testing_data/initial", bot="tests", user="testUser"
                 )
             )
-            assert result is None
+        assert result is None
 
     @pytest.mark.asyncio
-    async def test_save_from_path_yml(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+    async def test_save_from_path_yml(self):
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             processor = MongoProcessor()
             result = await (
                 processor.save_from_path(
                     "./tests/testing_data/yml_training_files", bot="test_load_yml", user="testUser"
                 )
             )
-            assert result is None
-            assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
-            assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
-            assert len(
-                list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
-            assert len(
-                list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
+        assert result is None
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
+        assert len(
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
+        assert len(
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -258,147 +254,164 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            processor = MongoProcessor()
-            await (
-                processor.save_from_path(
-                    "./tests/testing_data/upper_case_data", bot="test_upload_case_insensitivity", user="testUser"
-                )
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        await (
+            processor.save_from_path(
+                "./tests/testing_data/upper_case_data", bot="test_upload_case_insensitivity", user="testUser"
             )
-            training_data = processor.load_nlu("test_upload_case_insensitivity")
-            assert isinstance(training_data, TrainingData)
-            assert training_data.intents == {'deny', 'greet'}
-            assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka',
-                                                     'karnataka': 'karnataka', 'KA': 'karnataka'}
-            assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'},
-                                                    {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
-            assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']},
-                                                   {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
-            story_graph = processor.load_stories("test_upload_case_insensitivity")
-            assert story_graph.story_steps[0].block_name == 'greet'
-            assert story_graph.story_steps[1].block_name == 'say goodbye'
-            domain = processor.load_domain("test_upload_case_insensitivity")
-            assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                     'location', 'user', 'kairon_action_response'] for slot in domain.slots)
-            assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
-                                                     'utter_default']
-            assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response']
-            assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
-                                                                    'email_id': [
-                                                                        {'type': 'from_entity', 'entity': 'email_id'}]}},
-                                    'ask_location': {
-                                        'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
-                                                           'application_name': [
-                                                               {'type': 'from_entity', 'entity': 'application_name'}]}}}
-            assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
-                                           'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
-            assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                                 'action_get_microsoft_application']
-            assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
-            assert domain.templates == {
-                'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
-                'utter_greet': [{'text': 'Hey! How are you?'}], 'utter_goodbye': [{'text': 'Bye'}],
-                'utter_default': [{'text': 'Can you rephrase!'}]}
-            rules = processor.fetch_rule_block_names("test_upload_case_insensitivity")
-            assert rules == ['rule which will not wait for user message once it was applied',
-                             'ask the user to rephrase whenever they send a message with low nlu confidence']
-            actions = processor.load_http_action("test_upload_case_insensitivity")
-            assert actions == {'http_action': [
-                {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
-                 'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
-                                                      {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
-                                                      {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
-                                                      {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
-                                                      {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
-                                                      {'key': 'testParam4', 'value': 'testvalue1',
-                                                       'parameter_type': 'slot'}],
-                 'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                                 {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'}]},
-                {'action_name': 'action_get_microsoft_application', 'response': 'json',
-                 'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
-                 'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                                 {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'},
-                                 {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
-                                 {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
-                                 {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
-                                 {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
-                                 {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
-                                 {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot'}]}]}
-            assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
-                                                                                                         'utter_greet',
-                                                                                                         'utter_default',
-                                                                                                         'utter_please_rephrase'}
+        )
+        training_data = processor.load_nlu("test_upload_case_insensitivity")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.intents == {'deny', 'greet'}
+        assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka',
+                                                 'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'},
+                                                {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
+        assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']},
+                                               {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        story_graph = processor.load_stories("test_upload_case_insensitivity")
+        assert story_graph.story_steps[0].block_name == 'greet'
+        assert story_graph.story_steps[1].block_name == 'say goodbye'
+        domain = processor.load_domain("test_upload_case_insensitivity")
+        assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
+                                 'location', 'user', 'kairon_action_response'] for slot in domain.slots)
+        assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
+                                                 'utter_default']
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response']
+        assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
+                                                                'email_id': [
+                                                                    {'type': 'from_entity', 'entity': 'email_id'}]}},
+                                'ask_location': {
+                                    'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
+                                                       'application_name': [
+                                                           {'type': 'from_entity', 'entity': 'application_name'}]}}}
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+                                       'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
+        assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
+                                                                             'action_get_microsoft_application']
+        assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
+        assert domain.templates == {
+            'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
+            'utter_greet': [{'text': 'Hey! How are you?'}], 'utter_goodbye': [{'text': 'Bye'}],
+            'utter_default': [{'text': 'Can you rephrase!'}]}
+        rules = processor.fetch_rule_block_names("test_upload_case_insensitivity")
+        assert rules == ['rule which will not wait for user message once it was applied',
+                         'ask the user to rephrase whenever they send a message with low nlu confidence']
+        actions = processor.load_http_action("test_upload_case_insensitivity")
+        assert actions == {'http_action': [
+            {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
+             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
+                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
+                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
+                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
+                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
+                                                  {'key': 'testParam4', 'value': 'testvalue1',
+                                                   'parameter_type': 'slot'}],
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'}]},
+            {'action_name': 'action_get_microsoft_application', 'response': 'json',
+             'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'},
+                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
+                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
+                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
+                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
+                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
+                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot'}]}]}
+        assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
+                                                                                                     'utter_greet',
+                                                                                                     'utter_default',
+                                                                                                     'utter_please_rephrase'}
+        chat_client_config = processor.get_chat_client_config("test_upload_case_insensitivity").config
+        chat_client_config = chat_client_config.copy()
+        chat_client_config.pop("headers")
+        chat_client_config.pop("chat_server_base_url")
+        assert chat_client_config == {
+                          "name": "kairon", "buttonType": "button", "welcomeMessage": "Hello! How are you?", "container": "#root",
+                          "host": "https://localhost:8000/api/bot/chat", "userType": "custom", "userStorage": "ls",
+                          "styles": {
+                              "headerStyle": { "backgroundColor": "#2b3595", "color": "#ffffff", "height": "60px" },
+                              "botStyle": { "backgroundColor": "#e0e0e0", "color": "#000000", "iconSrc": "",
+                                            "fontFamily": "'Roboto', sans-serif", "fontSize": "14px", "showIcon": "false" },
+                              "userStyle": { "backgroundColor": "#2b3595", "color": "#ffffff", "iconSrc": "",
+                                             "fontFamily": "'Roboto', sans-serif", "fontSize": "14px", "showIcon": "false" },
+                              "buttonStyle": { "color": "#ffffff", "backgroundColor": "#2b3595" },
+                              "containerStyles": { "height": "500px", "width": "350px", "background": "#ffffff" } },
+                          "headerClassName": "", "containerClassName": "", "chatContainerClassName": "", "userClassName": "",
+                          "botClassName": "", "formClassName": "", "openButtonClassName": "" }
 
     @pytest.mark.asyncio
     async def test_load_from_path_yml_training_files(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            processor = MongoProcessor()
-            await (
-                processor.save_from_path(
-                    "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
-                )
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        await (
+            processor.save_from_path(
+                "./tests/testing_data/yml_training_files", bot="test_load_from_path_yml_training_files", user="testUser"
             )
-            training_data = processor.load_nlu("test_load_from_path_yml_training_files")
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = processor.load_stories("test_load_from_path_yml_training_files")
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[14].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[14].events[2].entities[0].get('end')
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[15].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[15].events[2].entities[0].get('end')
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = processor.load_domain("test_load_from_path_yml_training_files")
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 12
-            assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-            assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
-            assert domain.intent_properties.__len__() == 29
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        domain.intent_properties.get(intent)['used_entities']]) == 27
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        not domain.intent_properties.get(intent)['used_entities']]) == 2
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 11
-            assert domain.forms.__len__() == 2
-            assert domain.forms.__len__() == 2
-            assert domain.forms['ticket_attributes_form'] == {
-                'required_slots': {'date_time': [{'type': 'from_entity', 'entity': 'date_time'}],
-                                   'priority': [{'type': 'from_entity', 'entity': 'priority'}]}}
-            assert domain.forms['ticket_file_form'] == {
-                'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
-            assert isinstance(domain.forms, dict)
-            assert domain.user_actions.__len__() == 45
-            assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
-            assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
-            assert domain.intents.__len__() == 29
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert domain.slots[2].type_name == "any"
-            rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
-            assert len(rules) == 4
-            actions = processor.load_http_action("test_load_from_path_yml_training_files")
-            assert isinstance(actions, dict) is True
-            assert len(actions['http_action']) == 5
-            assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 27
+        )
+        training_data = processor.load_nlu("test_load_from_path_yml_training_files")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("test_load_from_path_yml_training_files")
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = processor.load_domain("test_load_from_path_yml_training_files")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 11
+        assert domain.forms.__len__() == 2
+        assert domain.forms.__len__() == 2
+        assert domain.forms['ticket_attributes_form'] == {
+            'required_slots': {'date_time': [{'type': 'from_entity', 'entity': 'date_time'}],
+                               'priority': [{'type': 'from_entity', 'entity': 'priority'}]}}
+        assert domain.forms['ticket_file_form'] == {
+            'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
+        assert isinstance(domain.forms, dict)
+        assert domain.user_actions.__len__() == 45
+        assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
+        assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert domain.slots[2].type_name == "any"
+        rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
+        assert len(rules) == 4
+        actions = processor.load_http_action("test_load_from_path_yml_training_files")
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_action']) == 5
+        assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 27
+        chat_client_config = processor.get_chat_client_config("test_load_from_path_yml_training_files").config
+        assert len(chat_client_config) == 17
 
     @pytest.mark.asyncio
     async def test_load_from_path_error(self):
@@ -412,57 +425,58 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_load_from_path_all_scenario(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            processor = MongoProcessor()
-            await (
-                processor.save_from_path("./tests/testing_data/all", bot="all", user="testUser")
-            )
-            training_data = processor.load_nlu("all")
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = processor.load_stories("all")
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = processor.load_domain("all")
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 11
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 10
-            assert domain.forms.__len__() == 2
-            assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
-            assert isinstance(domain.forms, dict)
-            assert domain.user_actions.__len__() == 40
-            assert processor.list_actions('all')["actions"].__len__() == 13
-            assert domain.intents.__len__() == 29
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert Utterances.objects(bot='all').count() == 27
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        await (
+            processor.save_from_path("./tests/testing_data/all", bot="all", user="testUser")
+        )
+        training_data = processor.load_nlu("all")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("all")
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = processor.load_domain("all")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 11
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 10
+        assert domain.forms.__len__() == 2
+        assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
+        assert isinstance(domain.forms, dict)
+        assert domain.user_actions.__len__() == 40
+        assert processor.list_actions('all')["actions"].__len__() == 13
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert Utterances.objects(bot='all').count() == 27
+        chat_client_config = processor.get_chat_client_config("all").config
+        assert len(chat_client_config) == 17
+        assert chat_client_config["welcomeMessage"] == "Hello! How are you? I am All"
+
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_scenario_append(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+    async def test_load_from_path_all_scenario_append(self):
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             processor = MongoProcessor()
             await (
                 processor.save_from_path("./tests/testing_data/all",
@@ -470,43 +484,43 @@ class TestMongoProcessor:
                                          overwrite=False,
                                          user="testUser")
             )
-            training_data = processor.load_nlu("all")
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = processor.load_stories("all")
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = processor.load_domain("all")
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 11
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 10
-            assert domain.forms.__len__() == 2
-            assert isinstance(domain.forms, dict)
-            assert domain.user_actions.__len__() == 40
-            assert domain.intents.__len__() == 29
-            assert processor.list_actions('all')["actions"].__len__() == 13
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert Utterances.objects(bot='all').count() == 27
+        training_data = processor.load_nlu("all")
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = processor.load_stories("all")
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = processor.load_domain("all")
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 11
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 10
+        assert domain.forms.__len__() == 2
+        assert isinstance(domain.forms, dict)
+        assert domain.user_actions.__len__() == 40
+        assert domain.intents.__len__() == 29
+        assert processor.list_actions('all')["actions"].__len__() == 13
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert Utterances.objects(bot='all').count() == 27
 
     def test_load_nlu(self):
         processor = MongoProcessor()
@@ -1216,10 +1230,7 @@ class TestMongoProcessor:
         def mongo_store(*args, **kwargs):
             return None
 
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
             monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
             monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
@@ -1231,11 +1242,11 @@ class TestMongoProcessor:
                 "./tests/testing_data/initial", bot="test_initial", user="testUser"
             ))
 
-            model_path = start_training("test_initial", "testUser")
-            assert model_path
-            model_training = ModelTraining.objects(bot="test_initial", status="Done")
-            assert model_training.__len__() == 1
-            assert model_training.first().model_path == model_path
+        model_path = start_training("test_initial", "testUser")
+        assert model_path
+        model_training = ModelTraining.objects(bot="test_initial", status="Done")
+        assert model_training.__len__() == 1
+        assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
         start_training("test", "testUser")
@@ -1475,12 +1486,11 @@ class TestMongoProcessor:
             endpoint = processor.get_history_server_endpoint("test_bot")
 
     def test_download_data_files(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            processor = MongoProcessor()
-            file = processor.download_files("tests")
-            assert file.endswith(".zip")
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        file = processor.download_files("tests")
+        assert file.endswith(".zip")
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -2099,34 +2109,32 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_upload_and_save(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
 
-            processor = MongoProcessor()
-            nlu_content = "## intent:greet\n- hey\n- hello".encode()
-            stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
-            config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
-            domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
-            chat_client_config_content = "name: kairon\nbuttonType: button\nwelcomeMessage: Hello! How are you?\ncontainer: \"#root\"\nhost: https://localhost:8000/api/bot/chat\nuserType: custom\nuserStorage: ls".encode()
-            nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-            stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
-            config = UploadFile(filename="config.yml", file=BytesIO(config_content))
-            domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-            chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
-            await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config, "test_upload_and_save",
-                                            "rules_creator")
-            assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
-            assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
-            assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
-            assert len(
-                list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        chat_client_config_content = "name: kairon\nbuttonType: button\nwelcomeMessage: Hello! How are you?\ncontainer: \"#root\"\nhost: https://localhost:8000/api/bot/chat\nuserType: custom\nuserStorage: ls".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config, "test_upload_and_save",
+                                        "rules_creator")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
+        assert len(next(ChatClientConfig.objects(bot="test_upload_and_save", user="rules_creator")).config) == 7
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_rules(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+    async def test_upload_and_save_with_rules(self):
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             processor = MongoProcessor()
             nlu_content = "## intent:greet\n- hey\n- hello".encode()
             stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
@@ -2136,24 +2144,21 @@ class TestMongoProcessor:
             nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
             stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
             config = UploadFile(filename="config.yml", file=BytesIO(config_content))
-            chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(config_content))
             domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
             rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
             await processor.upload_and_save(nlu, domain, stories, config, rules, None, None, "test_upload_and_save",
                                             "rules_creator")
-            assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
-            assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-            assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
-            assert len(
-                list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                              status=True))) == 2
-            assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
+        assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_http_action(self, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+    async def test_upload_and_save_with_http_action(self):
+        with patch("kairon.shared.data.processor.MongoProcessor.save_chat_client_config"):
             processor = MongoProcessor()
             nlu_content = "## intent:greet\n- hey\n- hello".encode()
             stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
@@ -2167,13 +2172,64 @@ class TestMongoProcessor:
             http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
             await processor.upload_and_save(nlu, domain, stories, config, None, http_action, None, "test_upload_and_save",
                                             "rules_creator")
-            assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
-            assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
-            assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
-            assert len(
-                list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                              status=True))) == 2
-            assert len(list(HttpActionConfig.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
+                                          status=True))) == 2
+        assert len(list(HttpActionConfig.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_chat_client_config(self, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        chat_client_config_content = "name: kairon\nbuttonType: button\nwelcomeMessage: Hello! How are you?\ncontainer: \"#root\"\nhost: https://localhost:8000/api/bot/chat\nuserType: custom\nuserStorage: ls".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config, "test_upload_and_save",
+                                        "chat_client_config")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="chat_client_config", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="chat_client_config", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="chat_client_config", status=True))) == 3
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="chat_client_config",
+                                          status=True))) == 2
+        assert len(next(ChatClientConfig.objects(bot="test_upload_and_save", user="chat_client_config")).config) == 7
+
+
+    @pytest.mark.asyncio
+    async def test_upload_and_save_with_chat_client_config_empty(self, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        chat_client_config_content = "".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config, "test_upload_and_save",
+                                        "chat_client_config_empty")
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="chat_client_config_empty", status=True))) == 6
+        assert len(list(Stories.objects(bot="test_upload_and_save", user="chat_client_config_empty", status=True))) == 1
+        assert len(list(Responses.objects(bot="test_upload_and_save", user="chat_client_config_empty", status=True))) == 3
+        assert len(
+            list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="chat_client_config_empty",
+                                          status=True))) == 2
+        assert len(ChatClientConfig.objects(bot="test_upload_and_save", user="chat_client_config_empty")) == 0
 
     def test_load_and_delete_http_action(self):
         HttpActionConfig(
@@ -2356,244 +2412,249 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_save_training_data_all(self, get_training_data, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            path = 'tests/testing_data/yml_training_files'
-            bot = 'test'
-            user = 'test'
-            nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
-            mongo_processor = MongoProcessor()
-            mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
-                                               chat_client_config, True)
-
-            training_data = mongo_processor.load_nlu(bot)
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = mongo_processor.load_stories(bot)
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[14].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[14].events[2].entities[0].get('end')
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[15].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[15].events[2].entities[0].get('end')
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = mongo_processor.load_domain(bot)
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 12
-            assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-            assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
-            assert domain.intent_properties.__len__() == 29
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        domain.intent_properties.get(intent)['used_entities']]) == 27
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        not domain.intent_properties.get(intent)['used_entities']]) == 2
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 11
-            assert domain.form_names.__len__() == 2
-            assert domain.user_actions.__len__() == 45
-            assert domain.intents.__len__() == 29
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert domain.slots[2].type_name == "any"
-            rules = mongo_processor.fetch_rule_block_names(bot)
-            assert len(rules) == 4
-            actions = mongo_processor.load_http_action(bot)
-            assert isinstance(actions, dict) is True
-            assert len(actions['http_action']) == 5
-            assert len(Actions.objects(type='http_action', bot=bot)) == 5
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 11
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 45
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert domain.slots[2].type_name == "any"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 4
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_action']) == 5
+        assert len(Actions.objects(type='http_action', bot=bot)) == 5
+        chat_client_config = mongo_processor.get_chat_client_config(bot).config
+        assert len(chat_client_config) == 17
+        assert chat_client_config["welcomeMessage"] == "Hello! How are you? I am yml bot"
 
 
     @pytest.mark.asyncio
     async def test_save_training_data_no_rules_and_http_actions(self, get_training_data, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        path = 'tests/testing_data/all'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            path = 'tests/testing_data/all'
-            bot = 'test'
-            user = 'test'
-            nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, True)
 
-            mongo_processor = MongoProcessor()
-            mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, True)
-
-            training_data = mongo_processor.load_nlu(bot)
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = mongo_processor.load_stories(bot)
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-            assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = mongo_processor.load_domain(bot)
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 11
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 10
-            assert domain.form_names.__len__() == 2
-            assert domain.user_actions.__len__() == 40
-            assert domain.intents.__len__() == 29
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            rules = mongo_processor.fetch_rule_block_names(bot)
-            assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
-            actions = mongo_processor.load_http_action(bot)
-            assert not actions['http_action']
+        training_data = mongo_processor.load_nlu(bot)
+        chat_client_config = mongo_processor.get_chat_client_config(bot).config
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
+        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 11
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 10
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 40
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
+        actions = mongo_processor.load_http_action(bot)
+        assert not actions['http_action']
+        assert len(chat_client_config) == 17
+        assert chat_client_config["welcomeMessage"] == "Hello! How are you? I am All"
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_overwrite(self, get_training_data, monkeypatch):
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            path = 'tests/testing_data/yml_training_files'
-            bot = 'test'
-            user = 'test'
-            nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, True)
 
-            mongo_processor = MongoProcessor()
-            mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, True)
-
-            training_data = mongo_processor.load_nlu(bot)
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 292
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = mongo_processor.load_stories(bot)
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 16
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[14].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[14].events[2].entities[0].get('end')
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[15].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[15].events[2].entities[0].get('end')
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = mongo_processor.load_domain(bot)
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 12
-            assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-            assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
-            assert domain.intent_properties.__len__() == 29
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        domain.intent_properties.get(intent)['used_entities']]) == 27
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        not domain.intent_properties.get(intent)['used_entities']]) == 2
-            assert domain.templates.keys().__len__() == 27
-            assert domain.entities.__len__() == 11
-            assert domain.form_names.__len__() == 2
-            assert domain.user_actions.__len__() == 45
-            assert domain.intents.__len__() == 29
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert domain.slots[2].type_name == "any"
-            rules = mongo_processor.fetch_rule_block_names(bot)
-            assert len(rules) == 4
-            actions = mongo_processor.load_http_action(bot)
-            assert isinstance(actions, dict) is True
-            assert len(actions['http_action']) == 5
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 292
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.intent_properties.__len__() == 29
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 2
+        assert domain.templates.keys().__len__() == 27
+        assert domain.entities.__len__() == 11
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 45
+        assert domain.intents.__len__() == 29
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert domain.slots[2].type_name == "any"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 4
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_action']) == 5
+        chat_client_config = mongo_processor.get_chat_client_config(bot).config
+        assert len(chat_client_config) == 17
+        assert chat_client_config["welcomeMessage"] == "Hello! How are you? I am yml bot"
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_append(self, get_training_data, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            path = 'tests/testing_data/validator/append'
-            bot = 'test'
-            user = 'test'
-            nlu, story_graph, domain, config, http_actions , chat_client_config = await get_training_data(path)
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        path = 'tests/testing_data/validator/append'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions , chat_client_config = await get_training_data(path)
 
-            mongo_processor = MongoProcessor()
-            mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, False)
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, chat_client_config, False)
 
-            training_data = mongo_processor.load_nlu(bot)
-            assert isinstance(training_data, TrainingData)
-            assert training_data.training_examples.__len__() == 295
-            assert training_data.entity_synonyms.__len__() == 3
-            assert training_data.regex_features.__len__() == 5
-            assert training_data.lookup_tables.__len__() == 1
-            story_graph = mongo_processor.load_stories(bot)
-            assert isinstance(story_graph, StoryGraph) is True
-            assert story_graph.story_steps.__len__() == 18
-            assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[14].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[14].events[2].entities[0].get('end')
-            assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
-            assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
-            assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-            assert not story_graph.story_steps[15].events[2].entities[0].get('start')
-            assert not story_graph.story_steps[15].events[2].entities[0].get('end')
-            assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
-            assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
-            domain = mongo_processor.load_domain(bot)
-            assert isinstance(domain, Domain)
-            assert domain.slots.__len__() == 12
-            assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-            assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
-            assert domain.intent_properties.__len__() == 30
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        domain.intent_properties.get(intent)['used_entities']]) == 27
-            assert len([intent for intent in domain.intent_properties.keys() if
-                        not domain.intent_properties.get(intent)['used_entities']]) == 3
-            assert domain.templates.keys().__len__() == 29
-            assert domain.entities.__len__() == 11
-            assert domain.form_names.__len__() == 2
-            assert domain.user_actions.__len__() == 50
-            assert domain.intents.__len__() == 30
-            assert not Utility.check_empty_string(
-                domain.templates["utter_cheer_up"][0]["image"]
-            )
-            assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-            assert domain.templates["utter_offer_help"][0]["custom"]
-            assert domain.slots[0].type_name == "any"
-            assert domain.slots[1].type_name == "any"
-            assert domain.slots[2].type_name == "any"
-            rules = mongo_processor.fetch_rule_block_names(bot)
-            assert len(rules) == 4
-            actions = mongo_processor.load_http_action(bot)
-            assert isinstance(actions, dict) is True
-            assert len(actions['http_action']) == 5
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 295
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 18
+        assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[14].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[14].events[2].entities[0].get('end')
+        assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
+        assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
+        assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
+        assert not story_graph.story_steps[15].events[2].entities[0].get('start')
+        assert not story_graph.story_steps[15].events[2].entities[0].get('end')
+        assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
+        assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.intent_properties.__len__() == 30
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 3
+        assert domain.templates.keys().__len__() == 29
+        assert domain.entities.__len__() == 11
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 50
+        assert domain.intents.__len__() == 30
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.slots[0].type_name == "any"
+        assert domain.slots[1].type_name == "any"
+        assert domain.slots[2].type_name == "any"
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 4
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_action']) == 5
+        chat_client_config = mongo_processor.get_chat_client_config(bot).config
+        assert len(chat_client_config) == 17
+        assert chat_client_config["welcomeMessage"] == "Hello! How are you? I am append bot"
 
     def test_delete_nlu_only(self):
         bot = 'test'
@@ -2845,40 +2906,40 @@ class TestMongoProcessor:
         Utility.delete_directory(os.path.join('training_data', 'test'))
 
     def test_prepare_training_data_for_validation_no_data(self, resource_prepare_training_data_for_validation, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
 
-            bot = 'test'
-            processor = MongoProcessor()
-            processor.prepare_training_data_for_validation(bot)
-            bot_home = os.path.join('training_data', bot)
-            assert os.path.exists(bot_home)
-            dirs = os.listdir(bot_home)
-            files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
-                os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-            assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot)
+        bot_home = os.path.join('training_data', bot)
+        assert os.path.exists(bot_home)
+        dirs = os.listdir(bot_home)
+        files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
+            os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CHAT_CLIENT_FORMATS.intersection(files).__len__() == 1
 
     def test_prepare_training_data_for_validation_with_home_dir(self,
                                                                 resource_prepare_training_data_for_validation_with_home_dir, monkeypatch):
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
 
-            bot = 'test'
-            processor = MongoProcessor()
-            processor.prepare_training_data_for_validation(bot, pytest.dir)
-            bot_home = pytest.dir
-            assert os.path.exists(bot_home)
-            files = set(os.listdir(bot_home)).union(os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
-            assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot, pytest.dir)
+        bot_home = pytest.dir
+        assert os.path.exists(bot_home)
+        files = set(os.listdir(bot_home)).union(os.listdir(os.path.join(bot_home, DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CHAT_CLIENT_FORMATS.intersection(files).__len__() == 1
 
     @pytest.fixture()
     def resource_prepare_training_data_for_validation_nlu_only(self):
@@ -2923,24 +2984,22 @@ class TestMongoProcessor:
         assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
 
     def test_prepare_training_data_for_validation(self, resource_prepare_training_data_for_validation, monkeypatch):
-
-        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
-            monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
-            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
-            bot = 'test'
-            processor = MongoProcessor()
-            processor.prepare_training_data_for_validation(bot)
-            bot_home = os.path.join('training_data', bot)
-            assert os.path.exists(bot_home)
-            dirs = os.listdir(bot_home)
-            files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
-                os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
-            assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
-            assert ALLOWED_CHAT_CLIENT_FORMATS.intersection(files).__len__() == 1
+        monkeypatch.setattr(AccountProcessor, 'get_bot', self._mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', self._mock_list_bot_accessors)
+        bot = 'test'
+        processor = MongoProcessor()
+        processor.prepare_training_data_for_validation(bot)
+        bot_home = os.path.join('training_data', bot)
+        assert os.path.exists(bot_home)
+        dirs = os.listdir(bot_home)
+        files = set(os.listdir(os.path.join(bot_home, dirs[0]))).union(
+            os.listdir(os.path.join(bot_home, dirs[0], DEFAULT_DATA_PATH)))
+        assert ALLOWED_DOMAIN_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CONFIG_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_NLU_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_STORIES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_RULES_FORMATS.intersection(files).__len__() == 1
+        assert ALLOWED_CHAT_CLIENT_FORMATS.intersection(files).__len__() == 1
 
 
 

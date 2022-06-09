@@ -3143,7 +3143,7 @@ class MongoProcessor:
             errors = TrainingDataValidator.validate_chat_client_config(chat_config)
             error_summary['chat_client_config'] = errors
 
-        if not validation_failed and not error_summary.get('config'):
+        if not validation_failed and not error_summary.get('config') and not error_summary.get('chat_client_config'):
             files_to_save = set()
             if actions and set(actions.keys()).intersection({a_type.value for a_type in ActionType}):
                 files_to_save.add('actions')

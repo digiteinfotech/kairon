@@ -1,6 +1,6 @@
 name: kairon
 buttonType: button
-welcomeMessage: Hello! How are you?
+welcomeMessage: Hello! How are you? I am All
 container: "#root"
 host: https://localhost:8000/api/bot/chat
 userType: custom
