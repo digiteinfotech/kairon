@@ -21,6 +21,9 @@ security:
   token_expire: ${TOKEN_EXPIRE:10080}
   fernet_key: ${FERNET_KEY:"gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="}
   integrations_per_user: ${INTEGRATIONS_PER_USER:2}
+  validate_recaptcha: ${VALIDATE_RECAPTCHA:false}
+  recaptcha_secret: ${RECAPTCHA_SECRET}
+  recaptcha_url: https://www.google.com/recaptcha/api/siteverify
 
 sso:
   google:

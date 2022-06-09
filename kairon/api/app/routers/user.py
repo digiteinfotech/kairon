@@ -5,7 +5,7 @@ from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
-from kairon.api.models import Response, BotAccessRequest, TextData
+from kairon.api.models import Response, BotAccessRequest, RecaptchaVerifiedTextData
 from kairon.shared.models import User
 from fastapi import Depends
 from fastapi import BackgroundTasks
@@ -56,7 +56,7 @@ async def allow_bot_for_user(
 @router.post("/{bot}/invite/accept", response_model=Response)
 async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks: BackgroundTasks,
-        token: TextData, bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183")
+        token: RecaptchaVerifiedTextData, bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183")
 ):
     """
     Accepts a bot collaboration invitation sent via mail.
@@ -111,7 +111,7 @@ async def update_bot_access_for_user(
 
 @router.put("/{bot}/owner/change", response_model=Response)
 async def transfer_ownership(
-        request_data: TextData, background_tasks: BackgroundTasks,
+        request_data: RecaptchaVerifiedTextData, background_tasks: BackgroundTasks,
         bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
 ):
@@ -165,7 +165,7 @@ async def list_active_bot_invites(current_user: User = Security(Authentication.g
 
 @router.post("/search", response_model=Response)
 async def search_user(
-        request_data: TextData, current_user: User = Security(Authentication.get_current_user)
+        request_data: RecaptchaVerifiedTextData, current_user: User = Security(Authentication.get_current_user)
 ):
     """
     Lists active bot invites.
