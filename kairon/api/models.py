@@ -11,6 +11,30 @@ from pydantic import BaseModel, validator, SecretStr, root_validator, constr
 from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice
 
 
+class RecaptchaVerifiedRequest(BaseModel):
+    recaptcha_response: str = None
+    remote_ip: str = None
+
+    @root_validator
+    def validate_recaptcha(cls, values):
+        from kairon.shared.utils import Utility
+
+        secret = Utility.environment['security'].get('recaptcha_secret', None)
+        if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
+            if Utility.check_empty_string(values.get('recaptcha_response')):
+                raise AppException("recaptcha_response is required")
+            captcha_verifier = Utility.environment['security']['recaptcha_url']
+            url = f"{captcha_verifier}?secret={secret}&response={values.get('recaptcha_response')}"
+            if not Utility.check_empty_string(values.get('remote_ip')):
+                url = f"{url}&remoteip={values['remote_ip']}"
+            resp = Utility.execute_http_request(
+                "POST", url, validate_status=True, err_msg="Failed to validate recaptcha: "
+            )
+            if not resp['success']:
+                raise AppException(f"Failed to validate recaptcha")
+        return values
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -33,6 +57,10 @@ class RequestData(BaseModel):
 
 class TextData(BaseModel):
     data: str
+    
+
+class RecaptchaVerifiedTextData(RecaptchaVerifiedRequest):
+    data: str
 
 
 class TextDataLowerCase(BaseModel):
@@ -43,7 +71,7 @@ class ListData(BaseModel):
     data: List[str]
 
 
-class RegisterAccount(BaseModel):
+class RegisterAccount(RecaptchaVerifiedRequest):
     email: constr(to_lower=True, strip_whitespace=True)
     first_name: str
     last_name: str
@@ -72,7 +100,7 @@ class RegisterAccount(BaseModel):
         return v
 
 
-class BotAccessRequest(BaseModel):
+class BotAccessRequest(RecaptchaVerifiedRequest):
     email: str
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
@@ -137,7 +165,7 @@ class ComponentConfig(BaseModel):
         return v
 
 
-class Password(BaseModel):
+class Password(RecaptchaVerifiedRequest):
     data: str
     password: SecretStr
     confirm_password: SecretStr

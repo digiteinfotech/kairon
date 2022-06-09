@@ -104,6 +104,118 @@ def test_account_registration_error():
     assert actual["data"] is None
 
 
+def test_recaptcha_verified_request(monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration1234567890",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == "Account Registered!"
+
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890&remoteip=58.0.127.89",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "remote_ip": "58.0.127.89",
+                "email": "integration1234567@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration1234567",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == "Account Registered!"
+
+
+def test_recaptcha_verified_request_invalid(monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+            json={"success": False}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
+
+        rsps.add(
+            "POST",
+            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
+            json={"success": True}, status=204
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "987654321",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual['success'] == False
+        assert actual['message'].__contains__('Failed to validate recaptcha')
+        assert actual['data'] is None
+        assert actual['error_code'] == 422
+
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
+
+
 def test_account_registration():
     response = client.post(
         "/api/account/registration",
