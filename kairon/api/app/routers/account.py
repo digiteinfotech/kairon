@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Security
 from fastapi import BackgroundTasks
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData
+from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData, \
+    RecaptchaVerifiedTextData
 from kairon.shared.constants import OWNER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
@@ -24,7 +25,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
 
 
 @router.post("/email/confirmation", response_model=Response)
-async def verify(token: TextData, background_tasks: BackgroundTasks):
+async def verify(token: RecaptchaVerifiedTextData, background_tasks: BackgroundTasks):
     """
     Used to verify an account after the user has clicked the verification link in their mail
     """
@@ -35,7 +36,7 @@ async def verify(token: TextData, background_tasks: BackgroundTasks):
 
 
 @router.post("/password/reset", response_model=Response)
-async def password_link_generate(mail: TextData, background_tasks: BackgroundTasks):
+async def password_link_generate(mail: RecaptchaVerifiedTextData, background_tasks: BackgroundTasks):
     """
     Used to send a password reset link when the user clicks on the "Forgot Password" link and enters his/her mail id
     """
@@ -56,7 +57,7 @@ async def password_change(data: Password, background_tasks: BackgroundTasks):
 
 
 @router.post("/email/confirmation/link", response_model=Response)
-async def send_confirm_link(email: TextData, background_tasks: BackgroundTasks):
+async def send_confirm_link(email: RecaptchaVerifiedTextData, background_tasks: BackgroundTasks):
     """
     Used to send the account verification link to the mail id of the user
     """
