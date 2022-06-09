@@ -1242,11 +1242,11 @@ class TestMongoProcessor:
                 "./tests/testing_data/initial", bot="test_initial", user="testUser"
             ))
 
-        model_path = start_training("test_initial", "testUser")
-        assert model_path
-        model_training = ModelTraining.objects(bot="test_initial", status="Done")
-        assert model_training.__len__() == 1
-        assert model_training.first().model_path == model_path
+            model_path = start_training("test_initial", "testUser")
+            assert model_path
+            model_training = ModelTraining.objects(bot="test_initial", status="Done")
+            assert model_training.__len__() == 1
+            assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
         start_training("test", "testUser")
