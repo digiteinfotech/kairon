@@ -1,5 +1,8 @@
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 import validators
+from fastapi.param_functions import Form
+from fastapi.security import OAuth2PasswordRequestForm
+
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators
@@ -21,18 +24,47 @@ class RecaptchaVerifiedRequest(BaseModel):
 
         secret = Utility.environment['security'].get('recaptcha_secret', None)
         if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
-            if Utility.check_empty_string(values.get('recaptcha_response')):
-                raise AppException("recaptcha_response is required")
-            captcha_verifier = Utility.environment['security']['recaptcha_url']
-            url = f"{captcha_verifier}?secret={secret}&response={values.get('recaptcha_response')}"
-            if not Utility.check_empty_string(values.get('remote_ip')):
-                url = f"{url}&remoteip={values['remote_ip']}"
-            resp = Utility.execute_http_request(
-                "POST", url, validate_status=True, err_msg="Failed to validate recaptcha: "
-            )
-            if not resp['success']:
-                raise AppException("Failed to validate recaptcha")
+            Utility.validate_recaptcha(values.get('recaptcha_response'), values.get('remote_ip'))
         return values
+
+
+class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
+    """
+    Dependency class overridden from OAuth2PasswordRequestForm.
+    """
+
+    def __init__(
+            self,
+            grant_type: str = Form(None, regex="password"),
+            username: str = Form(...),
+            password: str = Form(...),
+            scope: str = Form(""),
+            client_id: Optional[str] = Form(None),
+            client_secret: Optional[str] = Form(None),
+            recaptcha_response: str = Form(None),
+            remote_ip: str = Form(None)
+    ):
+        """
+        @param grant_type: the OAuth2 spec says it is required and MUST be the fixed string "password".
+        Nevertheless, this dependency class is permissive and allows not passing it. If you want to enforce it,
+        use instead the OAuth2PasswordRequestFormStrict dependency.
+        @param username: username string. The OAuth2 spec requires the exact field name "username".
+        @param password: password string. The OAuth2 spec requires the exact field name "password".
+        @param scope: Optional string. Several scopes (each one a string) separated by spaces.
+        E.g. "items:read items:write users:read profile openid"
+        @param client_id: optional string. OAuth2 recommends sending the client_id and client_secret (if any)
+        using HTTP Basic auth, as: client_id:client_secret
+        @param client_secret: optional string. OAuth2 recommends sending the client_id and client_secret (if any)
+        using HTTP Basic auth, as: client_id:client_secret
+        @param recaptcha_response: optional string. recaptcha response.
+        @param remote_ip: optional string.  remote ip address.
+        """
+        from kairon.shared.utils import Utility
+
+        secret = Utility.environment['security'].get('recaptcha_secret', None)
+        if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
+            Utility.validate_recaptcha(recaptcha_response, remote_ip)
+        OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
 
 
 class Token(BaseModel):
