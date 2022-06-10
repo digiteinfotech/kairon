@@ -616,7 +616,6 @@ class AccountProcessor:
         user = AccountProcessor.get_user(email_confirm)
         return email_confirm, user['first_name']
 
-
     @staticmethod
     def is_user_confirmed(email: str):
         """
