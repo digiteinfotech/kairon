@@ -29,6 +29,9 @@ class RecaptchaVerifiedRequest(BaseModel):
 
 
 class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
+    """
+    Dependency class overridden from OAuth2PasswordRequestForm.
+    """
 
     def __init__(
             self,
@@ -41,6 +44,21 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
             recaptcha_response: str = Form(None),
             remote_ip: str = Form(None)
     ):
+        """
+        @param grant_type: the OAuth2 spec says it is required and MUST be the fixed string "password".
+        Nevertheless, this dependency class is permissive and allows not passing it. If you want to enforce it,
+        use instead the OAuth2PasswordRequestFormStrict dependency.
+        @param username: username string. The OAuth2 spec requires the exact field name "username".
+        @param password: password string. The OAuth2 spec requires the exact field name "password".
+        @param scope: Optional string. Several scopes (each one a string) separated by spaces.
+        E.g. "items:read items:write users:read profile openid"
+        @param client_id: optional string. OAuth2 recommends sending the client_id and client_secret (if any)
+        using HTTP Basic auth, as: client_id:client_secret
+        @param client_secret: optional string. OAuth2 recommends sending the client_id and client_secret (if any)
+        using HTTP Basic auth, as: client_id:client_secret
+        @param recaptcha_response: optional string. recaptcha response.
+        @param remote_ip: optional string.  remote ip address.
+        """
         from kairon.shared.utils import Utility
 
         secret = Utility.environment['security'].get('recaptcha_secret', None)
