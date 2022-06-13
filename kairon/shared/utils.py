@@ -1400,3 +1400,18 @@ class Utility:
             response = response.json()
 
         return response
+
+    @staticmethod
+    def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):
+        secret = Utility.environment['security'].get('recaptcha_secret', None)
+        if Utility.check_empty_string(recaptcha_response):
+            raise AppException("recaptcha_response is required")
+        captcha_verifier = Utility.environment['security']['recaptcha_url']
+        url = f"{captcha_verifier}?secret={secret}&response={recaptcha_response}"
+        if not Utility.check_empty_string(remote_ip):
+            url = f"{url}&remoteip={remote_ip}"
+        resp = Utility.execute_http_request(
+            "POST", url, validate_status=True, err_msg="Failed to validate recaptcha: "
+        )
+        if not resp['success']:
+            raise AppException("Failed to validate recaptcha")

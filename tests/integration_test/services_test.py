@@ -264,6 +264,54 @@ def test_api_wrong_password():
     assert actual["message"] == "Incorrect username or password"
 
 
+def test_api_login_with_recaptcha(monkeypatch):
+    email = "integration@demo.ai"
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl123456')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl2345",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl2345"},
+        )
+        actual = response.json()
+        assert all(
+            [
+                True if actual["data"][key] else False
+                for key in ["access_token", "token_type"]
+            ]
+        )
+
+
+def test_api_login_with_recaptcha_failed(monkeypatch):
+    email = "integration@demo.ai"
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl123456')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl23",
+            json={"success": False}
+        )
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl23"},
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
+
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1"},
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
+
+
 def test_api_login():
     email = "integration@demo.ai"
     response = client.post(

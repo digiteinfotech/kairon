@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Security, Path
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon import Utility
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response, IntegrationRequest
+from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
@@ -16,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Response)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()):
     """
     Authenticates the user and generates jwt token
     """
