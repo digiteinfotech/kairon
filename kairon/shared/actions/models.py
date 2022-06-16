@@ -30,6 +30,7 @@ class ActionType(str, Enum):
     jira_action = "jira_action"
     zendesk_action = "zendesk_action"
     pipedrive_leads_action = "pipedrive_leads_action"
+    hubspot_forms_action = "hubspot_forms_action"
 
 
 class LogicalOperators(str, Enum):

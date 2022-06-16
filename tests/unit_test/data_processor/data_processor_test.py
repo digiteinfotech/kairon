@@ -49,7 +49,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -6796,7 +6796,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -6816,7 +6816,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("test_with_action")
         assert actions == {
             'actions': ['action_check'],
-            'http_action': [], 'jira_action': [],
+            'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
@@ -6835,7 +6835,7 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
@@ -7115,6 +7115,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
+            'hubspot_forms_action': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7219,7 +7220,7 @@ class TestMongoProcessor:
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == {
-            'actions': [], 'zendesk_action': [],
+            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
@@ -7851,6 +7852,139 @@ class TestMongoProcessor:
             Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ],
+            'response': 'Form submitted'
+        }
+        assert processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "action_hubspot_forms", "type": "HUBSPOT_FORMS_ACTION"},
+        ]
+        story_dict = {'name': "story with hubspot form action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with hubspot form action", bot=bot,
+                                events__name='action_hubspot_forms', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with hubspot form action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'action_hubspot_forms', 'type': 'HUBSPOT_FORMS_ACTION'},
+        ]
+        processor.delete_complex_story('story with hubspot form action', 'STORY', bot, user)
+
+    def test_add_hubspot_forms_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='test_action', status=True, bot=bot).get()
+
+    def test_edit_hubspot_forms_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match=f'Action with name "{action.get("name")}" not found'):
+            processor.edit_hubspot_forms_action(action, bot, user)
+
+    def test_edit_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '123456785787',
+            'form_guid': 'asdfg:12345678787',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                {"key": 'company', 'value': 'digite', 'parameter_type': 'value'},
+                {"key": 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}
+            ],
+            'response': 'Hubspot Form submitted'
+        }
+        assert not processor.edit_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_list_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_hubspot_forms_actions(bot))
+        assert actions[0]['name'] == 'action_hubspot_forms'
+        assert actions[0]['portal_id'] == '123456785787'
+        assert actions[0]['form_guid'] == 'asdfg:12345678787'
+        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
+                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+        assert actions[0]['response'] == 'Hubspot Form submitted'
+
+    def test_delete_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('action_hubspot_forms', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
 
 
 class TestTrainingDataProcessor:

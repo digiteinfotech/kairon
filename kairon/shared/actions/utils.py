@@ -11,7 +11,7 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 
 from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
-    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction
+    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, HubspotFormsAction
 from .exception import ActionFailure
 from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
 from ..data.constant import SLOT_TYPE
@@ -169,6 +169,8 @@ class ActionUtility:
                 config = ActionUtility.get_zendesk_action_config(bot, name)
             elif action.get('type') == ActionType.pipedrive_leads_action.value:
                 config = ActionUtility.get_pipedrive_leads_action_config(bot, name)
+            elif action.get('type') == ActionType.hubspot_forms_action.value:
+                config = ActionUtility.get_hubspot_forms_action_config(bot, name)
             else:
                 raise ActionFailure(f'{action.get("type")} action is not supported with action server')
         except DoesNotExist as e:
@@ -271,6 +273,16 @@ class ActionUtility:
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("Pipedrive leads action not found")
+        return action
+
+    @staticmethod
+    def get_hubspot_forms_action_config(bot: str, name: str):
+        try:
+            action = HubspotFormsAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
+            logger.debug("hubspot_forms_action_config: " + str(action))
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Hubspot forms action not found")
         return action
 
     @staticmethod
@@ -545,6 +557,14 @@ class ActionUtility:
         if response.get("success") is not True:
             raise ActionFailure(f'Failed to attach note: {response}')
         return response['data']
+
+    @staticmethod
+    def prepare_hubspot_form_request(tracker, fields: list):
+        request = []
+        for field in fields:
+            parameter_value = ActionUtility.prepare_request(tracker, [field])
+            request.append({"name": field['key'], "value": parameter_value[field['key']]})
+        return request
 
 
 class ExpressionEvaluator:

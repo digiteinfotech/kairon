@@ -57,6 +57,8 @@ class ActionProcessor:
                 slots = await ActionProcessor.__process_zendesk_action(dispatcher, tracker, action_config)
             elif action_type == ActionType.pipedrive_leads_action.value:
                 slots = await ActionProcessor.__process_pipedrive_leads_action(dispatcher, tracker, action_config)
+            elif action_type == ActionType.hubspot_forms_action.value:
+                slots = await ActionProcessor.__process_hubspot_forms_action(dispatcher, tracker, action_config)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
@@ -370,6 +372,41 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 exception=exception,
+                bot_response=bot_response,
+                status=status
+            ).save()
+        dispatcher.utter_message(bot_response)
+        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+
+    @staticmethod
+    async def __process_hubspot_forms_action(dispatcher: CollectingDispatcher, tracker: Tracker, action_config: dict):
+        status = "SUCCESS"
+        exception = None
+        http_response = None
+        portal_id = action_config.get('portal_id')
+        form_guid = action_config.get('form_guid')
+        bot_response = action_config.get("response")
+        try:
+            http_url = f"https://api.hsforms.com/submissions/v3/integration/submit/{portal_id}/{form_guid}"
+            request_body = ActionUtility.prepare_hubspot_form_request(tracker, action_config.get("fields"))
+            http_response = ActionUtility.execute_http_request(
+                http_url=http_url, request_method="POST", request_body=request_body
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = str(e)
+            status = "FAILURE"
+            bot_response = "I have failed to process your request"
+        finally:
+            ActionServerLogs(
+                type=ActionType.hubspot_forms_action.value,
+                intent=tracker.get_intent_of_latest_message(),
+                action=action_config['name'],
+                sender=tracker.sender_id,
+                bot=tracker.get_slot("bot"),
+                exception=exception,
+                api_response=str(http_response) if http_response else None,
                 bot_response=bot_response,
                 status=status
             ).save()

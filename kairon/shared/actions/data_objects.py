@@ -352,6 +352,26 @@ class PipedriveLeadsAction(Document):
         document.api_token = Utility.encrypt_message(document.api_token)
 
 
+@push_notification.apply
+class HubspotFormsAction(Document):
+    name = StringField(required=True)
+    portal_id = StringField(required=True)
+    form_guid = StringField(required=True)
+    fields = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=True)
+    response = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
 from mongoengine import signals
 signals.pre_save_post_validation.connect(GoogleSearchAction.pre_save_post_validation, sender=GoogleSearchAction)
 signals.pre_save_post_validation.connect(EmailActionConfig.pre_save_post_validation, sender=EmailActionConfig)
