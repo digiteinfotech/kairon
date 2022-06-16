@@ -5,7 +5,7 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
-    ZendeskActionRequest, PipedriveActionRequest
+    ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -269,6 +269,40 @@ async def edit_pipedrive_action(
     Edits the pipedrive leads action config.
     """
     mongo_processor.edit_pipedrive_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.post("/hubspot/forms", response_model=Response)
+async def add_hubspot_forms_action(
+        request_data: HubspotFormsActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the hubspot forms action config.
+    """
+    mongo_processor.add_hubspot_forms_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/hubspot/forms", response_model=Response)
+async def list_hubspot_forms_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of hubspot forms actions for bot.
+    """
+    actions = list(mongo_processor.list_hubspot_forms_actions(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/hubspot/forms", response_model=Response)
+async def edit_hubspot_forms_action(
+        request_data: HubspotFormsActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the hubspot forms action config.
+    """
+    mongo_processor.edit_hubspot_forms_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 

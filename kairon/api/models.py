@@ -590,6 +590,14 @@ class PipedriveActionRequest(BaseModel):
         return v
 
 
+class HubspotFormsActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    portal_id: str
+    form_guid: str
+    fields: List[HttpActionParameters]
+    response: str
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_minutes: int = 0

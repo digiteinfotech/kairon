@@ -18,7 +18,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2609,3 +2609,31 @@ class TestActions:
                             ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
                                                                 'new user detected',
                                                                 conversation, **metadata)
+
+    def test_get_hubspot_forms_config_not_found(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='hubspot_forms_action', type=ActionType.hubspot_forms_action.value, bot=bot, user=user).save()
+        with pytest.raises(ActionFailure, match='Hubspot forms action not found'):
+            ActionUtility.get_action_config(bot, 'hubspot_forms_action')
+
+    def test_get_hubspot_forms_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+
+        fields = [
+            {'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot'},
+            {'key': 'firstname', 'parameter_type': 'value', 'value': 'udit'}
+        ]
+        HubspotFormsAction(
+            name='hubspot_forms_action', portal_id='asdf45', form_guid='2345678gh', fields=fields, bot=bot, user=user,
+            response="Form submitted"
+        ).save()
+        action, a_type = ActionUtility.get_action_config(bot, 'hubspot_forms_action')
+        assert a_type == ActionType.hubspot_forms_action.value
+        action.pop('_id')
+        action.pop('timestamp')
+        assert action == {
+            'name': 'hubspot_forms_action', 'portal_id': 'asdf45', 'form_guid': '2345678gh', 'fields': fields,
+            'bot': 'test_action_server', 'user': 'test_user', 'status': True, 'response': 'Form submitted'
+        }

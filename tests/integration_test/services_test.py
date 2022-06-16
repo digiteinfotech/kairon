@@ -1648,9 +1648,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1695,9 +1695,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4085,6 +4085,7 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
+        'hubspot_forms_action': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -4763,9 +4764,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4808,9 +4809,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -7759,6 +7760,163 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_list_hubspot_forms_action_no_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 0
+
+
+def test_add_hubspot_forms_action():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_hubspot_forms_action_invalid_param_type():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'header'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}}]
+
+
+def test_add_hubspot_forms_exists():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_edit_hubspot_forms_action_not_exists():
+    action = {
+        'name': 'hubspot_forms_action',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "hubspot_forms_action" not found'
+
+
+def test_edit_hubspot_forms_action():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '123456785787',
+        'form_guid': 'asdfg:12345678787',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+            {"key": 'company', 'value': 'digite', 'parameter_type': 'value'},
+            {"key": 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Hubspot Form submitted'
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_list_hubspot_forms_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"][0]['name'] == 'action_hubspot_forms'
+    assert actual["data"][0]['portal_id'] == '123456785787'
+    assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
+    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
+                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+    assert actual["data"][0]['response'] == 'Hubspot Form submitted'
+
+
+def test_delete_hubspot_forms_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/action_hubspot_forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
 
 
 def test_disable_integration_token():

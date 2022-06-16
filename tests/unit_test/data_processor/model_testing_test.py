@@ -4,7 +4,6 @@ import tempfile
 import uuid
 
 import pytest
-import responses
 from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 

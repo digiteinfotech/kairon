@@ -19,6 +19,7 @@ class StoryStepType(str, Enum):
     jira_action = "JIRA_ACTION"
     zendesk_action = "ZENDESK_ACTION"
     pipedrive_leads_action = "PIPEDRIVE_LEADS_ACTION"
+    hubspot_forms_action = "HUBSPOT_FORMS_ACTION"
 
 
 class StoryType(str, Enum):
