@@ -22,6 +22,6 @@ policies:
   max_history: 5
   name: TEDPolicy
 - core_fallback_action_name: "action_default_fallback"
-  core_fallback_threshold: 0.85
+  core_fallback_threshold: 0.70
   enable_fallback_prediction: true
   name: RulePolicy
