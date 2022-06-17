@@ -3384,8 +3384,8 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][4]
-        del configs['pipeline'][6]
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_component_not_exists', 'test')
