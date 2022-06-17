@@ -1,0 +1,8 @@
+# Snyk (https://snyk.io) policy file
+exclude:
+ global:
+   - tests/**
+   - stress_test/**
+   - docs/**
+   - metadata/**
+   - template/**
