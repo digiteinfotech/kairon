@@ -3773,7 +3773,6 @@ class TestMongoProcessor:
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
         assert expected_config == actual_config.config
-        assert expected_config.white_listed_domain == actual_config.white_listed_domain
 
     def test_save_chat_client_config_valid_white_list(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
@@ -3816,7 +3815,7 @@ class TestMongoProcessor:
         processor.save_chat_client_config(config, 'test', 'testUser')
 
         fetched_config = processor.get_chat_client_config('test')
-        http_referrer = "kairon.digite.com"
+        http_referrer = "https://kairon.digite.com"
         assert processor.validate_white_listed_domain(http_referrer, fetched_config)
 
 
