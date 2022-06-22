@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List, Optional
 from urllib.parse import urljoin
-from fastapi import APIRouter, BackgroundTasks, Path, Security
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
 from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -1052,9 +1052,12 @@ async def get_chat_client_config_url(
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config_using_uid(bot: str, uid: str):
+async def get_client_config_using_uid(request: Request, bot: str, uid: str):
     decoded_uid = Utility.validate_bot_specific_token(bot, uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
+    http_referer = request.headers.get('HTTP_REFERER') if request.headers.get('HTTP_REFERER') is not None else request.headers.get('referer')
+    if config.white_listed_domain is not None and not mongo_processor.validate_white_listed_domain(http_referer, config):
+        return Response(data={}, error_code=503, success=False)
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
 

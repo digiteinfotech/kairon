@@ -5510,6 +5510,7 @@ def test_get_client_config_using_uid(monkeypatch):
     assert actual["message"] == 'Access denied for this endpoint'
 
 
+
 @responses.activate
 def test_get_client_config_refresh(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
@@ -9263,6 +9264,52 @@ def test_generate_limited_access_temporary_token():
     )
     actual = response.json()
     assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
+
+def test_get_client_config_using_uid_invalid_domains(monkeypatch):
+    config_path = "./template/chat-client/default-config.json"
+    config = json.load(open(config_path))
+    config['headers'] = {}
+    config['headers']['X-USER'] = 'kairon-user'
+    config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
+    client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': config},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": "Hi"}
+    responses.add(
+        responses.POST,
+        f"http://localhost/api/bot/{pytest.bot}/chat",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                chat_json)],
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
+    )
+    response = client.get(pytest.url, headers={"HTTP_REFERER": "http://www.attackers.com"})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 503
+    assert not actual["data"]
+
+
+def test_get_client_config_using_uid_valid_domains(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": "Hi"}
+    responses.add(
+        responses.POST,
+        f"http://localhost/api/bot/{pytest.bot}/chat",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                chat_json)],
+        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
+    )
+    response = client.get(pytest.url, headers={"HTTP_REFERER": "https://kairon-api.digite.com"})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
 
 
 def test_delete_account():
