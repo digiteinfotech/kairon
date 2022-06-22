@@ -564,7 +564,7 @@ class ActionUtility:
         for field in fields:
             parameter_value = ActionUtility.prepare_request(tracker, [field])
             request.append({"name": field['key'], "value": parameter_value[field['key']]})
-        return request
+        return {"fields": request}
 
 
 class ExpressionEvaluator:

@@ -2472,7 +2472,9 @@ class TestActionServer(AsyncHTTPTestCase):
         responses.add(
             "POST",
             f"https://api.hsforms.com/submissions/v3/integration/submit/{portal_id}/{form_guid}",
-            json={'inlineMessage': 'Thankyou for the submission'}
+            json={'inlineMessage': 'Thankyou for the submission'},
+            match=[responses.json_params_matcher({"fields": [{"name": "email", "value": "pandey.udit867@gmail.com"},
+                                                             {"name": "firstname", "value": "udit pandey"}]})]
         )
         responses.start()
         request_object = {
