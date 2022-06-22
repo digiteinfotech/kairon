@@ -1061,7 +1061,7 @@ async def get_client_config_using_uid(bot: str, uid: str):
 
 @router.get("/chat/client/config", response_model=Response)
 async def get_client_config(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot())
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])

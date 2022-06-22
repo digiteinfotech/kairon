@@ -3030,6 +3030,36 @@ def test_delete_member():
     assert response['success']
 
 
+def test_add_deleted_member_and_updated_role():
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration_email_false@demo.ai", "role": "designer"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User added'
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.put(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User access updated'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_remove_self():
+    response = client.delete(
+        f"/api/user/{pytest.add_member_bot}/member/integ1@gmail.com",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User cannot remove himself'
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
 def test_add_intents_no_bot():
     response = client.post(
         "/api/bot/ /intents",

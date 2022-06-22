@@ -140,7 +140,7 @@ async def remove_member_from_bot(
     """
     Removes user from accessing the bot.
     """
-    AccountProcessor.remove_member(bot, accessor_email=user)
+    AccountProcessor.remove_member(bot, accessor_email=user, current_user=current_user.email)
     return Response(message='User removed')
 
 

@@ -237,6 +237,8 @@ class AccountProcessor:
                 raise AppException('User is yet to accept the invite')
             if validate_ownership_modification and ACCESS_ROLES.OWNER.value in {role, bot_access.role}:
                 raise AppException('Ownership modification denied')
+            if bot_access.role == role:
+                raise AppException(f"User is already {role} of the bot")
             bot_access.role = role
             bot_access.user = user
             bot_access.status = status
@@ -247,7 +249,9 @@ class AccountProcessor:
 
     @staticmethod
     def get_bot_owner(bot: Text):
-        return BotAccess.objects(bot=bot, role=ACCESS_ROLES.OWNER.value).get().to_mongo().to_dict()
+        return BotAccess.objects(
+            bot=bot, role=ACCESS_ROLES.OWNER.value, status__ne=ACTIVITY_STATUS.DELETED.value
+        ).get().to_mongo().to_dict()
 
     @staticmethod
     def transfer_ownership(account: int, bot: Text, current_owner: Text, to_user: Text):
@@ -343,7 +347,9 @@ class AccountProcessor:
         active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
 
     @staticmethod
-    def remove_member(bot: Text, accessor_email: Text):
+    def remove_member(bot: Text, accessor_email: Text, current_user: Text):
+        if accessor_email == current_user:
+            raise AppException("User cannot remove himself")
         Utility.is_exist(
             BotAccess,
             'Bot owner cannot be removed',

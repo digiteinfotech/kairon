@@ -262,6 +262,23 @@ class TestAccountProcessor:
         assert bot_access.role == ACCESS_ROLES.ADMIN.value
         assert bot_access.status == ACTIVITY_STATUS.ACTIVE.value
 
+    def test_update_bot_access_invalid_role(self):
+        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        assert account_bot_info['role'] == 'owner'
+        bot_id = account_bot_info['_id']
+
+        with pytest.raises(ValidationError):
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin', "test", ACTIVITY_STATUS.ACTIVE.value)
+
+    def test_update_bot_access_to_same_role(self):
+        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        assert account_bot_info['role'] == 'owner'
+        bot_id = account_bot_info['_id']
+
+        with pytest.raises(AppException, match='User is already admin of the bot'):
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin',
+                                               ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
+
     def test_accept_bot_access_invite_user_not_allowed(self, monkeypatch):
         def _mock_get_user(*args, **kwargs):
             return None

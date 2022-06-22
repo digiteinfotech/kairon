@@ -320,7 +320,7 @@ async def delete_action(
 
 @router.get("/fields/list", response_model=Response)
 async def list_integration_fields(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     List required and optional fields for integrated actions.
