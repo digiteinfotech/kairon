@@ -3752,6 +3752,7 @@ class TestMongoProcessor:
         saved_config = ChatClientConfig.objects(bot='test').get()
         assert saved_config.config == config
         assert saved_config.status
+        assert saved_config.white_listed_domain == ["*"]
 
     def test_get_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
@@ -3772,6 +3773,75 @@ class TestMongoProcessor:
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
         assert expected_config == actual_config.config
+        assert expected_config.white_listed_domain == actual_config.white_listed_domain
+
+    def test_save_chat_client_config_valid_white_list(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
+        processor.save_chat_client_config(config, 'test', 'testUser')
+        saved_config = ChatClientConfig.objects(bot='test').get()
+        assert saved_config.config == config
+        assert saved_config.status
+        assert saved_config.white_listed_domain == ["kairon.digite.com", "kairon-api.digite.com"]
+
+    def test_validate_white_listed_domain_success(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
+        processor.save_chat_client_config(config, 'test', 'testUser')
+
+        fetched_config = processor.get_chat_client_config('test')
+        http_referrer = "kairon.digite.com"
+        assert processor.validate_white_listed_domain(http_referrer, fetched_config)
+
+
+    def test_validate_white_listed_domain_attackers(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
+        processor = MongoProcessor()
+        config_path = "./template/chat-client/default-config.json"
+        config = json.load(open(config_path))
+        config['headers'] = {}
+        config['headers']['authorization'] = 'Bearer eygbsbvuyfhbsfinlasfmishfiufnasfmsnf'
+        config['headers']['X-USER'] = 'user@integration.com'
+        config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
+        processor.save_chat_client_config(config, 'test', 'testUser')
+
+        fetched_config = processor.get_chat_client_config('test')
+        http_referrer = "attackers.com"
+        assert not processor.validate_white_listed_domain(http_referrer, fetched_config)
+
 
     def test_get_chat_client_config(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):

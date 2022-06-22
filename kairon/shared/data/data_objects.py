@@ -640,7 +640,7 @@ class ChatClientConfig(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-
+    white_listed_domain = ListField(StringField(), default=None)
 
 @push_notification.apply
 class ConversationsHistoryDeleteLogs(Document):

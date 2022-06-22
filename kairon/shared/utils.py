@@ -1408,3 +1408,14 @@ class Utility:
         )
         if not resp['success']:
             raise AppException("Failed to validate recaptcha")
+
+    @staticmethod
+    def compare_string_constant_time(val1: str, val2: str):
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        for x, y in zip(bytes(val1, "utf-8"), bytes(val2, "utf-8")):
+            result |= x ^ y
+            if result > 0:
+                break
+        return True if result == 0 else False

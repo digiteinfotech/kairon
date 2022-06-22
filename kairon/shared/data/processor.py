@@ -3394,11 +3394,28 @@ class MongoProcessor:
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         client_config = self.get_chat_client_config(bot)
+        white_listed_domain = config.pop("whitelist")
         if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
             client_config.config['headers'].pop('authorization')
         client_config.config = config
         client_config.user = user
+        client_config.white_listed_domain = white_listed_domain
         client_config.save()
+
+    @staticmethod
+    def validate_white_listed_domain(referrer: str, config: ChatClientConfig):
+        from urllib.parse import urlparse
+        result = False
+        white_listed_domain = config.white_listed_domain if config.white_listed_domain is not None else ["*"]
+
+        if "*" in white_listed_domain:
+            return True
+        referrer_domain = urlparse(referrer).netloc
+        for domain in white_listed_domain:
+            if Utility.compare_string_constant_time(referrer_domain, domain):
+                result = True
+                break
+        return result
 
     def get_chat_client_config(self, bot: Text):
         from kairon.shared.auth import Authentication
