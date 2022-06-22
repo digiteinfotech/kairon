@@ -383,6 +383,7 @@ class ActionProcessor:
         status = "SUCCESS"
         exception = None
         http_response = None
+        request_body = None
         portal_id = action_config.get('portal_id')
         form_guid = action_config.get('form_guid')
         bot_response = action_config.get("response")
@@ -401,6 +402,7 @@ class ActionProcessor:
         finally:
             ActionServerLogs(
                 type=ActionType.hubspot_forms_action.value,
+                request_params=request_body,
                 intent=tracker.get_intent_of_latest_message(),
                 action=action_config['name'],
                 sender=tracker.sender_id,
