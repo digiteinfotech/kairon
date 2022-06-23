@@ -32,7 +32,7 @@ PyMuPDF==1.18.4
 sentencepiece
 openai
 mock
-elastic-apm
+elastic-apm==6.9.1
 ElasticMock
 elasticsearch==7.17.0
 pymongo==3.12.0

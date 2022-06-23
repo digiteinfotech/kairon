@@ -104,6 +104,118 @@ def test_account_registration_error():
     assert actual["data"] is None
 
 
+def test_recaptcha_verified_request(monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration1234567890",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == "Account Registered!"
+
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890&remoteip=58.0.127.89",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "remote_ip": "58.0.127.89",
+                "email": "integration1234567@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration1234567",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == "Account Registered!"
+
+
+def test_recaptcha_verified_request_invalid(monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+            json={"success": False}
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "1234567890",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
+
+        rsps.add(
+            "POST",
+            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
+            json={"success": True}, status=204
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "recaptcha_response": "987654321",
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual['success'] == False
+        assert actual['message'].__contains__('Failed to validate recaptcha')
+        assert actual['data'] is None
+        assert actual['error_code'] == 422
+
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": "integration1234567890@demo.ai",
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
+
+
 def test_account_registration():
     response = client.post(
         "/api/account/registration",
@@ -150,6 +262,54 @@ def test_api_wrong_password():
     assert actual["error_code"] == 401
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
+
+
+def test_api_login_with_recaptcha(monkeypatch):
+    email = "integration@demo.ai"
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl123456')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl2345",
+            json={"success": True}
+        )
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl2345"},
+        )
+        actual = response.json()
+        assert all(
+            [
+                True if actual["data"][key] else False
+                for key in ["access_token", "token_type"]
+            ]
+        )
+
+
+def test_api_login_with_recaptcha_failed(monkeypatch):
+    email = "integration@demo.ai"
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl123456')
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            "POST", f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl23",
+            json={"success": False}
+        )
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl23"},
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
+
+        response = client.post(
+            "/api/auth/login",
+            data={"username": email, "password": "Welcome@1"},
+        )
+        actual = response.json()
+        assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
 
 def test_api_login():
@@ -1488,9 +1648,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1535,9 +1695,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2870,6 +3030,36 @@ def test_delete_member():
     assert response['success']
 
 
+def test_add_deleted_member_and_updated_role():
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration_email_false@demo.ai", "role": "designer"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User added'
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.put(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User access updated'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_remove_self():
+    response = client.delete(
+        f"/api/user/{pytest.add_member_bot}/member/integ1@gmail.com",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'User cannot remove himself'
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
 def test_add_intents_no_bot():
     response = client.post(
         "/api/bot/ /intents",
@@ -3925,6 +4115,7 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
+        'hubspot_forms_action': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -4603,9 +4794,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4648,9 +4839,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -7599,6 +7790,163 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_list_hubspot_forms_action_no_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 0
+
+
+def test_add_hubspot_forms_action():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_hubspot_forms_action_invalid_param_type():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'header'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}}]
+
+
+def test_add_hubspot_forms_exists():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_edit_hubspot_forms_action_not_exists():
+    action = {
+        'name': 'hubspot_forms_action',
+        'portal_id': '12345678',
+        'form_guid': 'asdfg:123456',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Form submitted'
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "hubspot_forms_action" not found'
+
+
+def test_edit_hubspot_forms_action():
+    action = {
+        'name': 'action_hubspot_forms',
+        'portal_id': '123456785787',
+        'form_guid': 'asdfg:12345678787',
+        'fields': [
+            {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+            {"key": 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+            {"key": 'company', 'value': 'digite', 'parameter_type': 'value'},
+            {"key": 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}
+        ],
+        'response': 'Hubspot Form submitted'
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_list_hubspot_forms_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/hubspot/forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    assert actual["data"][0]['name'] == 'action_hubspot_forms'
+    assert actual["data"][0]['portal_id'] == '123456785787'
+    assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
+    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
+                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+    assert actual["data"][0]['response'] == 'Hubspot Form submitted'
+
+
+def test_delete_hubspot_forms_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/action_hubspot_forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
 
 
 def test_disable_integration_token():

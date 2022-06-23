@@ -49,7 +49,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType
@@ -3211,11 +3211,13 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
-                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
-                                                   {'constrain_similarities': True, 'epochs': 200,
-                                                    'name': 'DIETClassifier'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
+                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
+                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.6},
                                                    {'name': 'EntitySynonymMapper'},
                                                    {'name': 'ResponseSelector', 'epochs': 300}],
@@ -3303,24 +3305,26 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
-                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
-                                                   {'constrain_similarities': True, 'epochs': 200,
-                                                    'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
+                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
+                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
                                                    {'name': 'ResponseSelector', 'epochs': 300}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 0.7,
+        expected = {'nlu_confidence_threshold': 0.85,
                     'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 0.3,
+                    'action_fallback_threshold': 0.7,
                     'ted_epochs': 400,
                     'nlu_epochs': 200,
                     'response_epochs': 300}
@@ -3334,22 +3338,23 @@ class TestMongoProcessor:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
         assert str(e).__contains__('At least one field is required')
         config = processor.load_config('test_properties_empty')
+        assert config == Utility.read_yaml('./template/config/kairon-default.yml')
         nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert nlu['name'] == 'DIETClassifier'
-        assert nlu['epochs'] == 100
+        assert nlu['epochs'] == 50
         response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
         assert response['name'] == 'ResponseSelector'
         assert response['epochs'] == 100
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
-        assert ted['epochs'] == 200
+        assert ted['epochs'] == 100
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 0.7,
-                    'action_fallback_threshold': 0.3,
+        expected = {'nlu_confidence_threshold': 0.85,
+                    'action_fallback_threshold': 0.7,
                     'action_fallback': 'action_default_fallback',
-                    'ted_epochs': 200,
-                    'nlu_epochs': 100,
+                    'ted_epochs': 100,
+                    'nlu_epochs': 50,
                     'response_epochs': 100}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
@@ -3359,14 +3364,14 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][4]
-        del configs['pipeline'][6]
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
-        expected = {"nlu_confidence_threshold": 0.7,
-                    'action_fallback_threshold': 0.3,
+        expected = {"nlu_confidence_threshold": 0.85,
+                    'action_fallback_threshold': 0.7,
                     "action_fallback": 'action_default_fallback',
                     "ted_epochs": None,
                     "nlu_epochs": None,
@@ -3379,8 +3384,8 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][4]
-        del configs['pipeline'][6]
+        del configs['pipeline'][5]
+        del configs['pipeline'][7]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_component_not_exists', 'test')
@@ -3406,7 +3411,7 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][6]
+        del configs['pipeline'][7]
         del configs['policies'][2]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_fallback_not_configured', 'test')
@@ -3416,39 +3421,46 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
-                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
-                                                   {'constrain_similarities': True, 'epochs': 100,
-                                                    'name': 'DIETClassifier'},
+        print(config)
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
+                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
+                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'epochs': 50, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
+                                                   {'name': 'EntitySynonymMapper'},
                                                    {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
         assert config == expected
 
     def test_save_component_properties_nlu_fallback_only(self):
-        nlu_fallback = {"nlu_confidence_threshold": 0.6}
+        nlu_fallback = {"nlu_confidence_threshold": 0.75}
         processor = MongoProcessor()
         processor.save_component_properties(nlu_fallback, 'test_nlu_fallback_only', 'test')
         config = processor.load_config('test_nlu_fallback_only')
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
-        assert nlu_fallback['threshold'] == 0.6
+        assert nlu_fallback['threshold'] == 0.75
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         assert len(rule_policy) == 4
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
-                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
-                                                   {'constrain_similarities': True, 'epochs': 100,
-                                                    'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.6},
+        print(config)
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
+                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
+                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'epochs': 50, 'name': 'DIETClassifier'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.75},
                                                    {'name': 'EntitySynonymMapper'},
                                                    {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
@@ -3474,15 +3486,17 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'}, {'name': 'ConveRTFeaturizer',
-                                                                                            'model_url': 'https://github.com/connorbrinton/polyai-models/releases/download/v1.0/model.tar.gz'},
-                                                   {'constrain_similarities': True, 'epochs': 100,
-                                                    'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
+                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+                                                   {'name': 'LexicalSyntacticFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer'},
+                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
+                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'epochs': 50, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
                                                    {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'max_history': 5, 'name': 'TEDPolicy'},
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
                                   'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
         assert config == expected
@@ -6796,7 +6810,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -6816,7 +6830,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("test_with_action")
         assert actions == {
             'actions': ['action_check'],
-            'http_action': [], 'jira_action': [],
+            'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
 
@@ -6835,7 +6849,7 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
@@ -7115,6 +7129,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
+            'hubspot_forms_action': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7219,7 +7234,7 @@ class TestMongoProcessor:
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == {
-            'actions': [], 'zendesk_action': [],
+            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
@@ -7851,6 +7866,139 @@ class TestMongoProcessor:
             Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ],
+            'response': 'Form submitted'
+        }
+        assert processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "action_hubspot_forms", "type": "HUBSPOT_FORMS_ACTION"},
+        ]
+        story_dict = {'name': "story with hubspot form action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with hubspot form action", bot=bot,
+                                events__name='action_hubspot_forms', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with hubspot form action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'action_hubspot_forms', 'type': 'HUBSPOT_FORMS_ACTION'},
+        ]
+        processor.delete_complex_story('story with hubspot form action', 'STORY', bot, user)
+
+    def test_add_hubspot_forms_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_add_hubspot_forms_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='test_action', status=True, bot=bot).get()
+
+    def test_edit_hubspot_forms_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match=f'Action with name "{action.get("name")}" not found'):
+            processor.edit_hubspot_forms_action(action, bot, user)
+
+    def test_edit_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'action_hubspot_forms',
+            'portal_id': '123456785787',
+            'form_guid': 'asdfg:12345678787',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                {"key": 'company', 'value': 'digite', 'parameter_type': 'value'},
+                {"key": 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}
+            ],
+            'response': 'Hubspot Form submitted'
+        }
+        assert not processor.edit_hubspot_forms_action(action, bot, user)
+        assert Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        assert HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+
+    def test_list_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_hubspot_forms_actions(bot))
+        assert actions[0]['name'] == 'action_hubspot_forms'
+        assert actions[0]['portal_id'] == '123456785787'
+        assert actions[0]['form_guid'] == 'asdfg:12345678787'
+        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
+                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
+                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+        assert actions[0]['response'] == 'Hubspot Form submitted'
+
+    def test_delete_hubspot_forms_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('action_hubspot_forms', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
 
 
 class TestTrainingDataProcessor:
