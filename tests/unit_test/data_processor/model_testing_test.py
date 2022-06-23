@@ -4,7 +4,6 @@ import tempfile
 import uuid
 
 import pytest
-import responses
 from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
@@ -38,12 +37,7 @@ class TestModelTesting:
             force_training=True
         )
         pytest.model_path = train_result.model
-        responses.add('POST',
-                      Utility.environment["augmentation"]["paraphrase_url"],
-                      json={'data': {'paraphrases': ['common training example']}})
-        responses.start()
         yield None
-        responses.stop()
         shutil.rmtree(pytest.tmp_dir)
         shutil.rmtree('tests/testing_data/model_tester/models')
 

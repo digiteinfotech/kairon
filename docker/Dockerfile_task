@@ -40,8 +40,13 @@ RUN python -m pip install blinker
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
+RUN mkdir -p /home/cache
+RUN chmod -R 777 /home/cache
+
+ENV HF_HOME="/home/cache"
 
 COPY kairon ${RASA_NLU_HOME}/kairon
+COPY metadata /app/metadata
 COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom

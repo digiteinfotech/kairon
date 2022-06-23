@@ -1,21 +1,21 @@
 from fastapi import APIRouter, Security, Path
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon import Utility
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response, IntegrationRequest
+from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.models import User
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=Response)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()):
     """
     Authenticates the user and generates jwt token
     """
@@ -23,6 +23,27 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": "User Authenticated",
+    }
+
+
+@router.get("/{bot}/integration/token/temp", response_model=Response)
+async def generate_limited_access_temporary_token(
+        expiry_minutes: int = 5, access_list: list = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
+):
+    """
+    Generates a limited access temporary token with Tester role.
+    """
+    access_list = access_list or ['/api/bot/.+/chat/client/config$']
+    access_token = Authentication.generate_integration_token(
+        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
+        access_limit=access_list, token_type=TOKEN_TYPE.DYNAMIC.value
+    )
+    return {
+        "data": {"access_token": access_token, "token_type": "bearer"},
+        "message":
+            "This token will be shown only once. Please copy this somewhere safe."
+            "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
     }
 
 

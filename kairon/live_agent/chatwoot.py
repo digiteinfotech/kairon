@@ -4,7 +4,6 @@ from urllib.parse import urljoin
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.live_agent.live_agent import LiveAgent
-from kairon.shared.live_agent.processor import LiveAgentsProcessor
 
 
 class ChatwootLiveAgent(LiveAgent):
@@ -34,35 +33,35 @@ class ChatwootLiveAgent(LiveAgent):
 
     @property
     def base_url(self) -> str:
-        return "https://app.chatwoot.com/public/api/v1/"
+        return "https://app.chatwoot.com/"
 
     @property
     def create_conversation_endpoint(self) -> str:
         """
         Property to return create chatwoot conversation endpoint.
         """
-        return urljoin(self.base_url, "inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations")
+        return urljoin(self.base_url, "public/api/v1/inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations")
 
     @property
     def send_message_endpoint(self) -> str:
         """
         Property to return create chatwoot message endpoint.
         """
-        return urljoin(self.base_url, "accounts/{account_id}/conversations/{conversation_id}/messages")
+        return urljoin(self.base_url, "api/v1/accounts/{account_id}/conversations/{conversation_id}/messages")
 
     @property
     def inboxes_endpoint(self) -> str:
         """
         Property to return create chatwoot inbox endpoint.
         """
-        return urljoin(self.base_url, "accounts/{account_id}/inboxes")
+        return urljoin(self.base_url, "api/v1/accounts/{account_id}/inboxes")
 
     @property
     def add_contact_endpoint(self) -> str:
         """
         Property to return create chatwoot contact endpoint.
         """
-        return urljoin(self.base_url, "inboxes/{inbox_identifier}/contacts")
+        return urljoin(self.base_url, "public/api/v1/inboxes/{inbox_identifier}/contacts")
 
     def complete_prerequisites(self, **kwargs):
         """
@@ -73,7 +72,7 @@ class ChatwootLiveAgent(LiveAgent):
 
         :param kwargs: bot_name and bot id are required to create an inbox with that name.
         """
-        bot_name = kwargs.get("bot_name")
+        bot_name = kwargs.get("name")
         bot_id = kwargs.get("_id")
         if Utility.check_empty_string(self.inbox_identifier):
             inbox_info = self.create_inbox(f"kairon-{bot_name}-{bot_id}")
@@ -91,14 +90,12 @@ class ChatwootLiveAgent(LiveAgent):
         :param sender_id: sender id of the end user
         :return: dict containing destination and pubsub_token obtained for that particular sender from chatwoot.
         """
-        contact_info = LiveAgentsProcessor.get_contact(bot, sender_id, self.agent_type)
-        if not contact_info:
-            contact_info = self.create_contact(sender_id)
-            LiveAgentsProcessor.save_contact(bot, sender_id, self.agent_type, contact_info)
-        else:
-            contact_info = contact_info["metadata"]
+        contact_info = self.create_contact(sender_id)
         conversation_info = self.create_conversation(contact_info["source_id"])
-        return {"destination": conversation_info["id"], "pubsub_token": contact_info["pubsub_token"]}
+        return {
+            "destination": conversation_info["id"], "pubsub_token": contact_info["pubsub_token"],
+            "websocket_url": Utility.system_metadata['live_agents']['chatwoot']['websocket_url']
+        }
 
     def send_message(self, message: Text, destination: Text, **kwargs):
         """
@@ -149,9 +146,10 @@ class ChatwootLiveAgent(LiveAgent):
         mean that the credentials are invalid.
         """
         try:
-            if not Utility.check_empty_string(self.inbox_identifier):
+            if Utility.check_empty_string(self.inbox_identifier):
+                self.list_inbox()
+            else:
                 self.get_inbox()
-            self.list_inbox()
         except AppException:
             raise AppException("Unable to connect. Please verify credentials.")
 
@@ -192,7 +190,7 @@ class ChatwootLiveAgent(LiveAgent):
         """
         inboxes = self.list_inbox()
         for inbox in inboxes.get("payload", []):
-            if inbox['inbox_identifier'] == self.inbox_identifier:
+            if inbox.get('inbox_identifier') == self.inbox_identifier:
                 return inbox
         raise AppException(f"Inbox with identifier {self.inbox_identifier} does not exists!")
 

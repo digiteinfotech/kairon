@@ -389,6 +389,9 @@ class TestEvents:
         await EventsTrigger.trigger_data_importer(bot, user, True, True)
         responses.stop()
         request = json.loads(responses.calls[1].request.body)
+        assert request == [{'name': 'BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'IMPORT_DATA', 'value': '--import-data'},
+                               {'name': 'OVERWRITE', 'value': '--overwrite'}]
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -884,10 +887,8 @@ class TestEvents:
             }
 
         monkeypatch.setattr(rasa.utils.common, 'run_in_loop', _mock_stories_output)
-        responses.add('POST',
-                      Utility.environment["augmentation"]["paraphrase_url"],
-                      json={'data': {'paraphrases': ['common training example']}})
-        responses.start()
+        responses.reset()
+        responses.stop()
         EventsTrigger.trigger_model_testing(bot, user, False)
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2

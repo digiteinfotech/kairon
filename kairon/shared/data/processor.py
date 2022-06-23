@@ -39,7 +39,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
 from kairon.shared.utils import Utility
@@ -2145,6 +2145,7 @@ class MongoProcessor:
         jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list('name'))
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
+        hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
@@ -2188,6 +2189,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.zendesk_action.value
                     elif event['name'] in pipedrive_leads_actions:
                         step['type'] = StoryStepType.pipedrive_leads_action.value
+                    elif event['name'] in hubspot_forms_actions:
+                        step['type'] = StoryStepType.hubspot_forms_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -3418,6 +3421,7 @@ class MongoProcessor:
             access_limit=['/api/bot/.+/chat', '/api/bot/.+/agent/live/.+'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
+        client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):
@@ -3811,6 +3815,8 @@ class MongoProcessor:
                 Utility.delete_document([ZendeskAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.pipedrive_leads_action.value:
                 Utility.delete_document([PipedriveLeadsAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.hubspot_forms_action.value:
+                Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4081,6 +4087,60 @@ class MongoProcessor:
             action.pop('bot')
             action.pop('status')
             action.pop('timestamp')
+            yield action
+            
+    def add_hubspot_forms_action(self, action: Dict, bot: str, user: str):
+        """
+        Add a new Hubspot forms Action
+        :param action: Hubspot action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        action['bot'] = bot
+        action['user'] = user
+        Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+        Utility.is_exist(
+            HubspotFormsAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
+        )
+        hubspot_action = HubspotFormsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            action['name'], bot, user, action_type=ActionType.hubspot_forms_action.value, raise_exception=False
+        )
+        return hubspot_action
+
+    def edit_hubspot_forms_action(self, action: dict, bot: Text, user: Text):
+        """
+        Update a Hubspot forms Action
+        :param action: Hubspot forms action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(HubspotFormsAction, raise_error=False, name=action.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        hubspot_forms_action = HubspotFormsAction.objects(name=action.get('name'), bot=bot, status=True).get()
+        hubspot_forms_action.portal_id = action['portal_id']
+        hubspot_forms_action.form_guid = action['form_guid']
+        hubspot_forms_action.response = action['response']
+        hubspot_forms_action.fields = action['fields']
+        hubspot_forms_action.user = user
+        hubspot_forms_action.timestamp = datetime.utcnow()
+        hubspot_forms_action.save()
+
+    def list_hubspot_forms_actions(self, bot: Text):
+        """
+        List Hubspot forms Action
+        :param bot: bot id
+        """
+        for action in HubspotFormsAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
             yield action
 
     @staticmethod

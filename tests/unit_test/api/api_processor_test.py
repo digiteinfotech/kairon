@@ -84,12 +84,10 @@ class TestAccountProcessor:
         bot = Bot.objects(name="test").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
-        assert config['language']
-        assert config['pipeline'][5]['name'] == 'FallbackClassifier'
-        assert config['pipeline'][5]['threshold'] == 0.7
-        assert config['policies'][2]['name'] == 'RulePolicy'
-        assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
-        assert config['policies'][2]['core_fallback_threshold'] == 0.3
+        expected_config = Utility.read_yaml('./template/config/kairon-default.yml')
+        assert config['language'] == expected_config['language']
+        assert config['pipeline'] == expected_config['pipeline']
+        assert config['policies'] == expected_config['policies']
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
@@ -148,12 +146,13 @@ class TestAccountProcessor:
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
         assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
-        assert config['language']
-        assert config['pipeline'][5]['name'] == 'FallbackClassifier'
-        assert config['pipeline'][5]['threshold'] == 0.7
+        expected_config = Utility.read_yaml('./template/config/kairon-default.yml')
+        assert config['language'] == expected_config['language']
+        assert config['pipeline'] == expected_config['pipeline']
+        assert config['policies'] == expected_config['policies']
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
-        assert config['policies'][2]['core_fallback_threshold'] == 0.3
+        assert config['policies'][2]['core_fallback_threshold'] == 0.7
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
 
@@ -262,6 +261,23 @@ class TestAccountProcessor:
         bot_access = BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com").get()
         assert bot_access.role == ACCESS_ROLES.ADMIN.value
         assert bot_access.status == ACTIVITY_STATUS.ACTIVE.value
+
+    def test_update_bot_access_invalid_role(self):
+        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        assert account_bot_info['role'] == 'owner'
+        bot_id = account_bot_info['_id']
+
+        with pytest.raises(ValidationError):
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin', "test", ACTIVITY_STATUS.ACTIVE.value)
+
+    def test_update_bot_access_to_same_role(self):
+        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        assert account_bot_info['role'] == 'owner'
+        bot_id = account_bot_info['_id']
+
+        with pytest.raises(AppException, match='User is already admin of the bot'):
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin',
+                                               ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
 
     def test_accept_bot_access_invite_user_not_allowed(self, monkeypatch):
         def _mock_get_user(*args, **kwargs):
