@@ -51,6 +51,12 @@ class Entity(EmbeddedDocument):
         if not Utility.check_empty_string(self.entity):
             self.entity = self.entity.strip().lower()
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.start == other.start and self.end == other.end and self.value == other.value \
+                   and self.entity == other.entity
+        return False
+
 
 @push_notification.apply
 class TrainingExamples(Document):
@@ -461,6 +467,12 @@ class StoryEvents(EmbeddedDocument):
         if self.entities:
             for entity in self.entities:
                 entity.clean()
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.name == other.name and self.type == other.type and self.value == other.value \
+                   and self.entities == other.entities
+        return False
 
 
 @push_notification.apply
