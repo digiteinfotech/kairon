@@ -23,7 +23,7 @@ class ChatDataProcessor:
         try:
             channel = Channels.objects(bot=bot, connector_type=configuration['connector_type']).get()
             channel.config = configuration['config']
-        except:
+        except AppException as ex:
             channel = Channels(**configuration)
             channel.bot = bot
         channel.user = user

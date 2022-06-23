@@ -397,6 +397,7 @@ class Utility:
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
 
+    @staticmethod
     def extract_db_config(uri: str):
         """
         extract username, password and host with port from mongo uri
