@@ -3394,10 +3394,12 @@ class MongoProcessor:
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         client_config = self.get_chat_client_config(bot)
+        white_listed_domain = None if not config.__contains__("whitelist") else config.pop("whitelist")
         if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
             client_config.config['headers'].pop('authorization')
         client_config.config = config
         client_config.user = user
+        client_config.white_listed_domain = white_listed_domain
         client_config.save()
 
     def get_chat_client_config(self, bot: Text):
