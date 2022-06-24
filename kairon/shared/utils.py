@@ -1408,3 +1408,38 @@ class Utility:
         )
         if not resp['success']:
             raise AppException("Failed to validate recaptcha")
+
+    @staticmethod
+    def compare_string_constant_time(val1: str, val2: str):
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        for x, y in zip(bytes(val1, "utf-8"), bytes(val2, "utf-8")):
+            result |= x ^ y
+            if result > 0:
+                break
+        return True if result == 0 else False
+
+    @staticmethod
+    def validate_request(request, config):
+        """
+        This API validate request for whitelisted domains,
+        return false if request is from non listed domain
+
+        :param request HTTP request
+        :param config chat-client-config
+
+        :return boolean
+        """
+        from urllib.parse import urlparse
+        http_referer = request.headers.get('HTTP_REFERER') if request.headers.get(
+            'HTTP_REFERER') is not None else request.headers.get('referer')
+        white_listed_domain = config.white_listed_domain if config.white_listed_domain is not None else ["*"]
+
+        if "*" in white_listed_domain:
+            return True
+        referrer_domain = urlparse(http_referer).netloc
+        for domain in white_listed_domain:
+            if Utility.compare_string_constant_time(referrer_domain, domain):
+                return True
+        return False
