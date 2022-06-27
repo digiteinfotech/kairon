@@ -645,7 +645,7 @@ class ChatClientConfig(Document):
     def validate(self, clean=True):
         if isinstance(self.white_listed_domain, list):
             for val in self.white_listed_domain:
-                if val is not "*" and isinstance(domain(val), ValidationFailure):
+                if val != "*" and isinstance(domain(val), ValidationFailure):
                     raise ValidationError("One of the domain is invalid")
 
 
