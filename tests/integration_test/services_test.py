@@ -9362,11 +9362,6 @@ def test_save_client_config_invalid_domain_format():
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
 
-    config = ChatClientConfig.objects(bot=pytest.bot).get()
-    assert config.config
-    assert config.config['headers']['X-USER']
-    assert not config.config['headers'].get('authorization')
-
 def test_delete_account():
     response_log = client.post(
         "/api/auth/login",
