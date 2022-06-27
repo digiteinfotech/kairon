@@ -2,14 +2,17 @@ import os
 import shutil
 import tempfile
 import uuid
+from unittest.mock import patch
+
 import pytest
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.shared.data.constant import REQUIREMENTS
-from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_importer import DataImporter
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.data.constant import REQUIREMENTS
+from kairon.shared.data.processor import MongoProcessor
 
 
 def pytest_namespace():
@@ -99,7 +102,13 @@ class TestDataImporter:
             await importer.validate()
 
     @pytest.mark.asyncio
-    async def test_import_data(self):
+    async def test_import_data(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
         path = 'tests/testing_data/validator/valid'
         bot = 'test_data_import'
         user = 'test'
@@ -107,16 +116,19 @@ class TestDataImporter:
         shutil.copytree(path, test_data_path)
         importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, True)
         await importer.validate()
-        importer.import_data()
+        with patch("kairon.shared.account.processor.AccountProcessor.get_bot_and_validate_status"):
+            monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+            monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
+            importer.import_data()
 
-        processor = MongoProcessor()
-        assert 'greet' in processor.fetch_intents(bot)
-        assert 'deny' in processor.fetch_intents(bot)
-        assert len(processor.fetch_stories(bot)) == 2
-        assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 4
-        assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 4
+            processor = MongoProcessor()
+            assert 'greet' in processor.fetch_intents(bot)
+            assert 'deny' in processor.fetch_intents(bot)
+            assert len(processor.fetch_stories(bot)) == 2
+            assert len(list(processor.fetch_training_examples(bot))) == 7
+            assert len(list(processor.fetch_responses(bot))) == 4
+            assert len(processor.fetch_actions(bot)) == 2
+            assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
     async def test_import_data_append(self):

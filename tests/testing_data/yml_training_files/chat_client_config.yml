@@ -1,0 +1,40 @@
+name: kairon
+buttonType: button
+welcomeMessage: Hello! How are you? I am yml bot
+container: "#root"
+host: https://localhost:8000/api/bot/chat
+userType: custom
+userStorage: ls
+styles:
+  headerStyle:
+    backgroundColor: "#2b3595"
+    color: "#ffffff"
+    height: 60px
+  botStyle:
+    backgroundColor: "#e0e0e0"
+    color: "#000000"
+    iconSrc: ''
+    fontFamily: "'Roboto', sans-serif"
+    fontSize: 14px
+    showIcon: 'false'
+  userStyle:
+    backgroundColor: "#2b3595"
+    color: "#ffffff"
+    iconSrc: ''
+    fontFamily: "'Roboto', sans-serif"
+    fontSize: 14px
+    showIcon: 'false'
+  buttonStyle:
+    color: "#ffffff"
+    backgroundColor: "#2b3595"
+  containerStyles:
+    height: 500px
+    width: 350px
+    background: "#ffffff"
+headerClassName: ''
+containerClassName: ''
+chatContainerClassName: ''
+userClassName: ''
+botClassName: ''
+formClassName: ''
+openButtonClassName: ''

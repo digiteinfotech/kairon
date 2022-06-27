@@ -479,8 +479,8 @@ def test_upload_yml():
              ('training_files', ("domain.yml", open("tests/testing_data/valid_yml/domain.yml", "rb"))),
              ('training_files', ("stories.yml", open("tests/testing_data/valid_yml/data/stories.yml", "rb"))),
              ('training_files', ("config.yml", open("tests/testing_data/valid_yml/config.yml", "rb"))),
-             (
-                 'training_files', ("actions.yml", open("tests/testing_data/valid_yml/actions.yml", "rb")))
+             ('training_files', ("actions.yml", open("tests/testing_data/valid_yml/actions.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))),
              )
     response = client.post(
         f"/api/bot/{pytest.bot}/upload",
@@ -566,13 +566,12 @@ def test_upload_using_event_overwrite(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=(('training_files', ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
                ('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
-               (
-                   'training_files',
-                   ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+               ('training_files', ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
                ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
                (
                    'training_files',
-                   ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb")))
+                   ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))),
+               ('training_files', ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb")))
                )
     )
     actual = response.json()
@@ -616,9 +615,8 @@ def test_upload_using_event_append(monkeypatch):
                    'training_files',
                    ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
                ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
-               (
-                   'training_files',
-                   ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb")))
+               ('training_files', ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))),
+               ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb")))
                )
     )
     actual = response.json()
@@ -698,12 +696,13 @@ def test_get_data_importer_logs():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
     assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
-    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions', 'chat_client_config'}
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
     assert actual['data'][2]['start_timestamp']
     assert actual['data'][2]['end_timestamp']
-    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions',
+                                                        'chat_client_config'}
     del actual['data'][2]['start_timestamp']
     del actual['data'][2]['end_timestamp']
     del actual['data'][2]['files_received']
@@ -712,6 +711,7 @@ def test_get_data_importer_logs():
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
                                  'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
+                                 'chat_client_config': {'count': 0, 'data': []},
                                  'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
                                              {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                              {'type': 'form_validation_actions', 'count': 0, 'data': []},
@@ -732,6 +732,7 @@ def test_get_data_importer_logs():
     assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9,
                                            'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data'][3]['config'] == {'count': 0, 'data': []}
+    assert actual['data'][3]['chat_client_config'] == {'count': 0, 'data': []}
     assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 0, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
@@ -5038,6 +5039,31 @@ def test_upload_actions_and_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
+
+
+def test_upload_chat_client_config():
+    files = (('training_files', ("chat_client_config.yml", open("tests/testing_data/yml_training_files/chat_client_config.yml", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))))
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"][0]["chat_client_config"] == {'count': 0, 'data': []}
 
 
 def test_get_editable_config():
