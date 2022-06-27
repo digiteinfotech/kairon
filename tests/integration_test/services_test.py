@@ -9348,6 +9348,24 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
 
+def test_save_client_config_invalid_domain_format():
+    config_path = "./template/chat-client/default-config.json"
+    config = json.load(open(config_path))
+    config['headers'] = {}
+    config['headers']['X-USER'] = 'kairon-user'
+    config["whitelist"] = ["invalid_domain_format"]
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': config},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'One of the domain is invalid'
+
+    config = ChatClientConfig.objects(bot=pytest.bot).get()
+    assert config.config
+    assert config.config['headers']['X-USER']
+    assert not config.config['headers'].get('authorization')
 
 def test_delete_account():
     response_log = client.post(
