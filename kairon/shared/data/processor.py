@@ -81,6 +81,7 @@ from .data_objects import (
     Utterances, BotSettings, ChatClientConfig, SlotMapping
 )
 from .utils import DataUtility
+from werkzeug.utils import secure_filename
 
 
 class MongoProcessor:
@@ -143,7 +144,7 @@ class MongoProcessor:
         :return: None
         :raises: raise AppException
         """
-        use_case_path = os.path.join("./template/use-cases", template)
+        use_case_path = os.path.join("./template/use-cases", secure_filename(template))
         if os.path.exists(use_case_path):
             await self.save_from_path(path=use_case_path, bot=bot, user=user)
         else:
@@ -217,7 +218,7 @@ class MongoProcessor:
         :return: None
         :raises: AppException
         """
-        config_path = os.path.join("./template/config", template + ".yml")
+        config_path = os.path.join("./template/config", secure_filename(template) + ".yml")
         if os.path.exists(config_path):
             self.save_config(read_config_file(config_path), bot=bot, user=user)
         else:

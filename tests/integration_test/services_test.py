@@ -2506,6 +2506,20 @@ def test_set_templates_invalid():
     assert not actual['success']
 
 
+def test_set_templates_insecure():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates/use-case",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "../../Hi-Hello"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Data applied!"
+    assert actual['success']
+
+
 @responses.activate
 def test_reload_model(monkeypatch):
     def mongo_store(*arge, **kwargs):
@@ -2575,6 +2589,20 @@ def test_set_config_templates_invalid():
     assert actual['error_code'] == 422
     assert actual['message'] == "Invalid config!"
     assert not actual['success']
+
+
+def test_set_config_templates_insecure():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "../../rasa-default"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Config applied!"
+    assert actual['success']
 
 
 def test_get_config():

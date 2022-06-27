@@ -47,6 +47,7 @@ from websockets import connect
 
 from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
+from werkzeug.utils import secure_filename
 
 
 class Utility:
@@ -775,8 +776,9 @@ class Utility:
     @staticmethod
     def read_yaml(path: Text, raise_exception: bool = False):
         content = None
-        if os.path.exists(path):
-            content = yaml.load(open(path), Loader=yaml.SafeLoader)
+        secure_path = secure_filename(path)
+        if os.path.exists(secure_path):
+            content = yaml.load(open(secure_path), Loader=yaml.SafeLoader)
         else:
             if raise_exception:
                 raise AppException('Path does not exists!')
