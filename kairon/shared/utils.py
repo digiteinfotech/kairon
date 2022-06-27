@@ -1210,11 +1210,7 @@ class Utility:
             root = ast.parse(fh.read(), path)
 
         for node in ast.iter_child_nodes(root):
-            if isinstance(node, ast.Import):
-                module = []
-            elif isinstance(node, ast.ImportFrom):
-                module = node.module.split('.')
-            else:
+            if not (isinstance(node, ast.Import) and isinstance(node, ast.ImportFrom)):
                 continue
 
             for n in node.names:
