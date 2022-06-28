@@ -9353,7 +9353,6 @@ def test_delete_account_already_deleted():
 
 
 def test_get_responses_post_passwd_reset(monkeypatch):
-    Utility.email_conf["email"]["enable"] = True
     email = "active_session@demo.ai"
     regsiter_response = client.post(
         "/api/account/registration",
@@ -9368,7 +9367,6 @@ def test_get_responses_post_passwd_reset(monkeypatch):
         },
     )
     actual = regsiter_response.json()
-    Utility.email_conf["email"]["enable"] = False
     login_response = client.post(
         "/api/auth/login",
         data={"username": email, "password": "Welcome@1"},
