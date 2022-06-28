@@ -19,6 +19,8 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.test.test_models import ModelTester
+from stress_test.data_objects import Bot
+from kairon.shared.account.processor import AccountProcessor
 
 
 class TestEvents:
@@ -30,7 +32,6 @@ class TestEvents:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         tmp_dir = tempfile.mkdtemp()
         pytest.tmp_dir = tmp_dir
-
         from rasa import train
         # model without entities
         train_result = train(
@@ -68,6 +69,14 @@ class TestEvents:
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_only(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         bot = 'test_events'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
@@ -214,6 +223,14 @@ class TestEvents:
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_overwrite(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         bot = 'test_events'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
@@ -253,6 +270,14 @@ class TestEvents:
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_append(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         bot = 'test_events'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
@@ -294,9 +319,18 @@ class TestEvents:
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         bot = 'test_events'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+        pytest.bot = Bot(name=bot, account=100, user=user).save()
         shutil.copytree('tests/testing_data/validator/valid', test_data_path)
 
         def _path(*args, **kwargs):
@@ -304,8 +338,8 @@ class TestEvents:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
-        await EventsTrigger.trigger_data_importer(bot, user, True, True)
+        DataImporterLogProcessor.add_log(pytest.bot.name, user, files_received=REQUIREMENTS - {"http_actions"})
+        await EventsTrigger.trigger_data_importer(pytest.bot.name, user, True, True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 8
         assert not logs[0].get('intents').get('data')
@@ -473,6 +507,14 @@ class TestEvents:
 
     @pytest.mark.asyncio
     async def test_trigger_data_importer_nlu_only(self, monkeypatch, get_training_data):
+        def _mock_bot_info(*args, **kwargs):
+            return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
+
+        def _mock_list_bot_accessors(*args, **kwargs):
+            yield {'accessor_email': 'user@integration.com'}
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         bot = 'test_trigger_data_importer'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
