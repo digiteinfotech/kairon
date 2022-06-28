@@ -9386,6 +9386,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
     passwrd_change_response = client.post(
         "/api/account/password/change",
         json={
