@@ -18,6 +18,7 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility
+from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
 
 Utility.load_environment()
 
@@ -69,6 +70,17 @@ class Authentication:
                 user_model.is_integration_user = True
                 user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
+            else:
+                iat_val = payload.get("iat")
+                if iat_val is not None:
+                    issued_at = datetime.utcfromtimestamp(iat_val)
+                    if Utility.is_exist(
+                            UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
+                            timestamp__gte=issued_at):
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Password is reset while session begin Active',
+                        )
             return user_model
         except PyJWTError:
             raise credentials_exception
@@ -119,6 +131,8 @@ class Authentication:
                     expires_delta = timedelta(minutes=15)
                 expire = datetime.utcnow() + expires_delta
             to_encode.update({"exp": expire})
+            if to_encode.get("iat") is None:
+                to_encode.update({"iat": datetime.utcnow()})
         to_encode.update({"type": token_type})
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
         return encoded_jwt
