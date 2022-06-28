@@ -22,6 +22,7 @@ from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
 import responses
+from kairon.shared.account.data_objects import UserActivityLog
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -35,6 +36,12 @@ loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email
                                                                           "password": "testChat@12",
                                                                           "confirm_password": "testChat@12",
                                                                           "account": "ChatTesting"}).dict()))
+loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email": "resetpaswrd@chat.com",
+                                                                          "first_name": "Reset",
+                                                                          "last_name": "Password",
+                                                                          "password": "resetPswrd@12",
+                                                                          "confirm_password": "resetPswrd@12",
+                                                                          "account": "ResetPassword"}).dict()))
 
 token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
@@ -1347,3 +1354,62 @@ class TestChatServer(AsyncHTTPTestCase):
                 logs = EndUserMetricsProcessor.get_logs(bot)
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
+
+
+    def test_chat_with_bot_after_reset_passwrd(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token = Authentication.create_access_token(
+            data={"sub": "resetpaswrd@chat.com", 'access-limit': ['/api/bot/.+/chat']},
+        )
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        response = self.fetch(
+            f"/api/bot/{bot}/chat",
+            method="POST",
+            body=json.dumps({"data": "Hi"}).encode("utf8"),
+            headers={
+                "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        message = actual.get("message")
+        error_code = actual.get("error_code")
+        assert error_code == 401
+        assert message == "Password is reset while session begin Active"
+
+    def test_reload_after_reset_passwrd(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        reload_response = self.fetch(
+            f"/api/bot/{bot}/reload",
+            method="GET",
+            headers={
+                "Authorization": token_type + " " + access_token
+            },
+        )
+        reload_actual = json.loads(reload_response.body.decode("utf8"))
+        message = reload_actual.get("message")
+        error_code = reload_actual.get("error_code")
+        assert error_code == 401
+        assert message == "Password is reset while session begin Active"
+
+    def test_live_agent_after_reset_passwrd(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        live_response = self.fetch(
+            f"/api/bot/{bot}/agent/live/2",
+            method="POST",
+            body=json.dumps({"data": "need help"}).encode('utf-8'),
+            headers={"Authorization": token_type + " " + access_token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        live_actual = json.loads(live_response.body.decode("utf8"))
+        message = live_actual.get("message")
+        error_code = live_actual.get("error_code")
+        assert error_code == 401
+        assert message == "Password is reset while session begin Active"

@@ -26,7 +26,7 @@ from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -3332,35 +3332,6 @@ def test_reset_password_for_invalid_id():
     assert actual['data'] is None
 
 
-def test_overwrite_password_for_matching_passwords(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
-    response = client.post(
-        "/api/account/password/change",
-        json={
-            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-            "password": "Welcome@2",
-            "confirm_password": "Welcome@2"},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Success! Your password has been changed"
-    assert actual['data'] is None
-
-
-def test_login_new_password():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@2"},
-    )
-    actual = response.json()
-
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    pytest.access_token = actual["data"]["access_token"]
-    pytest.token_type = actual["data"]["token_type"]
-
-
 def test_list_bots_for_different_user_2():
     response = client.get(
         "/api/account/bot",
@@ -3369,18 +3340,6 @@ def test_list_bots_for_different_user_2():
     print(response)
     assert len(response['data']['shared']) == 1
     pytest.bot = response['data']['shared'][0]['_id']
-
-
-def test_login_old_password():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 401
-    assert actual["message"] == 'Incorrect username or password'
-    assert actual['data'] is None
 
 
 def test_send_link_for_valid_id(monkeypatch):
@@ -9391,3 +9350,106 @@ def test_delete_account_already_deleted():
     print(response)
     assert not response["success"]
     assert response["message"] == "User does not exist!"
+
+
+def test_get_responses_post_passwd_reset(monkeypatch):
+    Utility.email_conf["email"]["enable"] = True
+    email = "active_session@demo.ai"
+    regsiter_response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = regsiter_response.json()
+    Utility.email_conf["email"]["enable"] = False
+    login_response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login_actual = login_response.json()
+    pytest.access_token = login_actual["data"]["access_token"]
+    pytest.token_type = login_actual["data"]["token_type"]
+    bot_response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    pytest.bot = bot_response['data']['account_owned'][0]['_id']
+    token = Authentication.create_access_token(data={'mail_id': email})
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    passwrd_change_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@21",
+            "confirm_password": "Welcome@21"},
+    )
+
+    utter_response = client.get(
+        f"/api/bot/{pytest.bot}/response/utter_greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = utter_response.json()
+    message = actual["message"]
+    error_code = actual['error_code']
+    assert message == "Password is reset while session begin Active"
+    assert error_code == 401
+
+def test_create_access_token_with_iat():
+
+    access_token = Authentication.create_access_token(
+        data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/intent']},
+        token_type=TOKEN_TYPE.LOGIN.value
+    )
+    payload = Utility.decode_limited_access_token(access_token)
+    assert payload.get("iat") is not None
+
+
+def test_overwrite_password_for_matching_passwords(monkeypatch):
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
+            "password": "Welcome@2",
+            "confirm_password": "Welcome@2"},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Success! Your password has been changed"
+    assert actual['data'] is None
+
+def test_login_new_password():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integ1@gmail.com", "password": "Welcome@2"},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    pytest.access_token = actual["data"]["access_token"]
+    pytest.token_type = actual["data"]["token_type"]
+
+def test_login_old_password():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+    assert actual["message"] == 'Incorrect username or password'
+    assert actual['data'] is None
