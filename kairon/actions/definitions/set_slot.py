@@ -15,10 +15,21 @@ from kairon.shared.constants import SLOT_SET_TYPE
 class ActionSetSlot(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
+        """
+        Initialize Email action.
+
+        @param bot: bot id
+        @param name: action name
+        """
         self.bot = bot
         self.name = name
 
     def retrieve_config(self):
+        """
+        Fetch Slot Setting action configuration parameters from the database.
+
+        :return: SlotSetAction containing configuration for the action as a dict.
+        """
         try:
             action = SlotSetAction.objects().get(bot=self.bot, name=self.name, status=True).to_mongo().to_dict()
             logger.debug("slot_set_action_config: " + str(action))
@@ -28,6 +39,14 @@ class ActionSetSlot(ActionsBase):
             raise ActionFailure("No Slot set action found for given action and bot")
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+        """
+        Retrieves action config and executes it.
+        Information regarding the execution is logged in ActionServerLogs.
+
+        @param dispatcher: Client to send messages back to the user.
+        @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
+        :return: Dict containing slot name as keys and their values.
+        """
         message = []
         reset_slots = {}
         status = 'SUCCESS'

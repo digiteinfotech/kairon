@@ -5,6 +5,7 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
+from kairon.actions.definitions.base import ActionsBase
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
 from kairon.actions.definitions.form_validation import ActionFormValidation
@@ -2020,6 +2021,10 @@ class TestActions:
             assert 'test@demo.com' == actual['from_email']
             assert expected['to_email'] == actual['to_email']
             assert 'test.user_id' == actual.get("smtp_userid")
+
+    def test_email_action_not_found(self):
+        with pytest.raises(ActionFailure, match="No Email action found for given action and bot"):
+            ActionEmail("test", "test_email_action_not_found").retrieve_config()
 
     def test_prepare_email_body(self):
         Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()

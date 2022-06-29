@@ -1,20 +1,15 @@
 from typing import Dict, Text, List, Any
 
-from mongoengine import DoesNotExist
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 
 from rasa_sdk.interfaces import Tracker
 
 from ..definitions.factory import ActionFactory
-from ...shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
 from ...shared.actions.data_objects import ActionServerLogs
 from ...shared.actions.exception import ActionFailure
-from ...shared.actions.utils import ActionUtility, ExpressionEvaluator
+from ...shared.actions.utils import ActionUtility
 from loguru import logger
-
-from ...shared.constants import SLOT_SET_TYPE
-from ...shared.utils import Utility
 
 
 class ActionProcessor:

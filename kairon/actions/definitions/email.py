@@ -16,10 +16,21 @@ from kairon.shared.actions.utils import ActionUtility
 class ActionEmail(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
+        """
+        Initialize Email action.
+
+        @param bot: bot id
+        @param name: action name
+        """
         self.bot = bot
         self.name = name
 
     def retrieve_config(self):
+        """
+        Fetch Email action configuration parameters from the database.
+
+        :return: EmailActionConfig containing configuration for the action as dict.
+        """
         try:
             action = EmailActionConfig.objects(bot=self.bot, action_name=self.name, status=True).get().to_mongo().to_dict()
             logger.debug("email_action_config: " + str(action))
@@ -30,10 +41,18 @@ class ActionEmail(ActionsBase):
                 action['smtp_userid'] = Utility.decrypt_message(action['smtp_userid'])
         except DoesNotExist as e:
             logger.exception(e)
-            raise ActionFailure("Email action not found")
+            raise ActionFailure("No Email action found for given action and bot")
         return action
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+        """
+        Retrieves action config and executes it.
+        Information regarding the execution is logged in ActionServerLogs.
+
+        @param dispatcher: Client to send messages back to the user.
+        @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
+        :return: Dict containing slot name as keys and their values.
+        """
         status = "SUCCESS"
         exception = None
         action_config = self.retrieve_config()

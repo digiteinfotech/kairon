@@ -15,15 +15,34 @@ from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 class ActionFormValidation(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
+        """
+        Initialize Email action.
+
+        @param bot: bot id
+        @param name: action name
+        """
         self.bot = bot
         self.name = name
 
     def retrieve_config(self):
+        """
+        Fetch Form validation action configuration parameters from the database.
+
+        :return: FormValidationAction object containing configuration for the action
+        """
         action = FormValidationAction.objects(bot=self.bot, name=self.name, status=True)
         logger.debug("form_validation_config: " + str(action.to_json()))
         return action
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+        """
+        Retrieves action config and executes it.
+        Information regarding the execution is logged in ActionServerLogs.
+
+        @param dispatcher: Client to send messages back to the user.
+        @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
+        :return: Dict containing slot name as keys and their values.
+        """
         form_validations = self.retrieve_config()
         slot = tracker.get_slot(REQUESTED_SLOT)
         slot_value = tracker.get_slot(slot)

@@ -3,7 +3,6 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, List, Text
-from urllib.parse import urlencode, quote_plus
 
 import requests
 from loguru import logger
@@ -30,11 +29,11 @@ class ActionUtility:
                              content_type: str = HttpRequestContentType.json.value):
         """Executes http urls provided.
 
-        :param http_url: HTTP url to be executed
-        :param request_method: One of GET, PUT, POST, DELETE
-        :param request_body: Request body to be sent with the request
-        :param headers: header for the HTTP request
-        :param content_type: request content type HTTP request
+        @param http_url: HTTP url to be executed
+        @param request_method: One of GET, PUT, POST, DELETE
+        @param request_body: Request body to be sent with the request
+        @param headers: header for the HTTP request
+        @param content_type: request content type HTTP request
         :return: JSON/string response
         """
         if not headers:
@@ -76,8 +75,8 @@ class ActionUtility:
         2. Adds value of parameter directly if parameter_type is value
         3. Adds value of parameter as the sender_id.
         4. Adds value of parameter as user_message.
-        :param tracker_data: Tracker data for the Http Action
-        :param http_action_config_params: User defined request body parameters <key, value, parameter_type>
+        @param tracker_data: Tracker data for the Http Action
+        @param http_action_config_params: User defined request body parameters <key, value, parameter_type>
         :return: Request body for the HTTP request
         """
         request_body = {}
@@ -115,6 +114,14 @@ class ActionUtility:
 
     @staticmethod
     def build_context(tracker: Tracker):
+        """
+        Creates a dict of tracker object that contains contextual information
+        required for filling parameter values based on its type or using it to
+        format response using evaluation engine.
+
+        @tracker: Tracker object
+        :return: dict of required parameters.
+        """
         iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
         return {
             ActionParameterType.sender_id.value: tracker.sender_id,
@@ -127,6 +134,9 @@ class ActionUtility:
 
     @staticmethod
     def prepare_message_trail(tracker_events):
+        """
+        Prepare a conversation trail from tracker events.
+        """
         message_trail = []
         initiated_at = None
         for event in tracker_events:
@@ -139,6 +149,9 @@ class ActionUtility:
 
     @staticmethod
     def prepare_message_trail_as_str(tracker_events):
+        """
+        Prepare a conversation trail from tracker events in the form of string.
+        """
         message_trail_as_str = ''
         initiated_at = None
         for event in tracker_events:
@@ -151,6 +164,14 @@ class ActionUtility:
 
     @staticmethod
     def prepare_url(http_url: str, tracker_data: dict):
+        """
+        Forms URL by replacing placeholders in it with values from tracker.
+        Supports substitution of sender_id, intent, user message and slot in the URL.
+
+        @param http_url: HTTP Url
+        @param tracker_data: tracker containing contextual info.
+        :return: Prepared URL.
+        """
         http_url = http_url.replace("$SENDER_ID", tracker_data.get(ActionParameterType.sender_id.value, ""))
         http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
         http_url = http_url.replace("$USER_MESSAGE", tracker_data.get(ActionParameterType.user_message.value, ""))
@@ -172,6 +193,11 @@ class ActionUtility:
 
     @staticmethod
     def get_action(bot: str, name: str):
+        """
+        Retrieves action from database.
+        @param bot: bot id
+        @param name: action name
+        """
         try:
             return Actions.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
         except DoesNotExist as e:
