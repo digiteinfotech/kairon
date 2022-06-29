@@ -10,7 +10,7 @@ from validators import email as mail_check
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess
+    MailTemplates, SystemProperties, BotAccess, BotMetaData
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
@@ -57,10 +57,25 @@ class AccountProcessor:
             raise DoesNotExist("Account does not exists")
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str, is_new_account: bool = False):
+    def check_bot_exists(name: str, account: int, raise_exception: bool = True):
+        bot_exists = Utility.is_exist(
+            Bot,
+            raise_error=False,
+            name__iexact=name,
+            account=account,
+            status=True,
+        )
+        if bot_exists and raise_exception:
+            raise AppException("Bot already exists!")
+
+        return bot_exists
+
+    @staticmethod
+    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, **metadata):
         """
         add a bot to account
 
+        :param metadata: metadata of new bot
         :param name: bot name
         :param account: account id
         :param user: user id
@@ -76,14 +91,14 @@ class AccountProcessor:
         if Utility.check_empty_string(user):
             raise AppException("user cannot be empty or blank spaces")
 
-        Utility.is_exist(
-            Bot,
-            exp_message="Bot already exists!",
-            name__iexact=name,
-            account=account,
-            status=True,
-        )
-        bot = Bot(name=name, account=account, user=user).save().to_mongo().to_dict()
+        AccountProcessor.check_bot_exists(name, account)
+
+        if metadata:
+            bot_metadata = BotMetaData(**metadata['metadata'])
+        else:
+            bot_metadata = BotMetaData()
+
+        bot = Bot(name=name, account=account, user=user, metadata=bot_metadata).save().to_mongo().to_dict()
         bot_id = bot['_id'].__str__()
         if not is_new_account:
             AccountProcessor.__allow_access_to_bot(bot_id, user, user, account, ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.ACTIVE.value)

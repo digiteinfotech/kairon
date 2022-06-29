@@ -91,3 +91,18 @@ notifications:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+
+multilingual:
+  project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
+  event_url: ${BOT_REPLICATION_EVENT_URL}
+  limit_per_day: ${TRANSLATION_LIMIT:2}
+  service_account_creds:
+    type: ${SERVICE_ACCOUNT_TYPE:"service_account"}
+    private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}
+    private_key: ${SERVICE_ACCOUNT_PRIVATE_KEY}
+    client_email: ${SERVICE_ACCOUNT_CLIENT_EMAIL}
+    client_id: ${SERVICE_ACCOUNT_CLIENT_ID}
+    auth_uri: ${SERVICE_ACCOUNT_AUTH_URL:"https://accounts.google.com/o/oauth2/auth"}
+    token_uri: ${SERVICE_ACCOUNT_TOKEN_URL:"https://oauth2.googleapis.com/token"}
+    auth_provider_x509_cert_url: ${SERVICE_ACCOUNT_AUTH_PROVIDER_CERT_URL:"https://www.googleapis.com/oauth2/v1/certs"}
+    client_x509_cert_url: ${SERVICE_ACCOUNT_CLIENT_CERT_URL}

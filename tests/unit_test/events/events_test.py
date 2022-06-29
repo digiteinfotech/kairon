@@ -11,12 +11,15 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 
 from kairon import Utility
+from kairon.multilingual.processor import MultilingualProcessor
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.events.events import EventsTrigger
+from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.test.test_models import ModelTester
 
@@ -1007,4 +1010,76 @@ class TestEvents:
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
         assert logs[0]['status'] == EVENT_STATUS.TASKSPAWNED.value
+
+    def test_trigger_multilingual_translation(self, monkeypatch):
+        bot_name = 'test_events_bot'
+        user = 'test_user'
+        d_lang = "es"
+        translate_responses = False
+        translate_actions = True
+
+        def _mock_create_multilingual_bot(*args, **kwargs):
+            return 'translated_test_events_bot'
+
+        monkeypatch.setattr(MultilingualProcessor, "create_multilingual_bot", _mock_create_multilingual_bot)
+
+        bot_obj = AccountProcessor.add_bot(bot_name, 1, user)
+        bot = bot_obj['_id'].__str__()
+        EventsTrigger.trigger_multilingual_translation(bot, user, d_lang, translate_responses, translate_actions)
+
+        logs = list(MultilingualLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['destination_bot'] == 'translated_test_events_bot'
+        assert logs[0]['d_lang'] == d_lang
+        assert not logs[0]['translate_responses']
+        assert logs[0]['translate_actions']
+        assert logs[0]['copy_type'] == 'Translation'
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert not logs[0].get('exception')
+        assert logs[0].get('status') == 'Success'
+        assert logs[0].get('event_status') == EVENT_STATUS.COMPLETED.value
+
+    def test_trigger_multilingual_translation_event_connection_error(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        d_lang = "es"
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['multilingual'], "event_url", event_url)
+        EventsTrigger.trigger_multilingual_translation(bot, user, d_lang, True, True)
+        logs = list(MultilingualLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0].get('exception').__contains__('Failed to trigger the event.')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('status') == 'Failure'
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+
+    @responses.activate
+    def test_trigger_multilingual_translation_event(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        d_lang = "es"
+        event_url = "http://url.event"
+        monkeypatch.setitem(Utility.environment['multilingual'], "event_url", event_url)
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!"},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              [{'name': 'SOURCE_BOT', 'value': bot}, {'name': 'USER', 'value': user},
+                               {'name': 'D_LANG', 'value': d_lang}, {'name': 'TRANSLATE_RESPONSES', 'value': True},
+                               {'name': 'TRANSLATE_ACTIONS', 'value': True}])]
+                      )
+        EventsTrigger.trigger_multilingual_translation(bot, user, d_lang, True, True)
+
+        logs = list(MultilingualLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+
 
