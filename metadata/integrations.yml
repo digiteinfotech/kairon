@@ -24,6 +24,11 @@ channels:
       - app_secret
       - page_access_token
       - verify_token
+  whatsapp:
+    required_fields:
+      - app_secret
+      - access_token
+      - verify_token
 
 actions:
   pipedrive:
@@ -41,3 +46,4 @@ live_agents:
       - account_id
     optional_fields:
       - inbox_identifier
+    websocket_url: wss://app.chatwoot.com/cable

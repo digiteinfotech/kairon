@@ -28,12 +28,12 @@ class TestLiveAgentProcessor:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={"payload": []}
         )
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={
                 "id": 14036,
                 "avatar_url": "",
@@ -154,7 +154,7 @@ class TestLiveAgentProcessor:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={
                 "payload": [
                     {
@@ -395,12 +395,12 @@ class TestLiveAgentProcessor:
 
         responses.add(
             "GET",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={"payload": []}
         )
         responses.add(
             "POST",
-            f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
+            f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
             json={
                 "id": 14036,
                 "avatar_url": "",

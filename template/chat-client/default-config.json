@@ -6,6 +6,7 @@
   "host": "https://localhost:8000/api/bot/chat",
   "userType": "custom",
   "userStorage": "ls",
+  "whitelist": ["*"],
   "styles": {
     "headerStyle": {
       "backgroundColor": "#2b3595",

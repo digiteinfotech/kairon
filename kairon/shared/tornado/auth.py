@@ -10,6 +10,9 @@ from kairon.shared.models import User
 from kairon.shared.tornado.exception import ServiceHandlerException
 from kairon.shared.utils import Utility
 from typing import Text
+from datetime import datetime
+from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
+from tornado.web import HTTPError
 
 Utility.load_environment()
 
@@ -59,7 +62,17 @@ class TornadoAuthenticate:
             user_model.alias_user = alias_user
             user_model.is_integration_user = True
             user_model.role = payload.get('role')
-
+        else:
+            iat_val = payload.get("iat")
+            if iat_val is not None:
+                issued_at = datetime.utcfromtimestamp(iat_val)
+                if Utility.is_exist(
+                        UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
+                        timestamp__gte=issued_at):
+                    raise HTTPError(
+                        status_code=401,
+                        reason='Password is reset while session begin Active',
+                    )
         return user_model
 
     @staticmethod

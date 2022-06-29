@@ -29,7 +29,7 @@ from kairon.shared.data.signals import push_notification
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
-
+from validators import domain
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -640,6 +640,13 @@ class ChatClientConfig(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    white_listed_domain = ListField(StringField(), default=None)
+
+    def validate(self, clean=True):
+        if isinstance(self.white_listed_domain, list):
+            for val in self.white_listed_domain:
+                if val != "*" and isinstance(domain(val), ValidationFailure):
+                    raise ValidationError("One of the domain is invalid")
 
 
 @push_notification.apply

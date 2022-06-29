@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List, Optional
 from urllib.parse import urljoin
-from fastapi import APIRouter, BackgroundTasks, Path, Security
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
 from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -265,10 +265,10 @@ async def add_custom_responses(
     return {"message": "Response added!", "data": {"_id": utterance_id}}
 
 
-@router.put("/response/{utterance}/{id}", response_model=Response)
+@router.put("/response/{utterance}/{utterance_id}", response_model=Response)
 async def edit_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -276,7 +276,7 @@ async def edit_responses(
     Updates existing utterance value
     """
     mongo_processor.edit_text_response(
-        id,
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),
@@ -287,18 +287,18 @@ async def edit_responses(
     }
 
 
-@router.put("/response/json/{utterance}/{id}", response_model=Response)
+@router.put("/response/json/{utterance}/{utterance_id}", response_model=Response)
 async def edit_custom_responses(
         utterance: str,
-        id: str,
+        utterance_id: str,
         request_data: DictData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Updates existing utterance value
     """
-    mongo_processor.edit_response(
-        id,
+    mongo_processor.edit_custom_response(
+        utterance_id,
         request_data.data,
         utterance,
         current_user.get_bot(),
@@ -1081,16 +1081,18 @@ async def get_chat_client_config_url(
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config_using_uid(uid: str):
-    decoded_uid = Utility.decode_limited_access_token(uid)
+async def get_client_config_using_uid(request: Request, bot: str, uid: str):
+    decoded_uid = Utility.validate_bot_specific_token(bot, uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
+    if not Utility.validate_request(request, config):
+        return Response(data={}, error_code=403, success=False)
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
 
 
 @router.get("/chat/client/config", response_model=Response)
 async def get_client_config(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot())
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])

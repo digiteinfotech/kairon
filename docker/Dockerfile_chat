@@ -1,7 +1,7 @@
 FROM amazonlinux:latest
 
 WORKDIR /app
-USER root
+
 RUN yum update -y
 RUN yum -y install wget make gcc openssl-devel bzip2-devel
 RUN amazon-linux-extras install python3.8
@@ -32,11 +32,16 @@ RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install blinker
 
+RUN mkdir -p /home/cache
+RUN chmod -R 777 /home/cache
+
 COPY kairon/ /app/kairon
+COPY metadata /app/metadata
 COPY system.yaml /app/
 COPY email.yaml /app/
 
-USER 1001
+ENV HF_HOME="/home/cache"
+
 EXPOSE 5000
 CMD ["python","-m", "kairon.chat.server","--logging=debug"]
 

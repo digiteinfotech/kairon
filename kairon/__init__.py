@@ -2,7 +2,6 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from mongoengine import connect
 
-from kairon.cli import importer, training, testing, conversations_deletion, translator
 from kairon.shared.utils import Utility
 
 """
@@ -35,6 +34,8 @@ Usage:
 
 
 def create_argument_parser():
+    from kairon.cli import importer, training, testing, conversations_deletion, translator
+
     parser = ArgumentParser(
         prog="kairon",
         formatter_class=ArgumentDefaultsHelpFormatter,

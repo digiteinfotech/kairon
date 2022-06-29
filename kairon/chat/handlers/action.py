@@ -8,6 +8,7 @@ from kairon.shared.models import User
 from tornado import concurrent
 
 from ...live_agent.live_agent import LiveAgent
+from tornado.web import HTTPError
 
 executor = concurrent.futures.ThreadPoolExecutor(2)
 
@@ -26,6 +27,11 @@ class ChatHandler(BaseHandler, ABC):
             body = json_decode(self.request.body.decode("utf8"))
             response = await ChatUtils.chat(body.get("data"), bot, user.get_user())
             logger.info(f"text={body.get('data')} response={response}")
+        except HTTPError as ex:
+            logger.exception(ex)
+            message = str(ex.reason)
+            error_code = ex.status_code
+            success = False
         except Exception as e:
             logger.exception(e)
             message = str(e)
@@ -45,6 +51,11 @@ class ReloadHandler(BaseHandler, ABC):
         try:
             user: User = super().authenticate(self.request, bot=bot)
             executor.submit(ChatUtils.reload, bot)
+        except HTTPError as ex:
+            logger.exception(ex)
+            message = str(ex.reason)
+            error_code = ex.status_code
+            success = False
         except Exception as e:
             logger.exception(e)
             message = str(e)
@@ -66,6 +77,11 @@ class LiveAgentHandler(BaseHandler, ABC):
             body = json_decode(self.request.body.decode("utf8"))
             response = {"response": LiveAgent.from_bot(bot).send_message(body.get("data"), destination)}
             logger.info(f"text={body.get('data')} response={response}")
+        except HTTPError as ex:
+            logger.exception(ex)
+            message = str(ex.reason)
+            error_code = ex.status_code
+            success = False
         except Exception as e:
             logger.exception(e)
             message = str(e)

@@ -898,6 +898,13 @@ class Utility:
             raise PyJWTError("Invalid token")
 
     @staticmethod
+    def validate_bot_specific_token(bot: Text, token: Text):
+        claims = Utility.decode_limited_access_token(token)
+        if bot != claims.get('sub'):
+            raise AppException("Invalid token")
+        return claims
+
+    @staticmethod
     def load_json_file(path: Text, raise_exc: bool = True):
         if not os.path.exists(path) and raise_exc:
             raise AppException('file not found')
@@ -1258,7 +1265,8 @@ class Utility:
             }
         }
         payload = json.dumps(payload)
-        asyncio.create_task(Utility.websocket_request(push_server_endpoint, payload))
+        io_loop = asyncio.get_event_loop()
+        io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
@@ -1388,3 +1396,53 @@ class Utility:
             response = response.json()
 
         return response
+
+    @staticmethod
+    def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):
+        secret = Utility.environment['security'].get('recaptcha_secret', None)
+        if Utility.check_empty_string(recaptcha_response):
+            raise AppException("recaptcha_response is required")
+        captcha_verifier = Utility.environment['security']['recaptcha_url']
+        url = f"{captcha_verifier}?secret={secret}&response={recaptcha_response}"
+        if not Utility.check_empty_string(remote_ip):
+            url = f"{url}&remoteip={remote_ip}"
+        resp = Utility.execute_http_request(
+            "POST", url, validate_status=True, err_msg="Failed to validate recaptcha: "
+        )
+        if not resp['success']:
+            raise AppException("Failed to validate recaptcha")
+
+    @staticmethod
+    def compare_string_constant_time(val1: str, val2: str):
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        for x, y in zip(bytes(val1, "utf-8"), bytes(val2, "utf-8")):
+            result |= x ^ y
+            if result > 0:
+                break
+        return True if result == 0 else False
+
+    @staticmethod
+    def validate_request(request, config):
+        """
+        This API validate request for whitelisted domains,
+        return false if request is from non listed domain
+
+        :param request HTTP request
+        :param config chat-client-config
+
+        :return boolean
+        """
+        from urllib.parse import urlparse
+        http_referer = request.headers.get('HTTP_REFERER') if request.headers.get(
+            'HTTP_REFERER') is not None else request.headers.get('referer')
+        white_listed_domain = config.white_listed_domain if config.white_listed_domain is not None else ["*"]
+
+        if "*" in white_listed_domain:
+            return True
+        referrer_domain = urlparse(http_referer).netloc
+        for domain in white_listed_domain:
+            if Utility.compare_string_constant_time(referrer_domain, domain):
+                return True
+        return False
