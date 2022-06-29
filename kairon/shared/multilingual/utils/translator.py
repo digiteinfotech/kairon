@@ -5,6 +5,7 @@ from typing import List, Text
 
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
+import json
 
 
 class Translator:
