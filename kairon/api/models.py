@@ -5,13 +5,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS
-from ..shared.actions.models import SlotValidationOperators, LogicalOperators
+from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
-from ..shared.models import StoryStepType, StoryType, TemplateType, ParameterChoice
+from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -225,7 +225,8 @@ class Password(RecaptchaVerifiedRequest):
 class HttpActionParameters(BaseModel):
     key: str
     value: str = None
-    parameter_type: ParameterChoice
+    parameter_type: ActionParameterType
+    encrypt: bool = False
 
     @root_validator
     def check(cls, values):
@@ -234,18 +235,58 @@ class HttpActionParameters(BaseModel):
         if Utility.check_empty_string(values.get('key')):
             raise ValueError("key cannot be empty")
 
-        if values.get('parameter_type') == ParameterChoice.slot and Utility.check_empty_string(values.get('value')):
+        if values.get('parameter_type') == ActionParameterType.slot and Utility.check_empty_string(values.get('value')):
             raise ValueError("Provide name of the slot as value")
+
+        return values
+
+
+class SetSlotsUsingActionResponse(BaseModel):
+    name: str
+    value: str
+    evaluation_type: EvaluationType = EvaluationType.expression
+
+    @validator("name")
+    def validate_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("slot name is required")
+        return v
+
+    @validator("value")
+    def validate_expression(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("expression is required to evaluate value of slot")
+        return v
+
+
+class ActionResponseEvaluation(BaseModel):
+    value: str = None
+    dispatch: bool = True
+    evaluation_type: EvaluationType = EvaluationType.expression
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if values.get('dispatch') is True and Utility.check_empty_string(values.get('value')):
+            raise ValueError("response is required for dispatch")
+
         return values
 
 
 class HttpActionConfigRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
-    response: str
+    content_type: HttpContentType = HttpContentType.application_json
+    response: ActionResponseEvaluation = None
     http_url: str
     request_method: str
     params_list: List[HttpActionParameters] = []
     headers: List[HttpActionParameters] = []
+    set_slots: List[SetSlotsUsingActionResponse] = []
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):

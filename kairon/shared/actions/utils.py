@@ -2,7 +2,7 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Text
 from urllib.parse import urlencode, quote_plus
 
 import requests
@@ -10,11 +10,11 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 
-from .data_objects import HttpActionConfig, HttpActionRequestBody, Actions, SlotSetAction, FormValidationAction, \
-    EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, HubspotFormsAction
+from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import ActionType, SlotValidationOperators, LogicalOperators, ActionParameterType
-from ..data.constant import SLOT_TYPE
+from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
+    EvaluationType
+from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots
 from ..utils import Utility
 
@@ -26,34 +26,36 @@ class ActionUtility:
     """
 
     @staticmethod
-    def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None):
+    def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
+                             content_type: str = HttpRequestContentType.json.value):
         """Executes http urls provided.
 
         :param http_url: HTTP url to be executed
         :param request_method: One of GET, PUT, POST, DELETE
         :param request_body: Request body to be sent with the request
         :param headers: header for the HTTP request
+        :param content_type: request content type HTTP request
         :return: JSON/string response
         """
         if not headers:
             headers = {}
-        headers.update({"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"})
-
-        if request_body is None:
-            request_body = {}
+        headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+            REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        })
 
         try:
-            if request_method.lower() == 'get':
-                response = requests.get(http_url, headers=headers)
-            elif request_method.lower() in ['post', 'put', 'delete']:
-                response = requests.request(request_method.upper(), http_url, json=request_body, headers=headers)
+            if request_method.lower() in {'get', 'post', 'put', 'delete'}:
+                response = requests.request(
+                    request_method.upper(), http_url, headers=headers, **{content_type: request_body}
+                )
             else:
                 raise ActionFailure("Invalid request method!")
             logger.debug("raw response: " + str(response.text))
             logger.debug("status " + str(response.status_code))
 
             if response.status_code not in [200, 202, 201, 204]:
-                raise ActionFailure("Got non-200 status code")
+                raise ActionFailure(f"Got non-200 status code: {response.text}")
         except Exception as e:
             logger.error(str(e))
             raise ActionFailure("Failed to execute the url: " + str(e))
@@ -67,41 +69,61 @@ class ActionUtility:
         return http_response_as_json
 
     @staticmethod
-    def prepare_request(tracker: Tracker, http_action_config_params: List[HttpActionRequestBody]):
+    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody]):
         """
         Prepares request body:
         1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
         2. Adds value of parameter directly if parameter_type is value
         3. Adds value of parameter as the sender_id.
         4. Adds value of parameter as user_message.
-        :param tracker: Tracker for the Http Action
+        :param tracker_data: Tracker data for the Http Action
         :param http_action_config_params: User defined request body parameters <key, value, parameter_type>
         :return: Request body for the HTTP request
         """
         request_body = {}
+        request_body_log = {}
 
         for param in http_action_config_params or []:
             if param['parameter_type'] == ActionParameterType.sender_id.value:
-                value = tracker.sender_id
+                value = tracker_data.get(ActionParameterType.sender_id.value)
             elif param['parameter_type'] == ActionParameterType.slot.value:
-                value = tracker.get_slot(param['value'])
+                value = tracker_data.get(ActionParameterType.slot.value, {}).get(param['value'])
             elif param['parameter_type'] == ActionParameterType.user_message.value:
-                value = tracker.latest_message.get('text')
+                value = tracker_data.get(ActionParameterType.user_message.value)
             elif param['parameter_type'] == ActionParameterType.intent.value:
-                value = tracker.get_intent_of_latest_message()
+                value = tracker_data.get(ActionParameterType.intent.value)
             elif param['parameter_type'] == ActionParameterType.chat_log.value:
-                iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
                 value = {
-                    'sender_id': tracker.sender_id,
-                    'session_started': iat,
-                    'conversation': msg_trail
+                    'sender_id': tracker_data.get(ActionParameterType.sender_id.value),
+                    'session_started': tracker_data['session_started'],
+                    'conversation': tracker_data.get(ActionParameterType.chat_log.value)
                 }
             else:
                 value = param['value']
-            request_body[param['key']] = value
-            logger.debug("value for key " + param['key'] + ": " + str(value))
+            log_value = value
+            if param['encrypt'] is True and param['parameter_type'] != ActionParameterType.chat_log.value:
+                if not ActionUtility.is_empty(value) and param['parameter_type'] == ActionParameterType.value.value:
+                    value = Utility.decrypt_message(value)
 
-        return request_body
+                if not ActionUtility.is_empty(value):
+                    log_value = value[:-4] + '****'
+
+            request_body[param['key']] = value
+            request_body_log[param['key']] = log_value
+
+        return request_body, request_body_log
+
+    @staticmethod
+    def build_context(tracker: Tracker):
+        iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
+        return {
+            ActionParameterType.sender_id.value: tracker.sender_id,
+            ActionParameterType.user_message.value: tracker.latest_message.get('text'),
+            ActionParameterType.slot.value: tracker.current_slot_values(),
+            ActionParameterType.intent.value: tracker.get_intent_of_latest_message(),
+            ActionParameterType.chat_log.value: msg_trail,
+            "session_started": iat
+        }
 
     @staticmethod
     def prepare_message_trail(tracker_events):
@@ -128,9 +150,12 @@ class ActionUtility:
         return initiated_at, message_trail_as_str
 
     @staticmethod
-    def prepare_url(request_method: str, http_url: str, request_body=None):
-        if request_method.lower() == 'get' and request_body:
-            http_url = http_url + "?" + urlencode(request_body, quote_via=quote_plus)
+    def prepare_url(http_url: str, tracker_data: dict):
+        http_url = http_url.replace("$SENDER_ID", tracker_data.get(ActionParameterType.sender_id.value, ""))
+        http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
+        http_url = http_url.replace("$USER_MESSAGE", tracker_data.get(ActionParameterType.user_message.value, ""))
+        for slot, value in tracker_data.get(ActionParameterType.slot.value, {}).items():
+            http_url = http_url.replace(f"${slot}", value or "")
         return http_url
 
     @staticmethod
@@ -146,144 +171,12 @@ class ActionUtility:
         return bool(not value.strip())
 
     @staticmethod
-    def get_action_config(bot: str, name: str):
-        if ActionUtility.is_empty(bot) or ActionUtility.is_empty(name):
-            raise ActionFailure("Bot and action name are required for fetching configuration")
-
+    def get_action(bot: str, name: str):
         try:
-            action = Actions.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("action_config: " + str(action))
-            if action.get('type') == ActionType.http_action.value:
-                config = ActionUtility.get_http_action_config(bot, name)
-            elif action.get('type') == ActionType.slot_set_action.value:
-                config = ActionUtility.get_slot_set_config(bot, name)
-            elif action.get('type') == ActionType.form_validation_action.value:
-                config = ActionUtility.get_form_validation_config(bot, name)
-            elif action.get('type') == ActionType.email_action.value:
-                config = ActionUtility.get_email_action_config(bot, name)
-            elif action.get('type') == ActionType.google_search_action.value:
-                config = ActionUtility.get_google_search_action_config(bot, name)
-            elif action.get('type') == ActionType.jira_action.value:
-                config = ActionUtility.get_jira_action_config(bot, name)
-            elif action.get('type') == ActionType.zendesk_action.value:
-                config = ActionUtility.get_zendesk_action_config(bot, name)
-            elif action.get('type') == ActionType.pipedrive_leads_action.value:
-                config = ActionUtility.get_pipedrive_leads_action_config(bot, name)
-            elif action.get('type') == ActionType.hubspot_forms_action.value:
-                config = ActionUtility.get_hubspot_forms_action_config(bot, name)
-            else:
-                raise ActionFailure(f'{action.get("type")} action is not supported with action server')
+            return Actions.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
         except DoesNotExist as e:
             logger.exception(e)
-            raise ActionFailure("No action found for bot")
-
-        return config, action.get('type')
-
-    @staticmethod
-    def get_http_action_config(bot: str, action_name: str):
-        """
-        Fetch HTTP action configuration parameters from the MongoDB database
-        :param db_url: MongoDB connection string
-        :param bot: BotID
-        :param action_name: Action name
-        :return: HttpActionConfig object containing configuration for the action
-        """
-        if ActionUtility.is_empty(bot) or ActionUtility.is_empty(action_name):
-            raise ActionFailure("Bot name and action name are required")
-
-        try:
-            http_config_dict = HttpActionConfig.objects().get(bot=bot,
-                                                              action_name=action_name, status=True).to_mongo().to_dict()
-            logger.debug("http_action_config: " + str(http_config_dict))
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("No HTTP action found for bot")
-
-        return http_config_dict
-
-    @staticmethod
-    def get_slot_set_config(bot: str, name: str):
-        try:
-            action = SlotSetAction.objects().get(bot=bot, name=name, status=True).to_mongo().to_dict()
-            logger.debug("slot_set_action_config: " + str(action))
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("No slot set action found for bot")
-
-        return action
-
-    @staticmethod
-    def get_form_validation_config(bot: str, name: str):
-        action = FormValidationAction.objects(bot=bot, name=name, status=True)
-        logger.debug("form_validation_config: " + str(action.to_json()))
-        return action
-
-    @staticmethod
-    def get_email_action_config(bot: str, name: str):
-        action = EmailActionConfig.objects(bot=bot, action_name=name, status=True).get().to_mongo().to_dict()
-        logger.debug("email_action_config: " + str(action))
-        action['smtp_url'] = Utility.decrypt_message(action['smtp_url'])
-        action['smtp_password'] = Utility.decrypt_message(action['smtp_password'])
-        action['from_email'] = Utility.decrypt_message(action['from_email'])
-        if not ActionUtility.is_empty(action.get('smtp_userid')):
-            action['smtp_userid'] = Utility.decrypt_message(action['smtp_userid'])
-        return action
-
-    @staticmethod
-    def get_google_search_action_config(bot: str, name: str):
-        try:
-            action = GoogleSearchAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("google_search_action_config: " + str(action))
-            action['api_key'] = Utility.decrypt_message(action['api_key'])
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("Google search action not found")
-        return action
-
-    @staticmethod
-    def get_jira_action_config(bot: str, name: str):
-        try:
-            action = JiraAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("jira_action_config: " + str(action))
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("Jira action not found")
-        return action
-
-    @staticmethod
-    def get_zendesk_action_config(bot: str, name: str):
-        try:
-            action = ZendeskAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("zendesk_action_config: " + str(action))
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("Zendesk action not found")
-        return action
-
-    @staticmethod
-    def get_pipedrive_leads_action_config(bot: str, name: str):
-        try:
-            action = PipedriveLeadsAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("pipedrive_leads_action_config: " + str(action))
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("Pipedrive leads action not found")
-        return action
-
-    @staticmethod
-    def get_hubspot_forms_action_config(bot: str, name: str):
-        try:
-            action = HubspotFormsAction.objects(bot=bot, name=name, status=True).get().to_mongo().to_dict()
-            logger.debug("hubspot_forms_action_config: " + str(action))
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise ActionFailure("Hubspot forms action not found")
-        return action
+            raise ActionFailure("No action found for given bot and name")
 
     @staticmethod
     def get_slot_type(bot: str, slot: str):
@@ -380,6 +273,31 @@ class ActionUtility:
                 parsed_output = parsed_output.replace(key, str(value_mapping[key]))
 
         return parsed_output
+
+    @staticmethod
+    def compose_response(response_config: dict, http_response: Any):
+        response = response_config['value']
+        if response_config.get('evaluation_type', EvaluationType.expression.value) is EvaluationType.script.value:
+            result, log = ActionUtility.evaluate_script(response, http_response)
+        else:
+            result = ActionUtility.prepare_response(response, http_response)
+            log = f"script: {response} || data: {http_response} || response: {result}"
+        return result, log
+
+    @staticmethod
+    def fill_slots_from_response(set_slots: list, http_response: Any):
+        evaluated_slot_values = {}
+        response_log = ["initiating slot evaluation"]
+        for slot in set_slots:
+            try:
+                value, log = ActionUtility.compose_response(slot, http_response)
+            except Exception as e:
+                logger.exception(e)
+                value = None
+                log = str(e)
+            evaluated_slot_values[slot['name']] = value
+            response_log.append(log)
+        return evaluated_slot_values, response_log
 
     @staticmethod
     def prepare_email_body(tracker_events, subject: str, user_email: str = None):
@@ -562,9 +480,24 @@ class ActionUtility:
     def prepare_hubspot_form_request(tracker, fields: list):
         request = []
         for field in fields:
-            parameter_value = ActionUtility.prepare_request(tracker, [field])
+            parameter_value, _ = ActionUtility.prepare_request(tracker, [field])
             request.append({"name": field['key'], "value": parameter_value[field['key']]})
         return {"fields": request}
+
+    @staticmethod
+    def evaluate_script(script: Text, data: Any, raise_err_on_failure: bool = True):
+        log = f"script: {script} || data: {data} || raise_err_on_failure: {raise_err_on_failure}"
+        endpoint = Utility.environment['evaluator']['url']
+        request_body = {
+            "script": script,
+            "data": data
+        }
+        resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
+        log = f"{log} || response: {resp}"
+        if not resp.get('success') and raise_err_on_failure:
+            raise ActionFailure(f'Expression evaluation failed: {log}')
+        result = resp.get('data')
+        return result, log
 
 
 class ExpressionEvaluator:

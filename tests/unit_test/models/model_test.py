@@ -1,7 +1,7 @@
 import pytest
 from mongoengine import ValidationError
 
-from kairon.api.models import HttpActionConfigRequest, HttpActionParameters
+from kairon.api.models import HttpActionConfigRequest, HttpActionParameters, ActionResponseEvaluation
 from kairon.shared.data.data_objects import Slots, SlotMapping
 
 
@@ -32,7 +32,7 @@ class TestBotModels:
         HttpActionConfigRequest(
             auth_token="",
             action_name="test_action",
-            response="response",
+            response=ActionResponseEvaluation(value="response"),
             http_url="http://www.google.com",
             request_method="GET",
             http_params_list=[]
@@ -40,7 +40,7 @@ class TestBotModels:
         HttpActionConfigRequest(
             auth_token=None,
             action_name="test_action",
-            response="response",
+            response=ActionResponseEvaluation(value="response"),
             http_url="http://www.google.com",
             request_method="GET",
             http_params_list=[]
@@ -55,10 +55,8 @@ class TestBotModels:
             HttpActionConfigRequest(auth_token="", action_name="", response="response",
                                     http_url="http://www.google.com",
                                     request_method="GET", http_params_list=[])
-        with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):
-            HttpActionConfigRequest(auth_token="", action_name="http_action", response=None,
-                                    http_url="http://www.google.com",
-                                    request_method="GET", http_params_list=[])
+        HttpActionConfigRequest(auth_token="", action_name="http_action", response=None, http_url="http://www.google.com",
+                                request_method="GET", http_params_list=[])
         with pytest.raises(ValueError, match=r".*URL is malformed.*"):
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response", http_url="",
                                     request_method="GET", http_params_list=[])

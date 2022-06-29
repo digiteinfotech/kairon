@@ -13,7 +13,8 @@ http_action:
     parameter_type: slot
     value: testValue1
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: action_performanceUser1000@digite.com
   http_url: http://www.alphabet.com
   params_list:
@@ -23,5 +24,6 @@ http_action:
   - key: testParam2
     parameter_type: slot
     value: testValue1
-  response: json
+  response:
+    value: json
 

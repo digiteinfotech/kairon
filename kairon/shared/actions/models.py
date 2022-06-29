@@ -21,6 +21,11 @@ class ActionParameterType(str, Enum):
     chat_log = "chat_log"
 
 
+class EvaluationType(str, Enum):
+    expression = "expression"
+    script = "script"
+
+
 class ActionType(str, Enum):
     http_action = "http_action"
     slot_set_action = "slot_set_action"
@@ -31,6 +36,11 @@ class ActionType(str, Enum):
     zendesk_action = "zendesk_action"
     pipedrive_leads_action = "pipedrive_leads_action"
     hubspot_forms_action = "hubspot_forms_action"
+
+
+class HttpRequestContentType(str, Enum):
+    json = "json"
+    data = "data"
 
 
 class LogicalOperators(str, Enum):
