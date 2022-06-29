@@ -5,6 +5,7 @@ from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
+from kairon.cli.translator import translate_multilingual_bot
 from kairon.events.events import EventsTrigger
 from kairon.shared.utils import Utility
 from mongoengine import connect
@@ -214,4 +215,57 @@ class TestConversationsDeletionCli:
             return None
 
         monkeypatch.setattr(EventsTrigger, "trigger_history_deletion", mock_history_delete)
+        cli()
+
+
+class TestMultilingualTranslatorCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=translate_multilingual_bot))
+    def test_multilingual_translate_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli"))
+    def test_multilingual_translate_no_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
+                                                dlang="es", translate_responses=True, translate_actions=True))
+    def test_multilingual_translate_all_arguments(self, monkeypatch):
+        def mock_translator(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
+                                                dlang="es", translate_responses=False, translate_actions=False))
+    def test_multilingual_translate_responses_and_actions_false(self, monkeypatch):
+        def mock_translator(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
+                                                dlang="es", translate_responses="yes", translate_actions=False))
+    def test_multilingual_translate_import_as_string_argument(self, monkeypatch):
+        def mock_translator(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
         cli()

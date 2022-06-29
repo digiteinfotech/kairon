@@ -100,6 +100,7 @@ class EVENT_STATUS(str, Enum):
     TRIGGER_TRAINING = "Triggering model training"
     COMPLETED = "Completed"
     FAIL = "Fail"
+    TRIGGER_TRANSLATION = "Triggering bot translation"
 
 
 class ENDPOINT_TYPE(str, Enum):
