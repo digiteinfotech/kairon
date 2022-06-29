@@ -4,12 +4,16 @@ from typing import Text
 from loguru import logger
 from requests import exceptions
 
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.importer.data_importer import DataImporter
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.multilingual.processor import MultilingualProcessor
 from kairon.test.test_models import ModelTester
+from kairon.shared.data.processor import MongoProcessor
 
 
 class EventsTrigger:
@@ -146,3 +150,63 @@ class EventsTrigger:
         except Exception as e:
             logger.error(str(e))
             HistoryDeletionLogProcessor.add_log(bot, user, exception=str(e), status=EVENT_STATUS.FAIL.value)
+
+    @staticmethod
+    def trigger_multilingual_translation(bot: Text, user: Text, d_lang: Text = "en-US",
+                                         translate_responses: bool = True, translate_actions: bool = False):
+        """
+        Triggers multilingual translation event
+        :param bot: bot id of source bot
+        :param user: kairon username
+        :param d_lang: language of destination bot
+        :param translate_actions:
+        :param translate_responses:
+        :return:
+        """
+        translation_status = 'Failure'
+        event_url = Utility.get_event_url("BOT_REPLICATION")
+        # copy_type = "Translation"
+        try:
+            if not Utility.check_empty_string(event_url):
+                env_var = {'SOURCE_BOT': bot, 'USER': user, 'D_LANG': d_lang,
+                           'TRANSLATE_RESPONSES': translate_responses, 'TRANSLATE_ACTIONS': translate_actions}
+                event_request = Utility.build_event_request(env_var)
+                Utility.http_request("POST", event_url, None, user, event_request)
+                MultilingualLogProcessor.add_log(source_bot=bot, user=user, d_lang=d_lang,
+                                                 translate_responses=translate_responses,
+                                                 translate_actions=translate_actions,
+                                                 event_status=EVENT_STATUS.TASKSPAWNED.value)
+            else:
+                bot_info = AccountProcessor.get_bot(bot)
+                account = bot_info['account']
+                source_bot_name = bot_info['name']
+                s_lang = bot_info['metadata']['language']
+
+                multilingual_translator = MultilingualProcessor(account=account, user=user)
+
+                MultilingualLogProcessor.add_log(source_bot=bot, user=user, source_bot_name=source_bot_name,
+                                                 s_lang=s_lang, d_lang=d_lang, account=account,
+                                                 translate_responses=translate_responses,
+                                                 translate_actions=translate_actions,
+                                                 event_status=EVENT_STATUS.TRIGGER_TRANSLATION.value)
+
+                # translate bot and get new bot id
+                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id=bot,
+                                                                                  base_bot_name=source_bot_name,
+                                                                                  s_lang=s_lang, d_lang=d_lang,
+                                                                                  translate_responses=translate_responses,
+                                                                                  translate_actions=translate_actions)
+
+                translation_status = 'Success' if destination_bot else 'Failure'
+                MultilingualLogProcessor.update_summary(bot, user, destination_bot=destination_bot,
+                                                        status=translation_status,
+                                                        event_status=EVENT_STATUS.COMPLETED.value)
+        except exceptions.ConnectionError as e:
+            logger.error(str(e))
+            MultilingualLogProcessor.add_log(bot, user, exception=f'Failed to trigger the event. {e}',
+                                             status=translation_status, event_status=EVENT_STATUS.FAIL.value)
+
+        except Exception as e:
+            logger.error(str(e))
+            MultilingualLogProcessor.add_log(source_bot=bot, user=user, exception=str(e), status=translation_status,
+                                             event_status=EVENT_STATUS.FAIL.value)
