@@ -32,7 +32,8 @@ http_action:
       parameter_type: value
       value: value
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: http_action_2
   http_url: http://www.alphabet.com
   headers:
@@ -40,11 +41,13 @@ http_action:
     parameter_type: slot
     value: authorization
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: http_action_3
   http_url: http://www.alphabet.com
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: http_action_4
   http_url: http://www.alphabet.com
   params_list:
@@ -55,7 +58,8 @@ http_action:
     parameter_type: slot
     value: testValue1
   request_method: GET
-  response: json
+  response:
+    value: json
 
 slot_set_action:
 - name: slot_set_action_1

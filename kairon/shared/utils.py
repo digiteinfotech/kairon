@@ -45,6 +45,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 from websockets import connect
 
+from .actions.models import ActionParameterType
 from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
@@ -1439,3 +1440,10 @@ class Utility:
             if Utility.compare_string_constant_time(referrer_domain, domain):
                 return True
         return False
+
+    @staticmethod
+    def decrypt_action_parameter(param: Dict):
+        if param['encrypt'] is True and param['parameter_type'] == ActionParameterType.value.value:
+            if not Utility.check_empty_string(param['value']):
+                value = Utility.decrypt_message(param['value'])
+                param['value'] = value[:-3] + "***"

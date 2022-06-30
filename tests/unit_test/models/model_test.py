@@ -1,11 +1,8 @@
-from _ast import keyword
-
 import pytest
 from mongoengine import ValidationError
 
-from kairon.api.models import HttpActionConfigRequest, HttpActionParameters
-from kairon.shared.actions.data_objects import HttpActionRequestBody, SetSlots
-from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents
+from kairon.api.models import HttpActionConfigRequest, HttpActionParameters, ActionResponseEvaluation
+from kairon.shared.data.data_objects import Slots, SlotMapping
 
 
 class TestBotModels:
@@ -35,7 +32,7 @@ class TestBotModels:
         HttpActionConfigRequest(
             auth_token="",
             action_name="test_action",
-            response="response",
+            response=ActionResponseEvaluation(value="response"),
             http_url="http://www.google.com",
             request_method="GET",
             http_params_list=[]
@@ -43,7 +40,7 @@ class TestBotModels:
         HttpActionConfigRequest(
             auth_token=None,
             action_name="test_action",
-            response="response",
+            response=ActionResponseEvaluation(value="response"),
             http_url="http://www.google.com",
             request_method="GET",
             http_params_list=[]
@@ -58,10 +55,8 @@ class TestBotModels:
             HttpActionConfigRequest(auth_token="", action_name="", response="response",
                                     http_url="http://www.google.com",
                                     request_method="GET", http_params_list=[])
-        with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):
-            HttpActionConfigRequest(auth_token="", action_name="http_action", response=None,
-                                    http_url="http://www.google.com",
-                                    request_method="GET", http_params_list=[])
+        HttpActionConfigRequest(auth_token="", action_name="http_action", response=None, http_url="http://www.google.com",
+                                request_method="GET", http_params_list=[])
         with pytest.raises(ValueError, match=r".*URL is malformed.*"):
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response", http_url="",
                                     request_method="GET", http_params_list=[])
@@ -99,31 +94,3 @@ class TestBotModels:
         assert not SlotMapping(
             slot='email_id', mapping=[{"type": "from_intent", "value": 'uditpandey@hotmail.com'}]
         ).validate()
-
-    def test_http_action_request_body(self):
-        http_action_request_one = HttpActionRequestBody(key="key1",value="value1",parameter_type="slot")
-        http_action_request_duplicate = HttpActionRequestBody(key="key1", value="value1", parameter_type="slot")
-        http_action_request_two = HttpActionRequestBody(key="key2", value="value1", parameter_type="slot")
-        assert http_action_request_one == http_action_request_duplicate
-        assert not http_action_request_one == http_action_request_two
-
-    def test_set_slots(self):
-        set_slots_one = SetSlots(name="slot1", value="value of slot", type="from_value")
-        set_slots_duplicate = SetSlots(name="slot1", value="value of slot", type="from_value")
-        set_slots_two = SetSlots(name="slot2", value="value of slot", type="from_value")
-        assert set_slots_one == set_slots_duplicate
-        assert not set_slots_one == set_slots_two
-    
-    def test_entity(self):
-        entity_one = Entity(start=0, end=6, value="DEF1234", entity="item_id")
-        entity_duplicate = Entity(start=0, end=6, value="DEF1234", entity="item_id")
-        entity_two = Entity(start=0, end=6, value="USR999", entity="item_id")
-        assert entity_one == entity_duplicate
-        assert not entity_one == entity_two
-
-    def test_story_events(self):
-        story_events_one = StoryEvents(name="greet", type="user")
-        story_events_duplicate = StoryEvents(name="greet", type="user")
-        story_events_two = StoryEvents(name="thanks", type="user")
-        assert story_events_one == story_events_duplicate
-        assert not story_events_one == story_events_two

@@ -48,13 +48,9 @@ class History_Month_Enum(int, Enum):
     Six = 6
 
 
-class ParameterChoice(str, Enum):
-    value = "value"
-    slot = "slot"
-    sender_id = "sender_id"
-    user_message = "user_message"
-    intent = "intent"
-    chat_log = "chat_log"
+class HttpContentType(str, Enum):
+    application_json = "application/json"
+    urlencoded_form_data = "application/x-www-form-urlencoded"
 
 
 class User(BaseModel):

@@ -33,15 +33,14 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api import models
-from kairon.api.models import HttpActionConfigRequest
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots, HubspotFormsAction
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT
-from kairon.shared.models import StoryEventType, TemplateType, StoryStepType
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType
+from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
 from kairon.shared.utils import Utility
 from .constant import (
     DOMAIN,
@@ -2552,34 +2551,38 @@ class MongoProcessor:
         except DoesNotExist as e:
             raise AppException(e)
 
-    def update_http_config(self, request_data: HttpActionConfigRequest, user: str, bot: str):
+    def update_http_config(self, request_data: Dict, user: str, bot: str):
         """
         Updates Http configuration.
-        :param request_data: HttpActionConfigRequest object containing configuration to be modified
+        :param request_data: Dict containing configuration to be modified
         :param user: user id
         :param bot: bot id
         :return: Http configuration id for updated Http action config
         """
         try:
-            http_action = HttpActionConfig.objects(bot=bot, action_name=request_data.action_name, status=True).get()
+            http_action = HttpActionConfig.objects(bot=bot, action_name=request_data['action_name'], status=True).get()
+            content_type = {
+                HttpContentType.application_json: HttpRequestContentType.json.value,
+                HttpContentType.urlencoded_form_data: HttpRequestContentType.data.value
+            }[request_data['content_type']]
+            http_params = [HttpActionRequestBody(**param) for param in request_data.get('params_list', [])]
+            headers = [HttpActionRequestBody(**param) for param in request_data.get('headers', [])]
+            set_slots = [SetSlotsFromResponse(**slot) for slot in request_data.get('set_slots')]
+            http_action.request_method = request_data['request_method']
+            http_action.params_list = http_params
+            http_action.headers = headers
+            http_action.http_url = request_data['http_url']
+            http_action.response = HttpActionResponse(**request_data.get('response', {}))
+            http_action.content_type = content_type
+            http_action.set_slots = set_slots
+            http_action.user = user
+            http_action.status = True
+            http_action.bot = bot
+            http_action.timestamp = datetime.utcnow()
+            http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
+            return http_config_id
         except DoesNotExist:
-            raise AppException("No HTTP action found for bot " + bot + " and action " + request_data.action_name)
-
-        http_params = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
-                       for param in request_data.params_list or []]
-        headers = [HttpActionRequestBody(key=param.key, value=param.value, parameter_type=param.parameter_type)
-                   for param in request_data.headers or []]
-        http_action.request_method = request_data.request_method
-        http_action.params_list = http_params
-        http_action.headers = headers
-        http_action.http_url = request_data.http_url
-        http_action.response = request_data.response
-        http_action.user = user
-        http_action.status = True
-        http_action.bot = bot
-        http_action.timestamp = datetime.utcnow()
-        http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
-        return http_config_id
+            raise AppException("No HTTP action found for bot " + bot + " and action " + request_data['action_name'])
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
         """
@@ -2595,26 +2598,22 @@ class MongoProcessor:
         Utility.is_exist(HttpActionConfig, exp_message="Action exists",
                          action_name__iexact=http_action_config.get("action_name"), bot=bot,
                          status=True)
-        http_action_params = [
-            HttpActionRequestBody(
-                key=param['key'],
-                value=param['value'],
-                parameter_type=param['parameter_type'])
-            for param in http_action_config.get("params_list") or []]
-        headers = [
-            HttpActionRequestBody(
-                key=param['key'],
-                value=param['value'],
-                parameter_type=param['parameter_type'])
-            for param in http_action_config.get("headers") or []]
-
+        http_action_params = [HttpActionRequestBody(**param) for param in http_action_config.get("params_list") or []]
+        headers = [HttpActionRequestBody(**param) for param in http_action_config.get("headers") or []]
+        content_type = {
+            HttpContentType.application_json: HttpRequestContentType.json.value,
+            HttpContentType.urlencoded_form_data: HttpRequestContentType.data.value
+        }[http_action_config['content_type']]
+        set_slots = [SetSlotsFromResponse(**slot) for slot in http_action_config.get('set_slots')]
         doc_id = HttpActionConfig(
             action_name=http_action_config['action_name'],
-            response=http_action_config['response'],
+            content_type=content_type,
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
             params_list=http_action_params,
             headers=headers,
+            response=HttpActionResponse(**http_action_config.get('response', {})),
+            set_slots=set_slots,
             bot=bot,
             user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
@@ -2634,6 +2633,15 @@ class MongoProcessor:
             http_config_dict = HttpActionConfig.objects().get(bot=bot, action_name=action_name,
                                                               status=True).to_mongo().to_dict()
             del http_config_dict['_id']
+            for param in http_config_dict.get('headers', []):
+                Utility.decrypt_action_parameter(param)
+
+            for param in http_config_dict.get('params_list', []):
+                Utility.decrypt_action_parameter(param)
+            http_config_dict['content_type'] = {
+                HttpRequestContentType.json.value: HttpContentType.application_json.value,
+                HttpRequestContentType.data.value: HttpContentType.urlencoded_form_data.value
+            }[http_config_dict['content_type']]
             return http_config_dict
         except DoesNotExist as ex:
             logging.exception(ex)
