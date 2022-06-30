@@ -15,5 +15,5 @@ class ActionsBase(ABC):
 
     @abstractmethod
     def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
-        """Fetch action config and execute the action."""
+        """Execute the action."""
         raise NotImplementedError("Provider not implemented")
