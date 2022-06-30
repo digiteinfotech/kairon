@@ -1,5 +1,5 @@
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
-from loguru import logger
+
 
 
 class QuestionGenerator:
