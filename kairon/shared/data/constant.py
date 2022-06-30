@@ -174,3 +174,4 @@ COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_exampl
 DEFAULT_NLU_FALLBACK_RULE = 'Ask the user to rephrase whenever they send a message with low NLU confidence'
 DEFAULT_NLU_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
 DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
+REQUEST_TIMESTAMP_HEADER = "X-TimeStamp"

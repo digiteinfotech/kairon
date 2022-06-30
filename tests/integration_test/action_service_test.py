@@ -1,10 +1,11 @@
 from jira import JIRAError
 from tornado.test.testing_test import AsyncHTTPTestCase
+
+from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
-    HubspotFormsAction
-from kairon.shared.actions.exception import ActionFailure
+    HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.data_objects import Slots
 from kairon.shared.utils import Utility
@@ -30,21 +31,26 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/")
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
-
+    
     def test_http_action_execution(self):
-        action_name = "test_run_with_get"
-        action = HttpActionConfig(
+        action_name = "test_http_action_execution"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
             action_name=action_name,
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            params_list=None,
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
-        )
-
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        ).save()
 
         http_url = 'http://localhost:8081/mock'
         resp_msg = json.dumps({
@@ -63,6 +69,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
+            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
 
         request_object = {
@@ -93,33 +100,571 @@ class TestActionServer(AsyncHTTPTestCase):
             },
             "version": "version"
         }
-        with patch.object(ActionUtility, "get_action_config") as mocked:
-            mocked.side_effect = _get_action
-            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-            response_json = json.loads(response.body.decode("utf8"))
-            self.assertEqual(response.code, 200)
-            self.assertEqual(len(response_json['events']), 1)
-            self.assertEqual(len(response_json['responses']), 1)
-            self.assertEqual(response_json['events'], [
-                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                 'value': "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-            self.assertEqual(response_json['responses'][0]['text'],
-                             "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
+        self.assertEqual(response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
+                       'sender': 'default',
+                       'headers': {'botid': '5f50fd0a56b698ca10d3****', 'userid': '****', 'tag': 'from****'},
+                       'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                       'request_params': {'bot': '5f50fd0a56b698ca10d3****', 'user': '1011', 'tag': 'from****'},
+                       'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
+                "script: The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                'initiating slot evaluation',
+                "script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
+                "script: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: red"],
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
 
-    def test_http_action_failed_execution(self):
-        action_name = "test_run_with_get"
-        action = HttpActionConfig(
+    def test_http_action_execution_no_response_dispatch(self):
+        action_name = "test_http_action_execution_no_response_dispatch"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
             action_name=action_name,
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            content_type="data",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}", dispatch=False),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.urlencoded_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 0)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
+        self.assertEqual(response_json['responses'], [])
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'http_action', 'intent': 'test_run',
+                       'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default',
+                       'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': 'from****'},
+                       'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                       'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': 'from****'},
+                       'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
+                "script: The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                'initiating slot evaluation',
+                "script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
+                "script: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: red"],
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
+
+    def test_http_action_execution_script_evaluation(self):
+        action_name = "test_http_action_execution_script_evaluation"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            content_type="json",
+            response=HttpActionResponse(
+                value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                dispatch=False, evaluation_type="script"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "${a.b.d}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "red"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "${a.b.d.0}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 0)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
+        self.assertEqual(response_json['responses'], [])
+
+    def test_http_action_execution_script_evaluation_failure_no_dispatch(self):
+        action_name = "test_http_action_execution_script_evaluation_failure"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            content_type="json",
+            response=HttpActionResponse(
+                value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                dispatch=False, evaluation_type="script"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${e}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": None},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "${e}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 0)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
+        self.assertEqual(response_json['responses'], [])
+
+    def test_http_action_execution_script_evaluation_failure_and_dispatch(self):
+        action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            content_type="json",
+            response=HttpActionResponse(
+                value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                dispatch=True, evaluation_type="script"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${e}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": None},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "${e}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
+        self.assertEqual(response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+
+    def test_http_action_execution_script_evaluation_failure_and_dispatch_2(self):
+        action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch_2"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            content_type="json",
+            response=HttpActionResponse(
+                value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                dispatch=True, evaluation_type="script"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${e}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": None},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': "${e}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "I have failed to process your request"}])
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
+
+    @patch("kairon.shared.actions.utils.ActionUtility.get_action")
+    @patch("kairon.actions.definitions.http.ActionHTTP.retrieve_config")
+    def test_http_action_failed_execution(self, mock_action_config, mock_action):
+        action_name = "test_run_with_get"
+        action = Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user")
+        action_config = HttpActionConfig(
+            action_name=action_name,
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8082/mock",
             request_method="GET",
-            params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
 
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
+
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+            return action.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -149,17 +694,17 @@ class TestActionServer(AsyncHTTPTestCase):
             },
             "version": "version"
         }
-        with patch.object(ActionUtility, "get_action_config") as mocked:
-            mocked.side_effect = _get_action
-            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-            response_json = json.loads(response.body.decode("utf8"))
-            self.assertEqual(response.code, 200)
-            self.assertEqual(len(response_json['events']), 1)
-            self.assertEqual(len(response_json['responses']), 1)
-            self.assertEqual(response_json['events'], [
-                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                 'value': "I have failed to process your request"}])
-            self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
+        mock_action.side_effect = _get_action
+        mock_action_config.side_effect = _get_action_config
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': "I have failed to process your request"}])
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
 
     def test_http_action_missing_action_name(self):
         action_name = ""
@@ -235,15 +780,21 @@ class TestActionServer(AsyncHTTPTestCase):
 
     def test_slot_set_action_from_value(self):
         action_name = "test_slot_set_from_value"
-        action = SlotSetAction(
+        action = Actions(
+            name=action_name, type=ActionType.slot_set_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user"
+        )
+        action_config = SlotSetAction(
             name=action_name,
             set_slots=[SetSlots(name="location", type="from_value", value="Mumbai")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
 
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
+
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+            return action.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -273,20 +824,25 @@ class TestActionServer(AsyncHTTPTestCase):
             },
             "version": "version"
         }
-        with patch.object(ActionUtility, "get_action_config") as mocked:
-            mocked.side_effect = _get_action
-            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-            response_json = json.loads(response.body.decode("utf8"))
-            self.assertEqual(response.code, 200)
-            self.assertEqual(len(response_json['events']), 1)
-            self.assertEqual(len(response_json['responses']), 0)
-            self.assertEqual(response_json['events'],
-                             [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}])
-            self.assertEqual(response_json['responses'], [])
+        with patch.object(ActionUtility, "get_action") as mock_action:
+            mock_action.side_effect = _get_action
+            with patch.object(ActionSetSlot, "retrieve_config") as mocked:
+                mocked.side_effect = _get_action_config
+                response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+                response_json = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                self.assertEqual(len(response_json['events']), 1)
+                self.assertEqual(len(response_json['responses']), 0)
+                self.assertEqual(response_json['events'],
+                                 [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}])
+                self.assertEqual(response_json['responses'], [])
 
     def test_slot_set_action_reset_slot(self):
         action_name = "test_slot_set_action_reset_slot"
-        action = SlotSetAction(
+        action = Actions(
+            name=action_name, type=ActionType.slot_set_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user"
+        )
+        action_config = SlotSetAction(
             name=action_name,
             set_slots=[SetSlots(name="location", type="reset_slot", value="current_location"),
                        SetSlots(name="name", type="from_value", value="end_user"),
@@ -295,8 +851,11 @@ class TestActionServer(AsyncHTTPTestCase):
             user="user"
         )
 
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
+
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+            return action.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -326,30 +885,38 @@ class TestActionServer(AsyncHTTPTestCase):
             },
             "version": "version"
         }
-        with patch.object(ActionUtility, "get_action_config") as mocked:
-            mocked.side_effect = _get_action
-            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-            response_json = json.loads(response.body.decode("utf8"))
-            self.assertEqual(response.code, 200)
-            self.assertEqual(len(response_json['events']), 3)
-            self.assertEqual(len(response_json['responses']), 0)
-            self.assertEqual(response_json['events'],
-                             [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None},
-                              {'event': 'slot', 'timestamp': None, 'name': 'name', 'value': "end_user"},
-                              {'event': 'slot', 'timestamp': None, 'name': 'age', 'value': None}])
-            self.assertEqual(response_json['responses'], [])
+        with patch.object(ActionUtility, "get_action") as mock_action:
+            mock_action.side_effect = _get_action
+            with patch.object(ActionSetSlot, "retrieve_config") as mocked:
+                mocked.side_effect = _get_action_config
+                response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+                response_json = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                self.assertEqual(len(response_json['events']), 3)
+                self.assertEqual(len(response_json['responses']), 0)
+                self.assertEqual(response_json['events'],
+                                 [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None},
+                                  {'event': 'slot', 'timestamp': None, 'name': 'name', 'value': "end_user"},
+                                  {'event': 'slot', 'timestamp': None, 'name': 'age', 'value': None}])
+                self.assertEqual(response_json['responses'], [])
 
     def test_slot_set_action_from_slot_not_present(self):
         action_name = "test_slot_set_action_from_slot_not_present"
-        action = SlotSetAction(
+        action = Actions(
+            name=action_name, type=ActionType.slot_set_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user"
+        )
+        action_config = SlotSetAction(
             name=action_name,
             set_slots=[SetSlots(name="location", type="from_slot", value="current_location")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
 
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
+
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+            return action.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -379,22 +946,21 @@ class TestActionServer(AsyncHTTPTestCase):
             },
             "version": "version"
         }
-        with patch.object(ActionUtility, "get_action_config") as mocked:
-            mocked.side_effect = _get_action
-            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-            response_json = json.loads(response.body.decode("utf8"))
-            self.assertEqual(response.code, 200)
-            self.assertEqual(len(response_json['events']), 1)
-            self.assertEqual(len(response_json['responses']), 0)
-            self.assertEqual(response_json['events'],
-                             [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}])
-            self.assertEqual(response_json['responses'], [])
+        with patch.object(ActionUtility, "get_action") as mock_action:
+            mock_action.side_effect = _get_action
+            with patch.object(ActionSetSlot, "retrieve_config") as mocked:
+                mocked.side_effect = _get_action_config
+                response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+                response_json = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                self.assertEqual(len(response_json['events']), 1)
+                self.assertEqual(len(response_json['responses']), 0)
+                self.assertEqual(response_json['events'],
+                                 [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}])
+                self.assertEqual(response_json['responses'], [])
 
     def test_invalid_action(self):
         action_name = "custom_user_action"
-
-        def _get_action(*arge, **kwargs):
-            raise ActionFailure('Only http & slot set actions are compatible with action server')
 
         request_object = {
             "next_action": action_name,
@@ -828,15 +1394,17 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
-    @patch("kairon.shared.actions.utils.ActionUtility.get_action_config")
+    @patch("kairon.shared.actions.utils.ActionUtility.get_action")
+    @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
     @patch("kairon.shared.utils.SMTP", autospec=True)
-    def test_email_action_execution(self, mock_smtp, mock_action):
+    def test_email_action_execution(self, mock_smtp, mock_action_config, mock_action):
         Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = open('template/emails/bot_msg_conversation.html', 'rb').read().decode()
         Utility.email_conf['email']['templates']['user_msg_conversation'] = open('template/emails/user_msg_conversation.html', 'rb').read().decode()
 
         action_name = "test_run_email_action"
-        action = EmailActionConfig(
+        action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
+        action_config = EmailActionConfig(
                 action_name=action_name,
                 smtp_url="test.localhost",
                 smtp_port=293,
@@ -850,7 +1418,10 @@ class TestActionServer(AsyncHTTPTestCase):
             )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.email_action.value
+            return action.to_mongo().to_dict()
+
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -881,6 +1452,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "version": "version"
         }
         mock_action.side_effect = _get_action
+        mock_action_config.side_effect = _get_action_config
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
@@ -899,30 +1471,32 @@ class TestActionServer(AsyncHTTPTestCase):
         assert {} == kwargs
 
         host, port = args
-        assert host == action.smtp_url
-        assert port == action.smtp_port
+        assert host == action_config.smtp_url
+        assert port == action_config.smtp_port
         name, args, kwargs = mock_smtp.method_calls.pop(0)
         assert name == '().login'
         assert {} == kwargs
 
         from_email, password = args
-        assert from_email == action.from_email
-        assert password == action.smtp_password
+        assert from_email == action_config.from_email
+        assert password == action_config.smtp_password
 
         name, args, kwargs = mock_smtp.method_calls.pop(0)
         assert name == '().sendmail'
         assert {} == kwargs
 
-        assert args[0] == action.from_email
+        assert args[0] == action_config.from_email
         assert args[1] == ["test@test.com"]
-        assert str(args[2]).__contains__(action.subject)
+        assert str(args[2]).__contains__(action_config.subject)
         assert str(args[2]).__contains__("Content-Type: text/html")
         assert str(args[2]).__contains__("Subject: default test")
 
-    @patch("kairon.shared.actions.utils.ActionUtility.get_action_config")
-    def test_email_action_failed_execution(self, mock_action):
+    @patch("kairon.shared.actions.utils.ActionUtility.get_action")
+    @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
+    def test_email_action_failed_execution(self, mock_action_config, mock_action):
         action_name = "test_run_email_action"
-        action = EmailActionConfig(
+        action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
+        action_config = EmailActionConfig(
             action_name=action_name,
             smtp_url="test.localhost",
             smtp_port=293,
@@ -936,7 +1510,10 @@ class TestActionServer(AsyncHTTPTestCase):
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.email_action.value
+            return action.to_mongo().to_dict()
+
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
 
         request_object = {
             "next_action": action_name,
@@ -1017,6 +1594,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "version": "version"
         }
         mock_action.side_effect = _get_action
+        mock_action_config.side_effect = _get_action_config
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)

@@ -87,3 +87,6 @@ history_server:
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT}
+
+evaluator:
+  url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
