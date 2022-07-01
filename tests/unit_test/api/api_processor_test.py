@@ -17,6 +17,7 @@ from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User
 from kairon.shared.account.processor import AccountProcessor
@@ -1786,6 +1787,83 @@ class TestAccountProcessor:
         assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
         assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
         assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')
+
+    def test_verify_trusted_devices_first_time(self):
+        pytest.user = AccountProcessor.add_user(
+            email="user@gmail.com",
+            first_name="First_Name",
+            last_name="Last_name",
+            password="Welcome@1",
+            account=1,
+            user="testAdmin",
+        )
+        data = {"user_ip": "255.255.255.255", "user_os": "Linux", "user_browser": "Chrome"}
+        result = UserActivityLogger.verify_trusted_devices(user=pytest.user, data=data)
+
+        assert result
+
+    def test_verify_trusted_devices_second_time_first_data(self):
+        data = {"user_ip": "255.255.255.255", "user_os": "Linux", "user_browser": "Chrome"}
+        result = UserActivityLogger.verify_trusted_devices(user=pytest.user, data=data)
+        assert not result
+
+    def test_verify_trusted_devices_second_time_second_data(self):
+        data = {"user_ip": "255.255.255.254", "user_os": "Windows", "user_browser": "Firefox"}
+        result = UserActivityLogger.verify_trusted_devices(user=pytest.user, data=data)
+        assert result
+
+    def test_verify_trusted_devices_third_time_second_data(self):
+        data = {"user_ip": "255.255.255.254", "user_os": "Windows", "user_browser": "Firefox"}
+        result = UserActivityLogger.verify_trusted_devices(user=pytest.user, data=data)
+        assert not result
+
+    @pytest.mark.asyncio
+    async def test_notify_login_activity(self, monkeypatch):
+        def _get_location(*args, **kwargs):
+            return "Mumbai, Maharashtra, India"
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(Utility, 'fetch_location_details', _get_location)
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "https",
+            "path": "/",
+            "headers": Headers({
+                'host': 'kairon.digite.com',
+                'accept': 'application/json',
+                'referer': 'https://kairon.digite.com',
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Safari/537.36'
+            }).raw,
+            "server": ("kairon.digite.com", 443),
+        }
+
+        request = Request(scope=scope)
+        await UserActivityLogger.notify_login_activity(request=request, user=pytest.user, user_ip="192.1.1.1")
+
+    @pytest.mark.asyncio
+    async def test_notify_login_activity_no_mail(self, monkeypatch):
+        def _get_location(*args, **kwargs):
+            return "Mumbai, Maharashtra, India"
+        monkeypatch.setattr(Utility, 'fetch_location_details', _get_location)
+
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "https",
+            "path": "/",
+            "headers": Headers({
+                'host': 'kairon.digite.com',
+                'accept': 'application/json',
+                'referer': 'https://kairon.digite.com',
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Safari/537.36'
+            }).raw,
+            "server": ("kairon.digite.com", 443),
+        }
+
+        request = Request(scope=scope)
+        await UserActivityLogger.notify_login_activity(request=request, user=pytest.user, user_ip="192.1.1.1")
 
     def test_overwrite_password_with_same_password(self, monkeypatch):
         AccountProcessor.add_user(
