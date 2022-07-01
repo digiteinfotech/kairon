@@ -20,7 +20,7 @@ def handler(event1):
 
 @handler(signals.post_save)
 def push_notification(sender, document, **kwargs):
-    from kairon import Utility
+    from kairon.shared.utils import Utility
     from kairon.shared.data.data_objects import ModelTraining, ModelDeployment, TrainingDataGenerator
     from kairon.shared.importer.data_objects import ValidationLogs
     from kairon.shared.test.data_objects import ModelTestingLogs
@@ -50,7 +50,7 @@ def push_notification(sender, document, **kwargs):
 
 
 def push_bulk_update_notification(sender, documents, **kwargs):
-    from kairon import Utility
+    from kairon.shared.utils import Utility
 
     is_enabled = Utility.environment['notifications']['enable']
     if is_enabled:

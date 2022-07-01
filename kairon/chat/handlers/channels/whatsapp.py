@@ -2,7 +2,7 @@ from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.clients.whatsapp import WhatsappClient
 from kairon.chat.handlers.channels.messenger import MessengerHandler

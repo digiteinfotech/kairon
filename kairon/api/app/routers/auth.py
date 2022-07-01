@@ -3,7 +3,7 @@ from fastapi import Depends
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
