@@ -2751,7 +2751,7 @@ def test_add_member(monkeypatch):
 
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/member",
-        json={"email": "integration@demo.ai", "role": "tester"},
+        json={"email": "INTEGRATION@demo.ai", "role": "tester"},
         headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
     ).json()
     assert response['message'] == 'An invitation has been sent to the user'

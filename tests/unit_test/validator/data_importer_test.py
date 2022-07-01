@@ -5,7 +5,7 @@ import uuid
 import pytest
 from mongoengine import connect
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException

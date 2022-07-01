@@ -4,7 +4,7 @@ import pytest
 import responses
 from mongoengine import connect, ValidationError
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.live_agent.data_objects import LiveAgents

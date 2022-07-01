@@ -6,7 +6,7 @@ from typing import Text
 from fastapi import File
 from mongoengine import DoesNotExist
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotAssets
 

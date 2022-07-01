@@ -3,7 +3,7 @@ import os
 from boto3 import Session
 from botocore.exceptions import ClientError
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 
 
 class CloudUtility:

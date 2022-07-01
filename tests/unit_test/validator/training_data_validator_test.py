@@ -1,6 +1,6 @@
 import pytest
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.importer.validator.file_validator import TrainingDataValidator
 

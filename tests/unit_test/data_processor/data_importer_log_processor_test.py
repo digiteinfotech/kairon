@@ -3,7 +3,7 @@ import os
 import pytest
 from mongoengine import connect
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs

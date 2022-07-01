@@ -141,7 +141,7 @@ class AccountProcessor:
     @staticmethod
     def fetch_role_for_user(email: Text, bot: Text):
         try:
-            return BotAccess.objects(accessor_email=email, bot=bot,
+            return BotAccess.objects(accessor_email__iexact=email, bot=bot,
                                      status=ACTIVITY_STATUS.ACTIVE.value).get().to_mongo().to_dict()
         except DoesNotExist as e:
             logging.error(e)
@@ -151,7 +151,7 @@ class AccountProcessor:
     def get_accessible_bot_details(account_id: int, email: Text):
         shared_bots = []
         account_bots = list(AccountProcessor.list_bots(account_id))
-        for bot in BotAccess.objects(accessor_email=email, bot_account__ne=account_id,
+        for bot in BotAccess.objects(accessor_email__iexact=email, bot_account__ne=account_id,
                                      status=ACTIVITY_STATUS.ACTIVE.value):
             bot_details = AccountProcessor.get_bot(bot['bot'])
             bot_details['_id'] = bot_details['_id'].__str__()
@@ -191,7 +191,7 @@ class AccountProcessor:
         :param role: can be one of admin, designer or tester.
         """
         bot_details = AccountProcessor.get_bot_and_validate_status(bot)
-        Utility.is_exist(BotAccess, 'User is already a collaborator', accessor_email=accessor_email, bot=bot,
+        Utility.is_exist(BotAccess, 'User is already a collaborator', accessor_email__iexact=accessor_email, bot=bot,
                          status__ne=ACTIVITY_STATUS.DELETED.value)
         BotAccess(
             accessor_email=accessor_email,
@@ -231,7 +231,7 @@ class AccountProcessor:
         AccountProcessor.get_user(accessor_email)
         try:
             bot_access = BotAccess.objects(
-                accessor_email=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+                accessor_email__iexact=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
             ).get()
             if Utility.email_conf["email"]["enable"] and bot_access.status == ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value:
                 raise AppException('User is yet to accept the invite')
@@ -295,7 +295,7 @@ class AccountProcessor:
         """
         bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         try:
-            bot_access = BotAccess.objects(accessor_email=accessor_email, bot=bot,
+            bot_access = BotAccess.objects(accessor_email__iexact=accessor_email, bot=bot,
                                            status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value).get()
             bot_access.status = ACTIVITY_STATUS.ACTIVE.value
             bot_access.accept_timestamp = datetime.utcnow()
@@ -311,7 +311,7 @@ class AccountProcessor:
 
         :param user: account username
         """
-        for invite in BotAccess.objects(accessor_email=user, status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
+        for invite in BotAccess.objects(accessor_email__iexact=user, status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
             invite = invite.to_mongo().to_dict()
             bot_details = AccountProcessor.get_bot(invite['bot'])
             invite['bot_name'] = bot_details['name']
@@ -353,7 +353,7 @@ class AccountProcessor:
         Utility.is_exist(
             BotAccess,
             'Bot owner cannot be removed',
-            accessor_email=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value,
+            accessor_email__iexact=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value,
             role=ACCESS_ROLES.OWNER.value
         )
         AccountProcessor.remove_bot_access(bot, accessor_email=accessor_email)
