@@ -7591,8 +7591,13 @@ def test_sso_get_login_token_invalid_type():
 
 def test_sso_get_login_token(monkeypatch):
     async def __mock_verify_and_process(*args, **kwargs):
-        return True, {}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+        return True, {'email': ''}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
 
+    async def __get_user(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(Authentication, 'verify_and_process', __mock_verify_and_process)
+    monkeypatch.setattr(AccountProcessor, 'get_user', __get_user)
     monkeypatch.setattr(Authentication, 'verify_and_process', __mock_verify_and_process)
     response = client.get(
         url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False

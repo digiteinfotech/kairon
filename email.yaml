@@ -21,3 +21,4 @@ email:
         update_role_owner_mail_body: ${EMAIL_TEMPLATES_UPDATE_ROLE_OWNER_BODY:"Access to member MEMBER_EMAIL on BOT_NAME bot has been changed to NEW_ROLE:STATUS by MODIFIER_NAME."}
         transfer_ownership_mail_body: ${EMAIL_TEMPLATES_UPDATE_ROLE_OWNER_BODY:"Access to member MEMBER_EMAIL on BOT_NAME bot has been changed to NEW_ROLE by MODIFIER_NAME. You are no more the owner of the bot. Your current role has been changed to admin."}
         password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
+        login_activity_subject: ${EMAIL_TEMPLATES_LOGIN_ACTIVITY_SUBJECT:"New sign-in detected to your kAIron account!"}

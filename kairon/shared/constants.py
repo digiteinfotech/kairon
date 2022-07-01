@@ -41,3 +41,7 @@ class UserActivityType(str, Enum):
     transfer_ownership = "transfer_ownership"
     add_asset = "add_asset"
     delete_asset = "delete_asset"
+    login_attempt = "login_attempt"
+
+
+LOOPBACK_IP = "127.0.0.1"
