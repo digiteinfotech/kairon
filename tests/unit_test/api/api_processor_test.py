@@ -27,6 +27,7 @@ from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
+import time
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -1784,3 +1785,28 @@ class TestAccountProcessor:
         assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
         assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
         assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')
+
+    def test_overwrite_password_with_same_password(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="samepasswrd@gmail.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="testAdmin",
+        )
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
+
+    def test_overwrite_password_with_same_password_again(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
+        time.sleep(2)
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))

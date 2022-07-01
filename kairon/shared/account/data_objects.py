@@ -7,7 +7,8 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField
+    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField,
+    DynamicField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -137,3 +138,4 @@ class UserActivityLog(Document):
     account = LongField(required=True)
     bot = StringField()
     message = ListField(StringField(), default=None)
+    data = DynamicField()
