@@ -10,7 +10,7 @@ from validators import email as mail_check
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess
+    MailTemplates, SystemProperties, BotAccess, UserActivityLog
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
@@ -689,10 +689,19 @@ class AccountProcessor:
         email = Utility.verify_token(token)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
+        if Utility.verify_password(password.strip(), user.password):
+            raise AppException("You have already used that password, try another")
+        user_act_log = UserActivityLog.objects(user=email, type=UserActivityType.reset_password.value)
+        if any(act_log.data is not None and act_log.data.get("password") is not None and
+               Utility.verify_password(password.strip(), act_log.data.get("password"))
+               for act_log in user_act_log):
+            raise AppException("You have already used that password, try another")
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
-        UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value)
+        data = {"password": user.password}
+        UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
+                                   data=data)
         return email, user.first_name
 
     @staticmethod

@@ -9557,3 +9557,82 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+
+def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
+    email = "samepasswrd@demo.ai"
+    regsiter_response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "samepasswrd",
+            "bot": "samepasswrd",
+        },
+    )
+    token = Authentication.create_access_token(data={'mail_id': email})
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    Utility.environment['user']['reset_password_cooldown_period'] = 0
+    passwrd_change_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1"},
+    )
+    response = passwrd_change_response.json()
+    message = response.get("message")
+    assert message == "You have already used that password, try another"
+
+def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
+    Utility.environment['user']['reset_password_cooldown_period'] = 0
+    email = "samepasswrd2@demo.ai"
+    regsiter_response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "samepasswrd2",
+            "bot": "samepasswrd2",
+        },
+    )
+    token = Authentication.create_access_token(data={'mail_id': email})
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    passwrd_change_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@21",
+            "confirm_password": "Welcome@21"},
+    )
+    passwrd_firstchange = passwrd_change_response.json()
+    assert passwrd_firstchange["success"]
+    assert passwrd_firstchange["error_code"] == 0
+    assert passwrd_firstchange["message"] == "Success! Your password has been changed"
+    assert passwrd_firstchange['data'] is None
+
+    passwrd_rechange_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@21",
+            "confirm_password": "Welcome@21"},
+    )
+    response = passwrd_rechange_response.json()
+    message = response.get("message")
+    assert message == "You have already used that password, try another"
