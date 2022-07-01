@@ -107,7 +107,22 @@ class MultilingualProcessor:
 
             return actions
 
-        action_config[ActionType.http_action] = translate_responses(action_config[ActionType.http_action])
+        def translate_responses_for_http_actions(actions: list):
+            if actions:
+                action_list = []
+                for action in actions:
+                    action_list.append(action['response'].get('value'))
+
+                if action_list:
+                    translated_action = Translator.translate_text_bulk(text=action_list,
+                                                                       s_lang=s_lang, d_lang=d_lang)
+                    for i, action in enumerate(actions):
+                        action['response']['value'] = str(translated_action[i])
+
+            return actions
+
+        action_config[ActionType.http_action] = translate_responses_for_http_actions(
+            action_config[ActionType.http_action])
         action_config[ActionType.email_action] = translate_responses(action_config[ActionType.email_action])
         action_config[ActionType.jira_action] = translate_responses(action_config[ActionType.jira_action])
         action_config[ActionType.zendesk_action] = translate_responses(action_config[ActionType.zendesk_action])
