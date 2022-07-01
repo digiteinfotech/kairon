@@ -31,6 +31,7 @@ from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
 from validators import domain
 
+
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -50,6 +51,10 @@ class Entity(EmbeddedDocument):
     def clean(self):
         if not Utility.check_empty_string(self.entity):
             self.entity = self.entity.strip().lower()
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.start == other.start and self.end == other.end and self.value == other.value \
+               and self.entity == other.entity
 
 
 @push_notification.apply
@@ -462,6 +467,9 @@ class StoryEvents(EmbeddedDocument):
             for entity in self.entities:
                 entity.clean()
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
+               and self.entities == other.entities
 
 @push_notification.apply
 class Stories(Document):
