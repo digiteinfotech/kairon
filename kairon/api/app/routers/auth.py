@@ -4,6 +4,8 @@ from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon import Utility
+from kairon.shared.account.activity_log import UserActivityLogger
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
@@ -15,11 +17,15 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Response)
-async def login_for_access_token(form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(request: Request,
+                                 background_tasks: BackgroundTasks,
+                                 form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()):
     """
     Authenticates the user and generates jwt token
     """
     access_token = Authentication.authenticate(form_data.username, form_data.password)
+    background_tasks.add_task(UserActivityLogger.notify_login_activity, request=request,
+                              user=AccountProcessor.get_user(form_data.username), user_ip=form_data.remote_ip)
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": "User Authenticated",
@@ -122,6 +128,10 @@ async def sso_callback(
             Utility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
             first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
         )
+    if existing_user:
+        background_tasks.add_task(UserActivityLogger.notify_login_activity, request=request,
+                              user=AccountProcessor.get_user(user_details['email']), user_ip=request.client.host)
+
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": """It is your responsibility to keep the token secret.

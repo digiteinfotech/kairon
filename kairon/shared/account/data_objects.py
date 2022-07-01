@@ -118,6 +118,7 @@ class MailTemplates(EmbeddedDocument):
     bot_msg_conversation = StringField()
     user_msg_conversation = StringField()
     update_role = StringField()
+    login_activity = StringField()
 
 
 class SystemProperties(Document):
