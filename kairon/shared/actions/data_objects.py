@@ -46,9 +46,8 @@ class HttpActionRequestBody(EmbeddedDocument):
             raise ValidationError("Provide name of the slot as value")
 
     def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value
-        return False
+        return isinstance(other, self.__class__) and self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value
+
 
 
 class SetSlotsFromResponse(EmbeddedDocument):
@@ -181,9 +180,8 @@ class SetSlots(EmbeddedDocument):
         self.name = self.name.strip().lower()
 
     def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.name == other.name and self.type == other.type and self.value == other.value
-        return False
+        return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value
+
 
 @push_notification.apply
 class SlotSetAction(Document):
