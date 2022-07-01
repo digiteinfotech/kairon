@@ -5,7 +5,6 @@ from typing import List, Text
 
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-import json
 
 
 class Translator:
@@ -25,7 +24,7 @@ class Translator:
         """
 
         service_account_info_json = {
-            "type": Utility.environment['multilingual']['service_account_creds']['type'],
+            "type": Utility.environment['multilingual']['service_account_creds'].get('type', "service_account"),
             "project_id": Utility.environment['multilingual']['project_id'],
             "private_key_id": Utility.environment['multilingual']['service_account_creds']['private_key_id'],
             "private_key": Utility.environment['multilingual']['service_account_creds']['private_key'],
@@ -63,9 +62,8 @@ class Translator:
                 trans = translation.translated_text
                 translations.append(trans)
         except Exception as e:
-            logger.exception(f'Cloud Translation failed with exception: {str(e)}')
+            logger.exception(e)
             raise AppException(f'Cloud Translation failed with exception: {str(e)}')
 
         logger.info('Translations completed successfully.')
         return translations
-

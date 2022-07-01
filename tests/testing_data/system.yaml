@@ -96,7 +96,7 @@ multilingual:
   event_url: ${BOT_REPLICATION_EVENT_URL}
   limit_per_day: ${TRANSLATION_LIMIT:10}
   service_account_creds:
-    type: ${SERVICE_ACCOUNT_TYPE:"service_account"}
+    type: ${SERVICE_ACCOUNT_TYPE}
     private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}
     private_key: ${SERVICE_ACCOUNT_PRIVATE_KEY}
     client_email: ${SERVICE_ACCOUNT_CLIENT_EMAIL}

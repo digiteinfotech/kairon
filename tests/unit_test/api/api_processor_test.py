@@ -18,7 +18,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
@@ -27,7 +27,6 @@ from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
-from stress_test.data_objects import Bot
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 

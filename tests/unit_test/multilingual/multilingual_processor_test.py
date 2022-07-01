@@ -1,5 +1,4 @@
 import pytest
-
 from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -11,6 +10,8 @@ import os
 from mongoengine import connect
 from kairon.shared.account.data_objects import Bot
 from google.cloud.translate_v3 import TranslationServiceClient
+from google.oauth2 import service_account
+from unittest.mock import patch
 
 
 class TestMultilingualProcessor:
@@ -20,7 +21,7 @@ class TestMultilingualProcessor:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection())
-        # processor = MongoProcessor()
+        Utility.environment['multilingual']['service_account_creds']['type'] = "service_account"
 
         pytest.bot = Bot(name="test", account=1, user="test_user").save()
 
@@ -32,38 +33,44 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_translate(*args, **kwargs):
+        def _mock_service_client(*args, **kwargs):
+            class MockServiceClient:
 
-            text = kwargs["request"]["contents"]
+                def translate_text(*args, **kwargs):
+                    text = kwargs["request"]["contents"]
 
-            class TranslationResponse:
+                    class TranslationResponse:
 
-                class Translations:
-                    translated_text = None
+                        class Translations:
+                            translated_text = None
 
-                    def __init__(self, sentence):
-                        self.translated_text = sentence
+                            def __init__(self, sentence):
+                                self.translated_text = sentence
 
-                translations = []
+                        translations = []
 
-                def __init__(self, text_list):
-                    for t in text_list:
-                        self.translations.append(self.Translations('TRANSLATED_' + t))
+                        def __init__(self, text_list):
+                            for t in text_list:
+                                self.translations.append(self.Translations('TRANSLATED_' + t))
 
-            return TranslationResponse(text)
+                    return TranslationResponse(text)
+
+            return MockServiceClient()
 
         bot = Bot(name="test_bot", account=1, user="test_user")
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        monkeypatch.setattr(TranslationServiceClient, "translate_text", _mock_translate)
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                mocked_new.side_effect = _mock_service_client
 
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-        destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                          base_bot_name=bot.name,
-                                                                          s_lang=s_lang, d_lang=d_lang,
-                                                                          translate_responses=True,
-                                                                          translate_actions=True)
+                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                  base_bot_name=bot.name,
+                                                                                  s_lang=s_lang, d_lang=d_lang,
+                                                                                  translate_responses=True,
+                                                                                  translate_actions=True)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)
@@ -87,7 +94,7 @@ class TestMultilingualProcessor:
         # Checking actions
         # http_action
         for i, action in enumerate(base_actions[ActionType.http_action]):
-            assert 'TRANSLATED_' + action['response'] == new_actions[ActionType.http_action][i]['response']
+            assert 'TRANSLATED_' + action['response'].get('value') == new_actions[ActionType.http_action][i]['response'].get('value')
         # email_action
         for i, action in enumerate(base_actions[ActionType.email_action]):
             assert 'TRANSLATED_' + action['response'] == new_actions[ActionType.email_action][i]['response']
@@ -122,39 +129,44 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_translate(*args, **kwargs):
+        def _mock_service_client(*args, **kwargs):
+            class MockServiceClient:
 
-            request = kwargs["request"]
-            text = request["contents"]
+                def translate_text(*args, **kwargs):
+                    text = kwargs["request"]["contents"]
 
-            class TranslationResponse:
+                    class TranslationResponse:
 
-                class Translations:
-                    translated_text = None
+                        class Translations:
+                            translated_text = None
 
-                    def __init__(self, sentence):
-                        self.translated_text = sentence
+                            def __init__(self, sentence):
+                                self.translated_text = sentence
 
-                translations = []
+                        translations = []
 
-                def __init__(self, text_list):
-                    for t in text_list:
-                        self.translations.append(self.Translations('TRANSLATED_' + t))
+                        def __init__(self, text_list):
+                            for t in text_list:
+                                self.translations.append(self.Translations('TRANSLATED_' + t))
 
-            return TranslationResponse(text)
+                    return TranslationResponse(text)
+
+            return MockServiceClient()
 
         bot = Bot(name="test_bot", account=1, user="test_user")
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        monkeypatch.setattr(TranslationServiceClient, "translate_text", _mock_translate)
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                mocked_new.side_effect = _mock_service_client
 
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-        destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                          base_bot_name=bot.name,
-                                                                          s_lang=s_lang, d_lang=d_lang,
-                                                                          translate_responses=True,
-                                                                          translate_actions=False)
+                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                  base_bot_name=bot.name,
+                                                                                  s_lang=s_lang, d_lang=d_lang,
+                                                                                  translate_responses=True,
+                                                                                  translate_actions=False)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)
@@ -178,7 +190,7 @@ class TestMultilingualProcessor:
         # Checking actions
         # http_action
         for i, action in enumerate(base_actions[ActionType.http_action]):
-            assert action['response'] == new_actions[ActionType.http_action][i]['response']
+            assert action['response'].get('value') == new_actions[ActionType.http_action][i]['response'].get('value')
         # email_action
         for i, action in enumerate(base_actions[ActionType.email_action]):
             assert action['response'] == new_actions[ActionType.email_action][i]['response']
@@ -213,39 +225,44 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_translate(*args, **kwargs):
+        def _mock_service_client(*args, **kwargs):
+            class MockServiceClient:
 
-            request = kwargs["request"]
-            text = request["contents"]
+                def translate_text(*args, **kwargs):
+                    text = kwargs["request"]["contents"]
 
-            class TranslationResponse:
+                    class TranslationResponse:
 
-                class Translations:
-                    translated_text = None
+                        class Translations:
+                            translated_text = None
 
-                    def __init__(self, sentence):
-                        self.translated_text = sentence
+                            def __init__(self, sentence):
+                                self.translated_text = sentence
 
-                translations = []
+                        translations = []
 
-                def __init__(self, text_list):
-                    for t in text_list:
-                        self.translations.append(self.Translations('TRANSLATED_' + t))
+                        def __init__(self, text_list):
+                            for t in text_list:
+                                self.translations.append(self.Translations('TRANSLATED_' + t))
 
-            return TranslationResponse(text)
+                    return TranslationResponse(text)
+
+            return MockServiceClient()
 
         bot = Bot(name="test_bot", account=1, user="test_user")
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        monkeypatch.setattr(TranslationServiceClient, "translate_text", _mock_translate)
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                mocked_new.side_effect = _mock_service_client
 
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-        destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                          base_bot_name=bot.name,
-                                                                          s_lang=s_lang, d_lang=d_lang,
-                                                                          translate_responses=False,
-                                                                          translate_actions=True)
+                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                  base_bot_name=bot.name,
+                                                                                  s_lang=s_lang, d_lang=d_lang,
+                                                                                  translate_responses=False,
+                                                                                  translate_actions=True)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)
@@ -269,7 +286,7 @@ class TestMultilingualProcessor:
         # Checking actions
         # http_action
         for i, action in enumerate(base_actions[ActionType.http_action]):
-            assert 'TRANSLATED_' + action['response'] == new_actions[ActionType.http_action][i]['response']
+            assert 'TRANSLATED_' + action['response'].get('value') == new_actions[ActionType.http_action][i]['response'].get('value')
         # email_action
         for i, action in enumerate(base_actions[ActionType.email_action]):
             assert 'TRANSLATED_' + action['response'] == new_actions[ActionType.email_action][i]['response']
@@ -304,38 +321,44 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_translate(*args, **kwargs):
+        def _mock_service_client(*args, **kwargs):
+            class MockServiceClient:
 
-            text = kwargs["request"]["contents"]
+                def translate_text(*args, **kwargs):
+                    text = kwargs["request"]["contents"]
 
-            class TranslationResponse:
+                    class TranslationResponse:
 
-                class Translations:
-                    translated_text = None
+                        class Translations:
+                            translated_text = None
 
-                    def __init__(self, sentence):
-                        self.translated_text = sentence
+                            def __init__(self, sentence):
+                                self.translated_text = sentence
 
-                translations = []
+                        translations = []
 
-                def __init__(self, text_list):
-                    for t in text_list:
-                        self.translations.append(self.Translations('TRANSLATED_' + t))
+                        def __init__(self, text_list):
+                            for t in text_list:
+                                self.translations.append(self.Translations('TRANSLATED_' + t))
 
-            return TranslationResponse(text)
+                    return TranslationResponse(text)
+
+            return MockServiceClient()
 
         bot = Bot(name="test_bot", account=1, user="test_user")
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        monkeypatch.setattr(TranslationServiceClient, "translate_text", _mock_translate)
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                mocked_new.side_effect = _mock_service_client
 
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-        destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                          base_bot_name=bot.name,
-                                                                          s_lang=s_lang, d_lang=d_lang,
-                                                                          translate_responses=False,
-                                                                          translate_actions=False)
+                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                  base_bot_name=bot.name,
+                                                                                  s_lang=s_lang, d_lang=d_lang,
+                                                                                  translate_responses=False,
+                                                                                  translate_actions=False)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)
@@ -359,7 +382,7 @@ class TestMultilingualProcessor:
         # Checking actions
         # http_action
         for i, action in enumerate(base_actions[ActionType.http_action]):
-            assert action['response'] == new_actions[ActionType.http_action][i]['response']
+            assert action['response'].get('value') == new_actions[ActionType.http_action][i]['response'].get('value')
         # email_action
         for i, action in enumerate(base_actions[ActionType.email_action]):
             assert action['response'] == new_actions[ActionType.email_action][i]['response']
