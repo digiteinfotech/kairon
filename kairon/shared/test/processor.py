@@ -93,7 +93,7 @@ class ModelTestingLogProcessor:
         @param raise_exception: Raise exception if event is in progress.
         @return: boolean flag
         """
-        from kairon import Utility
+        from kairon.shared.utils import Utility
 
         today = datetime.today()
         initiated_today = today.replace(hour=0, minute=0, second=0)
@@ -119,7 +119,7 @@ class ModelTestingLogProcessor:
         @param page_size: number of rows from start index
         @return: list of logs.
         """
-        from kairon import Utility
+        from kairon.shared.utils import Utility
 
         if not (Utility.check_empty_string(log_type) and Utility.check_empty_string(reference_id)):
             logs = ModelTestingLogProcessor.get_by_id_and_type(reference_id, bot, log_type, start_idx, page_size)

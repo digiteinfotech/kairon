@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path, Security
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,

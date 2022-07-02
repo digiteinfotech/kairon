@@ -1,7 +1,7 @@
 from typing import Text, List
 from urllib.parse import urljoin
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.live_agent.live_agent import LiveAgent
 

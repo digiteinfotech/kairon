@@ -5,7 +5,7 @@ from loguru import logger
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 
 

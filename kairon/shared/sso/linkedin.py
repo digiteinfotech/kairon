@@ -1,6 +1,6 @@
 from urllib.parse import urljoin
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import SSO_TYPES
 from kairon.shared.sso.base import BaseSSO

@@ -133,7 +133,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
 
 
 class BotAccessRequest(RecaptchaVerifiedRequest):
-    email: str
+    email: constr(to_lower=True, strip_whitespace=True)
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
