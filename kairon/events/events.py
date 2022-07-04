@@ -13,7 +13,6 @@ from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.multilingual.processor import MultilingualProcessor
 from kairon.test.test_models import ModelTester
-from kairon.shared.data.processor import MongoProcessor
 
 
 class EventsTrigger:

@@ -1,10 +1,12 @@
 from pydantic import BaseModel, validator
 
+
 class TranslationRequest(BaseModel):
     d_lang: str
     translate_responses: bool = True
     translate_actions: bool = False
 
+    @classmethod
     @validator("d_lang")
     def validate_synonym(cls, f, values, **kwargs):
         from kairon.shared.utils import Utility

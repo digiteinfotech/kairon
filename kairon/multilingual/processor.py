@@ -10,9 +10,7 @@ from ..exceptions import AppException
 
 
 class MultilingualProcessor:
-    """
-    class contains logic for creating a bot by translating a base bot into another language
-    """
+    """class contains logic for creating a bot by translating a base bot into another language"""
 
     def __init__(self, account: int, user: str):
         """
@@ -214,10 +212,10 @@ class MultilingualProcessor:
                 actions = self.__translate_actions(base_bot_id=base_bot_id, s_lang=s_lang, d_lang=d_lang)
                 logger.info("Translated actions successfully.")
 
-            logger.info(f"Translated bot files successfully.")
+            logger.info("Translated bot files successfully.")
 
             self.__save_bot_files(base_bot_id, new_bot_id, nlu, domain, actions)
-            logger.info(f"Saved translated bot files successfully.")
+            logger.info("Saved translated bot files successfully.")
 
         except Exception as e:
             if bot_created:
