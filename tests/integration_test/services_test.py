@@ -5521,6 +5521,7 @@ def test_get_client_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert actual["data"]["whitelist"] == ["*"]
 
 
 def test_get_client_config_url():
@@ -9401,6 +9402,7 @@ def test_get_client_config_using_uid_valid_domains(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert actual["data"]["whitelist"] == ["kairon.digite.com", "kairon-api.digite.com"]
 
 
 def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
