@@ -397,7 +397,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
-
+    @staticmethod
     def extract_db_config(uri: str):
         """
         extract username, password and host with port from mongo uri
@@ -1213,11 +1213,7 @@ class Utility:
             root = ast.parse(fh.read(), path)
 
         for node in ast.iter_child_nodes(root):
-            if isinstance(node, ast.Import):
-                module = []
-            elif isinstance(node, ast.ImportFrom):
-                module = node.module.split('.')
-            else:
+            if not(isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom)):
                 continue
 
             for n in node.names:
