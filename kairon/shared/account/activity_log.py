@@ -58,12 +58,12 @@ class UserActivityLogger:
         user_mail = user.get("email")
         first_name = user.get("first_name")
 
-        from user_agents import parse
+        import httpagentparser as parser
         location = Utility.fetch_location_details(user_ip)
         user_agent = request.headers.get("user-agent")
-        parsed_data = parse(user_agent)
-        user_os = parsed_data.os.family
-        user_browser = parsed_data.browser.family
+        parsed_data = parser.detect(user_agent)
+        user_os = parsed_data["os"]["name"]
+        user_browser = parsed_data["browser"]["name"]
         data = {"user_ip": user_ip, "user_os": user_os, "user_browser": user_browser}
         if UserActivityLogger.verify_trusted_devices(user=user, data=data):
             await Utility.format_and_send_mail(mail_type="login_activity", email=user_mail, first_name=first_name,
