@@ -3418,6 +3418,7 @@ class MongoProcessor:
         bot_accessor = next(AccountProcessor.list_bot_accessors(bot))['accessor_email']
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
+            client_config.config['whitelist'] = client_config.white_listed_domain
         except DoesNotExist as e:
             logging.error(e)
             config = Utility.load_json_file("./template/chat-client/default-config.json")
