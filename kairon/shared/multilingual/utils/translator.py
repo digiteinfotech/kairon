@@ -8,9 +8,7 @@ from kairon.shared.utils import Utility
 
 
 class Translator:
-    """
-    Class containing code for Google Cloud translate
-    """
+    """Class containing code for Google Cloud translate"""
 
     @staticmethod
     def translate_text_bulk(text: List[Text], s_lang: Text, d_lang: Text, mime_type: Text = "text/plain"):

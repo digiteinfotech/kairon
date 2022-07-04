@@ -10,9 +10,7 @@ from kairon.shared.multilingual.data_objects import BotReplicationLogs
 
 
 class MultilingualLogProcessor:
-    """
-    Data processor to log multilingual translation event
-    """
+    """Data processor to log multilingual translation event"""
 
     @staticmethod
     def add_log(source_bot: str, user: str, source_bot_name: str = None, s_lang: str = None, d_lang: str = None,

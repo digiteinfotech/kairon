@@ -7,7 +7,6 @@ from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
-from kairon.multilingual.processor import MultilingualProcessor
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
