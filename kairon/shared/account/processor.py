@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Dict, Text
 
@@ -281,7 +282,7 @@ class AccountProcessor:
         :param token: token sent in the link
         :param bot: bot id
         """
-        accessor_email = Utility.verify_token(token)
+        accessor_email = Utility.verify_token(token).get("mail_id")
         AccountProcessor.get_user_details(accessor_email)
         return AccountProcessor.accept_bot_access_invite(bot, accessor_email)
 
@@ -610,7 +611,8 @@ class AccountProcessor:
         :param token: the token from link
         :return: mail id, subject of mail, body of mail
         """
-        email_confirm = Utility.verify_token(token)
+        decoded_jwt = Utility.verify_token(token)
+        email_confirm = decoded_jwt.get("mail_id")
         Utility.is_exist(
             UserEmailConfirmation,
             exp_message="Email already confirmed!",
@@ -667,10 +669,14 @@ class AccountProcessor:
             UserActivityLogger.is_password_reset_within_cooldown_period(mail)
             UserActivityLogger.is_password_reset_request_limit_exceeded(mail)
             token_expiry = Utility.environment['user']['reset_password_cooldown_period'] or 120
-            token = Utility.generate_token(mail, token_expiry * 60)
+            uuid_value = str(uuid.uuid1())
+            token = Utility.generate_token_payload({"mail_id": mail, "uuid":uuid_value}, token_expiry * 60)
             user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
             UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.reset_password_request.value)
+            data={"status":"pending","uuid":uuid_value}
+            UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.link_usage.value,
+                                      message=["Send Reset Link"], data=data)
             return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
@@ -686,7 +692,13 @@ class AccountProcessor:
         """
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
-        email = Utility.verify_token(token)
+        decoded_jwt = Utility.verify_token(token)
+        email = decoded_jwt.get("mail_id")
+        uuid_value = decoded_jwt.get("uuid")
+        if uuid_value is not None and Utility.is_exist(
+                UserActivityLog, raise_error=False, user=email, type=UserActivityType.link_usage.value,
+                data={"status":"done","uuid":uuid_value}):
+            raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         if Utility.verify_password(password.strip(), user.password):
@@ -702,6 +714,10 @@ class AccountProcessor:
         data = {"password": user.password}
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
+        if uuid_value is not None:
+            UserActivityLog.objects(user=email, type=UserActivityType.link_usage.value,
+                                      data={"status": "pending", "uuid":uuid_value})\
+                .update_one(set__data__status="done")
         return email, user.first_name
 
     @staticmethod
