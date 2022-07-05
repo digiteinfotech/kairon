@@ -89,3 +89,27 @@ class LiveAgentHandler(BaseHandler, ABC):
             success = False
         self.set_status(200)
         self.write(json_encode({"data": response, "success": success, "error_code": error_code, "message": message}))
+
+
+class SessionConversationHandler(BaseHandler, ABC):
+
+    async def get(self, bot: str):
+        success = True
+        message = None
+        response = None
+        error_code = 0
+        try:
+            user: User = super().authenticate(self.request, bot=bot)
+            response = ChatUtils.get_conversation(bot, user.get_user())
+        except HTTPError as ex:
+            logger.exception(ex)
+            message = str(ex.reason)
+            error_code = ex.status_code
+            success = False
+        except Exception as e:
+            logger.exception(e)
+            message = str(e)
+            error_code = 422
+            success = False
+        self.set_status(200)
+        self.write(json_encode({"data": response, "success": success, "error_code": error_code, "message": message}))

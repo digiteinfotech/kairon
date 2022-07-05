@@ -70,3 +70,12 @@ class ChatUtils:
         trigger_on_intent = predicted_intent in set(agent_handoff_config.get("trigger_on_intents", []))
         trigger_on_action = len(set(predicted_action).intersection(set(agent_handoff_config.get("trigger_on_actions", [])))) > 0
         return agent_handoff_config["override_bot"] or trigger_on_intent or trigger_on_action
+
+    @staticmethod
+    def get_conversation(bot: Text, sender_id: Text):
+        model = AgentProcessor.get_agent(bot)
+        events = model.retrieve_events(sender_id)
+        events = TrackerStore.serialise_tracker(events)
+        events = json.loads(events)
+        iat, msg_trail = ActionUtility.prepare_message_trail(events.get("events"))
+        return {"session_started": iat, "conversations": msg_trail}

@@ -9360,6 +9360,7 @@ def test_generate_limited_access_temporary_token():
     actual = response.json()
     assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
 
+
 def test_get_client_config_using_uid_invalid_domains(monkeypatch):
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -9378,6 +9379,7 @@ def test_get_client_config_using_uid_invalid_domains(monkeypatch):
     assert not actual["data"]
     assert actual["message"] == "Domain not registered for kAIron client"
 
+
 def test_get_client_config_using_uid_valid_domains(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     response = client.get(pytest.url, headers={"HTTP_REFERER": "https://kairon-api.digite.com"})
@@ -9386,6 +9388,7 @@ def test_get_client_config_using_uid_valid_domains(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
+
 
 def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
@@ -9396,6 +9399,7 @@ def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
     assert not actual["data"]
     assert actual["message"] == "Domain not registered for kAIron client"
 
+
 def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     chat_json = {"data": "Hi"}
@@ -9405,6 +9409,7 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
+
 
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
@@ -9420,6 +9425,7 @@ def test_save_client_config_invalid_domain_format():
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
 
+
 def get_client_config_valid_domain():
     response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -9428,6 +9434,7 @@ def get_client_config_valid_domain():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"]["whitelist"] == ["kairon.digite.com", "kairon-api.digite.com"]
+
 
 def test_delete_account():
     response_log = client.post(
@@ -9510,8 +9517,9 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = utter_response.json()
     message = actual["message"]
     error_code = actual['error_code']
-    assert message == "Password is reset while session begin Active"
+    assert message == "Session expired. Please login again."
     assert error_code == 401
+
 
 def test_create_access_token_with_iat():
 
@@ -9538,6 +9546,7 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
     assert actual["message"] == "Success! Your password has been changed"
     assert actual['data'] is None
 
+
 def test_login_new_password():
     response = client.post(
         "/api/auth/login",
@@ -9550,6 +9559,7 @@ def test_login_new_password():
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
 
+
 def test_login_old_password():
     response = client.post(
         "/api/auth/login",
@@ -9560,6 +9570,7 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
     email = "samepasswrd@demo.ai"
@@ -9593,6 +9604,7 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
     response = passwrd_change_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
+
 
 def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     Utility.environment['user']['reset_password_cooldown_period'] = 0

@@ -1355,7 +1355,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
 
-
     def test_chat_with_bot_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
         bot = user['bots']['account_owned'][0]['_id']
@@ -1375,7 +1374,7 @@ class TestChatServer(AsyncHTTPTestCase):
         message = actual.get("message")
         error_code = actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == "Session expired. Please login again."
 
     def test_reload_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
@@ -1393,7 +1392,7 @@ class TestChatServer(AsyncHTTPTestCase):
         message = reload_actual.get("message")
         error_code = reload_actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == "Session expired. Please login again."
 
     def test_live_agent_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
@@ -1412,4 +1411,68 @@ class TestChatServer(AsyncHTTPTestCase):
         message = live_actual.get("message")
         error_code = live_actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == "Session expired. Please login again."
+
+    def test_get_chat_history(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/conversation",
+            method="GET",
+            headers={"Authorization": token_type + " " + token},
+            connect_timeout=0,
+            request_timeout=0
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]['session_started']
+        assert len(actual["data"]['conversations']) > 0
+        assert actual["data"]
+        assert Utility.check_empty_string(actual["message"])
+
+    def test_get_chat_history_with_user(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/conversation",
+            method="GET",
+            headers={"Authorization": token_type + " " + token},
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]['session_started']
+        assert len(actual["data"]['conversations']) > 0
+        assert Utility.check_empty_string(actual["message"])
+
+    def test_get_chat_history_user_exception(self):
+        response = self.fetch(
+            f"/api/bot/{bot3}/conversation",
+            method="GET",
+            headers={
+                "Authorization": f"{token_type} {token}"
+            },
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == "Bot has not been trained yet!"
+
+    def test_get_chat_history_http_error(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        reload_response = self.fetch(
+            f"/api/bot/{bot}/conversation",
+            method="GET",
+            headers={
+                "Authorization": token_type + " " + access_token
+            },
+        )
+        reload_actual = json.loads(reload_response.body.decode("utf8"))
+        message = reload_actual.get("message")
+        error_code = reload_actual.get("error_code")
+        assert error_code == 401
+        assert message == "Session expired. Please login again."

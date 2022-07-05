@@ -30,3 +30,6 @@ class KaironAgent(Agent):
             action_endpoint=self.action_endpoint,
             message_preprocessor=preprocessor,
         )
+
+    def retrieve_events(self, sender_id):
+        return self.tracker_store.retrieve(sender_id)
