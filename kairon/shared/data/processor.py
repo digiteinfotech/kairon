@@ -3402,7 +3402,7 @@ class MongoProcessor:
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         client_config = self.get_chat_client_config(bot)
-        white_listed_domain = None if not config.__contains__("whitelist") else config.pop("whitelist")
+        white_listed_domain = ["*"] if not config.__contains__("whitelist") else config.pop("whitelist")
         if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
             client_config.config['headers'].pop('authorization')
         client_config.config = config
@@ -3418,6 +3418,7 @@ class MongoProcessor:
         bot_accessor = next(AccountProcessor.list_bot_accessors(bot))['accessor_email']
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
+            client_config.config['whitelist'] = client_config.white_listed_domain
         except DoesNotExist as e:
             logging.error(e)
             config = Utility.load_json_file("./template/chat-client/default-config.json")

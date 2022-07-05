@@ -1056,7 +1056,8 @@ async def get_client_config_using_uid(request: Request, bot: str, uid: str):
     decoded_uid = Utility.validate_bot_specific_token(bot, uid)
     config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
     if not Utility.validate_request(request, config):
-        return Response(data={}, error_code=403, success=False)
+        return Response(message="Domain not registered for kAIron client", error_code=403, success=False)
+    config.config.pop("whitelist")
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
 

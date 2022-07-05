@@ -3813,7 +3813,7 @@ class TestMongoProcessor:
         saved_config = ChatClientConfig.objects(bot='test').get()
         assert saved_config.config == config
         assert saved_config.status
-        assert saved_config.white_listed_domain == None
+        assert saved_config.white_listed_domain == ["*"]
 
     def test_save_chat_client_config_valid_white_list(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
