@@ -1458,10 +1458,10 @@ class Utility:
 
     @staticmethod
     def get_location_service_url(user_ip: str):
-        service_url = Utility.environment["location_service"].get("service_url", "")
-        api_key = Utility.environment["location_service"].get("service_api_key", "")
+        service_url = Utility.environment["location_service"].get("service_url")
+        api_key = Utility.environment["location_service"].get("service_api_key")
         query_param = "fields=location.country.name,location.city,location.region.name"
-        url = "".join([service_url, str(user_ip), "?key=", api_key, "&", query_param])
+        url = "".join([service_url, user_ip, "?key=", api_key, "&", query_param])
         return url
 
     @staticmethod
@@ -1474,6 +1474,6 @@ class Utility:
             city = data.get("location").get("city")
             state = data.get("location").get("region").get("name")
             country = data.get("location").get("country").get("name")
-        except (AttributeError, AppException):
+        except Exception:
             return "-"
         return city + ", " + state + ", " + country
