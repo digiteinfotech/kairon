@@ -62,8 +62,8 @@ class UserActivityLogger:
         location = Utility.fetch_location_details(user_ip)
         user_agent = request.headers.get("user-agent")
         parsed_data = parser.detect(user_agent)
-        user_os = parsed_data.get("os", "").get("name", "Unknown")
-        user_browser = parsed_data.get("browser", "").get("name", "Unknown")
+        user_os = parsed_data.get("os", {}).get("name", "Unknown")
+        user_browser = parsed_data.get("browser", {}).get("name", "Unknown")
         data = {"user_ip": user_ip, "user_os": user_os, "user_browser": user_browser}
         if "Unknown" not in (user_os, user_browser) and UserActivityLogger.verify_trusted_devices(user=user, data=data):
             await Utility.format_and_send_mail(mail_type="login_activity", email=user_mail, first_name=first_name,
