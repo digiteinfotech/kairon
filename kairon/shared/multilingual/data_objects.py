@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, BooleanField, DateTimeField, IntField, EmbeddedDocument, EmbeddedDocumentField
+from mongoengine import Document, StringField, BooleanField, DateTimeField, IntField
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
 

@@ -10,6 +10,7 @@ from kairon.shared.multilingual.data_objects import BotReplicationLogs
 
 
 class MultilingualLogProcessor:
+
     """Data processor to log multilingual translation event"""
 
     @staticmethod

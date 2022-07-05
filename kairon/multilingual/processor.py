@@ -10,10 +10,12 @@ from ..exceptions import AppException
 
 
 class MultilingualProcessor:
+
     """class contains logic for creating a bot by translating a base bot into another language"""
 
     def __init__(self, account: int, user: str):
         """
+        init for Multilingual Processor
         :param account: account id
         :param user: username
         """

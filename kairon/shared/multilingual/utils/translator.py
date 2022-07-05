@@ -9,6 +9,7 @@ import json
 
 
 class Translator:
+
     """Class containing code for Google Cloud translate"""
 
     @staticmethod
