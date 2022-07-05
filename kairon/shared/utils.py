@@ -1458,10 +1458,10 @@ class Utility:
 
     @staticmethod
     def get_location_service_url(user_ip: str):
-        service_url = Utility.environment["location_service"].get("service_url")
-        api_key = Utility.environment["location_service"].get("service_api_key")
+        service_url = Utility.environment["location_service"].get("service_url", "")
+        api_key = Utility.environment["location_service"].get("service_api_key", "")
         query_param = "fields=location.country.name,location.city,location.region.name"
-        url = service_url + user_ip + "?key=" + api_key + "&" + query_param
+        url = "".join([service_url, str(user_ip), "?key=", api_key, "&", query_param])
         return url
 
     @staticmethod
