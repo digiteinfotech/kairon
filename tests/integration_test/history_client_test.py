@@ -72,6 +72,7 @@ def _mock_user_role_admin(*args, **kwargs):
 def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
+    monkeypatch.setattr(AccountProcessor, "get_user", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
 
 
