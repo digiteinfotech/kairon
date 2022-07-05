@@ -8,6 +8,7 @@ from kairon.shared.utils import Utility
 
 
 class Translator:
+
     """Class containing code for Google Cloud translate"""
 
     @staticmethod
