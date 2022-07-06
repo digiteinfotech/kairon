@@ -9655,6 +9655,7 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
 
+
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))

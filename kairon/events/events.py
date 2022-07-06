@@ -151,7 +151,7 @@ class EventsTrigger:
             HistoryDeletionLogProcessor.add_log(bot, user, exception=str(e), status=EVENT_STATUS.FAIL.value)
 
     @staticmethod
-    def trigger_multilingual_translation(bot: Text, user: Text, d_lang: Text = "en-US",
+    def trigger_multilingual_translation(bot: Text, user: Text, d_lang: Text,
                                          translate_responses: bool = True, translate_actions: bool = False):
         """
         Triggers multilingual translation event
