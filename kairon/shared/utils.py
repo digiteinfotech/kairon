@@ -863,7 +863,7 @@ class Utility:
     @staticmethod
     def generate_token_payload(payload:dict, minutes_to_expire=1440):
         """
-        Used to encode the payload of type dic into a token.
+        Used to encode the payload of type dict into a token.
 
         :param payload: dict data
         :param minutes_to_expire: time in minutes until the token expires
