@@ -61,6 +61,7 @@ class ActionHTTP(ActionsBase):
         msg_logger = []
         try:
             http_action_config = self.retrieve_config()
+            dispatch_bot_response = http_action_config['response']['dispatch']
             tracker_data = ActionUtility.build_context(tracker)
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'))
             logger.info("headers: " + str(header_log))
@@ -74,7 +75,6 @@ class ActionHTTP(ActionsBase):
             logger.info("http response: " + str(http_response))
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'], http_response)
             msg_logger.append(bot_resp_log)
-            dispatch_bot_response = http_action_config['response']['dispatch']
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
                                                                                 http_response)
             msg_logger.extend(slot_eval_log)

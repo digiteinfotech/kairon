@@ -7,6 +7,10 @@
     }, 
     "events" : [
         {
+             "event" : "session_started",
+            "timestamp" : 1582714812.8352926
+        },
+        {
             "event" : "action", 
             "timestamp" : 1582714812.8352926, 
             "name" : "action_listen", 

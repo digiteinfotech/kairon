@@ -9510,7 +9510,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = utter_response.json()
     message = actual["message"]
     error_code = actual['error_code']
-    assert message == "Password is reset while session begin Active"
+    assert message == 'Session expired. Please login again.'
     assert error_code == 401
 
 def test_create_access_token_with_iat():

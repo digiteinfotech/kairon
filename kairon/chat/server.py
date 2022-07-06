@@ -4,7 +4,7 @@ from tornado.options import parse_command_line
 
 from kairon.chat.handlers.channels.whatsapp import WhatsappHandler
 from kairon.shared.tornado.handlers.index import IndexHandler
-from .handlers.action import ChatHandler, ReloadHandler, LiveAgentHandler
+from .handlers.action import ChatHandler, ReloadHandler, LiveAgentHandler, SessionConversationHandler
 from .handlers.channels.slack import SlackHandler
 from .handlers.channels.telegram import TelegramHandler
 from .handlers.channels.hangouts import HangoutHandler
@@ -19,6 +19,7 @@ def make_app():
     return Application([
         (r"/", IndexHandler),
         (r"/api/bot/([^/]+)/chat", ChatHandler),
+        (r"/api/bot/([^/]+)/conversation", SessionConversationHandler),
         (r"/api/bot/([^/]+)/agent/live/([^/]+)", LiveAgentHandler),
         (r"/api/bot/slack/([^/]+)/([^/]+)", SlackHandler),
         (r"/api/bot/telegram/([^/]+)/([^/]+)", TelegramHandler),

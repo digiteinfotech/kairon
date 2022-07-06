@@ -29,6 +29,7 @@ from mongoengine.queryset.visitor import QCombination
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
+from pymongo import MongoClient
 from pymongo.common import _CaseInsensitiveDictionary
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import (
@@ -1447,3 +1448,10 @@ class Utility:
             if not Utility.check_empty_string(param['value']):
                 value = Utility.decrypt_message(param['value'])
                 param['value'] = value[:-3] + "***"
+
+    @staticmethod
+    def create_mongo_client(url: Text):
+        config = Utility.extract_db_config(url)
+        logger.debug(f"Loading host:{config.get('host')}, db:{config.get('db')}")
+        client = MongoClient(host=url)
+        return client
