@@ -5,7 +5,7 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import GoogleSearchAction, ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure

@@ -2,6 +2,7 @@ import json
 from typing import Text
 
 from loguru import logger
+from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
@@ -70,3 +71,46 @@ class ChatUtils:
         trigger_on_intent = predicted_intent in set(agent_handoff_config.get("trigger_on_intents", []))
         trigger_on_action = len(set(predicted_action).intersection(set(agent_handoff_config.get("trigger_on_actions", [])))) > 0
         return agent_handoff_config["override_bot"] or trigger_on_intent or trigger_on_action
+
+    @staticmethod
+    def get_last_session_conversation(bot: Text, sender_id: Text):
+
+        """
+        List conversation events in last session.
+
+        :param bot: bot id
+        :param sender_id: user id
+        :return: list of conversation events
+        """
+        host = Utility.environment['database']['url']
+        db = Utility.environment['database']['test_db']
+        events = []
+        message = None
+        client = Utility.create_mongo_client(host)
+        with client as client:
+            try:
+                db = client.get_database(db)
+                conversations = db.get_collection(bot)
+                events = list(conversations.aggregate([
+                    {"$match": {"sender_id": sender_id}},
+                    {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                    {"$match": {"events.event": {"$in": ["session_started", "user", "bot"]}}},
+                    {"$project": {"sender_id": 1, "events.event": 1, "events.timestamp": 1, "events.text": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
+                                "all_events": {"$push": "$events"}}},
+                    {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
+                    {"$match": {"events.event": "session_started"}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$arrayIndex"},
+                                "allevents": {"$first": '$all_events'}}},
+                    {"$project": {"lastindex": {"$last": "$events"}, "allevents": 1}},
+                    {"$project": {"events": {"$slice": ["$allevents", "$lastindex", {"$size": '$allevents'}]}}},
+                ]))
+                if events:
+                    events = events[0]['events']
+            except ServerSelectionTimeoutError as e:
+                logger.error(e)
+                message = f'Failed to retrieve conversation: {e}'
+            except Exception as e:
+                logger.error(e)
+                message = f'Failed to retrieve conversation: {e}'
+            return events, message
