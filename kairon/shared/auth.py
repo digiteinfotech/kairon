@@ -79,7 +79,7 @@ class Authentication:
                             timestamp__gte=issued_at):
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail='Password is reset while session begin Active',
+                            detail='Session expired. Please login again.',
                         )
             return user_model
         except PyJWTError:

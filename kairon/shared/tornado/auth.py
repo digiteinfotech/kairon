@@ -71,7 +71,7 @@ class TornadoAuthenticate:
                         timestamp__gte=issued_at):
                     raise HTTPError(
                         status_code=401,
-                        reason='Password is reset while session begin Active',
+                        reason='Session expired. Please login again.',
                     )
         return user_model
 

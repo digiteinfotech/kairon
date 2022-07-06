@@ -3429,7 +3429,8 @@ class MongoProcessor:
             client_config.config['headers']['X-USER'] = bot_accessor
         token = Authentication.generate_integration_token(
             bot, bot_accessor, expiry=30,
-            access_limit=['/api/bot/.+/chat', '/api/bot/.+/agent/live/.+'], token_type=TOKEN_TYPE.DYNAMIC.value
+            access_limit=['/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation'],
+            token_type=TOKEN_TYPE.DYNAMIC.value
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
