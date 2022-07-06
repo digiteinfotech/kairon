@@ -5,6 +5,17 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
+from kairon.actions.definitions.base import ActionsBase
+from kairon.actions.definitions.email import ActionEmail
+from kairon.actions.definitions.factory import ActionFactory
+from kairon.actions.definitions.form_validation import ActionFormValidation
+from kairon.actions.definitions.google import ActionGoogleSearch
+from kairon.actions.definitions.http import ActionHTTP
+from kairon.actions.definitions.hubspot import ActionHubspotForms
+from kairon.actions.definitions.jira import ActionJiraTicket
+from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
+from kairon.actions.definitions.set_slot import ActionSetSlot
+from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.data.data_objects import Slots
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -15,10 +26,10 @@ import responses
 from mongoengine import connect, QuerySet
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots, HubspotFormsAction
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -41,14 +52,13 @@ class TestActions:
     @pytest.fixture
     def mock_get_http_action_exception(self, monkeypatch):
         def _raise_excep(*arge, **kwargs):
-            raise ActionFailure("No HTTP action found for bot and action")
+            raise ActionFailure("No action found for given bot and name")
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _raise_excep)
+        monkeypatch.setattr(ActionUtility, "get_action", _raise_excep)
 
     @responses.activate
     def test_execute_http_request_get_with_auth_token(self):
         http_url = 'http://localhost:8080/mock'
-        # file deepcode ignore HardcodedNonCryptoSecret: Random string for testing
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
         responses.reset()
         responses.add(
@@ -60,12 +70,39 @@ class TestActions:
         )
 
         response = ActionUtility.execute_http_request(headers={'Authorization': auth_token}, http_url=http_url,
-                                                      request_method=responses.GET)
+                                                      request_method=responses.GET, content_type="json")
         assert response
         assert response['data'] == 'test_data'
         assert len(response['test_class']) == 2
         assert response['test_class'][1]['key2'] == 'value2'
         assert responses.calls[0].request.headers['Authorization'] == auth_token
+
+    @responses.activate
+    def test_execute_http_request_url_encoded_request_empty_request_body(self):
+        http_url = 'http://localhost:8080/mock'
+        auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
+        responses.reset()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            json={'data': 'test_data', 'test_class': [{'key': 'value'}, {'key2': 'value2'}]},
+            status=200,
+            headers={"Authorization": auth_token},
+        )
+
+        response = ActionUtility.execute_http_request(headers={'Authorization': auth_token}, http_url=http_url,
+                                                      request_method=responses.GET, content_type=HttpRequestContentType.data.value)
+        assert response
+        assert response['data'] == 'test_data'
+        assert len(response['test_class']) == 2
+        assert response['test_class'][1]['key2'] == 'value2'
+        assert responses.calls[0].request.headers['Authorization'] == auth_token
+
+    def test_execute_http_request_url_invalid_content_type(self):
+        http_url = 'http://localhost:8080/mock'
+        with pytest.raises(ActionFailure):
+            ActionUtility.execute_http_request(http_url=http_url, request_method=responses.GET,
+                                               content_type=HttpRequestContentType.data.value)
 
     @responses.activate
     def test_execute_http_request_get_no_auth_token(self):
@@ -103,21 +140,32 @@ class TestActions:
         assert response['test_class'][1]['key2'] == 'value2'
         assert 'Authorization' not in responses.calls[0].request.headers
 
-    def test_prepare_url_with_get(self):
-        from urllib.parse import urlencode, quote_plus
+    def test_prepare_url_with_path_params_and_query_params(self):
+        http_url = 'http://localhost:8080/mock/$SENDER_ID/$INTENT/$USER_MESSAGE/$email?sender_id=$SENDER_ID&userid=1011&intent=$INTENT&msg=$USER_MESSAGE&email=$email'
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
+        assert updated_url == 'http://localhost:8080/mock/987654321/greet/hello/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=hello&email=udit.pandey@digite.com'
 
+    def test_prepare_url_without_params(self):
         http_url = 'http://localhost:8080/mock'
-        params = {"test": "val1", "test2": "val2"}
-        updated_url = ActionUtility.prepare_url('GET', http_url, params)
-        assert updated_url == http_url + "?" + urlencode(params, quote_via=quote_plus)
-
-    def test_prepare_url_with_post(self):
-        from urllib.parse import urlencode, quote_plus
-
-        http_url = 'http://localhost:8080/mock'
-        params = {"test": "val1", "test2": "val2"}
-        updated_url = ActionUtility.prepare_url('POST', http_url, params)
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
         assert updated_url == http_url
+
+    def test_prepare_url_with_multiple_placeholders(self):
+        http_url = 'http://localhost:8080/mock?sender_id1=$SENDER_ID&intent1=$INTENT&msg1=$USER_MESSAGE&email1=$email&sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&email=$email/'
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
+        assert updated_url == 'http://localhost:8080/mock?sender_id1=987654321&intent1=greet&msg1=hello&email1=udit.pandey@digite.com&sender_id=987654321&intent=greet&msg=hello&email=udit.pandey@digite.com/'
+
+    def test_prepare_url_with_expression_failed_evaluation(self):
+        http_url = 'http://localhost:8080/mock?sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&email=$email/'
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"}}
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
+        assert updated_url == 'http://localhost:8080/mock?sender_id=&intent=&msg=&email=udit.pandey@digite.com/'
 
     def test_execute_http_request_invalid_method_type(self):
         http_url = 'http://localhost:8080/mock'
@@ -299,7 +347,7 @@ class TestActions:
                        HttpActionRequestBody(key="key2", value="value2")]
         expected = HttpActionConfig(
             action_name="http_action",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             params_list=http_params,
@@ -307,7 +355,7 @@ class TestActions:
             user="user"
         ).save().to_mongo().to_dict()
 
-        actual = ActionUtility.get_http_action_config("bot", "http_action")
+        actual = ActionHTTP("bot", "http_action").retrieve_config()
         assert actual is not None
         assert expected['action_name'] == actual['action_name']
         assert expected['response'] == actual['response']
@@ -327,7 +375,7 @@ class TestActions:
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
             action_name="test_get_http_action_config_deleted_action",
-            response="${RESPONSE}",
+            response=HttpActionResponse(value="${RESPONSE}"),
             http_url="http://www.digite.com",
             request_method="POST",
             params_list=http_params,
@@ -337,7 +385,7 @@ class TestActions:
         ).save().to_mongo().to_dict()
         expected = HttpActionConfig(
             action_name="test_get_http_action_config_deleted_action",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             params_list=http_params,
@@ -345,7 +393,7 @@ class TestActions:
             user="user"
         ).save().to_mongo().to_dict()
 
-        actual = ActionUtility.get_http_action_config("bot", "test_get_http_action_config_deleted_action")
+        actual = ActionHTTP("bot", "test_get_http_action_config_deleted_action").retrieve_config()
         assert actual is not None
         assert expected['action_name'] == actual['action_name']
         assert expected['response'] == actual['response']
@@ -362,24 +410,24 @@ class TestActions:
 
     def test_get_http_action_no_bot(self):
         try:
-            ActionUtility.get_action_config(bot=None, name="http_action")
+            ActionHTTP(bot=None, name="http_action").retrieve_config()
             assert False
         except ActionFailure as ex:
-            assert str(ex) == "Bot and action name are required for fetching configuration"
+            assert str(ex) == "No HTTP action found for given action and bot"
 
     def test_get_http_action_no_http_action(self):
         try:
-            ActionUtility.get_action_config(bot="bot", name=None)
+            ActionHTTP(bot="bot", name=None).retrieve_config()
             assert False
         except ActionFailure as ex:
-            assert str(ex) == "Bot and action name are required for fetching configuration"
+            assert str(ex) == "No HTTP action found for given action and bot"
 
     def test_get_http_action_invalid_bot(self):
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
             action_name="http_action",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             params_list=http_params,
@@ -388,17 +436,17 @@ class TestActions:
         ).save().to_mongo().to_dict()
 
         try:
-            ActionUtility.get_http_action_config("bot1", "http_action")
+            ActionHTTP("bot1", "http_action").retrieve_config()
             assert False
         except ActionFailure as ex:
-            assert str(ex).__contains__("No HTTP action found for bot")
+            assert str(ex).__contains__("No HTTP action found for given action and bot")
 
     def test_get_http_action_invalid_http_action(self):
         http_params = [HttpActionRequestBody(key="key1", value="value1", parameter_type="slot"),
                        HttpActionRequestBody(key="key2", value="value2")]
         HttpActionConfig(
             action_name="http_action",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             params_list=http_params,
@@ -407,16 +455,16 @@ class TestActions:
         ).save().to_mongo().to_dict()
 
         try:
-            ActionUtility.get_http_action_config("bot", "http_action1")
+            ActionHTTP("bot", "http_action1").retrieve_config()
             assert False
         except ActionFailure as ex:
-            assert str(ex).__contains__("No HTTP action found for bot")
+            assert str(ex).__contains__("No HTTP action found for given action and bot")
 
     def test_get_http_action_no_request_body(self):
         http_params = []
         HttpActionConfig(
             action_name="http_action",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             params_list=http_params,
@@ -425,71 +473,85 @@ class TestActions:
         ).save().to_mongo().to_dict()
 
         try:
-            ActionUtility.get_http_action_config("bot", "http_action1")
+            ActionHTTP("bot", "http_action1").retrieve_config()
             assert False
         except ActionFailure as ex:
-            assert str(ex).__contains__("No HTTP action found for bot")
+            assert str(ex).__contains__("No HTTP action found for given action and bot")
 
     def test_prepare_header_no_header(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
-        events = [{"event1": "hello"}, {"event2": "how are you"}]
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_loop=None, latest_action_name=None)
+        tracker = {"sender_id": "sender1", "slot": slots}
         actual = ActionUtility.prepare_request(tracker, None)
-        assert actual == {}
+        assert actual == ({}, {})
 
     def test_prepare_request(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
-        events = [{"event1": "hello"}, {"event2": "how are you"}]
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot")]
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        actual_request_body = ActionUtility.prepare_request(tracker=tracker,
-                                                            http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "sender1", "slot": slots}
+        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert actual_request_body
         assert actual_request_body['param1'] == 'value1'
         assert actual_request_body['param2'] == 'param2value'
+        assert log == {'param1': 'value1', 'param2': 'param2value'}
+
+    def test_prepare_request_encryption(self):
+        slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
+        http_action_config_params = [HttpActionRequestBody(key="param1", value=Utility.encrypt_message("value1"), encrypt=True),
+                                     HttpActionRequestBody(key="param2", value="bot", parameter_type="slot", encrypt=True),
+                                     HttpActionRequestBody(key="param3", parameter_type="sender_id", encrypt=True),
+                                     HttpActionRequestBody(key="param4", parameter_type="user_message", encrypt=True),
+                                     HttpActionRequestBody(key="param5", parameter_type="intent", encrypt=True),
+                                     HttpActionRequestBody(key="param6", parameter_type="chat_log", encrypt=True),
+                                     HttpActionRequestBody(key="param7", value="http_action_config", parameter_type="slot", encrypt=True)]
+        tracker = {"sender_id": "sender1", "slot": slots, "intent": "greet", "user_message": "hi",
+                   "chat_log": [{'user': 'hi'}, {'bot': 'are you ok?'}, {'user': 'yes'}, {'bot': 'Great, carry on!'},
+                                {'user': 'hi'}], 'session_started': '2021-12-31 16:59:38'}
+        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params)
+        assert actual_request_body == {'param1': 'value1', 'param2': 'demo_bot', 'param3': 'sender1', 'param4': 'hi',
+                                       'param5': 'greet',
+                                       'param6': {'sender_id': 'sender1', 'session_started': '2021-12-31 16:59:38',
+                                                  'conversation': [{'user': 'hi'}, {'bot': 'are you ok?'},
+                                                                   {'user': 'yes'}, {'bot': 'Great, carry on!'},
+                                                                   {'user': 'hi'}]}, 'param7': 'http_action_name'}
+        assert log == {'param1': 'va****', 'param2': 'demo****', 'param3': 'sen****', 'param4': '****',
+                       'param5': 'g****', 'param6': {'sender_id': 'sender1', 'session_started': '2021-12-31 16:59:38',
+                                                     'conversation': [{'user': 'hi'}, {'bot': 'are you ok?'},
+                                                                      {'user': 'yes'}, {'bot': 'Great, carry on!'},
+                                                                      {'user': 'hi'}]}, 'param7': 'http_action_****'}
 
     def test_prepare_request_empty_slot(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
-        events = [{"event1": "hello"}, {"event2": "how are you"}]
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param3", value="", parameter_type="slot")]
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "sender1", "slot": slots}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert not request_params['param3']
+        assert log == {'param1': 'value1', 'param3': None}
 
     def test_prepare_request_sender_id(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="user_id", value="", parameter_type="sender_id")]
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
-                          latest_message=None,
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": slots}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert request_params['user_id'] == "kairon_user@digite.com"
+        assert log == {'param1': 'value1', 'user_id': 'kairon_user@digite.com'}
 
     def test_prepare_request_with_intent(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="card_type", parameter_type="intent")]
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
-                          latest_message={'intent': {'name': 'credit_card', 'confidence': 1.0}, 'entities': [],
-                                          'text': '/restart', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c',
-                                          'metadata': {}, 'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
-                          followup_action=None, active_loop=None, latest_action_name='action_listen')
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart"}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert request_params['card_type'] == "restart"
+        assert log['param1'] == "value1"
+        assert log['card_type'] == "restart"
 
     def test_prepare_request_with_message_trail(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
@@ -572,14 +634,17 @@ class TestActions:
                   {'event': 'user_featurization', 'timestamp': 1640969987.350634, 'use_text_for_featurization': False}]
         http_action_config_params = [HttpActionRequestBody(key="intent", parameter_type="intent"),
                                      HttpActionRequestBody(key="user_msg", value="", parameter_type="chat_log")]
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=slots, events=events, paused=False,
-                          latest_message={'intent': {'name': 'restart', 'confidence': 1.0}, 'entities': [],
-                                          'text': '/restart', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c',
-                                          'metadata': {}, 'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
-                          followup_action=None, active_loop=None, latest_action_name='action_listen')
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart",
+                   "chat_log": ActionUtility.prepare_message_trail(events)[1], 'session_started': '2021-12-31 16:59:38'}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
+                                                                    'session_started': '2021-12-31 16:59:38',
+                                                                    'conversation': [{'user': 'hi'},
+                                                                                     {'bot': 'are you ok?'},
+                                                                                     {'user': 'yes'},
+                                                                                     {'bot': 'Great, carry on!'},
+                                                                                     {'user': '/restart'}]}}
+        assert log == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
                                                                     'session_started': '2021-12-31 16:59:38',
                                                                     'conversation': [{'user': 'hi'},
                                                                                      {'bot': 'are you ok?'},
@@ -590,42 +655,26 @@ class TestActions:
     def test_prepare_request_user_message(self):
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="msg", parameter_type="user_message")]
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=None, events=None, paused=False,
-                          latest_message={'intent': {'name': 'google_search', 'confidence': 1.0},
-                                          'entities': [],
-                                          'text': 'perform google search',
-                                          'message_id': 'd965c5dd62034dbc9bb76b64b4571434',
-                                          'metadata': {},
-                                          'intent_ranking': [{'name': 'google_search', 'confidence': 1.0}]},
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search"}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert request_params['msg'] == "perform google search"
+        assert log['param1'] == "value1"
+        assert log['msg'] == "perform google search"
 
-        tracker = Tracker(sender_id="kairon_user@digite.com", slots=None, events=None, paused=False,
-                          latest_message={'intent': {'name': 'google_search', 'confidence': 1.0},
-                                          'entities': [],
-                                          'text': None,
-                                          'message_id': 'd965c5dd62034dbc9bb76b64b4571434',
-                                          'metadata': {},
-                                          'intent_ranking': [{'name': 'google_search', 'confidence': 1.0}]},
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        request_params = ActionUtility.prepare_request(tracker=tracker,
-                                                       http_action_config_params=http_action_config_params)
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None}
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
         assert request_params['param1'] == "value1"
         assert not request_params['msg']
+        assert log['param1'] == "value1"
+        assert not log['msg']
 
     def test_prepare_request_no_request_params(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
-        events: List[Dict] = None
         http_action_config_params: List[HttpActionRequestBody] = None
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        actual_request_body = ActionUtility.prepare_request(tracker=tracker,
-                                                            http_action_config_params=http_action_config_params)
-        #  deepcode ignore C1801: empty request body for http request with no request body params
-        assert len(actual_request_body) == 0
+        tracker = {"sender_id": "sender1", "slot": slots}
+        actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        assert actual_request_body == ({}, {})
 
     def test_is_empty(self):
         assert ActionUtility.is_empty("")
@@ -745,7 +794,7 @@ class TestActions:
         actions_name = "test_run_invalid_http_action1"
         HttpActionConfig(
             action_name=actions_name,
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://www.google.com",
             request_method="GET",
             params_list=None,
@@ -760,7 +809,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        bot="5f50fd0a56b698ca10d35d2e",
                                        status="FAILURE").get()
-        assert log['exception'].__contains__('No HTTP action found for bot')
+        assert log['exception'].__contains__('No action found for given bot and name')
 
     @pytest.mark.asyncio
     async def test_run_no_bot(self):
@@ -797,7 +846,7 @@ class TestActions:
         http_response = "This should be response"
         action = HttpActionConfig(
             action_name="http_action",
-            response=http_response,
+            response=HttpActionResponse(value=http_response),
             http_url=http_url,
             request_method="GET",
             params_list=None,
@@ -805,10 +854,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         responses.start()
         responses.add(
             method=responses.GET,
@@ -843,14 +892,13 @@ class TestActions:
 
     @pytest.mark.asyncio
     async def test_run_with_params(self, monkeypatch):
-        from urllib.parse import urlencode, quote_plus
-        http_url = "http://www.google.com"
+        http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="http_action_with_params",
-            response=http_response,
+            response=HttpActionResponse(value=http_response),
             http_url=http_url,
             request_method="GET",
             params_list=request_params,
@@ -858,14 +906,14 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         responses.start()
         responses.add(
             method=responses.GET,
-            url=http_url,
+            url="http://www.google.com/sender_test_run_with_params?id=param2value",
             body=http_response,
             status=200,
         )
@@ -893,14 +941,14 @@ class TestActions:
         assert log['action']
         assert log['bot_response']
         assert log['api_response']
-        assert log['url'] == http_url + "?" + urlencode({"key1": "value1", "key2": "value2"}, quote_via=quote_plus)
-        assert not log['request_params']
+        assert log['url'] == "http://www.google.com/sender_test_run_with_params?id=param2value"
+        assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
-            response="Data added successfully, id:${RESPONSE}",
+            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=None,
@@ -908,10 +956,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
         responses.start()
@@ -941,8 +989,8 @@ class TestActions:
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
-            action_name="test_run_with_post",
-            response="Data added successfully, id:${RESPONSE}",
+            action_name="test_run_with_post_and_parameters",
+            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=request_params,
@@ -950,10 +998,11 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
         responses.start()
@@ -974,18 +1023,18 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post")
+                                                                             "test_run_with_post_and_parameters")
         responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="sender_test_run_with_post",
-                                       action="test_run_with_post",
+                                       action="test_run_with_post_and_parameters",
                                        status="SUCCESS").get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
-        assert log['action'] == "test_run_with_post"
+        assert log['action'] == "test_run_with_post_and_parameters"
         assert log['request_params'] == {"key1": "value1", "key2": "value2"}
         assert log['api_response'] == '5000'
         assert log['bot_response'] == 'Data added successfully, id:5000'
@@ -994,7 +1043,7 @@ class TestActions:
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get",
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=None,
@@ -1002,10 +1051,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = json.dumps({
             "a": {
@@ -1033,7 +1082,7 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post")
+                                                                             "test_run_with_get")
         responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
@@ -1044,7 +1093,7 @@ class TestActions:
         action_name = "test_run_with_post"
         action = HttpActionConfig(
             action_name=action_name,
-            response="This should be response",
+            response=HttpActionResponse(value="This should be response"),
             http_url="http://localhost:8085/mock",
             request_method="GET",
             params_list=None,
@@ -1052,10 +1101,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1074,7 +1123,7 @@ class TestActions:
         action_name = "test_run_with_get_string_http_response_placeholder_required"
         action = HttpActionConfig(
             action_name=action_name,
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8080/mock",
             request_method="GET",
             params_list=None,
@@ -1082,10 +1131,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8082/mock'
         resp_msg = "This is string http response"
         responses.start()
@@ -1171,7 +1220,7 @@ class TestActions:
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters",
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=request_params,
@@ -1179,10 +1228,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = {
             "a": {
@@ -1221,16 +1270,16 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post")
+                                                                             "test_run_get_with_parameters")
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
-    async def test_run_get_with_parameters(self, monkeypatch):
+    async def test_run_get_with_parameters_2(self, monkeypatch):
         action = HttpActionConfig(
-            action_name="test_run_get_with_parameters",
-            response="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}",
+            action_name="test_run_get_with_parameters_2",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=None,
@@ -1238,10 +1287,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.http_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
         resp_msg = {
             "a": {
@@ -1280,7 +1329,7 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post")
+                                                                             "test_run_get_with_parameters_2")
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
@@ -1295,10 +1344,10 @@ class TestActions:
             user="user"
         )
 
-        def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.slot_set_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1322,9 +1371,9 @@ class TestActions:
         )
 
         def _get_action(*arge, **kwargs):
-            return action.to_mongo().to_dict(), ActionType.slot_set_action.value
+            return {'type': ActionType.slot_set_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1345,7 +1394,7 @@ class TestActions:
         def _get_action(*arge, **kwargs):
             raise ActionFailure('Only http & slot set actions are compatible with action server')
 
-        monkeypatch.setattr(ActionUtility, "get_action_config", _get_action)
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1362,66 +1411,61 @@ class TestActions:
         Actions(name='action_get_user', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
         SlotSetAction(name='action_get_user', set_slots=[SetSlots(name='user', type='from_value', value='name')],
                       bot=bot, user=user).save()
-        config, action_type = ActionUtility.get_action_config(bot, 'action_get_user')
+        config = ActionUtility.get_action(bot, 'action_get_user')
+        assert config['type'] == ActionType.slot_set_action.value
+        config = ActionSetSlot(bot, 'action_get_user').retrieve_config()
         assert config['name'] == 'action_get_user'
         assert config['set_slots'] == [{'name': 'user', 'type': 'from_value', 'value': 'name'}]
-        assert action_type == ActionType.slot_set_action.value
 
     def test_get_action_config_http_action(self):
         bot = 'test_actions'
         user = 'test'
-        Actions(name='action_hit_endpoint', type=ActionType.http_action.value, bot=bot, user=user).save()
         HttpActionConfig(
             action_name="action_hit_endpoint",
-            response="json",
+            response=HttpActionResponse(value="json"),
             http_url="http://test.com",
             request_method="GET",
             bot=bot,
             user=user
         ).save()
 
-        config, action_type = ActionUtility.get_action_config(bot, 'action_hit_endpoint')
+        config = ActionHTTP(bot, 'action_hit_endpoint').retrieve_config()
         assert config['action_name'] == 'action_hit_endpoint'
-        assert config['response'] == 'json'
+        assert config['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
         assert config['http_url'] == "http://test.com"
         assert config['request_method'] == 'GET'
-        assert action_type == ActionType.http_action.value
 
     def test_get_action_config_action_does_not_exists(self):
         bot = 'test_actions'
-        with pytest.raises(ActionFailure, match='No action found for bot'):
-            ActionUtility.get_action_config(bot, 'test_get_action_config_action_does_not_exists')
+        with pytest.raises(ActionFailure, match='No action found for given bot and name'):
+            ActionUtility.get_action(bot, 'test_get_action_config_action_does_not_exists')
 
     def test_get_action_config_slot_set_action_does_not_exists(self):
         bot = 'test_actions'
-        user = 'test'
-        Actions(name='test_get_action_config_slot_set_action_does_not_exists',
-                type=ActionType.slot_set_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='No slot set action found for bot'):
-            ActionUtility.get_action_config(bot, 'test_get_action_config_slot_set_action_does_not_exists')
+
+        with pytest.raises(ActionFailure, match="No Slot set action found for given action and bot"):
+            ActionSetSlot(bot, 'test_get_action_config_slot_set_action_does_not_exists').retrieve_config()
 
     def test_get_action_config_http_action_does_not_exists(self):
         bot = 'test_actions'
         user = 'test'
-        Actions(name='test_get_action_config_http_action_does_not_exists',
-                type=ActionType.http_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='No HTTP action found for bot'):
-            ActionUtility.get_action_config(bot, 'test_get_action_config_http_action_does_not_exists')
+        with pytest.raises(ActionFailure, match="No HTTP action found for given action and bot"):
+            ActionHTTP(bot, 'test_get_action_config_http_action_does_not_exists').retrieve_config()
 
     def test_get_http_action_config_bot_empty(self):
-        with pytest.raises(ActionFailure, match='Bot name and action name are required'):
-            ActionUtility.get_http_action_config(' ', 'test_get_action_config_http_action_does_not_exists')
+        with pytest.raises(ActionFailure, match="No HTTP action found for given action and bot"):
+            ActionHTTP(' ', 'test_get_action_config_http_action_does_not_exists').retrieve_config()
 
     def test_get_http_action_config_action_empty(self):
-        with pytest.raises(ActionFailure, match='Bot name and action name are required'):
-            ActionUtility.get_http_action_config('test_get_action_config_http_action_does_not_exists', ' ')
+        with pytest.raises(ActionFailure, match="No HTTP action found for given action and bot"):
+            ActionHTTP('test_get_action_config_http_action_does_not_exists', ' ').retrieve_config()
 
     def test_get_action_config_custom_user_action(self):
         bot = 'test_actions'
         user = 'test'
         Actions(name='test_get_action_config_custom_user_action', bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='None action is not supported with action server'):
-            ActionUtility.get_action_config(bot, 'test_get_action_config_custom_user_action')
+        with pytest.raises(ActionFailure, match='None type action is not supported with action server'):
+            ActionFactory.get_instance(bot, 'test_get_action_config_custom_user_action')
 
     def test_get_form_validation_config_single_validation(self):
         bot = 'test_actions'
@@ -1430,7 +1474,7 @@ class TestActions:
         expected_output = FormValidationAction(name='validate_form', slot='name',
                                                validation_semantic=validation_semantic,
                                                bot=bot, user=user).save().to_mongo().to_dict()
-        config = ActionUtility.get_form_validation_config(bot, 'validate_form').get().to_mongo().to_dict()
+        config = ActionFormValidation(bot, 'validate_form').retrieve_config().get().to_mongo().to_dict()
         config.pop('timestamp')
         expected_output.pop('timestamp')
         assert config == expected_output
@@ -1447,7 +1491,7 @@ class TestActions:
             expected_output.pop('_id')
             expected_output.pop('timestamp')
             expected_outputs.append(expected_output)
-        config = ActionUtility.get_form_validation_config(bot, 'validate_form_1').to_json()
+        config = ActionFormValidation(bot, 'validate_form_1').retrieve_config().to_json()
         config = json.loads(config)
         for c in config:
             c.pop('timestamp')
@@ -1458,7 +1502,7 @@ class TestActions:
 
     def test_get_form_validation_config_not_exists(self):
         bot = 'test_actions'
-        config = ActionUtility.get_form_validation_config(bot, 'validate_form_2')
+        config = ActionFormValidation(bot, 'validate_form_2').retrieve_config()
         assert not config
         assert isinstance(config, QuerySet)
 
@@ -1466,19 +1510,9 @@ class TestActions:
         bot = 'test_actions'
         user = 'test'
         Actions(name='validate_form_1', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_1')
-        assert config[0]
-        assert config[1]
-        assert config[2]
-        assert action_type == ActionType.form_validation_action.value
-
-    def test_get_action_config_form_validation_not_exists(self):
-        bot = 'test_actions'
-        user = 'test'
-        Actions(name='validate_form_2', type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        config, action_type = ActionUtility.get_action_config(bot, 'validate_form_2')
-        assert not config
-        assert action_type == ActionType.form_validation_action.value
+        config = ActionUtility.get_action(bot, 'validate_form_1')
+        assert config
+        assert config['type'] == ActionType.form_validation_action.value
 
     def test_get_slot_type(self):
         bot = 'test_actions'
@@ -1952,7 +1986,7 @@ class TestActions:
                 user="user"
             ).save().to_mongo().to_dict()
 
-            actual = ActionUtility.get_email_action_config("bot", "email_action")
+            actual = ActionEmail("bot", "email_action").retrieve_config()
             assert actual is not None
             assert expected['action_name'] == actual['action_name']
             assert expected['response'] == actual['response']
@@ -1977,7 +2011,7 @@ class TestActions:
                 user="user"
             ).save().to_mongo().to_dict()
 
-            actual = ActionUtility.get_email_action_config("bot", "email_action1")
+            actual = ActionEmail("bot", "email_action1").retrieve_config()
             assert actual is not None
             assert expected['action_name'] == actual['action_name']
             assert expected['response'] == actual['response']
@@ -1987,6 +2021,10 @@ class TestActions:
             assert 'test@demo.com' == actual['from_email']
             assert expected['to_email'] == actual['to_email']
             assert 'test.user_id' == actual.get("smtp_userid")
+
+    def test_email_action_not_found(self):
+        with pytest.raises(ActionFailure, match="No Email action found for given action and bot"):
+            ActionEmail("test", "test_email_action_not_found").retrieve_config()
 
     def test_prepare_email_body(self):
         Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()
@@ -2002,34 +2040,29 @@ class TestActions:
         Actions(name='google_search_action', type=ActionType.google_search_action.value, bot=bot, user=user).save()
         GoogleSearchAction(name='google_search_action', api_key='1234567890',
                            search_engine_id='asdfg::123456', bot=bot, user=user).save()
-        actual, a_type = ActionUtility.get_action_config(bot, 'google_search_action')
+        actual = ActionUtility.get_action(bot, 'google_search_action')
+        assert actual['type'] == ActionType.google_search_action.value
+        actual = ActionGoogleSearch(bot, 'google_search_action').retrieve_config()
         assert actual['api_key'] == '1234567890'
         assert actual['search_engine_id'] == 'asdfg::123456'
-        assert a_type == ActionType.google_search_action.value
 
     def test_get_google_search_action_config_not_exists(self):
         bot = 'test_action_server'
-        with pytest.raises(ActionFailure, match='No action found for bot'):
-            ActionUtility.get_action_config(bot, 'custom_search_action')
-
-    def test_get_google_search_action_not_found(self):
-        bot = 'test_action_server'
-        user = 'test_user'
-        Actions(name='custom_search_action', type=ActionType.google_search_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='Google search action not found'):
-            ActionUtility.get_action_config(bot, 'custom_search_action')
+        with pytest.raises(ActionFailure, match="No Google search action found for given action and bot"):
+            ActionGoogleSearch(bot, 'custom_search_action').retrieve_config()
 
     def test_get_jira_action_not_exists(self):
         bot = 'test_action_server'
-        with pytest.raises(ActionFailure, match='No action found for bot'):
-            ActionUtility.get_action_config(bot, 'jira_action')
+        with pytest.raises(ActionFailure, match="No Jira action found for given action and bot"):
+            ActionJiraTicket(bot, 'jira_action').retrieve_config()
 
     def test_get_jira_action_not_found(self):
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='jira_action', type=ActionType.jira_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='Jira action not found'):
-            ActionUtility.get_action_config(bot, 'jira_action')
+        config = ActionUtility.get_action(bot, 'jira_action')
+        assert config
+        assert config['type'] == ActionType.jira_action.value
 
     @responses.activate
     def test_create_jira_issue(self):
@@ -2187,8 +2220,9 @@ class TestActions:
                 name='jira_action', bot=bot, user=user, url='https://test-digite.atlassian.net', user_name='test@digite.com',
                 api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
                 response='Successfully created').save()
-        action, a_type = ActionUtility.get_action_config(bot, 'jira_action')
-        assert a_type == 'jira_action'
+        action = ActionUtility.get_action(bot, 'jira_action')
+        assert action['type'] == 'jira_action'
+        action = ActionJiraTicket(bot, 'jira_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
@@ -2325,15 +2359,8 @@ class TestActions:
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
-        with pytest.raises(ActionFailure, match='No action found for bot'):
-            ActionUtility.get_action_config(bot, 'zendesk_action')
-
-    def test_get_zendesk_action_config_not_found(self):
-        bot = 'test_action_server'
-        user = 'test_user'
-        Actions(name='zendesk_action', type=ActionType.zendesk_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='Zendesk action not found'):
-            ActionUtility.get_action_config(bot, 'zendesk_action')
+        with pytest.raises(ActionFailure, match='No Zendesk action found for given action and bot'):
+            ActionZendeskTicket(bot, 'zendesk_action').retrieve_config()
 
     def test_get_zendesk_action_config(self):
         bot = 'test_action_server'
@@ -2343,8 +2370,7 @@ class TestActions:
             ZendeskAction(
                 name='zendesk_action', bot=bot, user=user, subdomain='digite751', user_name='test@digite.com',
                 api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
-        action, a_type = ActionUtility.get_action_config(bot, 'zendesk_action')
-        assert a_type == 'zendesk_action'
+        action = ActionZendeskTicket(bot, 'zendesk_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
@@ -2426,8 +2452,8 @@ class TestActions:
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='pipedrive_leads_action', type=ActionType.pipedrive_leads_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='Pipedrive leads action not found'):
-            ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
+        with pytest.raises(ActionFailure, match="No Pipedrive leads action found for given action and bot"):
+            ActionPipedriveLeads(bot, 'pipedrive_leads_action').retrieve_config()
 
     def test_get_pipedrive_leads_action_config(self):
         bot = 'test_action_server'
@@ -2438,8 +2464,10 @@ class TestActions:
                 name='pipedrive_leads_action', bot=bot, user=user, domain='digite751', api_token='ASDFGHJKL',
                 title='new user detected', response='Lead successfully added',
                 metadata={'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}).save()
-        action, a_type = ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
-        assert a_type == 'pipedrive_leads_action'
+        action = ActionUtility.get_action(bot, 'pipedrive_leads_action')
+        assert action
+        assert action['type'] == 'pipedrive_leads_action'
+        action = ActionPipedriveLeads(bot, 'pipedrive_leads_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
@@ -2454,7 +2482,7 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
                           followup_action=None, active_loop=None, latest_action_name=None)
-        action, a_type = ActionUtility.get_action_config(bot, 'pipedrive_leads_action')
+        action = ActionPipedriveLeads(bot, 'pipedrive_leads_action').retrieve_config()
         metadata = ActionUtility.prepare_pipedrive_metadata(tracker, action)
         assert metadata == {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
 
@@ -2614,26 +2642,185 @@ class TestActions:
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='hubspot_forms_action', type=ActionType.hubspot_forms_action.value, bot=bot, user=user).save()
-        with pytest.raises(ActionFailure, match='Hubspot forms action not found'):
-            ActionUtility.get_action_config(bot, 'hubspot_forms_action')
+        with pytest.raises(ActionFailure, match="No Hubspot forms action found for given action and bot"):
+            ActionHubspotForms(bot, 'hubspot_forms_action').retrieve_config()
 
     def test_get_hubspot_forms_action_config(self):
         bot = 'test_action_server'
         user = 'test_user'
 
         fields = [
-            {'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot'},
-            {'key': 'firstname', 'parameter_type': 'value', 'value': 'udit'}
+            {'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot', 'encrypt': False},
+            {'key': 'firstname', 'parameter_type': 'value', 'value': 'udit', 'encrypt': False}
         ]
         HubspotFormsAction(
             name='hubspot_forms_action', portal_id='asdf45', form_guid='2345678gh', fields=fields, bot=bot, user=user,
             response="Form submitted"
         ).save()
-        action, a_type = ActionUtility.get_action_config(bot, 'hubspot_forms_action')
-        assert a_type == ActionType.hubspot_forms_action.value
+        action = ActionUtility.get_action(bot, 'hubspot_forms_action')
+        assert action
+        assert action['type'] == ActionType.hubspot_forms_action.value
+        action = ActionHubspotForms(bot, 'hubspot_forms_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
             'name': 'hubspot_forms_action', 'portal_id': 'asdf45', 'form_guid': '2345678gh', 'fields': fields,
             'bot': 'test_action_server', 'user': 'test_user', 'status': True, 'response': 'Form submitted'
         }
+
+    @responses.activate
+    def test_evaluate_script(self):
+        script = "${a.b.d}"
+        data = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': script,
+                     'data': data})],
+        )
+        result, log = ActionUtility.evaluate_script(script, data)
+        assert result == "['red', 'buggy', 'bumpers']"
+        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}'
+
+    @responses.activate
+    def test_evaluate_script_evaluation_failure(self):
+        script = "${a.b.d}"
+        data = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': script,
+                     'data': data})],
+        )
+        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
+            ActionUtility.evaluate_script(script, data)
+
+    @responses.activate
+    def test_evaluate_script_evaluation_failure(self):
+        script = "${a.b.d}"
+        data = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': script,
+                     'data': data})],
+        )
+        result, log = ActionUtility.evaluate_script(script, data, False)
+        assert result is None
+        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: False || response: {\'success\': False}'
+
+    def test_compose_response_using_expression(self):
+        response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        result, log = ActionUtility.compose_response(response_config, http_response)
+        assert result == '[\'red\', \'buggy\', \'bumpers\']'
+        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || response: [\'red\', \'buggy\', \'bumpers\']'
+
+    def test_compose_response_using_expression_failure(self):
+        response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': []}}}
+        with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: 'd'"):
+            ActionUtility.compose_response(response_config, http_response)
+
+    @responses.activate
+    def test_compose_response_using_script(self):
+        script = "${a.b.d}"
+        response_config = {"value": script, "evaluation_type": "script"}
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+        )
+        result, log = ActionUtility.compose_response(response_config, http_response)
+        assert result == '[\'red\', \'buggy\', \'bumpers\']'
+        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}'
+
+    @responses.activate
+    def test_compose_response_using_script_failure(self):
+        script = "${a.b.d}"
+        response_config = {"value": script, "evaluation_type": "script"}
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False},
+            status=200,
+            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+        )
+        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
+            ActionUtility.compose_response(response_config, http_response)
+
+    def test_fill_slots_from_response_using_expression(self):
+        set_slots = [{"name": "experience", "value": "${a.b.d}"}, {"name": "score", "value": "${a.b.3}"}]
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
+        assert response_log == ['initiating slot evaluation',
+                                "script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
+                                "script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+
+    @responses.activate
+    def test_fill_slots_from_response_using_script(self):
+        set_slots = [{"name": "experience", "value": "${a.b.d}"}, {"name": "score", "value": "${a.b.3}"}]
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": ['red', 'buggy', 'bumpers']},
+            status=200,
+            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": 2},
+            status=200,
+            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+        )
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
+        assert response_log == ['initiating slot evaluation',
+            "script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
+            "script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+
+    @responses.activate
+    def test_fill_slots_from_response_failure(self):
+        set_slots = [{"name": "experience", "value": "${a.b.d}", "evaluation_type": "script"},
+                     {"name": "score", "value": "${a.b.3}", "evaluation_type": "script"},
+                     {"name": "percentage", "value": "${a.b.43}"}]
+        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False},
+            status=200,
+            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": 2},
+            status=200,
+            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+        )
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
+        assert response_log == ['initiating slot evaluation',
+            "Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False}",
+            "script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': True, 'data': 2}",
+            "script: ${a.b.43} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 30"]

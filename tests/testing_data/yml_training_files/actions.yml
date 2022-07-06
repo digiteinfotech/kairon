@@ -15,7 +15,8 @@ http_action:
     - key: sender
       parameter_type: sender_id
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: action_performanceUser1000@digite.com
   http_url: http://www.alphabet.com
   params_list:
@@ -23,7 +24,8 @@ http_action:
     parameter_type: slot
     value: authorization
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: action_performanceUser999@digite.com
   http_url: http://www.alphabet.com
   params_list:
@@ -34,7 +36,8 @@ http_action:
     parameter_type: slot
     value: testValue1
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: action_performanceUser998@digite.com
   http_url: http://www.alphabet.com
   params_list:
@@ -45,8 +48,10 @@ http_action:
     parameter_type: slot
     value: testValue1
   request_method: GET
-  response: json
+  response:
+    value: json
 - action_name: action_performanceUser997@digite.com
   http_url: http://www.alphabet.com
   request_method: GET
-  response: json
+  response:
+    value: json

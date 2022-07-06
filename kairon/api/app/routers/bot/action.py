@@ -57,7 +57,7 @@ async def update_http_action(
     """
     Updates the http action config and related story event
     """
-    http_config_id = mongo_processor.update_http_config(request_data=request_data, user=current_user.get_user(),
+    http_config_id = mongo_processor.update_http_config(request_data=request_data.dict(), user=current_user.get_user(),
                                                         bot=current_user.get_bot())
     response = {"http_config_id": http_config_id}
     message = "Http action updated!"

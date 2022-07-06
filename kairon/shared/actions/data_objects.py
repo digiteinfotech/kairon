@@ -13,7 +13,8 @@ from datetime import datetime
 
 from validators import ValidationFailure, url
 
-from kairon.shared.actions.models import ActionType, ActionParameterType
+from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
+    EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.signals import push_notification
 from kairon.shared.utils import Utility
@@ -25,6 +26,7 @@ class HttpActionRequestBody(EmbeddedDocument):
     value = StringField(default="")
     parameter_type = StringField(default=ActionParameterType.value,
                                  choices=[p_type.value for p_type in ActionParameterType])
+    encrypt = BooleanField(default=False)
 
     def clean(self):
         from .utils import ActionUtility
@@ -40,44 +42,86 @@ class HttpActionRequestBody(EmbeddedDocument):
 
         if ActionUtility.is_empty(self.key):
             raise ValidationError("key in http action parameters cannot be empty")
-        if self.parameter_type == "slot" and ActionUtility.is_empty(self.value):
+        if self.parameter_type == ActionParameterType.slot.value and ActionUtility.is_empty(self.value):
             raise ValidationError("Provide name of the slot as value")
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value
+
+
+
+class SetSlotsFromResponse(EmbeddedDocument):
+    name = StringField(required=True)
+    value = StringField(required=True)
+    evaluation_type = StringField(default=EvaluationType.expression.value,
+                                  choices=[p_type.value for p_type in EvaluationType])
+
+
+class HttpActionResponse(EmbeddedDocument):
+    value = StringField(default=None)
+    dispatch = BooleanField(default=True)
+    evaluation_type = StringField(default=EvaluationType.expression.value,
+                                  choices=[p_type.value for p_type in EvaluationType])
+
+    def validate(self, clean=True):
+        from .utils import ActionUtility
+
+        if self.dispatch and ActionUtility.is_empty(self.value):
+            raise ValidationError("response is required for dispatch")
 
 
 @push_notification.apply
 class HttpActionConfig(Document):
     action_name = StringField(required=True)
-    response = StringField(required=True)
     http_url = StringField(required=True)
     request_method = StringField(required=True)
+    content_type = StringField(default=HttpRequestContentType.json.value,
+                               choices=[c_type.value for c_type in HttpRequestContentType])
     params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
+    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
         if clean:
             self.clean()
 
         if self.action_name is None or not self.action_name.strip():
             raise ValidationError("Action name cannot be empty")
-        if self.http_url is None or not self.http_url.strip():
+        if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
+            raise ValidationError("Invalid HTTP method")
+        if ActionUtility.is_empty(self.http_url):
             raise ValidationError("URL cannot be empty")
         if isinstance(url(self.http_url), ValidationFailure):
             raise ValidationError("URL is malformed")
-        if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
-            raise ValidationError("Invalid HTTP method")
-
-        for param in self.params_list:
-            param.validate()
-
         for param in self.headers:
             param.validate()
+        for param in self.params_list:
+            param.validate()
+        self.response.validate()
 
     def clean(self):
         self.action_name = self.action_name.strip().lower()
+
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        from kairon.shared.actions.utils import ActionUtility
+
+        for param in document.headers:
+            if param.encrypt is True and param.parameter_type == ActionParameterType.value.value:
+                if not ActionUtility.is_empty(param.value):
+                    param.value = Utility.encrypt_message(param.value)
+
+        for param in document.params_list:
+            if param.encrypt is True and param.parameter_type == ActionParameterType.value.value:
+                if not ActionUtility.is_empty(param.value):
+                    param.value = Utility.encrypt_message(param.value)
 
 
 class ActionServerLogs(Document):
@@ -87,11 +131,12 @@ class ActionServerLogs(Document):
     sender = StringField()
     headers = DictField()
     url = StringField()
+    request_method = StringField()
     request_params = DictField()
     api_response = StringField()
     bot_response = StringField()
     exception = StringField()
-    messages = ListField(StringField())
+    messages = DynamicField()
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
@@ -133,6 +178,9 @@ class SetSlots(EmbeddedDocument):
 
     def clean(self):
         self.name = self.name.strip().lower()
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value
 
 
 @push_notification.apply
@@ -378,3 +426,4 @@ signals.pre_save_post_validation.connect(EmailActionConfig.pre_save_post_validat
 signals.pre_save_post_validation.connect(JiraAction.pre_save_post_validation, sender=JiraAction)
 signals.pre_save_post_validation.connect(ZendeskAction.pre_save_post_validation, sender=ZendeskAction)
 signals.pre_save_post_validation.connect(PipedriveLeadsAction.pre_save_post_validation, sender=PipedriveLeadsAction)
+signals.pre_save_post_validation.connect(HttpActionConfig.pre_save_post_validation, sender=HttpActionConfig)

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+import uuid
 from urllib.parse import urljoin
 
 import jwt
@@ -141,7 +142,7 @@ class TestAccountProcessor:
         assert user["status"]
 
     def test_add_bot_for_existing_user(self):
-        bot_response = AccountProcessor.add_bot("test_version_2", pytest.account, "FSHAIKH@digite.com", False)
+        bot_response = AccountProcessor.add_bot("test_version_2", pytest.account, "fshaikh@digite.com", False)
         bot = Bot.objects(name="test_version_2").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
         assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
@@ -170,11 +171,11 @@ class TestAccountProcessor:
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors) == 1
-        assert accessors[0]['accessor_email'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
         assert accessors[0]['role'] == 'owner'
         assert accessors[0]['bot']
         assert accessors[0]['bot_account'] == pytest.account
-        assert accessors[0]['user'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['user'] == "fshaikh@digite.com"
         assert accessors[0]['timestamp']
 
     def test_update_bot_access_modify_bot_owner_access(self):
@@ -232,7 +233,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
 
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
-        token = Utility.generate_token("UDIT.PANDEY@digite.com")
+        token = Utility.generate_token("udit.pandey@digite.com")
         AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
         assert BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
                                  role='designer', status='active', bot_account=pytest.account).get()
@@ -245,8 +246,8 @@ class TestAccountProcessor:
         account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
-        assert ('test_version_2', 'FSHAIKH@digite.com') == AccountProcessor.update_bot_access(
-            bot_id, "UDIT.PANDEY@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
+        assert ('test_version_2', 'fshaikh@digite.com') == AccountProcessor.update_bot_access(
+            bot_id, "udit.pandey@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
         )
         bot_access = BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com").get()
         assert bot_access.role == ACCESS_ROLES.ADMIN.value
@@ -303,11 +304,11 @@ class TestAccountProcessor:
     def test_list_bot_accessors_2(self):
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
-        assert accessors[0]['accessor_email'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
         assert accessors[0]['role'] == 'owner'
         assert accessors[0]['bot']
         assert accessors[0]['bot_account'] == pytest.account
-        assert accessors[0]['user'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['user'] == "fshaikh@digite.com"
         assert accessors[0]['timestamp']
         assert accessors[1]['accessor_email'] == 'udit.pandey@digite.com'
         assert accessors[1]['role'] == 'admin'
@@ -325,7 +326,7 @@ class TestAccountProcessor:
         bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
         AccountProcessor.transfer_ownership(pytest.account, bot_id, "fshaikh@digite.com", 'udit.pandey@digite.com')
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
-        assert accessors[0]['accessor_email'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
         assert accessors[0]['role'] == 'admin'
         assert accessors[0]['bot']
         assert accessors[0]['bot_account'] == 10
@@ -339,7 +340,7 @@ class TestAccountProcessor:
 
         AccountProcessor.transfer_ownership(pytest.account, bot_id, 'udit.pandey@digite.com', "fshaikh@digite.com")
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
-        assert accessors[0]['accessor_email'] == 'FSHAIKH@digite.com'
+        assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
         assert accessors[0]['role'] == 'owner'
         assert accessors[0]['bot']
         assert accessors[0]['bot_account'] == pytest.account
@@ -1785,11 +1786,3 @@ class TestAccountProcessor:
         assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
         assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
         assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')
-
-    def test_fetch_role_for_user_uppercase(self):
-        email = "UDIT.PANDEY@digite.com"
-        bot = "test_roles"
-        BotAccess(accessor_email=email, role="admin", bot=bot, bot_account=1, user="fshaikh@digite.com",
-                  status=ACTIVITY_STATUS.ACTIVE.value).save()
-        user_details = AccountProcessor.fetch_role_for_user(email, bot)
-        assert user_details

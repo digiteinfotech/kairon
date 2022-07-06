@@ -2506,6 +2506,20 @@ def test_set_templates_invalid():
     assert not actual['success']
 
 
+def test_set_templates_insecure():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates/use-case",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "../Hi-Hello"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Data applied!"
+    assert actual['success']
+
+
 @responses.activate
 def test_reload_model(monkeypatch):
     def mongo_store(*arge, **kwargs):
@@ -2575,6 +2589,20 @@ def test_set_config_templates_invalid():
     assert actual['error_code'] == 422
     assert actual['message'] == "Invalid config!"
     assert not actual['success']
+
+
+def test_set_config_templates_insecure():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "../rasa-default"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Config applied!"
+    assert actual['success']
 
 
 def test_get_config():
@@ -2827,7 +2855,7 @@ def test_transfer_ownership_to_user_not_a_member(monkeypatch):
 
 def test_accept_bot_invite(monkeypatch):
     def __mock_verify_token(*args, **kwargs):
-        return "integration@demo.ai"
+        return {"mail_id" : "integration@demo.ai"}
 
     monkeypatch.setattr(Utility, 'verify_token', __mock_verify_token)
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
@@ -3479,7 +3507,7 @@ def test_add_http_action_malformed_url():
     request_body = {
         "auth_token": "",
         "action_name": "new_http_action",
-        "response": "",
+        "response": {"value": "", "dispatch": False, "evaluation_type": "script"},
         "http_url": "192.168.104.1/api/test",
         "request_method": "GET",
         "http_params_list": [{
@@ -3503,7 +3531,7 @@ def test_add_http_action_malformed_url():
 def test_add_http_action_missing_parameters():
     request_body = {
         "action_name": "new_http_action2",
-        "response": "",
+        "response": {"value": "", "dispatch": False, "evaluation_type": "script"},
         "http_url": "http://www.google.com",
         "request_method": "put",
         "params_list": [{
@@ -3528,7 +3556,7 @@ def test_add_http_action_invalid_req_method():
     request_body = {
         "auth_token": "",
         "action_name": "new_http_action",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "TUP",
         "http_params_list": [{
@@ -3553,7 +3581,7 @@ def test_add_http_action_no_action_name():
     request_body = {
         "auth_token": "",
         "action_name": "",
-        "response": "string",
+        "response": {"value": "string"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "http_params_list": [{
@@ -3579,7 +3607,7 @@ def test_add_http_action_no_token():
     request_body = {
         "auth_token": "",
         "action_name": "test_add_http_action_no_token",
-        "response": "string",
+        "response": {"value": "string"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "http_params_list": [{
@@ -3605,29 +3633,29 @@ def test_add_http_action_with_sender_id_parameter_type():
     request_body = {
         "auth_token": "",
         "action_name": "test_add_http_action_with_sender_id_parameter_type",
-        "response": "string",
+        "response": {"value": "string"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
             "key": "testParam1",
             "parameter_type": "sender_id",
-            "value": "testValue1"
+            "value": "testValue1", "encrypt": True
         }, {
             "key": "testParam2",
             "parameter_type": "slot",
-            "value": "testValue2"
+            "value": "testValue2", "encrypt": True
         }, {
-            "key": "testParam3",
+            "key": "testParam3", "encrypt": True,
             "parameter_type": "user_message",
         }, {
             "key": "testParam4",
-            "parameter_type": "chat_log",
+            "parameter_type": "chat_log", "encrypt": True
         }, {
             "key": "testParam5",
-            "parameter_type": "intent",
+            "parameter_type": "intent", "encrypt": True
         }, {
             "key": "testParam6",
-            "parameter_type": "value",
+            "parameter_type": "value", "encrypt": True,
             'value': "12345"
         }],
         "headers": [{
@@ -3675,23 +3703,23 @@ def test_get_http_action():
     print(actual)
     assert actual["error_code"] == 0
     assert actual["data"]['action_name'] == 'test_add_http_action_with_sender_id_parameter_type'
-    assert actual["data"]['response'] == 'string'
+    assert actual["data"]['response'] == {"value": 'string', "dispatch": True, "evaluation_type": "expression"}
     assert actual["data"]['http_url'] == 'http://www.google.com'
     assert actual["data"]['request_method'] == 'GET'
     assert actual["data"]['params_list'] == [
-        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
-        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot'},
-        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'},
-        {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log'},
-        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent'},
-        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value'}]
+        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id', 'encrypt': True},
+        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot', 'encrypt': True},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message', 'encrypt': True},
+        {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log', 'encrypt': True},
+        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent', 'encrypt': True},
+        {'key': 'testParam6', 'value': '12***', 'parameter_type': 'value', 'encrypt': True}]
     assert actual["data"]['headers'] == [
-        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id'},
-        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot'},
-        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message'},
-        {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log'},
-        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent'},
-        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value'}
+        {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id', 'encrypt': False},
+        {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot', 'encrypt': False},
+        {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+        {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+        {'key': 'testParam5', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value', 'encrypt': False}
     ]
     assert not actual["message"]
     assert actual["success"]
@@ -3701,7 +3729,7 @@ def test_add_http_action_invalid_parameter_type():
     request_body = {
         "auth_token": "",
         "action_name": "test_add_http_action_invalid_parameter_type",
-        "response": "string",
+        "response": {"value": "string"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
@@ -3726,21 +3754,18 @@ def test_add_http_action_invalid_parameter_type():
 def test_add_http_action_with_token():
     request_body = {
         "action_name": "test_add_http_action_with_token_and_story",
-        "response": "string",
+        "response": {"value": "string", "evaluation_type": "script"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "headers": [{
-            "key": "Authorization",
-            "parameter_type": "value",
-            "value": "bearer dfiuhdfishifoshfoishnfoshfnsifjfs"
+            "key": "Authorization", "parameter_type": "value",
+            "value": "bearer dfiuhdfishifoshfoishnfoshfnsif***", 'encrypt': True
         }, {
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
+            "key": "testParam1", "parameter_type": "value",
+            "value": "testVal***", 'encrypt': True
         }, {
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
+            "key": "testParam1", "parameter_type": "value",
+            "value": "testVal***", 'encrypt': True
         }]
     }
 
@@ -3761,8 +3786,17 @@ def test_add_http_action_with_token():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual['data']["response"] == "string"
-    assert actual['data']["headers"] == request_body['headers']
+    assert actual['data']["response"] == {'dispatch': True, 'evaluation_type': 'script', 'value': 'string'}
+    assert actual['data']["headers"] == [{
+            "key": "Authorization", "parameter_type": "value",
+            "value": "bearer dfiuhdfishifoshfoishnfoshfnsif***", 'encrypt': True
+        }, {
+            "key": "testParam1", "parameter_type": "value",
+            "value": "testVal***", 'encrypt': True
+        }, {
+            "key": "testParam1", "parameter_type": "value",
+            "value": "testVal***", 'encrypt': True
+        }]
     assert actual['data']["http_url"] == "http://www.google.com"
     assert actual['data']["request_method"] == "GET"
     assert len(actual['data']["headers"]) == 3
@@ -3773,7 +3807,7 @@ def test_add_http_action_no_params():
     request_body = {
         "auth_token": "",
         "action_name": "test_add_http_action_no_params",
-        "response": "string",
+        "response": {"value": "string", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": []
@@ -3795,14 +3829,15 @@ def test_add_http_action_existing():
     request_body = {
         "auth_token": "",
         "action_name": "test_add_http_action_existing",
-        "response": "string",
+        "response": {"value": "string", "dispatch": False, "evaluation_type": "script"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
             "key": "testParam1",
             "parameter_type": "value",
             "value": "testValue1"
-        }]
+        }],
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
     }
 
     response = client.post(
@@ -3839,7 +3874,7 @@ def test_get_http_action_non_exisitng():
 def test_update_http_action():
     request_body = {
         "action_name": "test_update_http_action",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
@@ -3859,23 +3894,19 @@ def test_update_http_action():
 
     request_body = {
         "action_name": "test_update_http_action",
-        "response": "json",
+        "content_type": "application/x-www-form-urlencoded",
+        "response": {"value": "json", "dispatch": False, "evaluation_type": "script"},
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
         "params_list": [{
-            "key": "testParam1",
-            "parameter_type": "value",
-            "value": "testValue1"
+            "key": "testParam1", "parameter_type": "value",  "value": "testValue1", "encrypt": True
         }, {
-            "key": "testParam2",
-            "parameter_type": "slot",
-            "value": "testValue1"
+            "key": "testParam2", "parameter_type": "slot", "value": "testValue1", "encrypt": True
         }],
         "headers": [{
-            "key": "Authorization",
-            "parameter_type": "value",
-            "value": "bearer token"
-        }]
+            "key": "Authorization", "parameter_type": "value", "value": "bearer token", "encrypt": True
+        }],
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
     }
     response = client.put(
         url=f"/api/bot/{pytest.bot}/action/httpaction",
@@ -3891,14 +3922,14 @@ def test_update_http_action():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual['data']["response"] == "json"
+    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
-    assert actual['data']["params_list"][0]['key'] == 'testParam1'
-    assert actual['data']["params_list"][0]['parameter_type'] == 'value'
-    assert actual['data']["params_list"][0]['value'] == 'testValue1'
-    assert actual['data']["headers"] == request_body['headers']
+    assert actual['data']["params_list"] == [
+        {"key": "testParam1", "parameter_type": "value",  "value": "testVal***", "encrypt": True},
+        {"key": "testParam2", "parameter_type": "slot", "value": "testValue1", "encrypt": True}]
+    assert actual['data']["headers"] == [{'key': 'Authorization', 'value': 'bearer to***', 'parameter_type': 'value', 'encrypt': True}]
     assert actual["success"]
 
 
@@ -3906,7 +3937,7 @@ def test_update_http_action_wrong_parameter():
     request_body = {
         "auth_token": "",
         "action_name": "test_update_http_action_6",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
@@ -3927,7 +3958,7 @@ def test_update_http_action_wrong_parameter():
     request_body = {
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action_6",
-        "response": "json",
+        "response": {"value": "json"},
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
         "params_list": [{
@@ -3949,13 +3980,114 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
+    
+    request_body = {
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_6",
+        "response": {"value": "json"},
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }],
+        "set_slots": [{"name": " ", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+                                 {'loc': ['body', 'set_slots', 0, 'name'], 'msg': 'slot name is required',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+    request_body = {
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_6",
+        "response": {"value": "json"},
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }],
+        "set_slots": [{"name": "bot", "value": " ", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+                                 {'loc': ['body', 'set_slots', 0, 'value'],
+                                  'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
+    assert not actual["success"]
+
+    request_body = {
+        "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
+        "action_name": "test_update_http_action_6",
+        "response": {"value": " ", "dispatch": True},
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "params_list": [{
+            "key": "testParam1",
+            "parameter_type": "val",
+            "value": "testValue1"
+        }, {
+            "key": "testParam2",
+            "parameter_type": "slot",
+            "value": "testValue1"
+        }],
+        "set_slots": [{"name": "bot", "value": " ", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == [
+        {'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'},
+        {'loc': ['body', 'params_list', 0, 'parameter_type'],
+         'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+         'type': 'type_error.enum',
+         'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+        {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot',
+         'type': 'value_error'}]
+    assert not actual["success"]
 
 
 def test_update_http_action_non_existing():
     request_body = {
         "auth_token": "",
         "action_name": "test_update_http_action_non_existing",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": []
@@ -3997,7 +4129,7 @@ def test_delete_http_action():
     request_body = {
         "auth_token": "",
         "action_name": "test_delete_http_action",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": []
@@ -4023,7 +4155,7 @@ def test_delete_http_action_non_existing():
     request_body = {
         "auth_token": "",
         "action_name": "new_http_action4",
-        "response": "",
+        "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": []
@@ -4072,6 +4204,7 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
+    print(actual['data']['http_action'])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
         'hubspot_forms_action': [],
@@ -5388,6 +5521,7 @@ def test_get_client_config():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert actual["data"]["whitelist"] == ["*"]
 
 
 def test_get_client_config_url():
@@ -5445,6 +5579,7 @@ def test_get_client_config_using_uid(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert None == actual.get("data").get('whitelist')
 
     auth_token = actual['data']['headers']['authorization']
     response = client.post(
@@ -5488,6 +5623,7 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual['data']['headers']['X-USER'] == 'kairon-user'
+    assert None == actual.get("data").get('whitelist')
 
     auth_token = actual['data']['headers']['authorization']
     user = actual['data']['headers']['X-USER']
@@ -7251,7 +7387,7 @@ def test_add_slot_set_action_case_insensitivity():
 def test_add_http_action_case_insensitivity():
     request_body = {
         "action_name": "CASE_INSENSITIVE_HTTP_ACTION",
-        "response": "string",
+        "response": {"value": "string"},
         "http_url": "http://www.google.com",
         "request_method": "GET",
         "params_list": [{
@@ -7890,10 +8026,10 @@ def test_list_hubspot_forms_action():
     assert actual["data"][0]['name'] == 'action_hubspot_forms'
     assert actual["data"][0]['portal_id'] == '123456785787'
     assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
-    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
-                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
-                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
-                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
     assert actual["data"][0]['response'] == 'Hubspot Form submitted'
 
 
@@ -9187,6 +9323,7 @@ def test_generate_limited_access_temporary_token():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert isinstance(actual["data"], dict)
+    assert None == actual.get("data").get("whitelist")
 
     response = client.get(
         f"/api/bot/{pytest.bot}/slots",
@@ -9234,78 +9371,40 @@ def test_get_client_config_using_uid_invalid_domains(monkeypatch):
                            headers={"Authorization": pytest.token_type + " " + pytest.access_token})
 
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
-    chat_json = {"data": "Hi"}
-    responses.add(
-        responses.POST,
-        f"http://localhost/api/bot/{pytest.bot}/chat",
-        status=200,
-        match=[
-            responses.json_params_matcher(
-                chat_json)],
-        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
-    )
     response = client.get(pytest.url, headers={"HTTP_REFERER": "http://www.attackers.com"})
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 403
     assert not actual["data"]
-
+    assert actual["message"] == "Domain not registered for kAIron client"
 
 def test_get_client_config_using_uid_valid_domains(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
-    chat_json = {"data": "Hi"}
-    responses.add(
-        responses.POST,
-        f"http://localhost/api/bot/{pytest.bot}/chat",
-        status=200,
-        match=[
-            responses.json_params_matcher(
-                chat_json)],
-        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
-    )
     response = client.get(pytest.url, headers={"HTTP_REFERER": "https://kairon-api.digite.com"})
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-
+    assert None == actual.get("data").get("whitelist")
 
 def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
-    chat_json = {"data": "Hi"}
-    responses.add(
-        responses.POST,
-        f"http://localhost/api/bot/{pytest.bot}/chat",
-        status=200,
-        match=[
-            responses.json_params_matcher(
-                chat_json)],
-        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
-    )
     response = client.get(pytest.url, headers={"referer": "http://www.attackers.com"})
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 403
     assert not actual["data"]
-
+    assert actual["message"] == "Domain not registered for kAIron client"
 
 def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     chat_json = {"data": "Hi"}
-    responses.add(
-        responses.POST,
-        f"http://localhost/api/bot/{pytest.bot}/chat",
-        status=200,
-        match=[
-            responses.json_params_matcher(
-                chat_json)],
-        json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
-    )
     response = client.get(pytest.url, headers={"referer": "https://kairon-api.digite.com"})
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert None == actual.get("data").get("whitelist")
 
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
@@ -9320,6 +9419,15 @@ def test_save_client_config_invalid_domain_format():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
+
+def get_client_config_valid_domain():
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"]["whitelist"] == ["kairon.digite.com", "kairon-api.digite.com"]
 
 def test_delete_account():
     response_log = client.post(
@@ -9452,3 +9560,82 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+
+def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
+    email = "samepasswrd@demo.ai"
+    regsiter_response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "samepasswrd",
+            "bot": "samepasswrd",
+        },
+    )
+    token = Authentication.create_access_token(data={'mail_id': email})
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    Utility.environment['user']['reset_password_cooldown_period'] = 0
+    passwrd_change_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1"},
+    )
+    response = passwrd_change_response.json()
+    message = response.get("message")
+    assert message == "You have already used that password, try another"
+
+def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
+    Utility.environment['user']['reset_password_cooldown_period'] = 0
+    email = "samepasswrd2@demo.ai"
+    regsiter_response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "samepasswrd2",
+            "bot": "samepasswrd2",
+        },
+    )
+    token = Authentication.create_access_token(data={'mail_id': email})
+
+    def get_token(*args, **kwargs):
+        return token
+
+    monkeypatch.setattr(Authentication, "create_access_token", get_token)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    passwrd_change_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@21",
+            "confirm_password": "Welcome@21"},
+    )
+    passwrd_firstchange = passwrd_change_response.json()
+    assert passwrd_firstchange["success"]
+    assert passwrd_firstchange["error_code"] == 0
+    assert passwrd_firstchange["message"] == "Success! Your password has been changed"
+    assert passwrd_firstchange['data'] is None
+
+    passwrd_rechange_response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": token,
+            "password": "Welcome@21",
+            "confirm_password": "Welcome@21"},
+    )
+    response = passwrd_rechange_response.json()
+    message = response.get("message")
+    assert message == "You have already used that password, try another"

@@ -30,7 +30,8 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api import models
 from kairon.shared.auth import Authentication
-from kairon.api.models import HttpActionParameters, HttpActionConfigRequest
+from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
+    SetSlotsUsingActionResponse
 from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
@@ -51,10 +52,10 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
-from kairon.shared.models import StoryEventType
+from kairon.shared.models import StoryEventType, HttpContentType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
@@ -290,27 +291,29 @@ class TestMongoProcessor:
         assert rules == ['rule which will not wait for user message once it was applied',
                          'ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = processor.load_http_action("test_upload_case_insensitivity")
+        print(actions)
         assert actions == {'http_action': [
-            {'action_name': 'action_get_google_application', 'response': 'json', 'http_url': 'http://www.alphabet.com',
-             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
-                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
-                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
-                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
-                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
+            {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com',
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
                                                   {'key': 'testParam4', 'value': 'testvalue1',
-                                                   'parameter_type': 'slot'}],
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'}]},
-            {'action_name': 'action_get_microsoft_application', 'response': 'json',
+                                                   'parameter_type': 'slot', 'encrypt': False}],
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
+            {'action_name': 'action_get_microsoft_application', 'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value'},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot'},
-                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log'},
-                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message'},
-                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value'},
-                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent'},
-                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id'},
-                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot'}]}]}
+             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
+                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
                                                                                                      'utter_default',
@@ -2115,7 +2118,7 @@ class TestMongoProcessor:
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
-        http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
@@ -2136,7 +2139,7 @@ class TestMongoProcessor:
             action_name="act1",
             http_url="http://www.alphabet.com",
             request_method="POST",
-            response='zxcvb',
+            response=HttpActionResponse(value='zxcvb'),
             bot="test_http",
             user="http_creator",
         ).save()
@@ -2153,14 +2156,14 @@ class TestMongoProcessor:
     def test_save_http_action_already_exists(self):
         test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
                                        "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
-                                       "request_method": "GET", "response": "${RESPONSE}"},
+                                       "request_method": "GET", "response": {"value": "${RESPONSE}"}},
                                       {"action_name": "test_save_http_action_already_exists",
                                        "http_url": "http://f2724.kairon.io/",
-                                       "request_method": "GET", "response": "${RESPONSE}"}
+                                       "request_method": "GET", "response": {"value": "${RESPONSE}"}}
                                       ]}
         HttpActionConfig(action_name="test_save_http_action_already_exists",
                          http_url='http://kairon.ai',
-                         response='response',
+                         response=HttpActionResponse(value='response'),
                          request_method='GET',
                          bot='test', user='test').save()
         Actions(name='test_save_http_action_already_exists', bot='test', user='test', status=True, type=ActionType.http_action.value).save()
@@ -2922,7 +2925,7 @@ class TestMongoProcessor:
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
         actions = {"http_action": [
             {"action_name": "test_validate_and_prepare_data", "http_url": "http://www.alphabet.com",
-             "request_method": "GET", "response": "json"}]}
+             "request_method": "GET", "response": {"value": "json"}}]}
         actions = json.dumps(actions).encode('utf-8')
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(config))
         pytest.http_actions = UploadFile(filename="actions.yml", file=BytesIO(actions))
@@ -3810,7 +3813,7 @@ class TestMongoProcessor:
         saved_config = ChatClientConfig.objects(bot='test').get()
         assert saved_config.config == config
         assert saved_config.status
-        assert saved_config.white_listed_domain == None
+        assert saved_config.white_listed_domain == ["*"]
 
     def test_save_chat_client_config_valid_white_list(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
@@ -5628,7 +5631,7 @@ class TestMongoProcessor:
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list,
@@ -5642,7 +5645,7 @@ class TestMongoProcessor:
         action = {
             'name': 'test_action', 'url': url, 'user_name': 'test@digite.com',
             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
-            'response': 'We have logged a ticket'
+            'response': {"value": 'We have logged a ticket'}
         }
         processor = MongoProcessor()
         with pytest.raises(AppException, match="Action exists!"):
@@ -6131,7 +6134,7 @@ class TestMongoProcessor:
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list,
@@ -6142,7 +6145,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
-                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+                  'user_name': 'udit.pandey@digite.com', 'response': {"value": 'ticket filed'}}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
             assert processor.add_zendesk_action(action, bot, user)
@@ -6519,7 +6522,7 @@ class TestMongoProcessor:
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list,
@@ -6527,11 +6530,11 @@ class TestMongoProcessor:
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
-            action_name__iexact=action)
+            action_name__iexact=action).to_mongo().to_dict()
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == response
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] is not None
         assert actual_http_action['params_list'][0]['key'] == "param1"
@@ -6546,6 +6549,91 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
+    def test_add_http_action_config_no_response(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_2'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_config_no_response'
+        user = 'test_user'
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=None, dispatch=False, evaluation_type="script"),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
+                       SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action).to_mongo().to_dict()
+        actual_http_action.pop('_id')
+        actual_http_action.pop("timestamp")
+        actual_http_action = json.loads(json.dumps(actual_http_action))
+        assert actual_http_action is not None
+        assert actual_http_action == {'action_name': 'test_add_http_action_config_no_response', 'http_url': 'http://www.google.com',
+                                      'request_method': 'GET', 'content_type': 'json', 'params_list': [
+                {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
+                {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
+                                      'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
+                {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
+                {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
+                                      'user': 'test_user', 'status': True}
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
+    def test_add_http_action_config_complete_data(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_1'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_config_complete_data'
+        user = 'test_user'
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value", encrypt=True)]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value", encrypt=True)]
+        http_action_config = HttpActionConfigRequest(
+            content_type=HttpContentType.urlencoded_form_data.value,
+            action_name=action,
+            response=ActionResponseEvaluation(value="${RESPONSE}", dispatch=True, evaluation_type="expression"),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
+                       SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        config = processor.get_http_action_config(bot, action)
+        config.pop("timestamp")
+        config = json.loads(json.dumps(config))
+        assert config == {'action_name': 'test_add_http_action_config_complete_data',
+                          'http_url': 'http://www.google.com', 'request_method': 'GET', 'content_type': 'application/x-www-form-urlencoded',
+                          'params_list': [
+                              {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                              {'key': 'param2', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True}],
+                          'headers': [{'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                                      {'key': 'param4', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True}],
+                          'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
+                                        {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
+                          'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
@@ -6565,7 +6653,7 @@ class TestMongoProcessor:
         http_action_config = HttpActionConfigRequest(
             auth_token=auth_token,
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list
@@ -6592,6 +6680,12 @@ class TestMongoProcessor:
         http_dict['params_list'][0]['value'] = None
         http_dict['params_list'][0]['key'] = "param1"
         with pytest.raises(ValidationError, match="Provide name of the slot as value"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['params_list'][0]['value'] = "bot"
+        http_dict['params_list'][0]['key'] = "param1"
+        http_dict['response']['dispatch'] = True
+        http_dict['response']['value'] = "  "
+        with pytest.raises(ValidationError, match="response is required for dispatch"):
             processor.add_http_action_config(http_dict, user, bot)
 
     def test_list_http_action(self):
@@ -6625,7 +6719,7 @@ class TestMongoProcessor:
 
         HttpActionConfig(
             action_name=action,
-            response=response,
+            response=HttpActionResponse(value=response),
             http_url=http_url,
             request_method=request_method,
             bot=bot,
@@ -6634,7 +6728,7 @@ class TestMongoProcessor:
 
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=params
@@ -6657,7 +6751,7 @@ class TestMongoProcessor:
 
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=params
@@ -6676,7 +6770,7 @@ class TestMongoProcessor:
         Actions(name=action, type=ActionType.http_action.value, bot=bot, user=user).save()
         HttpActionConfig(
             action_name=action,
-            response=response,
+            response=HttpActionResponse(value=response),
             http_url=http_url,
             request_method=request_method,
             bot=bot,
@@ -6700,7 +6794,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         HttpActionConfig(
             action_name=action,
-            response=response,
+            response=HttpActionResponse(value=response),
             http_url=http_url,
             request_method=request_method,
             bot=bot,
@@ -6723,7 +6817,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         HttpActionConfig(
             action_name=action,
-            response=response,
+            response=HttpActionResponse(value=response),
             http_url=http_url,
             request_method=request_method,
             bot=bot,
@@ -6733,7 +6827,8 @@ class TestMongoProcessor:
         actual_test_user1 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user1 is not None
         assert actual_test_user1['action_name'] == action
-        assert actual_test_user1['response'] == response
+        assert actual_test_user1['content_type'] == 'application/json'
+        assert actual_test_user1['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
         assert actual_test_user1['http_url'] == http_url
         assert actual_test_user1['request_method'] == request_method
 
@@ -6744,7 +6839,7 @@ class TestMongoProcessor:
         request_method1 = 'POST'
         HttpActionConfig(
             action_name=action1,
-            response=response1,
+            response=HttpActionResponse(value=response1, dispatch=False),
             http_url=http_url1,
             request_method=request_method1,
             bot=bot,
@@ -6754,7 +6849,27 @@ class TestMongoProcessor:
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['action_name'] == action
-        assert actual_test_user2['response'] == response
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert actual_test_user2['http_url'] == http_url
+        assert actual_test_user2['request_method'] == request_method
+
+        http_url1 = 'http://www.google.com'
+        action1 = 'test_get_http_action_config'
+        user1 = 'test_user1'
+        request_method1 = 'POST'
+        HttpActionConfig(
+            action_name=action1,
+            response=HttpActionResponse(dispatch=False),
+            http_url=http_url1,
+            request_method=request_method1,
+            bot=bot,
+            user=user1
+        ).save().to_mongo()
+
+        actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
+        assert actual_test_user2 is not None
+        assert actual_test_user2['action_name'] == action
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': "json"}
         assert actual_test_user2['http_url'] == http_url
         assert actual_test_user2['request_method'] == request_method
 
@@ -6768,7 +6883,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         HttpActionConfig(
             action_name=action,
-            response=response,
+            response=HttpActionResponse(value=response),
             http_url=http_url,
             request_method=request_method,
             bot=bot,
@@ -6791,13 +6906,16 @@ class TestMongoProcessor:
         request_method = 'GET'
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+            HttpActionParameters(key="param2", value="value2", parameter_type="value", encrypt=True)]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            content_type=HttpContentType.application_json.value,
+            response=ActionResponseEvaluation(value=response, evaluation_type="script"),
             http_url=http_url,
             request_method=request_method,
-            params_list=http_params_list
+            params_list=http_params_list,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
+                       SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
         )
         http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
         assert http_config_id is not None
@@ -6806,72 +6924,51 @@ class TestMongoProcessor:
         request_method = 'POST'
         http_params_list = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param4", value="value2", parameter_type="value"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value", encrypt=True),
             HttpActionParameters(key="param5", parameter_type="sender_id"),
             HttpActionParameters(key="param6", parameter_type="user_message"),
             HttpActionParameters(key="param7", parameter_type="chat_log"),
             HttpActionParameters(key="param8", parameter_type="intent")]
         header = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
-            HttpActionParameters(key="param2", value="value2", parameter_type="value"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value", encrypt=True),
             HttpActionParameters(key="param3", parameter_type="sender_id"),
             HttpActionParameters(key="param4", parameter_type="user_message"),
             HttpActionParameters(key="param5", parameter_type="chat_log"),
             HttpActionParameters(key="param6", parameter_type="intent")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            content_type=HttpContentType.urlencoded_form_data.value,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list,
-            headers=header
+            headers=header,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
         )
-        processor.update_http_config(http_action_config, user, bot)
+        processor.update_http_config(http_action_config.dict(), user, bot)
 
-        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, status=True).get(
-            action_name__iexact=action)
-        assert actual_http_action is not None
-        assert actual_http_action['action_name'] == action
-        assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == response
-        assert actual_http_action['request_method'] == request_method
-        assert actual_http_action['params_list'] is not None
-        assert actual_http_action['params_list'][0]['key'] == "param3"
-        assert actual_http_action['params_list'][0]['value'] == "param1"
-        assert actual_http_action['params_list'][0]['parameter_type'] == "slot"
-        assert actual_http_action['params_list'][1]['key'] == "param4"
-        assert actual_http_action['params_list'][1]['value'] == "value2"
-        assert actual_http_action['params_list'][1]['parameter_type'] == "value"
-        assert actual_http_action['params_list'][2]['key'] == "param5"
-        assert not actual_http_action['params_list'][2]['value']
-        assert actual_http_action['params_list'][2]['parameter_type'] == "sender_id"
-        assert actual_http_action['params_list'][3]['key'] == "param6"
-        assert not actual_http_action['params_list'][3]['value']
-        assert actual_http_action['params_list'][3]['parameter_type'] == "user_message"
-        assert actual_http_action['params_list'][4]['key'] == "param7"
-        assert not actual_http_action['params_list'][4]['value']
-        assert actual_http_action['params_list'][4]['parameter_type'] == "chat_log"
-        assert actual_http_action['params_list'][5]['key'] == "param8"
-        assert not actual_http_action['params_list'][5]['value']
-        assert actual_http_action['params_list'][5]['parameter_type'] == "intent"
-        assert actual_http_action['headers'][0]['key'] == "param1"
-        assert actual_http_action['headers'][0]['value'] == "param1"
-        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
-        assert actual_http_action['headers'][1]['key'] == "param2"
-        assert actual_http_action['headers'][1]['value'] == "value2"
-        assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert actual_http_action['headers'][2]['key'] == "param3"
-        assert not actual_http_action['headers'][2]['value']
-        assert actual_http_action['headers'][2]['parameter_type'] == "sender_id"
-        assert actual_http_action['headers'][3]['key'] == "param4"
-        assert not actual_http_action['headers'][3]['value']
-        assert actual_http_action['headers'][3]['parameter_type'] == "user_message"
-        assert actual_http_action['headers'][4]['key'] == "param5"
-        assert not actual_http_action['headers'][4]['value']
-        assert actual_http_action['headers'][4]['parameter_type'] == "chat_log"
-        assert actual_http_action['headers'][5]['key'] == "param6"
-        assert not actual_http_action['headers'][5]['value']
-        assert actual_http_action['headers'][5]['parameter_type'] == "intent"
+        config = processor.get_http_action_config(bot, action)
+        config.pop("timestamp")
+        config = json.loads(json.dumps(config))
+        assert config == {'action_name': 'test_update_http_config', 'http_url': 'http://www.alphabet.com',
+                          'request_method': 'POST', 'content_type': 'application/x-www-form-urlencoded', 'params_list': [
+                {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'key': 'param4', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True},
+                {'key': 'param5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                {'key': 'param6', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                {'key': 'param7', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                {'key': 'param8', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
+                          'headers': [{'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                                      {'key': 'param2', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True},
+                                      {'key': 'param3', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                                      {'key': 'param4', 'value': '', 'parameter_type': 'user_message',
+                                       'encrypt': False},
+                                      {'key': 'param5', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                                      {'key': 'param6', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
+                          'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'}],
+                          'bot': 'test_bot', 'user': 'test_user', 'status': True}
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()
@@ -6886,7 +6983,7 @@ class TestMongoProcessor:
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list
@@ -6904,13 +7001,13 @@ class TestMongoProcessor:
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=response,
+            response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list
         )
         try:
-            processor.update_http_config(http_action_config, user, bot)
+            processor.update_http_config(http_action_config.dict(), user, bot)
         except AppException as e:
             assert str(e) == 'No HTTP action found for bot test_bot and action test_update_http_config_invalid'
 
@@ -7311,7 +7408,7 @@ class TestMongoProcessor:
         ).save(validate=False).to_mongo()
         HttpActionConfig(
             action_name=action,
-            response="",
+            response=HttpActionResponse(value="", dispatch=False),
             http_url="http://www.google.com",
             request_method="GET",
             bot=bot,
@@ -8105,10 +8202,10 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'action_hubspot_forms'
         assert actions[0]['portal_id'] == '123456785787'
         assert actions[0]['form_guid'] == 'asdfg:12345678787'
-        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
-                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot'},
-                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value'},
-                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot'}]
+        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
     def test_delete_hubspot_forms_action(self):

@@ -45,6 +45,7 @@ from validators import ValidationFailure
 from validators import email as mail_check
 from websockets import connect
 
+from .actions.models import ActionParameterType
 from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
@@ -396,7 +397,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
-
+    @staticmethod
     def extract_db_config(uri: str):
         """
         extract username, password and host with port from mongo uri
@@ -850,17 +851,29 @@ class Utility:
     @staticmethod
     def generate_token(email: str, minutes_to_expire=1440):
         """
-        Used to encode the mail id into a token
+        Used to encode the mail id into a token.
 
         :param email: mail id of the recipient
         :param minutes_to_expire: time in minutes until the token expires
         :return: the token with encoded mail id
         """
-        data = {"mail_id": email}
+        encoded_jwt = Utility.generate_token_payload({"mail_id": email}, minutes_to_expire)
+        return encoded_jwt
+
+    @staticmethod
+    def generate_token_payload(payload:dict, minutes_to_expire=1440):
+        """
+        Used to encode the payload of type dict into a token.
+
+        :param payload: dict data
+        :param minutes_to_expire: time in minutes until the token expires
+        :return: the token
+        """
+
         expire = datetime.utcnow() + timedelta(minutes=minutes_to_expire)
-        data.update({"exp": expire})
+        payload.update({"exp": expire})
         encoded_jwt = encode(
-            data,
+            payload,
             Utility.environment['security']["secret_key"],
             algorithm=Utility.environment['security']["algorithm"],
         )
@@ -872,12 +885,11 @@ class Utility:
         Used to check if token is valid
 
         :param token: the token from the confirmation link
-        :return: mail id
+        :return: decoded_jwt
         """
         try:
             decoded_jwt = Utility.decode_limited_access_token(token)
-            mail = decoded_jwt["mail_id"]
-            return mail
+            return decoded_jwt
 
         except Exception as e:
             raise AppException("Invalid token")
@@ -1209,11 +1221,7 @@ class Utility:
             root = ast.parse(fh.read(), path)
 
         for node in ast.iter_child_nodes(root):
-            if isinstance(node, ast.Import):
-                module = []
-            elif isinstance(node, ast.ImportFrom):
-                module = node.module.split('.')
-            else:
+            if not(isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom)):
                 continue
 
             for n in node.names:
@@ -1443,3 +1451,10 @@ class Utility:
             if Utility.compare_string_constant_time(referrer_domain, domain):
                 return True
         return False
+
+    @staticmethod
+    def decrypt_action_parameter(param: Dict):
+        if param['encrypt'] is True and param['parameter_type'] == ActionParameterType.value.value:
+            if not Utility.check_empty_string(param['value']):
+                value = Utility.decrypt_message(param['value'])
+                param['value'] = value[:-3] + "***"
