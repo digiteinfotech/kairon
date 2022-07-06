@@ -55,3 +55,4 @@ jira
 zenpy
 pipedrive-python-lib
 openapi_spec_validator
+ujson>=5.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
