@@ -21,7 +21,6 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest
 )
-from kairon.shared.multilingual.models import TranslationRequest
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
@@ -35,7 +34,6 @@ from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -933,32 +931,6 @@ async def validate_training_data(
                               current_user.get_bot(), current_user.get_user(),
                               False, False)
     return {"message": "Event triggered! Check logs."}
-
-
-@router.get('/logs/multilingual', response_model=Response)
-async def get_multilingual_translation_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Get multilingual translation logs
-    """
-    logs = list(MultilingualLogProcessor.get_logs(current_user.get_bot()))
-    return Response(data=logs)
-
-
-@router.post("/multilingual/translate", response_model=Response)
-async def multilingual_translate_bot(
-        background_tasks: BackgroundTasks, request_data: TranslationRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Translate source bot into destination language
-    """
-    MultilingualLogProcessor.is_event_in_progress(current_user.get_bot())
-    MultilingualLogProcessor.is_limit_exceeded(current_user.get_bot())
-    background_tasks.add_task(EventsTrigger.trigger_multilingual_translation, current_user.get_bot(),
-                              current_user.get_user(), request_data.d_lang, request_data.translate_responses,
-                              request_data.translate_actions)
-    return {"message": "Bot translation in progress! Check logs."}
 
 
 @router.get("/entity/synonyms", response_model=Response)

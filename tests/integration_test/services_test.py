@@ -9440,6 +9440,7 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
 
+
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -9453,6 +9454,7 @@ def test_save_client_config_invalid_domain_format():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
+
 
 def test_multilingual_translate():
     response = client.post(
