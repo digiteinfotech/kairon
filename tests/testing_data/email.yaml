@@ -17,3 +17,4 @@ email:
         add_member_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_SUBJECT:"Invitation to collaborate on BOT_NAME bot"}
         add_member_confirmation_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_CONFIRMATION_SUBJECT:"Invitation accepted by INVITED_PERSON_NAME"}
         password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
+        login_activity_subject: ${EMAIL_TEMPLATES_LOGIN_ACTIVITY_SUBJECT:"New sign-in detected to your kAIron account!"}

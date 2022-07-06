@@ -73,7 +73,7 @@ def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
-
+    monkeypatch.setattr(AccountProcessor, "get_user", user_details)
 
 @pytest.fixture(scope='function')
 def mock_auth_admin(monkeypatch):

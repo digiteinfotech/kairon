@@ -746,3 +746,41 @@ class TestUtility:
         )
         with pytest.raises(AppException, match="err_msg cannot be empty"):
             Utility.execute_http_request("POST", "https://app.chatwoot.com/public/api/v1/accounts", validate_status=True)
+
+    @responses.activate
+    def test_fetch_location_details(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_url', "https://api.ipregistry.co/")
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_api_key', "tpb-1i9wb253g-h5og")
+        responses.add(
+            responses.GET,
+            "https://api.ipregistry.co/122.181.213.168?key=tpb-1i9wb253g-h5og&fields=location.country.name,location.city,location.region.name",
+            status=200,
+            json={"location": {"country": {"name": "India"}, "region": {"name": "Maharashtra"}, "city": "Mumbai"}}
+        )
+        result = Utility.fetch_location_details("122.181.213.168")
+        assert "Mumbai, Maharashtra, India" == result
+
+    def test_fetch_location_details_wrong_api_key(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_url', "https://api.ipregistry.co/")
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_api_key', "WRONG_API_KEY")
+        result = Utility.fetch_location_details("122.181.213.168")
+        assert "-" == result
+
+    def test_fetch_location_details_loopback_ip(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_url', "https://api.ipregistry.co/")
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_api_key', "tpb-1i9wb253g-h5og")
+        responses.add(
+            responses.GET,
+            "https://api.ipregistry.co/127.0.0.1?key=tpb-1i9wb253g-h5og&fields=location.country.name,location.city,location.region.name",
+            status=400,
+            json={"code": "RESERVED_IP_ADDRESS", "message": "You tried to look up a loopback IP address. ",
+                  "resolution": "If you got the address from a user request, you should consider the request as a threat."}
+        )
+        result = Utility.fetch_location_details("127.0.0.1")
+        assert "-" == result
+
+    def test_fetch_location_details_wrong_service_url(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_url', "https://demo.ipregistry.co/")
+        monkeypatch.setitem(Utility.environment["location_service"], 'service_api_key', "tpb-1i9wb253g-h5og")
+        result = Utility.fetch_location_details("122.181.213.168")
+        assert "-" == result

@@ -65,7 +65,7 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
             Utility.validate_recaptcha(recaptcha_response, remote_ip)
         OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
-
+        self.remote_ip = remote_ip
 
 class Token(BaseModel):
     access_token: str

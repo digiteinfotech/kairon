@@ -660,6 +660,14 @@ class Utility:
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
+        elif mail_type == 'login_activity':
+            body = Utility.email_conf['email']['templates']['login_activity']
+            body = body.replace("USER_BROWSER", kwargs.get('user_browser', ""))
+            body = body.replace("USER_OS", kwargs.get('user_os', ""))
+            body = body.replace("LOGIN_DATE_TIME", kwargs.get('login_time', ""))
+            body = body.replace("USER_IP", kwargs.get('user_ip', "-"))
+            body = body.replace("USER_LOCATION", kwargs.get('user_location', "unknown"))
+            subject = Utility.email_conf['email']['templates']['login_activity_subject']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -1458,3 +1466,25 @@ class Utility:
             if not Utility.check_empty_string(param['value']):
                 value = Utility.decrypt_message(param['value'])
                 param['value'] = value[:-3] + "***"
+
+    @staticmethod
+    def get_location_service_url(user_ip: str):
+        service_url = Utility.environment["location_service"].get("service_url")
+        api_key = Utility.environment["location_service"].get("service_api_key")
+        query_param = "fields=location.country.name,location.city,location.region.name"
+        url = "".join([str(service_url), str(user_ip), "?key=", str(api_key), "&", query_param])
+        return url
+
+    @staticmethod
+    def fetch_location_details(ip_address: str):
+        try:
+            response = Utility.execute_http_request(request_method="GET", return_json=False,
+                                                    http_url=Utility.get_location_service_url(ip_address))
+            data = response.json()
+
+            city = data.get("location").get("city")
+            state = data.get("location").get("region").get("name")
+            country = data.get("location").get("country").get("name")
+        except Exception:
+            return "-"
+        return city + ", " + state + ", " + country

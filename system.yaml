@@ -91,3 +91,7 @@ notifications:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+
+location_service:
+  service_url:  ${LOCATION_SERVICE_API_URL}
+  service_api_key: ${LOCATION_SERVICE_API_KEY}

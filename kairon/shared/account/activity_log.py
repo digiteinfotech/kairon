@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Text
+from starlette.requests import Request
 
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import UserActivityLog
+from kairon.shared.account.data_objects import UserActivityLog, User
+from kairon.shared import constants
 from kairon.shared.constants import UserActivityType
 
 
@@ -38,3 +40,41 @@ class UserActivityLogger:
                 f'Password reset limit exhausted. Please come back in '
                 f'{str(timedelta(seconds=(datetime.utcnow() - log.timestamp).seconds))}'
             )
+
+
+    @staticmethod
+    async def notify_login_activity(request: Request, user: User, user_ip: str = None):
+        """
+        This API will notify the user about login attempt via email. This will add entry in user activity log
+        which will maintain frequently logged in devices for the user
+        :param request http request
+        :param user It is user object
+        :param user_ip client machine IP
+        """
+        if user_ip == constants.LOOPBACK_IP:
+            return
+        user_mail = user.get("email")
+        first_name = user.get("first_name")
+
+        import httpagentparser as parser
+        location = Utility.fetch_location_details(user_ip)
+        user_agent = request.headers.get("user-agent")
+        parsed_data = parser.detect(user_agent)
+        user_os = parsed_data.get("os", {}).get("name", "Unknown")
+        user_browser = parsed_data.get("browser", {}).get("name", "Unknown")
+        data = {"user_ip": user_ip, "user_os": user_os, "user_browser": user_browser}
+        if "Unknown" not in (user_os, user_browser) and UserActivityLogger.verify_trusted_devices(user=user, data=data):
+            await Utility.format_and_send_mail(mail_type="login_activity", email=user_mail, first_name=first_name,
+                                               user_os=user_os, user_browser=user_browser, user_ip=user_ip,
+                                               login_time=str(datetime.now()), user_location=location)
+
+    @staticmethod
+    def verify_trusted_devices(user: User, data: dict):
+        result = False
+        count = UserActivityLog.objects(account=user.get("account"), type=UserActivityType.login_attempt.value,
+                                        user=user.get("email"), data=data).count()
+        if count < 1:
+            UserActivityLogger.add_log(account=user.get("account"), email=user.get("email"),
+                                       a_type=UserActivityType.login_attempt.value, data=data)
+            result = True
+        return result
