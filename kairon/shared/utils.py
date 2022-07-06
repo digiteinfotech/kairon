@@ -860,12 +860,10 @@ class Utility:
         encoded_jwt = Utility.generate_token_payload({"mail_id": email}, minutes_to_expire)
         return encoded_jwt
 
+    @staticmethod
     def generate_token_payload(payload:dict, minutes_to_expire=1440):
         """
-        Used to encode the payload to generate token.
-        if only email as string is passed, then email will be used, but
-        incase we need to generate token on basis of multiple inputs
-        pass these keys as dictionary
+        Used to encode the payload of type dic into a token.
 
         :param payload: dict data
         :param minutes_to_expire: time in minutes until the token expires
