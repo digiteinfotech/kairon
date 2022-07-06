@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+import uuid
 from urllib.parse import urljoin
 
 import jwt
@@ -912,7 +913,7 @@ class TestAccountProcessor:
 
     def test_valid_token(self):
         token = Utility.generate_token('integ1@gmail.com')
-        mail = Utility.verify_token(token)
+        mail = Utility.verify_token(token).get("mail_id")
         assert mail
 
     def test_invalid_token(self):
@@ -1810,3 +1811,48 @@ class TestAccountProcessor:
         time.sleep(2)
         with pytest.raises(AppException, match='You have already used that password, try another'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
+
+    def test_reset_password_reuselink(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="resuselink@gmail.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="reuselink_acc",
+        )
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        usertoken = Utility.generate_token('resuselink@gmail.com')
+        loop.run_until_complete(AccountProcessor.confirm_email(usertoken))
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('resuselink@gmail.com'))
+        token = str(result[2]).split("/")[2]
+        Utility.email_conf["email"]["enable"] = False
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+        with pytest.raises(AppException, match='Link is already being used, Please raise new request'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@4"))
+
+    def test_valid_token_with_payload(self):
+        uuid_value = str(uuid.uuid1())
+        token = Utility.generate_token_payload(payload={"mail_id": "account_reuse_link@gmail.com",
+                                                                               "uuid":uuid_value})
+        decoded_jwt = Utility.verify_token(token)
+        assert uuid_value == decoded_jwt.get("uuid")
+        assert "account_reuse_link@gmail.com" == decoded_jwt.get("mail_id")
+
+    def test_valid_token_with_payload_only_email(self):
+        token = Utility.generate_token_payload(payload={"mail_id": "account_reuse_link@gmail.com"})
+        decoded_jwt = Utility.verify_token(token)
+        assert not decoded_jwt.get("uuid")
+        assert "account_reuse_link@gmail.com" == decoded_jwt.get("mail_id")
+
+    def test_reset_password_reuselink_check_uuid(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('resuselink@gmail.com'))
+        token = str(result[2]).split("/")[2]
+        decoded_jwt = Utility.verify_token(token)
+        Utility.email_conf["email"]["enable"] = False
+        assert decoded_jwt.get("uuid")
