@@ -851,17 +851,29 @@ class Utility:
     @staticmethod
     def generate_token(email: str, minutes_to_expire=1440):
         """
-        Used to encode the mail id into a token
+        Used to encode the mail id into a token.
 
         :param email: mail id of the recipient
         :param minutes_to_expire: time in minutes until the token expires
         :return: the token with encoded mail id
         """
-        data = {"mail_id": email}
+        encoded_jwt = Utility.generate_token_payload({"mail_id": email}, minutes_to_expire)
+        return encoded_jwt
+
+    @staticmethod
+    def generate_token_payload(payload:dict, minutes_to_expire=1440):
+        """
+        Used to encode the payload of type dict into a token.
+
+        :param payload: dict data
+        :param minutes_to_expire: time in minutes until the token expires
+        :return: the token
+        """
+
         expire = datetime.utcnow() + timedelta(minutes=minutes_to_expire)
-        data.update({"exp": expire})
+        payload.update({"exp": expire})
         encoded_jwt = encode(
-            data,
+            payload,
             Utility.environment['security']["secret_key"],
             algorithm=Utility.environment['security']["algorithm"],
         )
@@ -873,12 +885,11 @@ class Utility:
         Used to check if token is valid
 
         :param token: the token from the confirmation link
-        :return: mail id
+        :return: decoded_jwt
         """
         try:
             decoded_jwt = Utility.decode_limited_access_token(token)
-            mail = decoded_jwt["mail_id"]
-            return mail
+            return decoded_jwt
 
         except Exception as e:
             raise AppException("Invalid token")

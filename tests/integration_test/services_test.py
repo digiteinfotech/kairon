@@ -2855,7 +2855,7 @@ def test_transfer_ownership_to_user_not_a_member(monkeypatch):
 
 def test_accept_bot_invite(monkeypatch):
     def __mock_verify_token(*args, **kwargs):
-        return "integration@demo.ai"
+        return {"mail_id" : "integration@demo.ai"}
 
     monkeypatch.setattr(Utility, 'verify_token', __mock_verify_token)
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
