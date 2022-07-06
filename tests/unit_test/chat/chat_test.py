@@ -1,6 +1,12 @@
+import json
 from unittest.mock import patch
 from urllib.parse import urlencode, quote_plus
 
+from mongomock.mongo_client import MongoClient
+from pymongo.collection import Collection
+from pymongo.errors import ServerSelectionTimeoutError
+
+from kairon.chat.utils import ChatUtils
 from kairon.shared.utils import Utility
 import pytest
 import os
@@ -20,6 +26,27 @@ class TestChat:
         pytest.db_url = db_url
 
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @pytest.fixture
+    def mock_db_timeout(self, monkeypatch):
+        def _mock_db_timeout(*args, **kwargs):
+            raise ServerSelectionTimeoutError('Failed to connect')
+
+        monkeypatch.setattr(Collection, 'aggregate', _mock_db_timeout)
+
+    @pytest.fixture
+    def mock_mongo_client(self, monkeypatch):
+        def db_client(*args, **kwargs):
+            client = MongoClient()
+            db = client.get_database("conversation")
+            conversations = db.get_collection("conversations")
+            json_data = json.load(
+                open("tests/testing_data/history/conversations_history.json")
+            )
+            conversations.insert_many(json_data[0]['events'])
+            return client
+
+        monkeypatch.setattr(Utility, "create_mongo_client", db_client)
 
     def test_save_channel_config_invalid(self):
         with pytest.raises(ValidationError, match="Invalid channel type custom"):
@@ -137,3 +164,35 @@ class TestChat:
                                                            "username_for_bot": "test"}},
                                                       "test",
                                                       "test")
+
+    def test_fetch_session_history_error(self, mock_db_timeout, monkeypatch):
+        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
+        history, message = ChatUtils.get_last_session_conversation("tests", "12345")
+        assert len(history) == 0
+        assert message.__contains__("Failed to retrieve conversation: Failed to connect")
+
+    def test_fetch_session_history_empty(self, mock_mongo_client):
+        history, message = ChatUtils.get_last_session_conversation("tests", "12345")
+        assert len(history) == 0
+        assert message is None
+
+    def test_fetch_session_history_exception(self, monkeypatch):
+        def _mock_exception(*args, **kwargs):
+            raise Exception('object out of memory')
+
+        monkeypatch.setattr(Collection, 'aggregate', _mock_exception)
+        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
+        history, message = ChatUtils.get_last_session_conversation("tests", "12345")
+        assert len(history) == 0
+        assert message.__contains__("Failed to retrieve conversation: object out of memory")
+
+    def test_fetch_session_history(self, monkeypatch):
+        def events(*args, **kwargs):
+            json_data = json.load(open("tests/testing_data/history/conversation.json"))
+            yield json_data
+
+        monkeypatch.setattr(Collection, 'aggregate', events)
+        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
+        history, message = ChatUtils.get_last_session_conversation("tests", "5e564fbcdcf0d5fad89e3acd")
+        assert len(history) == 28
+        assert message is None

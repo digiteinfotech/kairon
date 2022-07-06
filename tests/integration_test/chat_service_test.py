@@ -12,6 +12,7 @@ from kairon.api.models import RegisterAccount
 from kairon.chat.agent.agent import KaironAgent
 from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
+from kairon.chat.utils import ChatUtils
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
@@ -47,6 +48,7 @@ token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bots']['account_owned'][0]['_id']
+chat_client_config = MongoProcessor().get_chat_client_config(bot).to_mongo().to_dict()
 start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(
@@ -181,6 +183,19 @@ class TestChatServer(AsyncHTTPTestCase):
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode("utf8"),
                 headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"]
+            assert Utility.check_empty_string(actual["message"])
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": "Hi"}).encode("utf8"),
+                headers={"Authorization": chat_client_config['config']['headers']['authorization']},
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -1251,10 +1266,7 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.stop()
 
     def test_chat_with_live_agent_with_integration_token(self):
-        access_token = Authentication.generate_integration_token(
-            bot, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/agent/live/.+'],
-            name="integration token for live agent chat"
-        )
+        access_token = chat_client_config['config']['headers']['authorization']
         responses.reset()
         responses.start()
         responses.add(
@@ -1288,7 +1300,7 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/{bot}/agent/live/2",
             method="POST",
             body=json.dumps({"data": "need help"}).encode('utf-8'),
-            headers={"Authorization": token_type + " " + access_token, "X-USER": "test@chat.com"},
+            headers={"Authorization": access_token, "X-USER": "test@chat.com"},
             connect_timeout=0,
             request_timeout=0
         )
@@ -1355,7 +1367,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
 
-
     def test_chat_with_bot_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
         bot = user['bots']['account_owned'][0]['_id']
@@ -1375,7 +1386,7 @@ class TestChatServer(AsyncHTTPTestCase):
         message = actual.get("message")
         error_code = actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == 'Session expired. Please login again.'
 
     def test_reload_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
@@ -1393,7 +1404,7 @@ class TestChatServer(AsyncHTTPTestCase):
         message = reload_actual.get("message")
         error_code = reload_actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == 'Session expired. Please login again.'
 
     def test_live_agent_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
@@ -1412,4 +1423,119 @@ class TestChatServer(AsyncHTTPTestCase):
         message = live_actual.get("message")
         error_code = live_actual.get("error_code")
         assert error_code == 401
-        assert message == "Password is reset while session begin Active"
+        assert message == 'Session expired. Please login again.'
+
+    def test_get_chat_history(self):
+        events = [
+                {
+                    "event": "session_started",
+                    "timestamp": 1656992881.55342
+                },
+                {
+                    "event": "user",
+                    "timestamp": 1656992882.02479,
+                    "text": "hi"
+                },
+                {
+                    "event": "bot",
+                    "timestamp": 1656992882.16756,
+                    "text": "Welcome to SE bot"
+                },
+                {
+                    "event": "user",
+                    "timestamp": 1656993828.00259,
+                    "text": "what are the medium priority items"
+                },
+                {
+                    "event": "bot",
+                    "timestamp": 1656993958.06978,
+                    "text": "I have failed to process your request"
+                }
+            ]
+
+        with patch.object(ChatUtils, "get_last_session_conversation") as mocked:
+            mocked.return_value = events, "connected to db"
+            response = self.fetch(
+                f"/api/bot/{bot}/conversation",
+                method="GET",
+                headers={"Authorization": token_type + " " + token},
+                connect_timeout=0,
+                request_timeout=0
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"] == events
+            assert actual["data"]
+            assert actual["message"]
+
+            response = self.fetch(
+                f"/api/bot/{bot}/conversation",
+                method="GET",
+                headers={"Authorization": chat_client_config['config']['headers']['authorization']},
+                connect_timeout=0,
+                request_timeout=0
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"] == events
+            assert actual["data"]
+            assert actual["message"]
+
+    def test_get_chat_history_empty(self):
+        events = []
+
+        with patch.object(ChatUtils, "get_last_session_conversation") as mocked:
+            mocked.return_value = events, "connected to db"
+            response = self.fetch(
+                f"/api/bot/{bot}/conversation",
+                method="GET",
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"] == events
+            assert actual["message"]
+
+    def test_get_chat_history_user_exception(self):
+        def _raise_err(*args, **kwargs):
+            raise Exception("Mongo object out of memory")
+
+        with patch.object(ChatUtils, "get_last_session_conversation") as mocked:
+            mocked.side_effect = _raise_err
+            response = self.fetch(
+                f"/api/bot/{bot3}/conversation",
+                method="GET",
+                headers={
+                    "Authorization": f"{token_type} {token}"
+                },
+            )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == 'Mongo object out of memory'
+
+    def test_get_chat_history_http_error(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        reload_response = self.fetch(
+            f"/api/bot/{bot}/conversation",
+            method="GET",
+            headers={
+                "Authorization": token_type + " " + access_token
+            },
+        )
+        reload_actual = json.loads(reload_response.body.decode("utf8"))
+        message = reload_actual.get("message")
+        error_code = reload_actual.get("error_code")
+        assert error_code == 401
+        assert message == "Session expired. Please login again."
