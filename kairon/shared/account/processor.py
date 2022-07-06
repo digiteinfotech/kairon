@@ -589,6 +589,7 @@ class AccountProcessor:
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
+                login_activity=open('template/emails/loginActivity.html', 'r').read()
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -602,6 +603,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
+        Utility.email_conf['email']['templates']['login_activity'] = system_properties['mail_templates']['login_activity']
 
     @staticmethod
     async def confirm_email(token: str):

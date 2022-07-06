@@ -19,6 +19,7 @@ from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
 from kairon.exceptions import AppException
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
@@ -7594,9 +7595,17 @@ def test_sso_get_login_token_invalid_type():
 
 def test_sso_get_login_token(monkeypatch):
     async def __mock_verify_and_process(*args, **kwargs):
-        return True, {}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+        return True, {'email': ''}, 'fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj'
+
+    def __get_user(*args, **kwargs):
+        return None
+
+    def __notify_login_activity(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(Authentication, 'verify_and_process', __mock_verify_and_process)
+    monkeypatch.setattr(AccountProcessor, 'get_user', __get_user)
+    monkeypatch.setattr(UserActivityLogger, 'notify_login_activity', __notify_login_activity)
     response = client.get(
         url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
     )
