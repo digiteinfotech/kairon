@@ -321,6 +321,7 @@ class ActionUtility:
                 logger.exception(e)
                 value = None
                 log = str(e)
+            log = f"slot: {slot['name']} || {log}"
             evaluated_slot_values[slot['name']] = value
             response_log.append(log)
         return evaluated_slot_values, response_log
