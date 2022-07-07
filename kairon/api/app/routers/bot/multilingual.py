@@ -6,6 +6,7 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import Response
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.events.events import EventsTrigger
+from kairon.shared.multilingual.utils.translator import Translator
 
 router = APIRouter()
 
@@ -34,3 +35,11 @@ async def multilingual_translate_bot(
                               current_user.get_user(), request_data.d_lang, request_data.translate_responses,
                               request_data.translate_actions)
     return {"message": "Bot translation in progress! Check logs."}
+
+
+@router.get("/languages", response_model=Response)
+async def get_supported_languages(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Get supported languages for translation
+    """
+    return Response(data=Translator.get_supported_languages())
