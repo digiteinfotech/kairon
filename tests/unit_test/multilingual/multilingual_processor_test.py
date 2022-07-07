@@ -491,3 +491,35 @@ class TestMultilingualProcessor:
                                                                           translate_actions=True)
         new_bot = AccountProcessor.get_bot(destination_bot)
         assert new_bot['name'] == existing_bot['name'] + '_' + '1'
+
+    def test_get_languages(self):
+
+        def _mock_service_client(*args, **kwargs):
+
+            class MockServiceClient:
+
+                def get_supported_languages(*args, **kwargs):
+
+                    class LanguageResponse:
+
+                        class Language:
+                            language_code = "en"
+
+                            def __init__(self):
+                                self.language_code = "en"
+
+                        languages = []
+
+                        def __init__(self):
+                            self.languages.append(self.Language())
+
+                    return LanguageResponse()
+
+            return MockServiceClient()
+
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                mocked_new.side_effect = _mock_service_client
+
+                supported_languages = Translator.get_supported_languages()
+                assert supported_languages == ["en"]
