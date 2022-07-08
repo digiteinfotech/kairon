@@ -176,7 +176,8 @@ class ActionUtility:
         http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
         http_url = http_url.replace("$USER_MESSAGE", tracker_data.get(ActionParameterType.user_message.value, ""))
         for slot, value in tracker_data.get(ActionParameterType.slot.value, {}).items():
-            http_url = http_url.replace(f"${slot}", value or "")
+            value = str(value) if value else ""
+            http_url = http_url.replace(f"${slot}", value)
         return http_url
 
     @staticmethod
@@ -302,12 +303,16 @@ class ActionUtility:
 
     @staticmethod
     def compose_response(response_config: dict, http_response: Any):
-        response = response_config['value']
-        if response_config.get('evaluation_type', EvaluationType.expression.value) is EvaluationType.script.value:
+        response = response_config.get('value')
+        evaluation_type = response_config.get('evaluation_type', EvaluationType.expression.value)
+        if Utility.check_empty_string(response):
+            result = None
+            log = f"{evaluation_type}: {response} || data: {http_response} || Skipping evaluation as value is empty"
+        elif evaluation_type == EvaluationType.script.value:
             result, log = ActionUtility.evaluate_script(response, http_response)
         else:
             result = ActionUtility.prepare_response(response, http_response)
-            log = f"script: {response} || data: {http_response} || response: {result}"
+            log = f"{evaluation_type}: {response} || data: {http_response} || response: {result}"
         return result, log
 
     @staticmethod

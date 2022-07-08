@@ -49,7 +49,6 @@ class HttpActionRequestBody(EmbeddedDocument):
         return isinstance(other, self.__class__) and self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value
 
 
-
 class SetSlotsFromResponse(EmbeddedDocument):
     name = StringField(required=True)
     value = StringField(required=True)
