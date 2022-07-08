@@ -29,6 +29,7 @@ from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from stress_test.data_objects import Bot
+import time
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -913,7 +914,7 @@ class TestAccountProcessor:
 
     def test_valid_token(self):
         token = Utility.generate_token('integ1@gmail.com')
-        mail = Utility.verify_token(token)
+        mail = Utility.verify_token(token).get("mail_id")
         assert mail
 
     def test_invalid_token(self):
@@ -1786,3 +1787,91 @@ class TestAccountProcessor:
         assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
         assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
         assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')
+
+    def test_overwrite_password_with_same_password(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="samepasswrd@gmail.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="testAdmin",
+        )
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
+
+    def test_overwrite_password_with_same_password_again(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
+        time.sleep(2)
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
+
+    def test_overwrite_password_with_original_passwrd(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        time.sleep(2)
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
+
+    def test_overwrite_password_with_successful_update(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        time.sleep(2)
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+        assert True
+
+    def test_reset_password_reuselink(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="resuselink@gmail.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="reuselink_acc",
+        )
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        usertoken = Utility.generate_token('resuselink@gmail.com')
+        loop.run_until_complete(AccountProcessor.confirm_email(usertoken))
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('resuselink@gmail.com'))
+        token = str(result[2]).split("/")[2]
+        Utility.email_conf["email"]["enable"] = False
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+        with pytest.raises(AppException, match='Link is already being used, Please raise new request'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@4"))
+
+    def test_valid_token_with_payload(self):
+        uuid_value = str(uuid.uuid1())
+        token = Utility.generate_token_payload(payload={"mail_id": "account_reuse_link@gmail.com",
+                                                                               "uuid":uuid_value})
+        decoded_jwt = Utility.verify_token(token)
+        assert uuid_value == decoded_jwt.get("uuid")
+        assert "account_reuse_link@gmail.com" == decoded_jwt.get("mail_id")
+
+    def test_valid_token_with_payload_only_email(self):
+        token = Utility.generate_token_payload(payload={"mail_id": "account_reuse_link@gmail.com"})
+        decoded_jwt = Utility.verify_token(token)
+        assert not decoded_jwt.get("uuid")
+        assert "account_reuse_link@gmail.com" == decoded_jwt.get("mail_id")
+
+    def test_reset_password_reuselink_check_uuid(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(AccountProcessor.send_reset_link('resuselink@gmail.com'))
+        token = str(result[2]).split("/")[2]
+        decoded_jwt = Utility.verify_token(token)
+        Utility.email_conf["email"]["enable"] = False
+        assert decoded_jwt.get("uuid")
