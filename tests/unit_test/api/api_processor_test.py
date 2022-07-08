@@ -1813,6 +1813,24 @@ class TestAccountProcessor:
         with pytest.raises(AppException, match='You have already used that password, try another'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
 
+    def test_overwrite_password_with_original_passwrd(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        time.sleep(2)
+        with pytest.raises(AppException, match='You have already used that password, try another'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
+
+    def test_overwrite_password_with_successful_update(self, monkeypatch):
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('samepasswrd@gmail.com')
+        loop = asyncio.new_event_loop()
+        Utility.environment['user']['reset_password_cooldown_period'] = 0
+        time.sleep(2)
+        loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+        assert True
+
     def test_reset_password_reuselink(self, monkeypatch):
         AccountProcessor.add_user(
             email="resuselink@gmail.com",
