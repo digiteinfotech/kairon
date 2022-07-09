@@ -36,6 +36,7 @@ class ActionUtility:
         @param content_type: request content type HTTP request
         :return: JSON/string response
         """
+        timeout = Utility.environment['action'].get('request_timeout', 1)
         if not headers:
             headers = {}
         headers.update({
@@ -46,7 +47,7 @@ class ActionUtility:
         try:
             if request_method.lower() in {'get', 'post', 'put', 'delete'}:
                 response = requests.request(
-                    request_method.upper(), http_url, headers=headers, **{content_type: request_body}
+                    request_method.upper(), http_url, headers=headers, timeout=timeout, **{content_type: request_body}
                 )
             else:
                 raise ActionFailure("Invalid request method!")
