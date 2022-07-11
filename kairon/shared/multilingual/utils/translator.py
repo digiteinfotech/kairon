@@ -22,30 +22,29 @@ class Translator:
         :param mime_type: type of document for translation
         :return: translations: translated text
         """
-
-        service_account_info_json = {
-            "type": Utility.environment['multilingual']['service_account_creds'].get('type', "service_account"),
-            "project_id": Utility.environment['multilingual']['project_id'],
-            "private_key_id": Utility.environment['multilingual']['service_account_creds']['private_key_id'],
-            "private_key": Utility.environment['multilingual']['service_account_creds']['private_key'],
-            "client_email": Utility.environment['multilingual']['service_account_creds']['client_email'],
-            "client_id": Utility.environment['multilingual']['service_account_creds']['client_id'],
-            "auth_uri": Utility.environment['multilingual']['service_account_creds']['auth_uri'],
-            "token_uri": Utility.environment['multilingual']['service_account_creds']['token_uri'],
-            "auth_provider_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['auth_provider_x509_cert_url'],
-            "client_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['client_x509_cert_url']
-        }
-        credentials = service_account.Credentials.from_service_account_info(service_account_info_json)
-        client = translate.TranslationServiceClient(credentials=credentials)
-
-        location = "global"
-        parent = f"projects/{Utility.environment['multilingual']['project_id']}/locations/{location}"
-
-        # Translate text from Source Language to Destination Language
-
-        logger.info('Fetching translations...')
-
         try:
+            service_account_info_json = {
+                "type": Utility.environment['multilingual']['service_account_creds'].get('type', "service_account"),
+                "project_id": Utility.environment['multilingual']['project_id'],
+                "private_key_id": Utility.environment['multilingual']['service_account_creds']['private_key_id'],
+                "private_key": Utility.environment['multilingual']['service_account_creds']['private_key'],
+                "client_email": Utility.environment['multilingual']['service_account_creds']['client_email'],
+                "client_id": Utility.environment['multilingual']['service_account_creds']['client_id'],
+                "auth_uri": Utility.environment['multilingual']['service_account_creds']['auth_uri'],
+                "token_uri": Utility.environment['multilingual']['service_account_creds']['token_uri'],
+                "auth_provider_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['auth_provider_x509_cert_url'],
+                "client_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['client_x509_cert_url']
+            }
+            credentials = service_account.Credentials.from_service_account_info(service_account_info_json)
+            client = translate.TranslationServiceClient(credentials=credentials)
+
+            location = "global"
+            parent = f"projects/{Utility.environment['multilingual']['project_id']}/locations/{location}"
+
+            # Translate text from Source Language to Destination Language
+
+            logger.info('Fetching translations...')
+
             response = client.translate_text(
                 request={
                     "parent": parent,
