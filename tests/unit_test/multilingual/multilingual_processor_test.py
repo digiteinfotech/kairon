@@ -523,3 +523,15 @@ class TestMultilingualProcessor:
 
                 supported_languages = Translator.get_supported_languages()
                 assert supported_languages == ["en"]
+
+    def test_translation_call_fail(self, monkeypatch):
+
+        def _mock_service_account(*args, **kwargs):
+            raise AppException("Service account creation failed")
+
+        monkeypatch.setattr(service_account.Credentials, "from_service_account_info", _mock_service_account)
+
+        with pytest.raises(AppException):
+            translated_text = Translator.translate_text_bulk(['translation text'], 'en', 'es')
+
+            assert not translated_text
