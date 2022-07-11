@@ -716,7 +716,8 @@ class AccountProcessor:
             raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
-        if Utility.verify_password(password.strip(), user.password):
+        previous_passwrd = user.password
+        if Utility.verify_password(password.strip(), previous_passwrd):
             raise AppException("You have already used that password, try another")
         user_act_log = UserActivityLog.objects(user=email, type=UserActivityType.reset_password.value)
         if any(act_log.data is not None and act_log.data.get("password") is not None and
@@ -726,7 +727,7 @@ class AccountProcessor:
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
-        data = {"password": user.password}
+        data = {"password": previous_passwrd}
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
         if uuid_value is not None:
