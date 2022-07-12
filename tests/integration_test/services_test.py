@@ -36,6 +36,7 @@ from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
+from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
 
@@ -9670,6 +9671,7 @@ def test_save_client_config_invalid_domain_format():
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
 
+
 def get_client_config_valid_domain():
     response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -9816,6 +9818,15 @@ def test_multilingual_translate_in_progress():
     assert not response["success"]
 
 
+def test_multilingual_translate_logs_empty():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == []
+
+
 def test_multilingual_translate():
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -9951,6 +9962,39 @@ def test_multilingual_translate_in_progress():
     assert response["error_code"] == 422
     assert response['message'] == 'Event already in progress! Check logs.'
     assert not response["success"]
+
+
+def test_multilingual_translate_logs():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 4
+    assert actual["data"][0]["event_status"] == EVENT_STATUS.TASKSPAWNED.value
+    assert actual["data"][0]["start_timestamp"]
+    assert actual["data"][0]["copy_type"]
+    assert actual["data"][0]["d_lang"]
+
+
+def test_multilingual_language_support(monkeypatch):
+
+    def _mock_supported_languages(*args, **kwargs):
+        return ['es', 'en', 'hi']
+
+    monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/multilingual/languages",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    ).json()
+
+    assert response['data'] == ['es', 'en', 'hi']
+    assert response['success']
+    assert response['error_code'] == 0
 
 
 def test_delete_account():
