@@ -45,7 +45,8 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
-                                             Utterances, BotSettings, ChatClientConfig, LookupTables, Forms, SlotMapping
+                                             Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
+                                             SlotMapping, KeyVault
                                              )
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -6627,9 +6628,9 @@ class TestMongoProcessor:
                           'http_url': 'http://www.google.com', 'request_method': 'GET', 'content_type': 'application/x-www-form-urlencoded',
                           'params_list': [
                               {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                              {'key': 'param2', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True}],
+                              {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
                           'headers': [{'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                                      {'key': 'param4', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True}],
+                                      {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
                           'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression'},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
@@ -6686,6 +6687,10 @@ class TestMongoProcessor:
         http_dict['response']['dispatch'] = True
         http_dict['response']['value'] = "  "
         with pytest.raises(ValidationError, match="response is required for dispatch"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['response']['value'] = "Action executed"
+        http_dict['params_list'].append({"key": "Access_key", "value": "  ", "parameter_type":"key_vault", "encrypt": False})
+        with pytest.raises(ValidationError, match="Provide key from key vault as value"):
             processor.add_http_action_config(http_dict, user, bot)
 
     def test_list_http_action(self):
@@ -6954,13 +6959,13 @@ class TestMongoProcessor:
         assert config == {'action_name': 'test_update_http_config', 'http_url': 'http://www.alphabet.com',
                           'request_method': 'POST', 'content_type': 'application/x-www-form-urlencoded', 'params_list': [
                 {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param4', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True},
+                {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True},
                 {'key': 'param5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
                 {'key': 'param6', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
                 {'key': 'param7', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
                 {'key': 'param8', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
                           'headers': [{'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                                      {'key': 'param2', 'value': 'val***', 'parameter_type': 'value', 'encrypt': True},
+                                      {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True},
                                       {'key': 'param3', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
                                       {'key': 'param4', 'value': '', 'parameter_type': 'user_message',
                                        'encrypt': False},
@@ -8217,6 +8222,121 @@ class TestMongoProcessor:
             Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
+            
+    def test_add_secret(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "AWS_KEY"
+        value = "123456789-0dfghjk"
+        id = processor.add_secret(key, value, bot, user)
+        assert not Utility.check_empty_string(id)
+        key_value = KeyVault.objects().get(id=id)
+        assert key_value.key == key
+        assert value == Utility.decrypt_message(key_value.value)
+    
+    def test_add_secret_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "AWS_KEY"
+        value = "123456789-0dfghjk"
+        with pytest.raises(AppException, match="Key exists!"):
+            processor.add_secret(key, value, bot, user)
+    
+    def test_add_secret_empty_value(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "GOOGLE_KEY"
+        value = None
+        with pytest.raises(ValidationError):
+            processor.add_secret(key, value, bot, user)
+
+        key = None
+        value = "sdfghj567"
+        with pytest.raises(ValidationError):
+            processor.add_secret(key, value, bot, user)
+
+    def test_get_secret_after_addition(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "AWS_KEY"
+        assert processor.get_secret(key, bot) == "123456789-0dfghjk"
+
+    def test_list_keys(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        assert ["AWS_KEY"] == processor.list_secrets(bot)
+
+    def test_update_secret(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "AWS_KEY"
+        value = "123456789-0dfghjkdfghj"
+        id = processor.update_secret(key, value, bot, user)
+        assert not Utility.check_empty_string(id)
+        key_value = KeyVault.objects().get(id=id)
+        assert key_value.key == key
+        assert value == Utility.decrypt_message(key_value.value)
+
+    def test_update_secret_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "GCP_KEY"
+        value = "123456789-0dfghjkdfghj"
+        with pytest.raises(AppException, match=f"key '{key}' does not exists!"):
+            processor.update_secret(key, value, bot, user)
+
+    def test_update_secret_empty_value(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        key = "AWS_KEY"
+        value = None
+        with pytest.raises(ValidationError):
+            processor.update_secret(key, value, bot, user)
+
+    def test_get_secret_after_update(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "AWS_KEY"
+        assert "123456789-0dfghjkdfghj" == processor.get_secret(key, bot)
+
+    def test_delete_secret(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "AWS_KEY"
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "GCPKEY"
+        with pytest.raises(AppException, match=f"key '{key}' does not exists!"):
+            processor.delete_secret(key, bot)
+
+    def test_get_secret_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "GOOGLE_KEY"
+        with pytest.raises(AppException, match=f"key '{key}' does not exists!"):
+            processor.get_secret(key, bot)
+
+    def test_get_secret_no_error(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        key = "GOOGLE_KEY"
+        assert None is processor.get_secret(key, bot, False)
+
+    def test_list_keys_empty(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        assert [] == processor.list_secrets(bot)
 
 
 class TestTrainingDataProcessor:
