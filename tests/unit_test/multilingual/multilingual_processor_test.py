@@ -486,6 +486,34 @@ class TestMultilingualProcessor:
 
         assert start_bot_count == Bot.objects(status=True).count()
 
+    @pytest.mark.asyncio
+    async def test_create_multilingual_bot_save_files_fail(self, monkeypatch):
+        mp = MongoProcessor()
+        s_lang = "en"
+        d_lang = "es"
+
+        def _mock_delete_domain(*args, **kwargs):
+            raise Exception("file saving failed")
+
+        bot = Bot(name="test_bot", account=1, user="test_user")
+        await (mp.save_from_path("./tests/testing_data/yml_training_files",
+                                 bot="test_bot", user="test_user"))
+
+        monkeypatch.setattr(MongoProcessor, "delete_domain", _mock_delete_domain)
+
+        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+
+        start_bot_count = Bot.objects(status=True).count()
+        with pytest.raises(AppException):
+            destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                              base_bot_name=bot.name,
+                                                                              s_lang=s_lang, d_lang=d_lang,
+                                                                              translate_responses=False,
+                                                                              translate_actions=False)
+            assert not destination_bot
+
+        assert start_bot_count == Bot.objects(status=True).count()
+
     def test_create_multilingual_bot_empty_data(self, monkeypatch):
         s_lang = "en"
         d_lang = "es"
