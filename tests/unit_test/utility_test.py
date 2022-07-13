@@ -755,7 +755,8 @@ class TestUtility:
     def test_get_masked_value_len_less_than_4(self):
         assert Utility.get_masked_value("test") == "****"
 
-    def test_get_masked_value_len_more_from_left(self):
+    def test_get_masked_value_len_more_from_left(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['security'], "unmasked_char_strategy", "from_left")
         assert Utility.get_masked_value("teststring") == "te********"
 
     def test_get_masked_value_mask_strategy_from_right(self, monkeypatch):
