@@ -53,7 +53,8 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
+    HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType, HttpContentType
@@ -8337,6 +8338,43 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         assert [] == processor.list_secrets(bot)
+
+    def test_delete_secret_attached_to_http_action(self):
+        bot = 'test'
+        key = "GCPKEY"
+        user = "user"
+        value = "123456789-0dfghjk"
+        processor = MongoProcessor()
+        processor.add_secret(key, value, bot, user)
+        http_params_list = [HttpActionRequestBody(key="param1", value="param1", parameter_type="slot"),
+                            HttpActionRequestBody(key="param2", value=key, parameter_type="key_vault")]
+        HttpActionConfig(
+            action_name="test_delete_secret_attached_to_http_action",
+            response=HttpActionResponse(value="action executed!"),
+            http_url="http://kairon.digite.com/get/all",
+            request_method="POST",
+            params_list=http_params_list,
+            bot=bot,
+            user=user
+        ).save()
+        with pytest.raises(AppException, match='Key is attached to action: test_delete_secret_attached_to_http_action'):
+            processor.delete_secret(key, bot)
+
+        action = HttpActionConfig(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
+        action.params_list = []
+        action.headers = http_params_list
+        action.save()
+        with pytest.raises(AppException, match='Key is attached to action: test_delete_secret_attached_to_http_action'):
+            processor.delete_secret(key, bot)
+
+        action = HttpActionConfig(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
+        action.params_list = []
+        action.headers = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
+                            HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
+        action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
 
 
 class TestTrainingDataProcessor:

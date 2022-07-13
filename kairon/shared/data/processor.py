@@ -39,7 +39,8 @@ from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
+    ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
 from kairon.shared.utils import Utility
 from .constant import (
@@ -4238,4 +4239,10 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
+        actions_with_key = list(HttpActionConfig.objects(bot=bot, status=True).filter(
+            (Q(params_list__parameter_type=ActionParameterType.key_vault.value) & Q(params_list__value=key)) |
+            (Q(headers__parameter_type=ActionParameterType.key_vault.value) & Q(headers__value=key))
+        ))
+        if len(actions_with_key) > 0:
+            raise AppException(f"Key is attached to action: {actions_with_key[0].action_name}")
         KeyVault.objects(key=key, bot=bot).delete()
