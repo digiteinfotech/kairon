@@ -1,6 +1,7 @@
 import pytest
 from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualProcessor
+from kairon.shared.actions.data_objects import ZendeskAction, EmailActionConfig
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.models import ActionType
@@ -61,16 +62,21 @@ class TestMultilingualProcessor:
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        with patch("google.oauth2.service_account.Credentials", autospec=True):
-            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
-                mocked_new.side_effect = _mock_service_client
+        with patch('zenpy.Zenpy') as mock:
+            ZendeskAction(
+                name='zendesk_action', bot="test_bot", user="test_user", subdomain='digite751', user_name='test@digite.com',
+                api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
 
-                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                                  base_bot_name=bot.name,
-                                                                                  s_lang=s_lang, d_lang=d_lang,
-                                                                                  translate_responses=True,
-                                                                                  translate_actions=True)
+            with patch("google.oauth2.service_account.Credentials", autospec=True):
+                with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                    mocked_new.side_effect = _mock_service_client
+
+                    multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                    destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                      base_bot_name=bot.name,
+                                                                                      s_lang=s_lang, d_lang=d_lang,
+                                                                                      translate_responses=True,
+                                                                                      translate_actions=True)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)
@@ -253,16 +259,35 @@ class TestMultilingualProcessor:
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        with patch("google.oauth2.service_account.Credentials", autospec=True):
-            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
-                mocked_new.side_effect = _mock_service_client
+        with patch('kairon.shared.utils.SMTP', autospec=True):
+            EmailActionConfig(
+                action_name="email_action",
+                smtp_url="test.localhost",
+                smtp_port=293,
+                smtp_password="test",
+                from_email="test@demo.com",
+                subject="test",
+                to_email=["test@test.com","test1@test.com"],
+                response="Validated",
+                bot="test_bot",
+                user="test_user"
+            ).save()
 
-                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-                destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                                  base_bot_name=bot.name,
-                                                                                  s_lang=s_lang, d_lang=d_lang,
-                                                                                  translate_responses=False,
-                                                                                  translate_actions=True)
+            with patch('zenpy.Zenpy'):
+                ZendeskAction(
+                    name='zendesk_action', bot="test_bot", user="test_user", subdomain='digite751', user_name='test@digite.com',
+                    api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
+
+                with patch("google.oauth2.service_account.Credentials", autospec=True):
+                    with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                        mocked_new.side_effect = _mock_service_client
+
+                        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                        destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                          base_bot_name=bot.name,
+                                                                                          s_lang=s_lang, d_lang=d_lang,
+                                                                                          translate_responses=False,
+                                                                                          translate_actions=True)
 
         base_domain = mp.load_domain(bot="test_bot")
         new_domain = mp.load_domain(bot=destination_bot)

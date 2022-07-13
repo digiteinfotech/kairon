@@ -9486,6 +9486,25 @@ def test_multilingual_translate_no_destination_lang():
     ]
     assert response["error_code"] == 422
 
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": " ", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "d_lang"
+            ],
+            "msg": "d_lang cannot be empty",
+            "type": "value_error"
+        }
+    ]
+    assert response["error_code"] == 422
+
 
 def test_multilingual_translate_limit_exceeded(monkeypatch):
     monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
