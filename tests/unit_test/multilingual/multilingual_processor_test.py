@@ -495,22 +495,49 @@ class TestMultilingualProcessor:
         def _mock_delete_domain(*args, **kwargs):
             raise Exception("file saving failed")
 
+        def _mock_service_client(*args, **kwargs):
+            class MockServiceClient:
+
+                def translate_text(*args, **kwargs):
+                    text = kwargs["request"]["contents"]
+
+                    class TranslationResponse:
+
+                        class Translations:
+                            translated_text = None
+
+                            def __init__(self, sentence):
+                                self.translated_text = sentence
+
+                        translations = []
+
+                        def __init__(self, text_list):
+                            for t in text_list:
+                                self.translations.append(self.Translations('TRANSLATED_' + t))
+
+                    return TranslationResponse(text)
+
+            return MockServiceClient()
+
         bot = Bot(name="test_bot", account=1, user="test_user")
         await (mp.save_from_path("./tests/testing_data/yml_training_files",
                                  bot="test_bot", user="test_user"))
 
-        monkeypatch.setattr(MongoProcessor, "delete_domain", _mock_delete_domain)
-
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
-
         start_bot_count = Bot.objects(status=True).count()
+
+        monkeypatch.setattr(MongoProcessor, "delete_domain", _mock_delete_domain)
         with pytest.raises(AppException):
-            destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
-                                                                              base_bot_name=bot.name,
-                                                                              s_lang=s_lang, d_lang=d_lang,
-                                                                              translate_responses=False,
-                                                                              translate_actions=False)
-            assert not destination_bot
+            with patch("google.oauth2.service_account.Credentials", autospec=True):
+                with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
+                    mocked_new.side_effect = _mock_service_client
+
+                    multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                    destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
+                                                                                      base_bot_name=bot.name,
+                                                                                      s_lang=s_lang, d_lang=d_lang,
+                                                                                      translate_responses=False,
+                                                                                      translate_actions=False)
+                    assert not destination_bot
 
         assert start_bot_count == Bot.objects(status=True).count()
 
