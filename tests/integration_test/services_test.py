@@ -3928,7 +3928,7 @@ def test_update_http_action():
     assert len(actual['data']["params_list"]) == 2
     assert actual['data']["params_list"] == [
         {"key": "testParam1", "parameter_type": "value",  "value": "testVal***", "encrypt": True},
-        {"key": "testParam2", "parameter_type": "slot", "value": "testValue1", "encrypt": True}]
+        {"key": "testParam2", "parameter_type": "slot", "value": "testvalue1", "encrypt": True}]
     assert actual['data']["headers"] == [{'key': 'Authorization', 'value': 'bearer to***', 'parameter_type': 'value', 'encrypt': True}]
     assert actual["success"]
 

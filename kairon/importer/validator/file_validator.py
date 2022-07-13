@@ -623,7 +623,7 @@ class TrainingDataValidator(Validator):
         for http_obj in http_actions:
             if all(name in http_obj for name in required_fields):
                 if (not http_obj.get('request_method') or
-                        http_obj.get('request_method').upper() not in {"POST", "GET", "DELETE"}):
+                        http_obj.get('request_method').upper() not in {"POST", "PUT", "GET", "DELETE"}):
                     data_error.append('Invalid request method: ' + http_obj['action_name'])
 
                 if http_obj['action_name'] in action_present:

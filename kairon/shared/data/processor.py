@@ -39,7 +39,8 @@ from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType
+from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
+    ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
 from kairon.shared.utils import Utility
 from .constant import (
@@ -2559,30 +2560,27 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for updated Http action config
         """
-        try:
-            http_action = HttpActionConfig.objects(bot=bot, action_name=request_data['action_name'], status=True).get()
+        if not Utility.is_exist(
+                HttpActionConfig, raise_error=False, action_name__iexact=request_data['action_name'], bot=bot,
+                status=True
+        ):
+            raise AppException("No HTTP action found for bot " + bot + " and action " + request_data['action_name'])
+        for http_action in HttpActionConfig.objects(bot=bot, action_name=request_data['action_name'], status=True):
             content_type = {
                 HttpContentType.application_json: HttpRequestContentType.json.value,
                 HttpContentType.urlencoded_form_data: HttpRequestContentType.data.value
             }[request_data['content_type']]
-            http_params = [HttpActionRequestBody(**param) for param in request_data.get('params_list', [])]
-            headers = [HttpActionRequestBody(**param) for param in request_data.get('headers', [])]
-            set_slots = [SetSlotsFromResponse(**slot) for slot in request_data.get('set_slots')]
-            http_action.request_method = request_data['request_method']
-            http_action.params_list = http_params
-            http_action.headers = headers
-            http_action.http_url = request_data['http_url']
-            http_action.response = HttpActionResponse(**request_data.get('response', {}))
-            http_action.content_type = content_type
-            http_action.set_slots = set_slots
-            http_action.user = user
-            http_action.status = True
-            http_action.bot = bot
-            http_action.timestamp = datetime.utcnow()
-            http_config_id = http_action.save(validate=False).to_mongo().to_dict()["_id"].__str__()
-            return http_config_id
-        except DoesNotExist:
-            raise AppException("No HTTP action found for bot " + bot + " and action " + request_data['action_name'])
+            response = HttpActionResponse(**request_data.get('response', {})).to_mongo().to_dict()
+            params_list = Utility.build_http_request_data_object(request_data.get('params_list', []))
+            headers = Utility.build_http_request_data_object(request_data.get('headers', []))
+            set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
+                         request_data.get('set_slots')]
+            http_action.update(
+                set__http_url=request_data['http_url'], set__request_method=request_data['request_method'],
+                set__content_type=content_type, set__params_list=params_list, set__headers=headers,
+                set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
+            )
+            return http_action.to_mongo().to_dict()["_id"].__str__()
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
         """
@@ -3000,10 +2998,24 @@ class MongoProcessor:
                 "action_name": action["action_name"], "response": action["response"], "http_url": action["http_url"],
                 "request_method": action["request_method"]
             }
+            for header in action.get('headers') or []:
+                parameter_type = header.get("parameter_type")
+                value = header['value']
+                if parameter_type == ActionParameterType.value.value and not Utility.check_empty_string(value) and header.get('encrypt') is True:
+                    header['value'] = Utility.decrypt_message(header['value'])
+
+            for param in action.get('params_list') or []:
+                parameter_type = param.get("parameter_type")
+                value = param['value']
+                if parameter_type == ActionParameterType.value.value and not Utility.check_empty_string(value) and param.get('encrypt') is True:
+                    param['value'] = Utility.decrypt_message(param['value'])
+
             if action.get('headers'):
                 config['headers'] = action['headers']
             if action.get('params_list'):
                 config['params_list'] = action['params_list']
+            if action.get('set_slots'):
+                config['set_slots'] = action['set_slots']
             http_actions.append(config)
         return {ActionType.http_action.value: http_actions}
 
