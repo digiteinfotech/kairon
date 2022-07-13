@@ -2996,7 +2996,7 @@ class MongoProcessor:
             action = action.to_mongo().to_dict()
             config = {
                 "action_name": action["action_name"], "response": action["response"], "http_url": action["http_url"],
-                "request_method": action["request_method"]
+                "request_method": action["request_method"], "content_type": action["content_type"]
             }
             for header in action.get('headers') or []:
                 parameter_type = header.get("parameter_type")
