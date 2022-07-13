@@ -4239,10 +4239,12 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
-        actions_with_key = list(HttpActionConfig.objects(bot=bot, status=True).filter(
-            (Q(params_list__parameter_type=ActionParameterType.key_vault.value) & Q(params_list__value=key)) |
-            (Q(headers__parameter_type=ActionParameterType.key_vault.value) & Q(headers__value=key))
-        ))
-        if len(actions_with_key) > 0:
-            raise AppException(f"Key is attached to action: {actions_with_key[0].action_name}")
+        actions = list(HttpActionConfig.objects(__raw__={
+            "bot": bot, "status": True,
+            "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
+                    {"params_list": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
+        }).values_list("action_name"))
+
+        if len(actions):
+            raise AppException(f"Key is attached to action: {actions}")
         KeyVault.objects(key=key, bot=bot).delete()

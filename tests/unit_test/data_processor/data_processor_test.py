@@ -8357,20 +8357,20 @@ class TestMongoProcessor:
             bot=bot,
             user=user
         ).save()
-        with pytest.raises(AppException, match='Key is attached to action: test_delete_secret_attached_to_http_action'):
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
             processor.delete_secret(key, bot)
 
-        action = HttpActionConfig(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
+        action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
         action.params_list = []
         action.headers = http_params_list
         action.save()
-        with pytest.raises(AppException, match='Key is attached to action: test_delete_secret_attached_to_http_action'):
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
             processor.delete_secret(key, bot)
 
-        action = HttpActionConfig(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
+        action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
         action.params_list = []
         action.headers = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
-                            HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
+                          HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
         action.save()
         processor.delete_secret(key, bot)
         with pytest.raises(DoesNotExist):
