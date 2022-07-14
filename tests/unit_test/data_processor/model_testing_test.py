@@ -8,7 +8,7 @@ from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor

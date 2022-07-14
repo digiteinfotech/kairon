@@ -10,7 +10,8 @@ from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.importers.rasa import RasaFileImporter
 
-from kairon import Utility
+
+from kairon.shared.utils import Utility
 from kairon.multilingual.processor import MultilingualProcessor
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS

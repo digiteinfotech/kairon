@@ -277,7 +277,7 @@ roles:
         deleteBot: false
       common:
         trainBot: false
-        testBot: false
+        testBot: true
       conversations:
         add: false
         update: false

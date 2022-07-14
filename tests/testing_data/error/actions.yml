@@ -26,4 +26,26 @@ http_action:
     value: testValue1
   response:
     value: json
+- action_name: action_empty_set_slots
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: testParam1
+    parameter_type: value
+    value: testValue1
+  - key: testParam2
+    parameter_type: slot
+    value: testValue1
+  response:
+    value: json
+  set_slots:
 
+- action_name: action_empty_response
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: testParam1
+    parameter_type: value
+    value: testValue1
+  - key: testParam2
+    parameter_type: slot
+    value: testValue1
+  response:

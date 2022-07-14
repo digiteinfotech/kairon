@@ -24,7 +24,7 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
     CacheControl, Secure, PermissionsPolicy
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.history.router import metrics, conversations, trends

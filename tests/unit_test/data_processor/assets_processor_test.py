@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from fastapi import UploadFile
 from mongoengine import connect, DoesNotExist
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.data_objects import BotAssets

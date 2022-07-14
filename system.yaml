@@ -67,6 +67,7 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
+  request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
 
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}

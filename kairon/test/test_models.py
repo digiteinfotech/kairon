@@ -27,7 +27,7 @@ class ModelTester:
 
         Returns: dictionary with evaluation results
         """
-        from kairon import Utility
+        from kairon.shared.utils import Utility
         from rasa.utils.common import run_in_loop
 
         bot_home = os.path.join('testing_data', bot)
@@ -133,7 +133,7 @@ class ModelTester:
             evaluate_response_selections,
             get_entity_extractors,
         )
-        from kairon import Utility
+        from kairon.shared.utils import Utility
 
         unpacked_model = get_model(model_path)
         nlu_model = os.path.join(unpacked_model, "nlu")
@@ -301,7 +301,7 @@ class TestDataGenerator:
 
     @staticmethod
     def create(bot: str, use_test_stories: bool = False):
-        from kairon import Utility
+        from kairon.shared.utils import Utility
         from itertools import chain
         from rasa.shared.nlu.training_data.training_data import TrainingData
 
@@ -333,7 +333,7 @@ class TestDataGenerator:
     def augment_sentences(input_text: list):
         from kairon.shared.augmentation.utils import AugmentationUtils
 
-        from kairon import Utility
+        from kairon.shared.utils import Utility
 
         final_augmented_text = []
         all_input_text = []
@@ -408,7 +408,7 @@ class TestDataGenerator:
         from rasa.shared.nlu.training_data.message import Message
         from kairon.shared.data.constant import TRAINING_EXAMPLE
         from rasa.shared.nlu.constants import TEXT
-        from kairon import Utility
+        from kairon.shared.utils import Utility
 
         if training_examples:
             test_data_threshold = Utility.environment['model']['test'].get('dataset_threshold') or 10

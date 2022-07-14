@@ -4,7 +4,7 @@ from typing import Dict, Text
 from loguru import logger
 from mongoengine import DoesNotExist
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.live_agent.data_objects import LiveAgents, LiveAgentMetadata
 

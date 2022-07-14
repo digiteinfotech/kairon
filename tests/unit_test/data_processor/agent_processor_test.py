@@ -3,7 +3,7 @@ import shutil
 
 import pytest
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
