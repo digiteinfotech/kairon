@@ -4230,7 +4230,7 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
-
+    
     request_body = {
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action_6",
