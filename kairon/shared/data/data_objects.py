@@ -678,3 +678,20 @@ class BotAssets(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow())
     status = BooleanField(default=True)
+
+
+class KeyVault(Document):
+    key = StringField(required=True)
+    value = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow())
+
+    @classmethod
+    def pre_save_post_validation(cls, sender, document, **kwargs):
+        if not Utility.check_empty_string(document.value):
+            document.value = Utility.encrypt_message(document.value)
+
+
+from mongoengine import signals
+signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
