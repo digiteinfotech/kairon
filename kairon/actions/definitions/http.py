@@ -63,9 +63,9 @@ class ActionHTTP(ActionsBase):
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
             tracker_data = ActionUtility.build_context(tracker)
-            headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'))
+            headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
             logger.info("headers: " + str(header_log))
-            body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'])
+            body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'], self.bot)
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)

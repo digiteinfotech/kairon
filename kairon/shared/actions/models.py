@@ -19,6 +19,7 @@ class ActionParameterType(str, Enum):
     user_message = "user_message"
     intent = "intent"
     chat_log = "chat_log"
+    key_vault = "key_vault"
 
 
 class EvaluationType(str, Enum):

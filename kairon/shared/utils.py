@@ -47,6 +47,7 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
+from .constants import MaskingStrategy
 from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
@@ -1473,8 +1474,7 @@ class Utility:
     def decrypt_action_parameter(param: Dict):
         if param['encrypt'] is True and param['parameter_type'] == ActionParameterType.value.value:
             if not Utility.check_empty_string(param['value']):
-                value = Utility.decrypt_message(param['value'])
-                param['value'] = value[:-3] + "***"
+                param['value'] = Utility.decrypt_message(param['value'])
 
     @staticmethod
     def create_mongo_client(url: Text):
@@ -1482,3 +1482,23 @@ class Utility:
         logger.debug(f"Loading host:{config.get('host')}, db:{config.get('db')}")
         client = MongoClient(host=url)
         return client
+
+    @staticmethod
+    def get_masked_value(value: Text):
+        unmasked_char_cnt = Utility.environment['security']['unmasked_char_count']
+        unmasked_char_strategy = Utility.environment['security']['unmasked_char_strategy']
+        if Utility.check_empty_string(value):
+            masked_value = value
+        elif len(value) <= 4:
+            masked_value = '*' * len(value)
+        else:
+            str_len = len(value)
+            mask = '*' * (str_len - unmasked_char_cnt)
+            if unmasked_char_strategy == MaskingStrategy.from_left.value:
+                masked_value = f"{value[:unmasked_char_cnt]}{mask}"
+            elif unmasked_char_strategy == MaskingStrategy.from_right.value:
+                masked_value = f"{mask}{value[(str_len - unmasked_char_cnt):]}"
+            else:
+                masked_value = '*' * str_len
+
+        return masked_value

@@ -69,7 +69,7 @@ class ActionUtility:
         return http_response_as_json
 
     @staticmethod
-    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody]):
+    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
         """
         Prepares request body:
         1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
@@ -78,6 +78,7 @@ class ActionUtility:
         4. Adds value of parameter as user_message.
         @param tracker_data: Tracker data for the Http Action
         @param http_action_config_params: User defined request body parameters <key, value, parameter_type>
+        @param bot: bot id
         :return: Request body for the HTTP request
         """
         request_body = {}
@@ -98,6 +99,8 @@ class ActionUtility:
                     'session_started': tracker_data['session_started'],
                     'conversation': tracker_data.get(ActionParameterType.chat_log.value)
                 }
+            elif param['parameter_type'] == ActionParameterType.key_vault.value:
+                value = ActionUtility.get_secret_from_key_vault(param['value'], bot)
             else:
                 value = param['value']
             log_value = value
@@ -106,7 +109,7 @@ class ActionUtility:
                     value = Utility.decrypt_message(value)
 
                 if not ActionUtility.is_empty(value):
-                    log_value = value[:-4] + '****'
+                    log_value = Utility.get_masked_value(value)
 
             request_body[param['key']] = value
             request_body_log[param['key']] = log_value
@@ -132,6 +135,12 @@ class ActionUtility:
             ActionParameterType.chat_log.value: msg_trail,
             "session_started": iat
         }
+
+    @staticmethod
+    def get_secret_from_key_vault(key: Text, bot: Text):
+        from kairon.shared.data.processor import MongoProcessor
+
+        return MongoProcessor().get_secret(key, bot, False)
 
     @staticmethod
     def prepare_message_trail(tracker_events):
@@ -510,10 +519,10 @@ class ActionUtility:
         return response['data']
 
     @staticmethod
-    def prepare_hubspot_form_request(tracker, fields: list):
+    def prepare_hubspot_form_request(tracker, fields: list, bot: Text):
         request = []
         for field in fields:
-            parameter_value, _ = ActionUtility.prepare_request(tracker, [field])
+            parameter_value, _ = ActionUtility.prepare_request(tracker, [field], bot)
             request.append({"name": field['key'], "value": parameter_value[field['key']]})
         return {"fields": request}
 
