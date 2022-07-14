@@ -58,7 +58,7 @@ class ActionHubspotForms(ActionsBase):
         try:
             http_url = f"https://api.hsforms.com/submissions/v3/integration/submit/{portal_id}/{form_guid}"
             tracker_data = ActionUtility.build_context(tracker)
-            request_body = ActionUtility.prepare_hubspot_form_request(tracker_data, action_config.get("fields"))
+            request_body = ActionUtility.prepare_hubspot_form_request(tracker_data, action_config.get("fields"), self.bot)
             http_response = ActionUtility.execute_http_request(
                 http_url=http_url, request_method="POST", request_body=request_body
             )
