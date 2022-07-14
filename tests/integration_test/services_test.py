@@ -4171,14 +4171,13 @@ def test_update_http_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
-    assert actual['data']["params_list"] == [
-        {"key": "testParam1", "parameter_type": "value",  "value": "testValue1", "encrypt": True},
-        {"key": "testParam2", "parameter_type": "slot", "value": "testValue1", "encrypt": True}]
+    assert actual['data']["params_list"] == [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': True}, {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': True}]
     assert actual['data']["headers"] == [{'key': 'Authorization', 'value': 'bearer token', 'parameter_type': 'value', 'encrypt': True}]
     assert actual["success"]
 
