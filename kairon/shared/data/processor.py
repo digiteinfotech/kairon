@@ -83,6 +83,8 @@ from .data_objects import (
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
+from ..actions.utils import ActionUtility
+
 
 class MongoProcessor:
     """
@@ -4201,16 +4203,7 @@ class MongoProcessor:
         :param raise_err: raise error if key does not exists
         :param bot: bot id
         """
-        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
-            if raise_err:
-                raise AppException(f"key '{key}' does not exists!")
-            else:
-                return None
-        key_value = KeyVault.objects(key=key, bot=bot).get().to_mongo().to_dict()
-        value = key_value.get("value")
-        if not Utility.check_empty_string(value):
-            value = Utility.decrypt_message(value)
-        return value
+        return ActionUtility.get_secret_from_key_vault(key, bot, raise_err)
 
     @staticmethod
     def update_secret(key: Text, value: Text, bot: Text, user: Text):
