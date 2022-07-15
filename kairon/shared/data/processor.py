@@ -78,10 +78,13 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
+
+from ..actions.utils import ActionUtility
+
 
 class MongoProcessor:
     """
@@ -4177,3 +4180,75 @@ class MongoProcessor:
                 event_type = 'intent'
             raise AppException(f'Cannot remove {event_type} "{event_name}" linked to flow "{stories_with_event[0].block_name}"')
         return stories_with_event
+
+    @staticmethod
+    def add_secret(key: Text, value: Text, bot: Text, user: Text):
+        """
+        Add secret key, value to vault.
+
+        :param key: key to be added
+        :param value: value to be added
+        :param bot: bot id
+        :param user: user id
+        """
+        Utility.is_exist(KeyVault, "Key exists!", key=key, bot=bot)
+        return KeyVault(key=key, value=value, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
+
+    @staticmethod
+    def get_secret(key: Text, bot: Text, raise_err: bool = True):
+        """
+        Get secret value for key from key vault.
+
+        :param key: key to be added
+        :param raise_err: raise error if key does not exists
+        :param bot: bot id
+        """
+        return ActionUtility.get_secret_from_key_vault(key, bot, raise_err)
+
+    @staticmethod
+    def update_secret(key: Text, value: Text, bot: Text, user: Text):
+        """
+        Update secret value for a key to key vault.
+
+        :param key: key to be added
+        :param value: value to be added
+        :param bot: bot id
+        :param user: user id
+        """
+        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
+            raise AppException(f"key '{key}' does not exists!")
+        key_value = KeyVault.objects(key=key, bot=bot).get()
+        key_value.value = value
+        key_value.user = user
+        key_value.save()
+        return key_value.to_mongo().to_dict()["_id"].__str__()
+
+    @staticmethod
+    def list_secrets(bot: Text):
+        """
+        List secret keys for bot.
+
+        :param bot: bot id
+        """
+        keys = list(KeyVault.objects(bot=bot).values_list('key'))
+        return keys
+
+    @staticmethod
+    def delete_secret(key: Text, bot: Text):
+        """
+        Delete secret for bot.
+
+        :param key: key to be added
+        :param bot: bot id
+        """
+        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
+            raise AppException(f"key '{key}' does not exists!")
+        actions = list(HttpActionConfig.objects(__raw__={
+            "bot": bot, "status": True,
+            "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
+                    {"params_list": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
+        }).values_list("action_name"))
+
+        if len(actions):
+            raise AppException(f"Key is attached to action: {actions}")
+        KeyVault.objects(key=key, bot=bot).delete()

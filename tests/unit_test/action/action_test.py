@@ -16,7 +16,7 @@ from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
-from kairon.shared.data.data_objects import Slots
+from kairon.shared.data.data_objects import Slots, KeyVault
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
@@ -481,7 +481,7 @@ class TestActions:
     def test_prepare_header_no_header(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
         tracker = {"sender_id": "sender1", "slot": slots}
-        actual = ActionUtility.prepare_request(tracker, None)
+        actual = ActionUtility.prepare_request(tracker, None, "test")
         assert actual == ({}, {})
 
     def test_prepare_request(self):
@@ -489,13 +489,15 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot")]
         tracker = {"sender_id": "sender1", "slot": slots}
-        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body
         assert actual_request_body['param1'] == 'value1'
         assert actual_request_body['param2'] == 'param2value'
         assert log == {'param1': 'value1', 'param2': 'param2value'}
 
     def test_prepare_request_encryption(self):
+        bot = "demo_bot"
+        KeyVault(key="ACCESS_KEY", value="234567890fdsf", bot=bot, user="test_user").save()
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
         http_action_config_params = [HttpActionRequestBody(key="param1", value=Utility.encrypt_message("value1"), encrypt=True),
                                      HttpActionRequestBody(key="param2", value="bot", parameter_type="slot", encrypt=True),
@@ -503,29 +505,33 @@ class TestActions:
                                      HttpActionRequestBody(key="param4", parameter_type="user_message", encrypt=True),
                                      HttpActionRequestBody(key="param5", parameter_type="intent", encrypt=True),
                                      HttpActionRequestBody(key="param6", parameter_type="chat_log", encrypt=True),
-                                     HttpActionRequestBody(key="param7", value="http_action_config", parameter_type="slot", encrypt=True)]
+                                     HttpActionRequestBody(key="param7", value="http_action_config", parameter_type="slot", encrypt=True),
+                                     HttpActionRequestBody(key="param8", parameter_type="key_vault", value="ACCESS_KEY", encrypt=True),]
         tracker = {"sender_id": "sender1", "slot": slots, "intent": "greet", "user_message": "hi",
                    "chat_log": [{'user': 'hi'}, {'bot': 'are you ok?'}, {'user': 'yes'}, {'bot': 'Great, carry on!'},
                                 {'user': 'hi'}], 'session_started': '2021-12-31 16:59:38'}
-        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params)
+        actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params, bot)
         assert actual_request_body == {'param1': 'value1', 'param2': 'demo_bot', 'param3': 'sender1', 'param4': 'hi',
                                        'param5': 'greet',
                                        'param6': {'sender_id': 'sender1', 'session_started': '2021-12-31 16:59:38',
                                                   'conversation': [{'user': 'hi'}, {'bot': 'are you ok?'},
                                                                    {'user': 'yes'}, {'bot': 'Great, carry on!'},
-                                                                   {'user': 'hi'}]}, 'param7': 'http_action_name'}
-        assert log == {'param1': 'va****', 'param2': 'demo****', 'param3': 'sen****', 'param4': '****',
-                       'param5': 'g****', 'param6': {'sender_id': 'sender1', 'session_started': '2021-12-31 16:59:38',
+                                                                   {'user': 'hi'}]},
+                                       'param7': 'http_action_name', 'param8': '234567890fdsf',
+                                       }
+        assert log == {'param1': '****e1', 'param2': '******ot', 'param3': '*****r1', 'param4': '**',
+                       'param5': '***et', 'param6': {'sender_id': 'sender1', 'session_started': '2021-12-31 16:59:38',
                                                      'conversation': [{'user': 'hi'}, {'bot': 'are you ok?'},
                                                                       {'user': 'yes'}, {'bot': 'Great, carry on!'},
-                                                                      {'user': 'hi'}]}, 'param7': 'http_action_****'}
+                                                                      {'user': 'hi'}]},
+                       'param7': '**************me', 'param8': '***********sf'}
 
     def test_prepare_request_empty_slot(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="param3", value="", parameter_type="slot")]
         tracker = {"sender_id": "sender1", "slot": slots}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
         assert not request_params['param3']
         assert log == {'param1': 'value1', 'param3': None}
@@ -536,7 +542,7 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="user_id", value="", parameter_type="sender_id")]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
         assert request_params['user_id'] == "kairon_user@digite.com"
         assert log == {'param1': 'value1', 'user_id': 'kairon_user@digite.com'}
@@ -547,7 +553,7 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="card_type", parameter_type="intent")]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart"}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
         assert request_params['card_type'] == "restart"
         assert log['param1'] == "value1"
@@ -636,7 +642,7 @@ class TestActions:
                                      HttpActionRequestBody(key="user_msg", value="", parameter_type="chat_log")]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart",
                    "chat_log": ActionUtility.prepare_message_trail(events)[1], 'session_started': '2021-12-31 16:59:38'}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
                                                                     'session_started': '2021-12-31 16:59:38',
                                                                     'conversation': [{'user': 'hi'},
@@ -656,14 +662,14 @@ class TestActions:
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
                                      HttpActionRequestBody(key="msg", parameter_type="user_message")]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search"}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params['param1'] == "value1"
         assert request_params['msg'] == "perform google search"
         assert log['param1'] == "value1"
         assert log['msg'] == "perform google search"
 
         tracker = {"sender_id": "kairon_user@digite.com", "slot": None}
-        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params['param1'] == "value1"
         assert not request_params['msg']
         assert log['param1'] == "value1"
@@ -673,7 +679,7 @@ class TestActions:
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         http_action_config_params: List[HttpActionRequestBody] = None
         tracker = {"sender_id": "sender1", "slot": slots}
-        actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params)
+        actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body == ({}, {})
 
     def test_is_empty(self):

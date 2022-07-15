@@ -34,6 +34,9 @@ class HttpActionRequestBody(EmbeddedDocument):
         if self.parameter_type == ActionParameterType.slot.value and not ActionUtility.is_empty(self.value):
             self.value = self.value.lower()
 
+        if self.parameter_type == ActionParameterType.key_vault.value:
+            self.encrypt = True
+
     def validate(self, clean=True):
         from .utils import ActionUtility
 
@@ -44,6 +47,8 @@ class HttpActionRequestBody(EmbeddedDocument):
             raise ValidationError("key in http action parameters cannot be empty")
         if self.parameter_type == ActionParameterType.slot.value and ActionUtility.is_empty(self.value):
             raise ValidationError("Provide name of the slot as value")
+        if self.parameter_type == ActionParameterType.key_vault.value and ActionUtility.is_empty(self.value):
+            raise ValidationError("Provide key from key vault as value")
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value

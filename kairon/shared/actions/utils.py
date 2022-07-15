@@ -14,8 +14,9 @@ from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
     EvaluationType
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
-from ..data.data_objects import Slots
+from ..data.data_objects import Slots, KeyVault
 from ..utils import Utility
+from ...exceptions import AppException
 
 
 class ActionUtility:
@@ -55,7 +56,7 @@ class ActionUtility:
             logger.debug("status " + str(response.status_code))
 
             if response.status_code not in [200, 202, 201, 204]:
-                raise ActionFailure(f"Got non-200 status code: {response.text}")
+                raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
         except Exception as e:
             logger.error(str(e))
             raise ActionFailure("Failed to execute the url: " + str(e))
@@ -69,7 +70,7 @@ class ActionUtility:
         return http_response_as_json
 
     @staticmethod
-    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody]):
+    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
         """
         Prepares request body:
         1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
@@ -78,6 +79,7 @@ class ActionUtility:
         4. Adds value of parameter as user_message.
         @param tracker_data: Tracker data for the Http Action
         @param http_action_config_params: User defined request body parameters <key, value, parameter_type>
+        @param bot: bot id
         :return: Request body for the HTTP request
         """
         request_body = {}
@@ -98,6 +100,8 @@ class ActionUtility:
                     'session_started': tracker_data['session_started'],
                     'conversation': tracker_data.get(ActionParameterType.chat_log.value)
                 }
+            elif param['parameter_type'] == ActionParameterType.key_vault.value:
+                value = ActionUtility.get_secret_from_key_vault(param['value'], bot, False)
             else:
                 value = param['value']
             log_value = value
@@ -106,7 +110,7 @@ class ActionUtility:
                     value = Utility.decrypt_message(value)
 
                 if not ActionUtility.is_empty(value):
-                    log_value = value[:-4] + '****'
+                    log_value = Utility.get_masked_value(value)
 
             request_body[param['key']] = value
             request_body_log[param['key']] = log_value
@@ -132,6 +136,26 @@ class ActionUtility:
             ActionParameterType.chat_log.value: msg_trail,
             "session_started": iat
         }
+
+    @staticmethod
+    def get_secret_from_key_vault(key: Text, bot: Text, raise_err: bool = True):
+        """
+        Get secret value for key from key vault.
+
+        :param key: key to be added
+        :param raise_err: raise error if key does not exists
+        :param bot: bot id
+        """
+        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
+            if raise_err:
+                raise AppException(f"key '{key}' does not exists!")
+            else:
+                return None
+        key_value = KeyVault.objects(key=key, bot=bot).get().to_mongo().to_dict()
+        value = key_value.get("value")
+        if not Utility.check_empty_string(value):
+            value = Utility.decrypt_message(value)
+        return value
 
     @staticmethod
     def prepare_message_trail(tracker_events):
@@ -510,10 +534,10 @@ class ActionUtility:
         return response['data']
 
     @staticmethod
-    def prepare_hubspot_form_request(tracker, fields: list):
+    def prepare_hubspot_form_request(tracker, fields: list, bot: Text):
         request = []
         for field in fields:
-            parameter_value, _ = ActionUtility.prepare_request(tracker, [field])
+            parameter_value, _ = ActionUtility.prepare_request(tracker, [field], bot)
             request.append({"name": field['key'], "value": parameter_value[field['key']]})
         return {"fields": request}
 

@@ -238,6 +238,12 @@ class HttpActionParameters(BaseModel):
         if values.get('parameter_type') == ActionParameterType.slot and Utility.check_empty_string(values.get('value')):
             raise ValueError("Provide name of the slot as value")
 
+        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(values.get('value')):
+            raise ValueError("Provide key from key vault as value")
+
+        if values.get('parameter_type') == ActionParameterType.key_vault:
+            values['encrypt'] = True
+
         return values
 
 
@@ -645,3 +651,24 @@ class IntegrationRequest(BaseModel):
     access_list: list = None
     role: ACCESS_ROLES = ACCESS_ROLES.CHAT.value
     status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value
+
+
+class KeyVaultRequest(BaseModel):
+    key: str
+    value: str
+
+    @validator("key")
+    def validate_key(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("key is required")
+        return v
+
+    @validator("value")
+    def validate_value(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("value is required")
+        return v

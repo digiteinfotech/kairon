@@ -68,6 +68,10 @@ roles:
         getMember: true
         deleteMember: true
         transferOwnership: true
+        addSecret: true
+        updateSecret: true
+        getSecret: true
+        deleteSecret: true
       chatHistory:
         viewHistory: true
         deleteHistory: true
@@ -149,6 +153,10 @@ roles:
         getMember: true
         deleteMember: true
         transferOwnership: false
+        addSecret: true
+        updateSecret: true
+        getSecret: true
+        deleteSecret: true
       chatHistory:
         viewHistory: true
         deleteHistory: true
@@ -230,6 +238,10 @@ roles:
         getMember: true
         deleteMember: false
         transferOwnership: false
+        addSecret: false
+        updateSecret: false
+        getSecret: false
+        deleteSecret: false
       chatHistory:
         viewHistory: true
         deleteHistory: false
@@ -311,6 +323,10 @@ roles:
         getMember: true
         deleteMember: false
         transferOwnership: false
+        addSecret: false
+        updateSecret: false
+        getSecret: false
+        deleteSecret: false
       chatHistory:
         viewHistory: true
         deleteHistory: false

@@ -2779,7 +2779,7 @@ def test_add_member(monkeypatch):
 
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/member",
-        json={"email": "INTEGRATION@demo.ai", "role": "tester"},
+        json={"email": "integration@demo.ai", "role": "tester"},
         headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
     ).json()
     assert response['message'] == 'An invitation has been sent to the user'
@@ -3503,6 +3503,245 @@ def test_add_non_integration_intent_and_delete_intent_by_integration_user():
     assert not actual['success']
 
 
+def test_list_keys_none():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/secrets/keys",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == []
+    assert actual['error_code'] == 0
+    assert Utility.check_empty_string(actual['message'])
+    assert actual['success']
+
+
+def test_add_secret():
+    request = {
+        "key": "AWS_KEY", "value": "123456789asdfghjk"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert not Utility.check_empty_string(actual['data']["key_id"])
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Secret added!"
+    assert actual['success']
+
+
+def test_add_secret_invalid_request():
+    request = {
+        "key": None, "value": "123456789asdfghjk"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert not actual['success']
+
+    request = {
+        "key": "AWS_KEY", "value": None
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert not actual['success']
+
+
+def test_add_secret_already_exists():
+    request = {
+        "key": "AWS_KEY", "value": "123456789asdfghjk"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Key exists!"
+    assert not actual['success']
+
+
+def test_get_secret_not_exists():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/secrets/keys/GOOGLE_KEY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert not actual['success']
+    assert actual['message'] == "key 'GOOGLE_KEY' does not exists!"
+
+
+def test_get_secret():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/secrets/keys/AWS_KEY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual['data'] == "123456789asdfghjk"
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+
+def test_update_secret():
+    request = {
+        "key": "AWS_KEY", "value": "123456789"
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/secrets/update",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert not Utility.check_empty_string(actual['data']['key_id'])
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Secret updated!"
+    assert actual['success']
+
+
+def test_add_secret_2():
+    request = {
+        "key": "GOOGLE_KEY", "value": "sdfghj45678"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert not Utility.check_empty_string(actual['data']['key_id'])
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Secret added!"
+    assert actual['success']
+
+
+def test_update_secret_invalid_request():
+    request = {
+        "key": "  ", "value": "123456789"
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/secrets/update",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert Utility.check_empty_string(actual['data'])
+    assert actual['error_code'] == 422
+    assert actual['message'] == [{'loc': ['body', 'key'], 'msg': 'key is required', 'type': 'value_error'}]
+    assert not actual['success']
+
+    request = {
+        "key": "AWS_KEY", "value": "  "
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/secrets/update",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert Utility.check_empty_string(actual['data'])
+    assert actual['error_code'] == 422
+    assert actual['message'] == [{'loc': ['body', 'value'], 'msg': 'value is required', 'type': 'value_error'}]
+    assert not actual['success']
+
+
+def test_update_secret_not_exists():
+    request = {
+        "key": "GCP_KEY", "value": "123456789"
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/secrets/update",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    print(actual)
+    assert Utility.check_empty_string(actual['data'])
+    assert actual['error_code'] == 422
+    assert actual['message'] == "key 'GCP_KEY' does not exists!"
+    assert not actual['success']
+
+
+def test_list_keys():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/secrets/keys",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == ['AWS_KEY', 'GOOGLE_KEY']
+    assert actual['error_code'] == 0
+    assert Utility.check_empty_string(actual['message'])
+    assert actual['success']
+
+
+def test_delete_secret():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/secrets/AWS_KEY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Secret deleted!"
+    assert actual['success']
+
+
+def test_delete_secret_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/secrets/AWS_KEY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "key 'AWS_KEY' does not exists!"
+    assert not actual['success']
+
+
+def test_add_secret_with_deleted_key():
+    request = {
+        "key": "AWS_KEY", "value": "123456789asdfghjk"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/secrets/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request
+    )
+    actual = response.json()
+    assert not Utility.check_empty_string(actual['data']['key_id'])
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Secret added!"
+    assert actual['success']
+
+
+def test_get_secret_2():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/secrets/keys/AWS_KEY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual['data'] == "123456789asdfghjk"
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+
 def test_add_http_action_malformed_url():
     request_body = {
         "auth_token": "",
@@ -3657,6 +3896,10 @@ def test_add_http_action_with_sender_id_parameter_type():
             "key": "testParam6",
             "parameter_type": "value", "encrypt": True,
             'value': "12345"
+        }, {
+            "key": "testParam7",
+            "parameter_type": "key_vault", "encrypt": False,
+            'value': "ACCESS_KEY"
         }],
         "headers": [{
             "key": "testParam1",
@@ -3679,6 +3922,10 @@ def test_add_http_action_with_sender_id_parameter_type():
             "key": "testParam6",
             "parameter_type": "value",
             'value': "12345"
+        }, {
+            "key": "testParam7",
+            "parameter_type": "key_vault", "encrypt": False,
+            'value': "SECRET_KEY"
         }]
     }
 
@@ -3712,14 +3959,17 @@ def test_get_http_action():
         {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message', 'encrypt': True},
         {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log', 'encrypt': True},
         {'key': 'testParam5', 'value': '', 'parameter_type': 'intent', 'encrypt': True},
-        {'key': 'testParam6', 'value': '12***', 'parameter_type': 'value', 'encrypt': True}]
+        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value', 'encrypt': True},
+        {'key': 'testParam7', 'value': 'ACCESS_KEY', 'parameter_type': 'key_vault', 'encrypt': True}
+    ]
     assert actual["data"]['headers'] == [
         {'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'sender_id', 'encrypt': False},
         {'key': 'testParam2', 'value': 'testvalue2', 'parameter_type': 'slot', 'encrypt': False},
         {'key': 'testParam3', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
         {'key': 'testParam4', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
         {'key': 'testParam5', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value', 'encrypt': False}
+        {'key': 'testParam6', 'value': '12345', 'parameter_type': 'value', 'encrypt': False},
+        {'key': 'testParam7', 'value': 'SECRET_KEY', 'parameter_type': 'key_vault', 'encrypt': True}
     ]
     assert not actual["message"]
     assert actual["success"]
@@ -3921,15 +4171,14 @@ def test_update_http_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
-    assert actual['data']["params_list"] == [
-        {"key": "testParam1", "parameter_type": "value",  "value": "testVal***", "encrypt": True},
-        {"key": "testParam2", "parameter_type": "slot", "value": "testvalue1", "encrypt": True}]
-    assert actual['data']["headers"] == [{'key': 'Authorization', 'value': 'bearer to***', 'parameter_type': 'value', 'encrypt': True}]
+    assert actual['data']["params_list"] == [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': True}, {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': True}]
+    assert actual['data']["headers"] == [{'key': 'Authorization', 'value': 'bearer token', 'parameter_type': 'value', 'encrypt': True}]
     assert actual["success"]
 
 
@@ -4007,9 +4256,9 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
-            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault']}},
                                  {'loc': ['body', 'set_slots', 0, 'name'], 'msg': 'slot name is required',
                                   'type': 'value_error'}]
     assert not actual["success"]
@@ -4040,9 +4289,9 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
-            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault']}},
                                  {'loc': ['body', 'set_slots', 0, 'value'],
                                   'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
     assert not actual["success"]
@@ -4075,9 +4324,9 @@ def test_update_http_action_wrong_parameter():
     assert actual["message"] == [
         {'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'},
         {'loc': ['body', 'params_list', 0, 'parameter_type'],
-         'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+         'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
          'type': 'type_error.enum',
-         'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}},
+         'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault']}},
         {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot',
          'type': 'value_error'}]
     assert not actual["success"]
@@ -7941,9 +8190,9 @@ def test_add_hubspot_forms_action_invalid_param_type():
     assert actual["error_code"] == 422
     print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log'",
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
-            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log']}}]
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault']}}]
 
 
 def test_add_hubspot_forms_exists():
