@@ -55,11 +55,18 @@ class User(Document):
             raise ValidationError("Please enter valid email address")
 
 
+class BotMetaData(EmbeddedDocument):
+    source_language = StringField(default=None)
+    language = StringField(default="en")
+    source_bot_id = StringField(default=None)
+
+
 @push_notification.apply
 class Bot(Document):
     name = StringField(required=True)
     account = LongField(required=True)
     user = StringField(required=True)
+    metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 

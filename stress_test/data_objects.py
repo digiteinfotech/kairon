@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from mongoengine import Document, StringField, LongField, DateTimeField, BooleanField, SequenceField
+from mongoengine import Document, StringField, LongField, DateTimeField, BooleanField, SequenceField, EmbeddedDocument, EmbeddedDocumentField
 
 
 class User(Document):
@@ -17,10 +17,17 @@ class User(Document):
     status = BooleanField(default=True)
 
 
+class BotMetaData(EmbeddedDocument):
+    source_language = StringField(default=None)
+    language = StringField(default="en")
+    source_bot_id = StringField(default=None)
+
+
 class Bot(Document):
     name = StringField(required=True)
     account = LongField(required=True)
     user = StringField(required=True)
+    metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 

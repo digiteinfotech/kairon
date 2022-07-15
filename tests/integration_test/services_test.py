@@ -36,6 +36,7 @@ from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
+from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
 
@@ -9655,6 +9656,7 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
 
+
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -9669,6 +9671,7 @@ def test_save_client_config_invalid_domain_format():
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
 
+
 def get_client_config_valid_domain():
     response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -9677,6 +9680,341 @@ def get_client_config_valid_domain():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"]["whitelist"] == ["kairon.digite.com", "kairon-api.digite.com"]
+
+def test_multilingual_translate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["message"] == "Bot translation in progress! Check logs."
+    assert response["error_code"] == 0
+
+
+def test_multilingual_translate_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_no_destination_lang():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "d_lang"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": " ", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "d_lang"
+            ],
+            "msg": "d_lang cannot be empty",
+            "type": "value_error"
+        }
+    ]
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+@responses.activate
+def test_multilingual_translate_using_event_with_actions_and_responses(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/translate",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                [{'name': 'SOURCE_BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
+                 {'name': 'D_LANG', 'value': 'es'}, {'name': 'TRANSLATE_RESPONSES', 'value': '--translate-responses'},
+                 {'name': 'TRANSLATE_ACTIONS', 'value': '--translate-actions'}])],
+    )
+
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', "http://localhost/translate")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": True, "translate_actions": True},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["message"] == "Bot translation in progress! Check logs."
+
+
+@responses.activate
+def test_multilingual_translate_using_event_without_action_and_responses(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/translate",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                [{'name': 'SOURCE_BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
+                 {'name': 'D_LANG', 'value': 'es'}, {'name': 'TRANSLATE_RESPONSES', 'value': ''},
+                 {'name': 'TRANSLATE_ACTIONS', 'value': ''}])],
+    )
+
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', "http://localhost/translate")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["message"] == "Bot translation in progress! Check logs."
+
+
+def test_multilingual_translate_event(monkeypatch):
+    event_url = 'http://event.url'
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', event_url)
+    responses.add("POST",
+                  event_url,
+                  json={"message": "Event triggered successfully!"},
+                  status=200)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 0
+    assert response['message'] == 'Bot translation in progress! Check logs.'
+    assert response["success"]
+
+
+def test_multilingual_translate_in_progress():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
+
+
+def test_multilingual_translate_logs_empty():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == []
+
+
+def test_multilingual_translate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["message"] == "Bot translation in progress! Check logs."
+    assert response["error_code"] == 0
+
+
+def test_multilingual_translate_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_no_destination_lang():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "d_lang"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+@responses.activate
+def test_multilingual_translate_using_event_with_actions_and_responses(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/translate",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                [{'name': 'SOURCE_BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
+                 {'name': 'D_LANG', 'value': 'es'}, {'name': 'TRANSLATE_RESPONSES', 'value': '--translate-responses'},
+                 {'name': 'TRANSLATE_ACTIONS', 'value': '--translate-actions'}])],
+    )
+
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', "http://localhost/translate")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": True, "translate_actions": True},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["message"] == "Bot translation in progress! Check logs."
+
+
+@responses.activate
+def test_multilingual_translate_using_event_without_action_and_responses(monkeypatch):
+    responses.add(
+        responses.POST,
+        "http://localhost/translate",
+        status=200,
+        match=[
+            responses.json_params_matcher(
+                [{'name': 'SOURCE_BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
+                 {'name': 'D_LANG', 'value': 'es'}, {'name': 'TRANSLATE_RESPONSES', 'value': ''},
+                 {'name': 'TRANSLATE_ACTIONS', 'value': ''}])],
+    )
+
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', "http://localhost/translate")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["message"] == "Bot translation in progress! Check logs."
+
+
+def test_multilingual_translate_event(monkeypatch):
+    event_url = 'http://event.url'
+    monkeypatch.setitem(Utility.environment['multilingual'], 'event_url', event_url)
+    responses.add("POST",
+                  event_url,
+                  json={"message": "Event triggered successfully!"},
+                  status=200)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 0
+    assert response['message'] == 'Bot translation in progress! Check logs.'
+    assert response["success"]
+
+
+def test_multilingual_translate_in_progress():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"d_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
+
+
+def test_multilingual_translate_logs():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 4
+    assert actual["data"][0]["event_status"] == EVENT_STATUS.TASKSPAWNED.value
+    assert actual["data"][0]["start_timestamp"]
+    assert actual["data"][0]["copy_type"]
+    assert actual["data"][0]["d_lang"]
+
+
+def test_multilingual_language_support(monkeypatch):
+
+    def _mock_supported_languages(*args, **kwargs):
+        return ['es', 'en', 'hi']
+
+    monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/multilingual/languages",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    ).json()
+
+    assert response['data'] == ['es', 'en', 'hi']
+    assert response['success']
+    assert response['error_code'] == 0
+
 
 def test_delete_account():
     response_log = client.post(
