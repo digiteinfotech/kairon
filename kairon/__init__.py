@@ -1,7 +1,5 @@
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
 from mongoengine import connect
-
 from kairon.shared.utils import Utility
 
 """
@@ -23,11 +21,18 @@ Usage:
     Conversations Deletion:
         kairon delete-conversation <botid> <userid> <month>
         kairon delete-conversation <botid> <userid>
+        
+    Bot Translation:
+        kairon multilingual <botid> <userid> <dlang>
+        kairon multilingual <botid> <userid> <dlang> --translate-responses
+        kairon multilingual <botid> <userid> <dlang> --translate-actions
+        kairon multilingual <botid> <userid> <dlang> --translate-responses --translate-actions
+
 """
 
 
 def create_argument_parser():
-    from kairon.cli import importer, training, testing, conversations_deletion
+    from kairon.cli import importer, training, testing, conversations_deletion, translator
 
     parser = ArgumentParser(
         prog="kairon",
@@ -41,6 +46,7 @@ def create_argument_parser():
     importer.add_subparser(subparsers, parents=parent_parsers)
     testing.add_subparser(subparsers, parents=parent_parsers)
     conversations_deletion.add_subparser(subparsers, parents=parent_parsers)
+    translator.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 
