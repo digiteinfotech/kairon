@@ -49,7 +49,7 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
 from .constants import EventClass
-from .data.constant import TOKEN_TYPE, EVENT_STATUS
+from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
 

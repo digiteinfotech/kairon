@@ -16,7 +16,7 @@ class BrokerBase:
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def declare_actors(self, functions: dict):
+    def declare_actors(self, actors: dict):
         raise NotImplementedError("Provider not implemented")
 
     def get_broker(self):

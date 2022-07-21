@@ -6,7 +6,7 @@ from kairon.shared.events.broker.factory import BrokerFactory
 
 """
 Script to create broker and declare actor.
-The intention here is to have multiple workers (each initialised using this script) 
+The intention here is to have multiple workers (each initialised using this script)
 allowing event execution in parallel.
 """
 

@@ -6,7 +6,7 @@ class EventsBase:
     """Base class to create events"""
 
     @abstractmethod
-    def validate(self, **kwargs):
+    def validate(self):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
