@@ -7,7 +7,10 @@ from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
 from kairon.cli.translator import translate_multilingual_bot
-from kairon.events.events import EventsTrigger
+from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.model_testing import ModelTestingEvent
+from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
@@ -92,7 +95,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(TrainingDataImporterEvent, "execute", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -102,7 +105,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(TrainingDataImporterEvent, "execute", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -112,7 +115,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(TrainingDataImporterEvent, "execute", mock_data_importer)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -122,7 +125,7 @@ class TestDataImporterCli:
         def mock_data_importer(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_data_importer", mock_data_importer)
+        monkeypatch.setattr(TrainingDataImporterEvent, "execute", mock_data_importer)
         cli()
 
 
@@ -141,7 +144,7 @@ class TestModelTestingCli:
         def mock_testing(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        monkeypatch.setattr(ModelTestingEvent, "execute", mock_testing)
         with pytest.raises(AttributeError) as e:
             cli()
         assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
@@ -152,7 +155,7 @@ class TestModelTestingCli:
         def mock_testing(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        monkeypatch.setattr(ModelTestingEvent, "execute", mock_testing)
         with pytest.raises(AttributeError) as e:
             cli()
         assert str(e).__contains__("'Namespace' object has no attribute 'user'")
@@ -163,7 +166,7 @@ class TestModelTestingCli:
         def mock_testing(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        monkeypatch.setattr(ModelTestingEvent, "execute", mock_testing)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -172,7 +175,7 @@ class TestModelTestingCli:
         def mock_testing(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_model_testing", mock_testing)
+        monkeypatch.setattr(ModelTestingEvent, "execute", mock_testing)
         cli()
 
 
@@ -204,7 +207,7 @@ class TestConversationsDeletionCli:
         def mock_history_delete(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_history_deletion", mock_history_delete)
+        monkeypatch.setattr(DeleteHistoryEvent, "execute", mock_history_delete)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
@@ -214,7 +217,7 @@ class TestConversationsDeletionCli:
         def mock_history_delete(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_history_deletion", mock_history_delete)
+        monkeypatch.setattr(DeleteHistoryEvent, "execute", mock_history_delete)
         cli()
 
 
@@ -242,30 +245,30 @@ class TestMultilingualTranslatorCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
-                                                dlang="es", translate_responses=True, translate_actions=True))
+                                                dest_lang="es", translate_responses=True, translate_actions=True))
     def test_multilingual_translate_all_arguments(self, monkeypatch):
         def mock_translator(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
+        monkeypatch.setattr(MultilingualEvent, "execute", mock_translator)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
-                                                dlang="es", translate_responses=False, translate_actions=False))
+                                                dest_lang="es", translate_responses=False, translate_actions=False))
     def test_multilingual_translate_responses_and_actions_false(self, monkeypatch):
         def mock_translator(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
+        monkeypatch.setattr(MultilingualEvent, "execute", mock_translator)
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=translate_multilingual_bot, bot="test_cli", user="testUser",
-                                                dlang="es", translate_responses="yes", translate_actions=False))
+                                                dest_lang="es", translate_responses="yes", translate_actions=False))
     def test_multilingual_translate_import_as_string_argument(self, monkeypatch):
         def mock_translator(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(EventsTrigger, "trigger_multilingual_translation", mock_translator)
+        monkeypatch.setattr(MultilingualEvent, "execute", mock_translator)
         cli()

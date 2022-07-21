@@ -1,6 +1,6 @@
 import pytest
 from kairon.exceptions import AppException
-from kairon.multilingual.processor import MultilingualProcessor
+from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.actions.data_objects import ZendeskAction, EmailActionConfig
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.account.processor import AccountProcessor
@@ -71,7 +71,7 @@ class TestMultilingualProcessor:
                 with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
                     mocked_new.side_effect = _mock_service_client
 
-                    multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                    multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
                     destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
                                                                                       base_bot_name=bot.name,
                                                                                       s_lang=s_lang, d_lang=d_lang,
@@ -167,7 +167,7 @@ class TestMultilingualProcessor:
             with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
                 mocked_new.side_effect = _mock_service_client
 
-                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
                 destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
                                                                                   base_bot_name=bot.name,
                                                                                   s_lang=s_lang, d_lang=d_lang,
@@ -282,7 +282,7 @@ class TestMultilingualProcessor:
                     with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
                         mocked_new.side_effect = _mock_service_client
 
-                        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                        multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
                         destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
                                                                                           base_bot_name=bot.name,
                                                                                           s_lang=s_lang, d_lang=d_lang,
@@ -378,7 +378,7 @@ class TestMultilingualProcessor:
             with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
                 mocked_new.side_effect = _mock_service_client
 
-                multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
                 destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
                                                                                   base_bot_name=bot.name,
                                                                                   s_lang=s_lang, d_lang=d_lang,
@@ -445,7 +445,7 @@ class TestMultilingualProcessor:
 
         monkeypatch.setattr(MongoProcessor, "load_nlu", _mock_raise_exception)
 
-        multilingual_translator = MultilingualProcessor(account=pytest.bot.account, user=pytest.bot.user)
+        multilingual_translator = MultilingualTranslator(account=pytest.bot.account, user=pytest.bot.user)
 
         start_bot_count = Bot.objects(status=True).count()
         with pytest.raises(AppException):
@@ -473,7 +473,7 @@ class TestMultilingualProcessor:
 
         monkeypatch.setattr(TranslationServiceClient, "translate_text", _mock_translate)
 
-        multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+        multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
 
         start_bot_count = Bot.objects(status=True).count()
         with pytest.raises(AppException):
@@ -531,7 +531,7 @@ class TestMultilingualProcessor:
                 with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
                     mocked_new.side_effect = _mock_service_client
 
-                    multilingual_translator = MultilingualProcessor(account=bot.account, user=bot.user)
+                    multilingual_translator = MultilingualTranslator(account=bot.account, user=bot.user)
                     destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id="test_bot",
                                                                                       base_bot_name=bot.name,
                                                                                       s_lang=s_lang, d_lang=d_lang,
@@ -550,7 +550,7 @@ class TestMultilingualProcessor:
 
         monkeypatch.setattr(Translator, "translate_text_bulk", _mock_translate)
 
-        multilingual_translator = MultilingualProcessor(account=pytest.bot.account, user=pytest.bot.user)
+        multilingual_translator = MultilingualTranslator(account=pytest.bot.account, user=pytest.bot.user)
         destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id=pytest.bot.id,
                                                                           base_bot_name=pytest.bot.name,
                                                                           s_lang=s_lang, d_lang=d_lang,
@@ -563,7 +563,7 @@ class TestMultilingualProcessor:
         existing_bot = AccountProcessor.add_bot(name="test_hi", account=1, user="test_user")
         s_lang = "en"
         d_lang = "hi"
-        multilingual_translator = MultilingualProcessor(account=pytest.bot.account, user=pytest.bot.user)
+        multilingual_translator = MultilingualTranslator(account=pytest.bot.account, user=pytest.bot.user)
         destination_bot = multilingual_translator.create_multilingual_bot(base_bot_id=pytest.bot.id,
                                                                           base_bot_name=pytest.bot.name,
                                                                           s_lang=s_lang, d_lang=d_lang,

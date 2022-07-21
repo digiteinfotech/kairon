@@ -1,5 +1,4 @@
 import os
-import uuid
 from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
@@ -7,6 +6,9 @@ from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.model_testing import ModelTestingEvent
+from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
@@ -30,7 +32,6 @@ from kairon.shared.data.data_objects import TrainingExamples
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.events.events import EventsTrigger
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
@@ -446,9 +447,9 @@ async def train(
     """
     Trains the chatbot
     """
-    DataUtility.validate_existing_data_train(bot=current_user.get_bot())
-    DataUtility.train_model(background_tasks, current_user.get_bot(), current_user.get_user(), current_user.email,
-                            'train')
+    event = ModelTrainingEvent(current_user.get_bot(), current_user.get_user())
+    event.validate()
+    background_tasks.add_task(event.enqueue)
     return {"message": "Model training started."}
 
 
@@ -505,7 +506,6 @@ async def deployment_history(
 
 @router.post("/upload", response_model=Response)
 async def upload_files(
-        background_tasks: BackgroundTasks,
         training_files: List[UploadFile] = File(...),
         import_data: bool = True,
         overwrite: bool = True,
@@ -514,11 +514,12 @@ async def upload_files(
     """
     Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and actions.yml files.
     """
-    is_event_data = await mongo_processor.validate_and_log(current_user.get_bot(), current_user.get_user(),
-                                                           training_files, overwrite)
+    event = TrainingDataImporterEvent(
+        current_user.get_bot(), current_user.get_user(), import_data=import_data, overwrite=overwrite
+    )
+    is_event_data = event.validate(training_files=training_files, is_data_uploaded=True)
     if is_event_data:
-        background_tasks.add_task(EventsTrigger.trigger_data_importer, current_user.get_bot(), current_user.get_user(),
-                                  import_data, overwrite)
+        event.enqueue()
     return {"message": "Upload in progress! Check logs."}
 
 
@@ -589,16 +590,14 @@ async def download_model(
 
 @router.post("/test", response_model=Response)
 async def test_model(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Run tests on a trained model.
     """
-    Utility.is_model_file_exists(current_user.get_bot())
-    ModelTestingLogProcessor.is_event_in_progress(current_user.get_bot())
-    ModelTestingLogProcessor.is_limit_exceeded(current_user.get_bot())
-    background_tasks.add_task(EventsTrigger.trigger_model_testing, current_user.get_bot(), current_user.get_user())
+    event = ModelTestingEvent(current_user.get_bot(), current_user.get_user())
+    event.validate()
+    event.enqueue()
     return {"message": "Testing in progress! Check logs."}
 
 
@@ -611,9 +610,8 @@ async def model_testing_logs(
     """
     List model testing logs.
     """
-    return Response(
-        data=ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    )
+    logs = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
+    return Response(data=logs)
 
 
 @router.get("/endpoint", response_model=Response)
@@ -917,19 +915,14 @@ async def get_data_importer_logs(
 
 @router.post("/validate", response_model=Response)
 async def validate_training_data(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Validates bot training data.
     """
-    DataImporterLogProcessor.is_limit_exceeded(current_user.get_bot())
-    DataImporterLogProcessor.is_event_in_progress(current_user.get_bot())
-    Utility.make_dirs(os.path.join("training_data", current_user.get_bot(), str(uuid.uuid4())))
-    DataImporterLogProcessor.add_log(current_user.get_bot(), current_user.get_user(), is_data_uploaded=False)
-    background_tasks.add_task(EventsTrigger.trigger_data_importer,
-                              current_user.get_bot(), current_user.get_user(),
-                              False, False)
+    event = TrainingDataImporterEvent(current_user.get_bot(), current_user.get_user())
+    event.validate()
+    event.enqueue()
     return {"message": "Event triggered! Check logs."}
 
 

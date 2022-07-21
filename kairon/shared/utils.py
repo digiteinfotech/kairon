@@ -48,7 +48,8 @@ from websockets import connect
 
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
-from .data.constant import TOKEN_TYPE
+from .constants import EventClass
+from .data.constant import TOKEN_TYPE, EVENT_STATUS
 from ..exceptions import AppException
 
 
@@ -334,15 +335,16 @@ class Utility:
             w.flush()
 
     @staticmethod
-    def delete_directory(path: Text):
+    def delete_directory(path: Text, ignore_errors: bool = False):
         """
         deletes directory with all files
 
         :param path: directory path
+        :param ignore_errors: ignore errors
         :return: None
         """
         logger.info(f"deleting data from path: {path}")
-        shutil.rmtree(path)
+        shutil.rmtree(path, ignore_errors)
 
     @staticmethod
     def load_file_in_memory(file: Text):
@@ -822,12 +824,9 @@ class Utility:
         return url
 
     @staticmethod
-    def build_event_request(env_var: dict):
+    def build_lambda_payload(env_var: dict):
         """Creates request body for lambda."""
-        event_request = []
-        for key in env_var.keys():
-            key_and_val = {'name': key, 'value': env_var[key]}
-            event_request.append(key_and_val)
+        event_request = [{"name": key.upper(), "value": value} for key, value in env_var.items()]
         return event_request
 
     @staticmethod
@@ -1378,10 +1377,10 @@ class Utility:
 
         if request_body is None:
             request_body = {}
-
         try:
+            logger.info(f"Event started: {http_url}")
             if request_method.lower() == 'get':
-                response = requests.get(http_url, headers=headers)
+                response = requests.get(http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout'))
             elif request_method.lower() in ['post', 'put', 'delete']:
                 response = requests.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
@@ -1406,6 +1405,30 @@ class Utility:
             response = response.json()
 
         return response
+
+    @staticmethod
+    def get_event_server_url():
+        """
+        Retrieves event server URL from system.yml
+        """
+        if not Utility.environment['events'].get('server_url'):
+            raise AppException("Event server url not found")
+
+        return Utility.environment['events']['server_url']
+
+    @staticmethod
+    def request_event_server(event_class: EventClass, payload: dict):
+        """
+        Trigger request to event server along with payload.
+        """
+        event_server_url = Utility.get_event_server_url()
+        logger.debug(payload)
+        resp = Utility.execute_http_request(
+            "POST", urljoin(event_server_url, f'/api/events/execute/{event_class}'),
+            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True, timeout=3
+        )
+        if not resp['success']:
+            raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
 
     @staticmethod
     def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):

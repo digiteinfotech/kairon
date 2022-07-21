@@ -1,11 +1,11 @@
+from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.models import TranslationRequest
 from kairon.shared.models import User
-from fastapi import APIRouter, BackgroundTasks, Security
+from fastapi import APIRouter, Security
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
-from kairon.events.events import EventsTrigger
 from kairon.shared.multilingual.utils.translator import Translator
 
 router = APIRouter()
@@ -23,22 +23,25 @@ async def get_multilingual_translation_logs(
 
 @router.post("/translate", response_model=Response)
 async def multilingual_translate_bot(
-        background_tasks: BackgroundTasks, request_data: TranslationRequest,
+        request_data: TranslationRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Translate source bot into destination language
     """
-    MultilingualLogProcessor.is_event_in_progress(current_user.get_bot())
-    MultilingualLogProcessor.is_limit_exceeded(current_user.get_bot())
-    background_tasks.add_task(EventsTrigger.trigger_multilingual_translation, current_user.get_bot(),
-                              current_user.get_user(), request_data.d_lang, request_data.translate_responses,
-                              request_data.translate_actions)
+    event = MultilingualEvent(
+        current_user.get_bot(), current_user.get_user(), dest_lang=request_data.dest_lang,
+        translate_responses=request_data.translate_responses, translate_actions=request_data.translate_actions
+    )
+    event.validate()
+    event.enqueue()
     return {"message": "Bot translation in progress! Check logs."}
 
 
 @router.get("/languages", response_model=Response)
-async def get_supported_languages(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_supported_languages(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get supported languages for translation
     """
