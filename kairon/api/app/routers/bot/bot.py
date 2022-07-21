@@ -505,7 +505,7 @@ async def deployment_history(
 
 
 @router.post("/upload", response_model=Response)
-async def upload_files(
+def upload_files(
         training_files: List[UploadFile] = File(...),
         import_data: bool = True,
         overwrite: bool = True,

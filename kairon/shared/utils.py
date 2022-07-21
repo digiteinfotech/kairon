@@ -49,7 +49,7 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
 from .constants import EventClass
-from .data.constant import TOKEN_TYPE, EVENT_STATUS
+from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
 
@@ -798,32 +798,6 @@ class Utility:
         return msg
 
     @staticmethod
-    def get_event_url(event_type: str, raise_exc: bool = False):
-        url = None
-        if "DATA_IMPORTER" == event_type:
-            if Utility.environment.get('model') and Utility.environment['model'].get('data_importer') and \
-                    Utility.environment['model']['data_importer'].get('event_url'):
-                url = Utility.environment['model']['data_importer'].get('event_url')
-        elif "TRAINING" == event_type:
-            if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
-                url = Utility.environment['model']['train'].get('event_url')
-        elif "TESTING" == event_type:
-            if Utility.environment.get('model') and Utility.environment['model']['test'].get('event_url'):
-                url = Utility.environment['model']['test'].get('event_url')
-        elif "HISTORY_DELETION" == event_type:
-            if Utility.environment.get('history_server') and Utility.environment['history_server'].get('deletion') and \
-                    Utility.environment['history_server']['deletion'].get('event_url'):
-                url = Utility.environment['history_server']['deletion'].get('event_url')
-        elif "BOT_REPLICATION" == event_type:
-            if Utility.environment.get('multilingual') and Utility.environment['multilingual'].get('event_url'):
-                url = Utility.environment['multilingual'].get('event_url')
-        else:
-            raise AppException("Invalid event type received")
-        if Utility.check_empty_string(url) and raise_exc:
-            raise AppException("Could not find an event url")
-        return url
-
-    @staticmethod
     def build_lambda_payload(env_var: dict):
         """Creates request body for lambda."""
         event_request = [{"name": key.upper(), "value": value} for key, value in env_var.items()]
@@ -1024,14 +998,6 @@ class Utility:
             actions_as_str = yaml.dump(actions).encode()
             Utility.write_to_file(actions_path, actions_as_str)
         return temp_path
-
-    @staticmethod
-    def train_model_event(bot: str, user: str, token: str = None):
-        event_url = Utility.environment['model']['train']['event_url']
-        logger.info("model training event started")
-        response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                 json={'bot': bot, 'user': user, 'token': token})
-        logger.info("model training event completed" + response.content.decode('utf8'))
 
     @staticmethod
     def create_zip_file(
@@ -1411,7 +1377,7 @@ class Utility:
         """
         Retrieves event server URL from system.yml
         """
-        if not Utility.environment['events'].get('server_url'):
+        if Utility.check_empty_string(Utility.environment['events'].get('server_url')):
             raise AppException("Event server url not found")
 
         return Utility.environment['events']['server_url']

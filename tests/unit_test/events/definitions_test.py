@@ -7,6 +7,7 @@ import pytest
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from mongomock.mongo_client import MongoClient
 
 from kairon import Utility
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
@@ -15,6 +16,7 @@ from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
+from kairon.history.processor import HistoryProcessor
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
@@ -391,6 +393,28 @@ class TestEventDefinitions:
         assert len(logs) == 1
         assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
 
+    def test_delete_history_execute(self, monkeypatch):
+        bot = 'test_definitions'
+        user = 'test_user'
+
+        def db_client(*args, **kwargs):
+            client = MongoClient("mongodb://localhost/conversation")
+            db = client.get_database("conversation")
+            conversations = db.get_collection(bot)
+            json_data = json.load(
+                open("tests/testing_data/history/conversations_history.json")
+            )
+            history = json_data[0]['events']
+            conversations.insert_many(history)
+            return client, 'Loading host:mongodb://test_kairon:27016, db:conversation, collection:conversations'
+
+        monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
+
+        DeleteHistoryEvent(bot, user).execute()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['status'] == EVENT_STATUS.COMPLETED.value
+
     @responses.activate
     def test_delete_history_enqueue_event_server_failure(self):
         bot = 'test_definitions'
@@ -409,7 +433,7 @@ class TestEventDefinitions:
         assert body['month']
         assert body['sender_id'] is None
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        assert len(logs) == 1
 
     def test_delete_history_enqueue_connection_failure(self):
         bot = 'test_definitions'
@@ -417,12 +441,12 @@ class TestEventDefinitions:
 
         DeleteHistoryEvent(bot, user).validate()
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        assert len(logs) == 1
 
         with pytest.raises(AppException, match='Failed to execute the url:*'):
             DeleteHistoryEvent(bot, user, month=2).enqueue()
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        assert len(logs) == 1
 
     def test_trigger_multilingual_execute_presteps(self):
         bot_name = 'test_events_bot'
@@ -440,7 +464,6 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_trigger_multilingual_translation_enqueue(self):
-        bot = 'test_events_bot'
         user = 'test_user'
         d_lang = "es"
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")

@@ -85,3 +85,21 @@ class TestDramatiqWorker:
                 worker.join()
                 assert len(mongo_broker.get_broker().queues['kairon_events'].queue) == 0
                 worker.stop()
+
+    @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
+    @patch('kairon.shared.events.broker.mongo.MongoClient', autospec=True)
+    def test_broker_init(self, mock_mongo, mock_db):
+        from dramatiq.brokers.stub import StubBroker
+
+        broker = StubBroker()
+        with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
+            mock_broker.return_value = broker
+
+            from kairon.events.broker import broker
+            from dramatiq import Actor
+
+            assert list(broker.get_broker().actors.keys()) == ['execute_task']
+            assert isinstance(broker.get_broker().actors['execute_task'], Actor)
+            actor_function = broker.get_broker().actors['execute_task']
+            assert actor_function.actor_name == 'execute_task'
+            assert actor_function.queue_name == 'kairon_events'
