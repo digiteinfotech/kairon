@@ -16,7 +16,7 @@ class DataImporterLogProcessor:
     """
 
     @staticmethod
-    def add_log(bot: str, user: str, is_data_uploaded: bool = True, files_received: list = None,
+    def add_log(bot: str, user: str, is_data_uploaded: bool = False, files_received: list = None,
                 exception: str = None, status: str = None, event_status: str = EVENT_STATUS.INITIATED.value):
         """
         Adds/updated log for data importer event.
@@ -31,7 +31,7 @@ class DataImporterLogProcessor:
         @return:
         """
         try:
-            doc = ValidationLogs.objects(bot=bot, user=user).filter(
+            doc = ValidationLogs.objects(bot=bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -65,7 +65,7 @@ class DataImporterLogProcessor:
         @return:
         """
         try:
-            doc = ValidationLogs.objects(bot=bot, user=user).filter(
+            doc = ValidationLogs.objects(bot=bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -165,3 +165,12 @@ class DataImporterLogProcessor:
         files_received = next(DataImporterLogProcessor.get_logs(bot)).get("files_received")
         files_received = set(files_received) if files_received else set()
         return files_received
+
+    @staticmethod
+    def delete_enqueued_event_log(bot: str):
+        """
+        Deletes latest log if it is present in enqueued state.
+        """
+        latest_log = ValidationLogs.objects(bot=bot).order_by('-id').first()
+        if latest_log and latest_log.event_status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()

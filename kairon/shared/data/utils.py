@@ -7,7 +7,6 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import File
-from fastapi.background import BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from mongoengine.errors import ValidationError
@@ -284,33 +283,6 @@ class DataUtility:
             logger.debug(f"Could not load interpreter from '{model_path}'.")
             _interpreter = None
         return _interpreter
-
-    @staticmethod
-    def train_model(background_tasks: BackgroundTasks, bot: Text, user: Text, email: Text, process_type: Text):
-        """
-        train model common code when uploading files or training a model
-        :param background_tasks: fast api background task
-        :param bot: bot id
-        :param user: user id
-        :param email: user email for generating token for reload
-        :param process_type: either upload or train
-        """
-        from ...shared.data.model_processor import ModelProcessor
-        from ...shared.auth import Authentication
-        from ...shared.data.constant import MODEL_TRAINING_STATUS
-        from ...train import start_training
-        exception = process_type != 'upload'
-        ModelProcessor.is_training_inprogress(bot, raise_exception=exception)
-        ModelProcessor.is_daily_training_limit_exceeded(bot, raise_exception=exception)
-        ModelProcessor.set_training_status(
-            bot=bot, user=user, status=MODEL_TRAINING_STATUS.INPROGRESS.value,
-        )
-        token = Authentication.generate_integration_token(
-            bot, email, ACCESS_ROLES.TESTER.value, expiry=180, token_type=TOKEN_TYPE.DYNAMIC.value
-        )
-        background_tasks.add_task(
-            start_training, bot, user, token
-        )
 
     @staticmethod
     def validate_flow_events(events, event_type, name):

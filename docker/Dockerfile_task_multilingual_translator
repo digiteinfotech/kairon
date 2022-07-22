@@ -38,8 +38,8 @@ COPY system.yaml ${TRANSLATOR_HOME}/
 
 ENV SOURCE_BOT default
 ENV USER default
-ENV D_LANG default
+ENV DEST_LANG default
 ENV TRANSLATE_RESPONSES default
 ENV TRANSLATE_ACTIONS default
 
-CMD ["sh","-c","python -m kairon multilingual ${SOURCE_BOT} ${USER} ${D_LANG} ${TRANSLATE_RESPONSES} ${TRANSLATE_ACTIONS}"]
+CMD ["sh","-c","python -m kairon multilingual ${SOURCE_BOT} ${USER} ${DEST_LANG} ${TRANSLATE_RESPONSES} ${TRANSLATE_ACTIONS}"]

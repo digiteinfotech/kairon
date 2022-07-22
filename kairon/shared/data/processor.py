@@ -3097,8 +3097,6 @@ class MongoProcessor:
             yield slot
 
     async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
-        DataImporterLogProcessor.is_limit_exceeded(bot)
-        DataImporterLogProcessor.is_event_in_progress(bot)
         files_received, is_event_data, non_event_validation_summary = await self.validate_and_prepare_data(bot,
                                                                                                            user,
                                                                                                            training_files,
