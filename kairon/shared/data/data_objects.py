@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS, SLOT_MAPPING_TYPE
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -590,7 +590,7 @@ class Endpoints(Document):
 class ModelTraining(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    status = StringField(default=MODEL_TRAINING_STATUS.INPROGRESS.value)
+    status = StringField(default=EVENT_STATUS.INITIATED.value)
     start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     model_path = StringField(default=None)

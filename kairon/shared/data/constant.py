@@ -73,12 +73,6 @@ class STORY_EVENT(str, Enum):
     CONFIDENCE = "confidence"
 
 
-class MODEL_TRAINING_STATUS(str, Enum):
-    INPROGRESS = "Inprogress"
-    DONE = "Done"
-    FAIL = "Fail"
-
-
 class UTTERANCE_TYPE(str, Enum):
     BOT = "bot"
     HTTP = "http"
@@ -90,6 +84,7 @@ class CUSTOM_ACTIONS(str, Enum):
 
 
 class EVENT_STATUS(str, Enum):
+    ENQUEUED = "Enqueued"
     INITIATED = "Initiated"
     TASKSPAWNED = "Task Spawned"
     INPROGRESS = "In progress"
@@ -99,6 +94,7 @@ class EVENT_STATUS(str, Enum):
     SKIP_IMPORT = "Skipping importing data to kairon"
     TRIGGER_TRAINING = "Triggering model training"
     COMPLETED = "Completed"
+    DONE = "Done"
     FAIL = "Fail"
 
 

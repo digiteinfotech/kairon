@@ -1,11 +1,10 @@
-import asyncio
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from typing import List
 
 from loguru import logger
 from rasa.cli import SubParsersAction
 
-from kairon.events.events import EventsTrigger
+from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 
 
 def validate_and_import(args):
@@ -13,7 +12,7 @@ def validate_and_import(args):
     logger.info("user: {}", args.user)
     logger.info("import_data: {}", args.import_data)
     logger.info("overwrite: {}", args.overwrite)
-    asyncio.run(EventsTrigger.trigger_data_importer(args.bot, args.user, args.import_data, args.overwrite))
+    TrainingDataImporterEvent(args.bot, args.user, import_data=args.import_data, overwrite=args.overwrite).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):

@@ -414,7 +414,7 @@ class TestUtility:
 
     def test_build_event_request(self):
         request = {'BOT': 'mood_bot', "USER": "bot_user"}
-        request_body = Utility.build_event_request(request)
+        request_body = Utility.build_lambda_payload(request)
         assert isinstance(request_body, list)
         assert request_body[0]['name'] == 'BOT'
         assert request_body[0]['value'] == 'mood_bot'
@@ -423,7 +423,7 @@ class TestUtility:
         assert len(request_body) == 2
 
     def test_build_event_request_empty(self):
-        request_body = Utility.build_event_request({})
+        request_body = Utility.build_lambda_payload({})
         assert isinstance(request_body, list)
         assert not request_body
 
@@ -458,18 +458,13 @@ class TestUtility:
         assert config['host'] == "mongodb://localhost"
         assert "authSource" in config['options']
 
-    def test_get_event_url_training_not_found(self):
-        with pytest.raises(AppException, match='Could not find an event url'):
-            Utility.get_event_url('TRAINING', True)
+    def test_get_event_server_url_not_found(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['events'], 'server_url', None)
+        with pytest.raises(AppException, match="Event server url not found"):
+            Utility.get_event_server_url()
 
-    def test_get_event_url_training(self, monkeypatch):
-        event_url = 'http://event.url'
-        monkeypatch.setitem(Utility.environment['model']['train'], 'event_url', event_url)
-        assert Utility.get_event_url('TRAINING') == event_url
-
-    def test_get_event_url_invalid_type(self, monkeypatch):
-        with pytest.raises(AppException, match='Invalid event type received'):
-            Utility.get_event_url('MODEL_TRAINING', True)
+    def test_get_event_server_url(self):
+        assert Utility.get_event_server_url() == 'http://localhost:5001'
 
     def test_is_model_file_exists(self):
         assert not Utility.is_model_file_exists('invalid_bot', False)

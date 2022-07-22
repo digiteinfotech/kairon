@@ -1,17 +1,16 @@
-import asyncio
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from typing import List
 
 from loguru import logger
 from rasa.cli import SubParsersAction
 
-from kairon.events.events import EventsTrigger
+from kairon.events.definitions.model_testing import ModelTestingEvent
 
 
 def run_tests_on_model(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    EventsTrigger.trigger_model_testing(args.bot, args.user)
+    ModelTestingEvent(args.bot, args.user).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):

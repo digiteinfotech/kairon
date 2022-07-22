@@ -295,7 +295,7 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_upload_case_insensitivity")
         print(actions)
         assert actions == {'http_action': [
-            {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com',
+            {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com', 'content_type': 'json',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
              'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
                                                   {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
@@ -307,7 +307,7 @@ class TestMongoProcessor:
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
                              {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
             {'action_name': 'action_get_microsoft_application', 'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
-             'http_url': 'http://www.alphabet.com', 'request_method': 'GET',
+             'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
              'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
                              {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
                              {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},

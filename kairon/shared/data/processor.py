@@ -83,6 +83,8 @@ from .data_objects import (
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
+from ..actions.utils import ActionUtility
+
 
 class MongoProcessor:
     """
@@ -2997,7 +2999,7 @@ class MongoProcessor:
             action = action.to_mongo().to_dict()
             config = {
                 "action_name": action["action_name"], "response": action["response"], "http_url": action["http_url"],
-                "request_method": action["request_method"]
+                "request_method": action["request_method"], "content_type": action["content_type"]
             }
             for header in action.get('headers') or []:
                 parameter_type = header.get("parameter_type")
@@ -3095,8 +3097,6 @@ class MongoProcessor:
             yield slot
 
     async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
-        DataImporterLogProcessor.is_limit_exceeded(bot)
-        DataImporterLogProcessor.is_event_in_progress(bot)
         files_received, is_event_data, non_event_validation_summary = await self.validate_and_prepare_data(bot,
                                                                                                            user,
                                                                                                            training_files,
@@ -4201,16 +4201,7 @@ class MongoProcessor:
         :param raise_err: raise error if key does not exists
         :param bot: bot id
         """
-        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
-            if raise_err:
-                raise AppException(f"key '{key}' does not exists!")
-            else:
-                return None
-        key_value = KeyVault.objects(key=key, bot=bot).get().to_mongo().to_dict()
-        value = key_value.get("value")
-        if not Utility.check_empty_string(value):
-            value = Utility.decrypt_message(value)
-        return value
+        return ActionUtility.get_secret_from_key_vault(key, bot, raise_err)
 
     @staticmethod
     def update_secret(key: Text, value: Text, bot: Text, user: Text):

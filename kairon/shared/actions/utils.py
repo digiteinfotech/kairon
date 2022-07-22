@@ -14,8 +14,9 @@ from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
     EvaluationType
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
-from ..data.data_objects import Slots
+from ..data.data_objects import Slots, KeyVault
 from ..utils import Utility
+from ...exceptions import AppException
 
 
 class ActionUtility:
@@ -55,7 +56,7 @@ class ActionUtility:
             logger.debug("status " + str(response.status_code))
 
             if response.status_code not in [200, 202, 201, 204]:
-                raise ActionFailure(f"Got non-200 status code: {response.text}")
+                raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
         except Exception as e:
             logger.error(str(e))
             raise ActionFailure("Failed to execute the url: " + str(e))
@@ -100,7 +101,7 @@ class ActionUtility:
                     'conversation': tracker_data.get(ActionParameterType.chat_log.value)
                 }
             elif param['parameter_type'] == ActionParameterType.key_vault.value:
-                value = ActionUtility.get_secret_from_key_vault(param['value'], bot)
+                value = ActionUtility.get_secret_from_key_vault(param['value'], bot, False)
             else:
                 value = param['value']
             log_value = value
@@ -137,10 +138,24 @@ class ActionUtility:
         }
 
     @staticmethod
-    def get_secret_from_key_vault(key: Text, bot: Text):
-        from kairon.shared.data.processor import MongoProcessor
+    def get_secret_from_key_vault(key: Text, bot: Text, raise_err: bool = True):
+        """
+        Get secret value for key from key vault.
 
-        return MongoProcessor().get_secret(key, bot, False)
+        :param key: key to be added
+        :param raise_err: raise error if key does not exists
+        :param bot: bot id
+        """
+        if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
+            if raise_err:
+                raise AppException(f"key '{key}' does not exists!")
+            else:
+                return None
+        key_value = KeyVault.objects(key=key, bot=bot).get().to_mongo().to_dict()
+        value = key_value.get("value")
+        if not Utility.check_empty_string(value):
+            value = Utility.decrypt_message(value)
+        return value
 
     @staticmethod
     def prepare_message_trail(tracker_events):

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from bson import ObjectId
@@ -166,6 +167,9 @@ class ModelTestingLogProcessor:
             logs = filtered_data.data.get('failed_stories', [])[start_idx:start_idx+page_size]
             fail_cnt = filtered_data.data.get('conversation_accuracy', {}).get('failure_count', 0)
             logs = {'errors': logs, 'total': fail_cnt}
+            if fail_cnt:
+                logs = json.dumps(logs)
+                logs = json.loads(logs)
         elif log_type == 'nlu' and filtered_data:
             filtered_data = filtered_data.get()
             intent_evaluation_logs = filtered_data.data.get('intent_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
@@ -181,4 +185,17 @@ class ModelTestingLogProcessor:
                     'errors': response_selection_evaluation_logs, 'total': response_selection_evaluation_fail_cnt
                 }
             }
+            if intent_evaluation_fail_cnt or entity_evaluation_fail_cnt or response_selection_evaluation_fail_cnt:
+                logs = json.dumps(logs)
+                logs = json.loads(logs)
         return logs
+
+    @staticmethod
+    def delete_enqueued_event_log(bot: str):
+        """
+        Deletes latest log if it is present in enqueued state.
+        """
+        latest_log = ModelTestingLogs.objects(bot=bot).order_by('-id').first()
+        if latest_log and latest_log.event_status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()
+
