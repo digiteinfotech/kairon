@@ -1,9 +1,11 @@
+import json
 import os
 
 from boto3 import Session
 from botocore.exceptions import ClientError
 
 from kairon.shared.utils import Utility
+from kairon.shared.constants import EventClass
 
 
 class CloudUtility:
@@ -48,3 +50,23 @@ class CloudUtility:
         s3 = session.client("s3")
         if CloudUtility.__check_bucket_exist(s3, bucket):
             s3.delete_object(Bucket=bucket, Key=file)
+
+    @staticmethod
+    def trigger_lambda(event_class: EventClass, env_data: dict):
+        """
+        Triggers lambda based on the event class.
+        """
+        region = Utility.environment['events']['executor'].get('region')
+        if Utility.check_empty_string(region):
+            region = "us-east-1"
+        function = Utility.environment['events']['task_definition'][event_class]
+        session = Session()
+        lambda_client = session.client("lambda", region_name=region)
+        response = lambda_client.invoke(
+            FunctionName=function,
+            InvocationType='RequestResponse',
+            LogType='Tail',
+            Payload=json.dumps(env_data).encode(),
+        )
+        response['Payload'] = json.loads(response['Payload'].read())
+        return response

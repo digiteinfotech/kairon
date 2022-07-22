@@ -13,7 +13,7 @@ class HistoryDeletionLogProcessor:
     def add_log(bot: str, user: str, month: int = None, status: str = None, exception: str = None, sender_id: str = None):
 
         try:
-            doc = ConversationsHistoryDeleteLogs.objects(bot=bot, user=user).filter(
+            doc = ConversationsHistoryDeleteLogs.objects(bot=bot).filter(
                 Q(status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -70,3 +70,9 @@ class HistoryDeletionLogProcessor:
             log = log.to_mongo().to_dict()
             log.pop('_id')
             yield log
+
+    @staticmethod
+    def delete_enqueued_event_log(bot: str):
+        latest_log = ConversationsHistoryDeleteLogs.objects(bot=bot).order_by('-id').first()
+        if latest_log and latest_log.status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()

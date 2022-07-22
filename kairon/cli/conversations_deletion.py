@@ -4,7 +4,7 @@ from typing import List
 from loguru import logger
 from rasa.cli import SubParsersAction
 
-from kairon.events.events import EventsTrigger
+from kairon.events.definitions.history_delete import DeleteHistoryEvent
 
 
 def initiate_history_deletion_archival(args):
@@ -12,7 +12,7 @@ def initiate_history_deletion_archival(args):
     logger.info("user: {}", args.user)
     logger.info("month: {}", args.month)
     logger.info("sender_id: {}", args.sender_id)
-    EventsTrigger.trigger_history_deletion(args.bot, args.user, args.month, args.sender_id)
+    DeleteHistoryEvent(args.bot, args.user, month=args.month, sender_id=args.sender_id).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):

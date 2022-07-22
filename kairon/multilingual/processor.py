@@ -11,7 +11,7 @@ import re
 from ..exceptions import AppException
 
 
-class MultilingualProcessor:
+class MultilingualTranslator:
 
     """class contains logic for creating a bot by translating a base bot into another language"""
 

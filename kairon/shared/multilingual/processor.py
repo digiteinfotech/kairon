@@ -33,7 +33,7 @@ class MultilingualLogProcessor:
         :return:
         """
         try:
-            doc = BotReplicationLogs.objects(source_bot=source_bot, user=user).filter(
+            doc = BotReplicationLogs.objects(source_bot=source_bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -53,6 +53,10 @@ class MultilingualLogProcessor:
             doc.exception = exception
         if status:
             doc.status = status
+        if source_bot_name:
+            doc.source_bot_name = source_bot_name
+        if s_lang:
+            doc.s_lang = s_lang
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             doc.end_timestamp = datetime.utcnow()
         doc.save()
@@ -70,7 +74,7 @@ class MultilingualLogProcessor:
         :return:
         """
         try:
-            doc = BotReplicationLogs.objects(source_bot=source_bot, user=user).filter(
+            doc = BotReplicationLogs.objects(source_bot=source_bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -145,3 +149,12 @@ class MultilingualLogProcessor:
             log.pop('source_bot')
             log.pop('user')
             yield log
+
+    @staticmethod
+    def delete_enqueued_event_log(source_bot: str):
+        """
+        Deletes latest log if it is present in enqueued state.
+        """
+        latest_log = BotReplicationLogs.objects(source_bot=source_bot).order_by('-id').first()
+        if latest_log and latest_log.event_status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()
