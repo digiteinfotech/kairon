@@ -22,7 +22,7 @@ RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 RUN python -m pip install openai
 RUN python -m pip install elastic-apm
-RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
 RUN python -m pip install numpy==1.22.0
@@ -30,4 +30,4 @@ RUN python -m pip install numpy==1.22.0
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation
 EXPOSE 8000
-CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0"]
+CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0", "--no-server-header"]
