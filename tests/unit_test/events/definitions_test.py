@@ -462,6 +462,22 @@ class TestEventDefinitions:
         logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
         assert len(logs) == 0
 
+    def test_trigger_multilingual_source_and_dest_language_same(self):
+        bot_name = 'test_events_bot_en'
+        user = 'test_user'
+        d_lang = "en"
+        translate_responses = False
+        translate_actions = True
+        bot_obj = AccountProcessor.add_bot(bot_name, 1, user)
+        pytest.multilingual_bot = bot_obj['_id'].__str__()
+
+        with pytest.raises(AppException, match='Source and destination language cannot be the same.'):
+            MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
+                              translate_actions=translate_actions).validate()
+
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 0
+
     @responses.activate
     def test_trigger_multilingual_translation_enqueue(self):
         user = 'test_user'

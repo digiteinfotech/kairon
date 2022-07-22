@@ -4,6 +4,7 @@ from loguru import logger
 
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
+from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
@@ -35,6 +36,9 @@ class MultilingualEvent(EventsBase):
         """
         MultilingualLogProcessor.is_event_in_progress(self.bot)
         MultilingualLogProcessor.is_limit_exceeded(self.user)
+        bot_info = AccountProcessor.get_bot(self.bot)
+        if bot_info['metadata']['language'] == self.dest_lang:
+            raise AppException("Source and destination language cannot be the same.")
 
     def enqueue(self):
         """
