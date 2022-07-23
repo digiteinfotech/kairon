@@ -157,6 +157,7 @@ def start_training(bot: str, user: str, token: str = None):
         if apm_client:
             elasticapm.instrument()
             apm_client.begin_transaction(transaction_type="script")
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
         model_file = train_model_for_bot(bot)
         training_status = EVENT_STATUS.DONE.value
         agent_url = Utility.environment['model']['agent'].get('url')

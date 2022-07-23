@@ -36,10 +36,11 @@ class MongoBroker(BrokerBase):
         Declare all the actors and on which queue they should be attached to.
         Only 1 queue per actor. Defining again will replace older definition.
         """
+        execution_timeout = Utility.environment['events']['executor'].get('timeout', 60) * 60 * 1000
         for fn, queue in actors.items():
             actor = Actor(
                 fn, broker=self._broker, actor_name=fn.__name__,
-                queue_name=queue, priority=0, options={'max_retries': 0}
+                queue_name=queue, priority=0, options={'max_retries': 0, 'time_limit': execution_timeout}
             )
             self._broker.declare_actor(actor)
 

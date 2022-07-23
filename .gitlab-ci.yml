@@ -47,6 +47,8 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_chat -t kairon-chat-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker-dev:latest .
 
 build-release:
   tags:
@@ -66,3 +68,5 @@ build-release:
     -  docker build -f ./docker/Dockerfile_chat -t kairon-chat:latest .
     -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history:latest .
+    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server:latest .
+    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker:latest .
