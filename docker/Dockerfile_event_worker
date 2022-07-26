@@ -17,6 +17,9 @@ python -m pip install dnspython && \
 python -m pip install pyjwt && \
 python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
+RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi_sso
+RUN python -m pip install loguru
 RUN python -m pip install pydantic~=1.8.2
 RUN python -m pip install password-strength
 RUN python -m pip install passlib[bcrypt]
@@ -24,28 +27,48 @@ RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==9.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install json2html
+RUN python -m pip install nlpaug
+RUN python -m pip install torch
+RUN python -m pip install regex
+RUN python -m pip install nltk==3.6.6
+RUN python -m nltk.downloader wordnet
+RUN python -m nltk.downloader averaged_perceptron_tagger
+RUN python -m nltk.downloader omw-1.4
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install Pillow==9.0.0
 RUN python -m pip install blinker
+RUN python -m pip install jira
+RUN python -m pip install zenpy
+RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install google-api-python-client
-RUN python -m pip install cryptography
 RUN python -m pip install cryptography
 RUN python -m pip install dramatiq
 RUN python -m pip install dramatiq-mongodb
+RUN python -m pip install google-cloud-translate
+RUN python -m pip install transformers==4.5.0
+RUN python -m pip install numpy==1.22.0
+RUN python -m pip install sentence-transformers
 
+RUN mkdir data_generator
+RUN mkdir training_data
+RUN mkdir testing_data
+RUN mkdir models
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
+RUN chmod -R 777 /tmp
 
 ENV NUM_PROCESSES=1
 ENV NUM_THREADS=1
 ENV HF_HOME="/home/cache"
+ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
 COPY kairon/ /app/kairon
 COPY metadata /app/metadata
+COPY augmentation /app/augmentation
 COPY system.yaml /app/
 COPY email.yaml /app/
 
-USER 1001
-EXPOSE 5056
-CMD dramatiq kairon.events.broker:broker --processes ${NUM_PROCESSES} --threads ${NUM_THREADS} --verbose
+EXPOSE 5057
+
+CMD dramatiq kairon.events.broker --processes ${NUM_PROCESSES} --threads ${NUM_THREADS} --verbose

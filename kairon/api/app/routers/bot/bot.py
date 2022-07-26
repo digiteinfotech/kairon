@@ -441,7 +441,6 @@ async def augment_chat(
 
 @router.post("/train", response_model=Response)
 async def train(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -449,13 +448,12 @@ async def train(
     """
     event = ModelTrainingEvent(current_user.get_bot(), current_user.get_user())
     event.validate()
-    background_tasks.add_task(event.enqueue)
+    event.enqueue()
     return {"message": "Model training started."}
 
 
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
