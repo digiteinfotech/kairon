@@ -1598,7 +1598,7 @@ class TestMongoProcessor:
         bot = "tests"
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/{bot}/model/reload",
+            f"http://localhost/api/bot/{bot}/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
@@ -1611,7 +1611,7 @@ class TestMongoProcessor:
         monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/tests/model/reload",
+            f"http://localhost/api/bot/tests/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
