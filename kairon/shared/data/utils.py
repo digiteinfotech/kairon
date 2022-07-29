@@ -364,12 +364,14 @@ class DataUtility:
 
         from kairon.shared.data.data_objects import Stories
         from kairon.shared.data.data_objects import Intents
+        from kairon.shared.data.data_objects import Rules
 
         intent_count = Intents.objects(bot=bot, status=True).count()
         stories_count = Stories.objects(bot=bot, status=True).count()
+        rule_count = Rules.objects(bot=bot, status=True).count()
 
-        if intent_count < 2 or stories_count < 2:
-            raise AppException('Please add at least 2 stories and 2 intents before training the bot!')
+        if intent_count < 2 or (stories_count < 2 and rule_count < 2):
+            raise AppException('Please add at least 2 flows and 2 intents before training the bot!')
 
 
 class ChatHistoryUtils:
