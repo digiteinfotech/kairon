@@ -3376,7 +3376,7 @@ def test_train_insufficient_data(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Please add at least 2 stories and 2 intents before training the bot!"
+    assert actual["message"] == "Please add at least 2 flows and 2 intents before training the bot!"
 
 
 def test_delete_bot():
