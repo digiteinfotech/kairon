@@ -109,6 +109,7 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
+        processor.add_two_stage_fallback_action(bot_id, user)
         return bot
 
     @staticmethod

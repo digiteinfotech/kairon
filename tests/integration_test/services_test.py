@@ -4545,7 +4545,7 @@ def test_list_actions():
     print(actual['data']['http_action'])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [],
+        'hubspot_forms_action': [], 'two_stage_fallback': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',

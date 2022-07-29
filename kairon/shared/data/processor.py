@@ -55,7 +55,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME
 )
 from .data_objects import (
     Responses,
@@ -2914,7 +2914,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -2970,6 +2970,7 @@ class MongoProcessor:
                     action['user'] = user
                     document_types[action_type](**action).save()
                     self.add_action(action_name, bot, user, action_type=action_type, raise_exception=False)
+        self.add_two_stage_fallback_action(bot, user)
 
     def load_action_configurations(self, bot: Text):
         """
@@ -3263,8 +3264,8 @@ class MongoProcessor:
                 logging.error(str(e))
 
         if action_fallback:
-            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact='utter_default'):
-                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, 'utter_default', bot, user)
+            if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME):
+                self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, bot, user)
 
     def add_synonym(self, synonyms_dict: Dict, bot, user):
         if Utility.check_empty_string(synonyms_dict.get('name')):
@@ -3823,6 +3824,8 @@ class MongoProcessor:
         """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
+            if action.type == ActionType.two_stage_fallback.value and name == KAIRON_TWO_STAGE_FALLBACK:
+                raise AppException("Cannot remove default kairon action")
             MongoProcessor.get_attached_flows(bot, name, 'action')
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
@@ -4250,3 +4253,13 @@ class MongoProcessor:
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
         KeyVault.objects(key=key, bot=bot).delete()
+
+    def add_two_stage_fallback_action(self, bot: Text, user: Text, name: Text = KAIRON_TWO_STAGE_FALLBACK):
+        """
+        Delete secret for bot.
+
+        :param bot: bot id
+        :param user: user
+        :param name: action name
+        """
+        return self.add_action(name, bot, user, raise_exception=False, action_type=ActionType.two_stage_fallback)

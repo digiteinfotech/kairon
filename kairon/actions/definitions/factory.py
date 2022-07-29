@@ -8,6 +8,7 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
+from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
@@ -25,7 +26,8 @@ class ActionFactory:
         ActionType.jira_action.value: ActionJiraTicket,
         ActionType.zendesk_action.value: ActionZendeskTicket,
         ActionType.pipedrive_leads_action.value: ActionPipedriveLeads,
-        ActionType.hubspot_forms_action.value: ActionHubspotForms
+        ActionType.hubspot_forms_action.value: ActionHubspotForms,
+        ActionType.two_stage_fallback.value: ActionTwoStageFallback
     }
 
     @staticmethod
