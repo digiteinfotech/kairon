@@ -37,6 +37,7 @@ class ActionType(str, Enum):
     zendesk_action = "zendesk_action"
     pipedrive_leads_action = "pipedrive_leads_action"
     hubspot_forms_action = "hubspot_forms_action"
+    two_stage_fallback = "two_stage_fallback"
 
 
 class HttpRequestContentType(str, Enum):
