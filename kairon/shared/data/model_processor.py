@@ -32,6 +32,8 @@ class ModelProcessor:
         :param exception: exception while training
         :return: None
         """
+        from kairon.shared.data.processor import MongoProcessor
+
         try:
             doc = ModelTraining.objects(bot=bot).filter(
                 Q(status__ne=EVENT_STATUS.DONE.value) &
@@ -40,6 +42,7 @@ class ModelProcessor:
             doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
+            doc.model_config = MongoProcessor().load_config(bot)
             doc.status = status
             doc.start_timestamp = datetime.utcnow()
             if status in [EVENT_STATUS.FAIL, EVENT_STATUS.DONE]:

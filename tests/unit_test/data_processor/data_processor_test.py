@@ -8582,6 +8582,7 @@ class TestModelProcessor:
         assert test_set_training_status_inprogress.first().bot == "tests"
         assert test_set_training_status_inprogress.first().user == "testUser"
         assert test_set_training_status_inprogress.first().status == "Inprogress"
+        assert test_set_training_status_inprogress.first().model_config == MongoProcessor().load_config("tests")
         training_status_inprogress_id = test_set_training_status_inprogress.first().id
 
         ModelProcessor.set_training_status(bot="tests",
