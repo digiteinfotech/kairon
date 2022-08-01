@@ -34,8 +34,6 @@ class ActionJiraTicket(ActionsBase):
         try:
             action = JiraAction.objects(bot=self.bot, name=self.name, status=True).get().to_mongo().to_dict()
             logger.debug("jira_action_config: " + str(action))
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Jira action found for given action and bot")
@@ -55,12 +53,15 @@ class ActionJiraTicket(ActionsBase):
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
         summary = f"{tracker.sender_id} {action_config['summary']}"
+        api_token = action_config.get("api_token")
         try:
+            tracker_data = ActionUtility.build_context(tracker)
+            api_token = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_token, self.bot)
             _, msgtrail = ActionUtility.prepare_message_trail_as_str(tracker.events)
             ActionUtility.create_jira_issue(
                 url=action_config['url'],
                 username=action_config['user_name'],
-                api_token=action_config['api_token'],
+                api_token=api_token,
                 project_key=action_config['project_key'],
                 issue_type=action_config['issue_type'],
                 summary=summary,

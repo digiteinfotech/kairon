@@ -8010,7 +8010,53 @@ def test_add_email_action(mock_smtp):
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_from_different_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    request = {"action_name": "email_config_with_key_vault",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
                "from_email": "test@demo.com",
                "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -8028,6 +8074,29 @@ def test_add_email_action(mock_smtp):
     assert actual["message"] == "Action added"
 
 
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_from_invalid_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "intent"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_email_actions():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/email",
@@ -8037,8 +8106,26 @@ def test_list_email_actions():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
-    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': ['test@test.com',"test1@test.com"], 'response': 'Test Response', 'tls': False}]
+    assert len(actual["data"]) == 3
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'value'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False},
+                              {'action_name': 'email_config_with_slot', 'smtp_url': 'test.test.com', 'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'slot'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False},
+                              {'action_name': 'email_config_with_key_vault', 'smtp_url': 'test.test.com',
+                               'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'key_vault'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -8047,7 +8134,7 @@ def test_edit_email_action(mock_smtp):
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
                "from_email": "test@demo.com",
                "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -8066,12 +8153,80 @@ def test_edit_email_action(mock_smtp):
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_different_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+    request = {"action_name": "email_config_with_key_vault",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_invalid_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "intent"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action_does_not_exists(mock_smtp):
     request = {"action_name": "email_config1",
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
                "from_email": "test@demo.com",
                "to_email":["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -8125,7 +8280,7 @@ def test_list_google_search_action_no_actions():
 def test_add_google_search_action():
     action = {
         'name': 'google_custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8143,7 +8298,7 @@ def test_add_google_search_action():
 def test_add_google_search_exists():
     action = {
         'name': 'google_custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8158,10 +8313,61 @@ def test_add_google_search_exists():
     assert actual["message"] == 'Action with name "google_custom_search" exists'
 
 
+def test_add_google_search_different_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {'value': '12345678', "parameter_type": "slot"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added'
+
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {'value': '12345678', "parameter_type": "key_vault"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added'
+
+
+def test_add_google_search_invalid_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {'value': '12345678', "parameter_type": "chat_log"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_google_search_action_not_exists():
     action = {
         'name': 'custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8179,7 +8385,7 @@ def test_edit_google_search_action_not_exists():
 def test_edit_google_search_action():
     action = {
         'name': 'google_custom_search',
-        'api_key': '1234567889',
+        'api_key': {"value": '1234567889'},
         'search_engine_id': 'asdfg:12345689',
         'failure_response': 'Failed to perform search',
     }
@@ -8194,6 +8400,57 @@ def test_edit_google_search_action():
     assert actual["message"] == 'Action updated'
 
 
+def test_edit_google_search_action_different_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {"value": '1234567889', "parameter_type": "key_vault"},
+        'search_engine_id': 'asdfg:12345689',
+        'failure_response': 'Failed to perform search',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {"value": '1234567889', "parameter_type": "slot"},
+        'search_engine_id': 'asdfg:12345689',
+        'failure_response': 'Failed to perform search',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_edit_google_search_action_invalid_parameter_type():
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {'value': '12345678', "parameter_type": "user_message"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_google_search_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -8202,9 +8459,10 @@ def test_list_google_search_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 3
+    print(actual["data"])
     assert actual["data"][0]['name'] == 'google_custom_search'
-    assert actual["data"][0]['api_key'] == '1234567***'
+    assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
     assert actual["data"][0]['num_results'] == 1
@@ -8371,10 +8629,10 @@ def test_list_hubspot_forms_action():
     assert actual["data"][0]['name'] == 'action_hubspot_forms'
     assert actual["data"][0]['portal_id'] == '123456785787'
     assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
-    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+    assert actual["data"][0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
     assert actual["data"][0]['response'] == 'Hubspot Form submitted'
 
 
@@ -8690,7 +8948,7 @@ def test_add_jira_action_invalid_config(monkeypatch):
     url = 'https://test_add_jira_action_invalid_config.net'
     action = {
         'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
     monkeypatch.setattr(ActionUtility, 'get_jira_client', _mock_error)
@@ -8720,7 +8978,7 @@ def test_list_jira_action_empty():
 def test_add_jira_action():
     url = 'https://test-digite.atlassian.net'
     action = {
-        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com', 'api_token': 'ASDFGHJKL',
+        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com', 'api_token': {'value': 'ASDFGHJKL'},
         'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
     }
     responses.add(
@@ -8781,6 +9039,62 @@ def test_add_jira_action():
     assert actual["message"] == "Action added"
 
 
+@patch("kairon.shared.actions.utils.ActionUtility.get_jira_client", autospec=True)
+@patch("kairon.shared.actions.utils.ActionUtility.validate_jira_action", autospec=True)
+def test_add_jira_action_different_parameter_type(mock_jira_client, mock_validate):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "slot"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    action = {
+        'name': 'jira_action_key_vault', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+@patch("kairon.shared.actions.data_objects.JiraAction.validate", autospec=True)
+def test_add_jira_action_invalid_parameter_type(moack_jira):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "user_message"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_jira_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/jira",
@@ -8789,10 +9103,20 @@ def test_list_jira_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
+    print(actual["data"])
     assert actual["data"] == [
-            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
-             'response': 'We have logged a ticket'}]
+        {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'},
+        {'name': 'jira_action_slot', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'ASDFGHJKL', 'parameter_type': 'slot'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'},
+        {'name': 'jira_action_key_vault', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'AWS_KEY', 'parameter_type': 'key_vault'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'}]
 
 
 @responses.activate
@@ -8800,7 +9124,7 @@ def test_edit_jira_action():
     url = 'https://test-digite.atlassian.net'
     action = {
         'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
         'summary': 'new user',
         'response': 'We have logged a ticket'
     }
@@ -8862,11 +9186,67 @@ def test_edit_jira_action():
     assert actual["message"] == "Action updated"
 
 
+@patch("kairon.shared.actions.utils.ActionUtility.get_jira_client", autospec=True)
+@patch("kairon.shared.actions.utils.ActionUtility.validate_jira_action", autospec=True)
+def test_edit_jira_action_different_parameter_type(mock_jira_client, mock_validate):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+    action = {
+        'name': 'jira_action_key_vault', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "slot"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+@patch("kairon.shared.actions.utils.ActionUtility", autospec=True)
+def test_edit_jira_action_invalid_parameter_type(mock_jira):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "chat_log"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_jira_action_invalid_config(monkeypatch):
     url = 'https://test_edit_jira_action_invalid_config.net'
     action = {
         'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
 
@@ -8886,7 +9266,7 @@ def test_edit_jira_action_not_found():
     url = 'https://test-digite.atlassian.net'
     action = {
         'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
 
@@ -8906,7 +9286,7 @@ def test_add_zendesk_action_invalid_config(monkeypatch):
         from zenpy.lib.exception import APIException
         raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
 
-    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
     with patch('zenpy.Zenpy') as mock:
         mock.side_effect = __mock_zendesk_error
@@ -8933,7 +9313,7 @@ def test_list_zendesk_action_empty():
 
 
 def test_add_zendesk_action():
-    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'}, 'subject': 'new ticket',
               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
     with patch('zenpy.Zenpy'):
         response = client.post(
@@ -8947,6 +9327,52 @@ def test_add_zendesk_action():
         assert actual["message"] == "Action added"
 
 
+# @patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+# def test_add_zendesk_action_different_parameter_type(mock_zedesk):
+#     action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+#               'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.post(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert actual["success"]
+#         assert actual["error_code"] == 0
+#         assert actual["message"] == "Action added"
+#
+#     action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+#               'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.post(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert actual["success"]
+#         assert actual["error_code"] == 0
+#         assert actual["message"] == "Action added"
+#
+#
+# def test_add_zendesk_action_invalid_parameter_type():
+#     action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+#               'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.post(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert not actual["success"]
+#         assert actual["error_code"] == 422
+
+
 def test_list_zendesk_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/zendesk",
@@ -8956,12 +9382,14 @@ def test_list_zendesk_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == [
-        {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456***', 'subject': 'new ticket',
-         'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}]
+        {'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': '123456789', 'parameter_type': 'value'}, 'subject': 'new ticket',
+         'response': 'ticket filed'}]
 
 
 def test_edit_zendesk_action():
-    action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': {'value': '123456789999'},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
     with patch('zenpy.Zenpy'):
         response = client.put(
@@ -8975,8 +9403,54 @@ def test_edit_zendesk_action():
         assert actual["message"] == "Action updated"
 
 
+# @patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+# def test_edit_zendesk_action_different_parameter_type(mock_zendesk):
+#     action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+#               'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.put(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert actual["success"]
+#         assert actual["error_code"] == 0
+#         assert actual["message"] == "Action updated"
+#
+#     action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+#               'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.put(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert actual["success"]
+#         assert actual["error_code"] == 0
+#         assert actual["message"] == "Action updated"
+#
+#
+# def test_edit_zendesk_action_invalid_parameter_type():
+#     action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+#               'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+#     with patch('zenpy.Zenpy'):
+#         response = client.put(
+#             f"/api/bot/{pytest.bot}/action/zendesk",
+#             json=action,
+#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         )
+#         actual = response.json()
+#         assert not actual["success"]
+#         assert actual["error_code"] == 422
+
+
 def test_edit_zendesk_action_invalid_config(monkeypatch):
-    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
     def __mock_zendesk_error(*args, **kwargs):
@@ -8997,7 +9471,7 @@ def test_edit_zendesk_action_invalid_config(monkeypatch):
 
 
 def test_edit_zendesk_action_not_found():
-    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
     response = client.put(
@@ -9018,7 +9492,7 @@ def test_add_pipedrive_leads_action_invalid_config(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9039,7 +9513,7 @@ def test_add_pipedrive_leads_name_not_filled(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9070,7 +9544,7 @@ def test_add_pipedrive_action():
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9087,6 +9561,66 @@ def test_add_pipedrive_action():
         assert actual["message"] == "Action added"
 
 
+def test_add_pipedrive_action_different_parameter_types():
+    action = {
+        'name': 'pipedrive_leads_slot',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "slot"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_add_pipedrive_action_invalid_parameter_types():
+    action = {
+        'name': 'pipedrive_leads_sender_id',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+
+
 def test_list_pipedrive_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/pipedrive",
@@ -9095,22 +9629,31 @@ def test_list_pipedrive_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [
-        {
-            'name': 'pipedrive_leads',
-            'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345***',
-            'title': 'new lead',
-            'response': 'I have failed to create lead for you',
-            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
-        }]
+    assert actual["data"] == [{'name': 'pipedrive_leads', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': '12345678', 'parameter_type': 'value'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'},
+                              {'name': 'pipedrive_leads_slot', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': '12345678', 'parameter_type': 'slot'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'},
+                              {'name': 'pipedrive_leads_slot_key_vault', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': 'AWS_KEY', 'parameter_type': 'key_vault'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'}]
 
 
 def test_edit_pipedrive_action():
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite7.pipedrive.com/',
-        'api_token': '1asdfghjklqwertyuio',
+        'api_token': {'value': '1asdfghjklqwertyuio'},
         'title': 'new lead generated',
         'response': 'Failed to create lead for you',
         'metadata': {'name': 'name'}
@@ -9128,11 +9671,74 @@ def test_edit_pipedrive_action():
         assert actual["message"] == "Action updated"
 
 
+@patch("kairon.shared.actions.data_objects.PipedriveLeadsAction.validate", autospec=True)
+def test_edit_pipedrive_action_different_parameter_type(mock_pipedrive):
+    action = {
+        'name': 'pipedrive_leads_slot',
+        'domain': 'https://digite7.pipedrive.com/',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'title': 'new lead generated',
+        'response': 'Failed to create lead for you',
+        'metadata': {'name': 'name'}
+    }
+
+    with patch('pipedrive.client.Client'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite7.pipedrive.com/',
+        'api_token': {'value': '1asdfghjklqwertyuio', "parameter_type": "slot"},
+        'title': 'new lead generated',
+        'response': 'Failed to create lead for you',
+        'metadata': {'name': 'name'}
+    }
+
+    with patch('pipedrive.client.Client'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_pipedrive_action_invalid_parameter_type():
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_pipedrive_action_invalid_config(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9157,7 +9763,7 @@ def test_edit_pipedrive_action_not_found():
     action = {
         'name': 'pipedrive_action',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}

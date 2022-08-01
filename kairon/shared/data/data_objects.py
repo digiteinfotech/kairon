@@ -471,6 +471,7 @@ class StoryEvents(EmbeddedDocument):
         return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
                and self.entities == other.entities
 
+
 @push_notification.apply
 class Stories(Document):
     block_name = StringField(required=True)
