@@ -121,7 +121,7 @@ class ActionUtility:
     def retrieve_value_for_custom_action_parameter(tracker_data: dict, action_config_param: dict, bot: Text):
         value = None
         if action_config_param:
-            request_body, request_body_log = ActionUtility.prepare_request(tracker_data, [action_config_param], bot)
+            request_body, _ = ActionUtility.prepare_request(tracker_data, [action_config_param], bot)
             value = request_body[action_config_param['key']]
         return value
 
