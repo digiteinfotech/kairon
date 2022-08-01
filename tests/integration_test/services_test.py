@@ -8096,6 +8096,46 @@ def test_add_email_action_from_invalid_parameter_type(mock_smtp):
     assert not actual["success"]
     assert actual["error_code"] == 422
 
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "", "parameter_type": "key_vault"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
 
 def test_list_email_actions():
     response = client.get(
@@ -9327,50 +9367,50 @@ def test_add_zendesk_action():
         assert actual["message"] == "Action added"
 
 
-# @patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
-# def test_add_zendesk_action_different_parameter_type(mock_zedesk):
-#     action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
-#               'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.post(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert actual["success"]
-#         assert actual["error_code"] == 0
-#         assert actual["message"] == "Action added"
-#
-#     action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
-#               'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.post(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert actual["success"]
-#         assert actual["error_code"] == 0
-#         assert actual["message"] == "Action added"
-#
-#
-# def test_add_zendesk_action_invalid_parameter_type():
-#     action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
-#               'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.post(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert not actual["success"]
-#         assert actual["error_code"] == 422
+@patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+def test_add_zendesk_action_different_parameter_type(mock_zedesk):
+    action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+    action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+              'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_add_zendesk_action_invalid_parameter_type():
+    action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
 
 
 def test_list_zendesk_action():
@@ -9381,11 +9421,18 @@ def test_list_zendesk_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
+    print(actual["data"])
     assert actual["data"] == [
         {'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
          'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
                        'value': '123456789', 'parameter_type': 'value'}, 'subject': 'new ticket',
-         'response': 'ticket filed'}]
+         'response': 'ticket filed'},
+        {'name': 'zendesk_action_slot', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'value': '123456789',
+                       'parameter_type': 'slot'}, 'subject': 'new ticket', 'response': 'ticket filed'},
+        {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'value': 'AWS_KEY',
+                       'parameter_type': 'key_vault'}, 'subject': 'new ticket', 'response': 'ticket filed'}]
 
 
 def test_edit_zendesk_action():
@@ -9403,50 +9450,50 @@ def test_edit_zendesk_action():
         assert actual["message"] == "Action updated"
 
 
-# @patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
-# def test_edit_zendesk_action_different_parameter_type(mock_zendesk):
-#     action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
-#               'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.put(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert actual["success"]
-#         assert actual["error_code"] == 0
-#         assert actual["message"] == "Action updated"
-#
-#     action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
-#               'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.put(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert actual["success"]
-#         assert actual["error_code"] == 0
-#         assert actual["message"] == "Action updated"
-#
-#
-# def test_edit_zendesk_action_invalid_parameter_type():
-#     action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
-#               'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
-#               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
-#     with patch('zenpy.Zenpy'):
-#         response = client.put(
-#             f"/api/bot/{pytest.bot}/action/zendesk",
-#             json=action,
-#             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#         )
-#         actual = response.json()
-#         assert not actual["success"]
-#         assert actual["error_code"] == 422
+@patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+def test_edit_zendesk_action_different_parameter_type(mock_zendesk):
+    action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+              'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+    action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_zendesk_action_invalid_parameter_type():
+    action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
 
 
 def test_edit_zendesk_action_invalid_config(monkeypatch):
