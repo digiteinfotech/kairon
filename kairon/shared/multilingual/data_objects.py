@@ -5,7 +5,7 @@ from datetime import datetime
 
 @push_notification.apply
 class BotReplicationLogs(Document):
-    source_bot = StringField(required=True)
+    bot = StringField(required=True)
     user = StringField(required=True)
     source_bot_name = StringField(default=None)
     destination_bot = StringField(default=None)

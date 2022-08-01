@@ -66,6 +66,7 @@ ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
 COPY kairon/ /app/kairon
 COPY metadata /app/metadata
 COPY augmentation /app/augmentation
+COPY template /app/template
 COPY system.yaml /app/
 COPY email.yaml /app/
 

@@ -35,7 +35,7 @@ RUN chmod 777 -R /tmp
 COPY kairon ${TRANSLATOR_HOME}/kairon
 COPY system.yaml ${TRANSLATOR_HOME}/
 
-ENV SOURCE_BOT default
+ENV BOT default
 ENV USER default
 ENV DEST_LANG default
 ENV TRANSLATE_RESPONSES default

@@ -45,7 +45,7 @@ class MultilingualEvent(EventsBase):
         Send event to event server.
         """
         payload = {
-            'source_bot': self.bot, 'user': self.user, "dest_lang": self.dest_lang,
+            'bot': self.bot, 'user': self.user, "dest_lang": self.dest_lang,
             "translate_responses": self.translate_responses, "translate_actions": self.translate_actions
         }
         MultilingualLogProcessor.add_log(

@@ -33,7 +33,7 @@ class MultilingualLogProcessor:
         :return:
         """
         try:
-            doc = BotReplicationLogs.objects(source_bot=source_bot).filter(
+            doc = BotReplicationLogs.objects(bot=source_bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
@@ -41,7 +41,7 @@ class MultilingualLogProcessor:
                 source_bot_name=source_bot_name,
                 s_lang=s_lang,
                 d_lang=d_lang,
-                source_bot=source_bot,
+                bot=source_bot,
                 user=user,
                 account=account,
                 translate_responses=translate_responses,
@@ -74,12 +74,12 @@ class MultilingualLogProcessor:
         :return:
         """
         try:
-            doc = BotReplicationLogs.objects(source_bot=source_bot).filter(
+            doc = BotReplicationLogs.objects(bot=source_bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
         except DoesNotExist:
             doc = BotReplicationLogs(
-                source_bot=source_bot,
+                bot=source_bot,
                 user=user,
                 start_timestamp=datetime.utcnow(),
             )
@@ -103,7 +103,7 @@ class MultilingualLogProcessor:
         """
         in_progress = False
         try:
-            BotReplicationLogs.objects(source_bot=source_bot).filter(
+            BotReplicationLogs.objects(bot=source_bot).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
 
@@ -126,7 +126,7 @@ class MultilingualLogProcessor:
 
         today_start = today.replace(hour=0, minute=0, second=0)
         doc_count = BotReplicationLogs.objects(
-            source_bot=bot, start_timestamp__gte=today_start
+            bot=bot, start_timestamp__gte=today_start
         ).count()
         if doc_count >= Utility.environment["multilingual"]["limit_per_day"]:
             if raise_exception:
@@ -143,10 +143,10 @@ class MultilingualLogProcessor:
         @param source_bot: bot id of source bot.
         @return: list of logs.
         """
-        for log in BotReplicationLogs.objects(source_bot=source_bot).order_by("-start_timestamp"):
+        for log in BotReplicationLogs.objects(bot=source_bot).order_by("-start_timestamp"):
             log = log.to_mongo().to_dict()
             log.pop('_id')
-            log.pop('source_bot')
+            log.pop('bot')
             log.pop('user')
             yield log
 
@@ -155,6 +155,6 @@ class MultilingualLogProcessor:
         """
         Deletes latest log if it is present in enqueued state.
         """
-        latest_log = BotReplicationLogs.objects(source_bot=source_bot).order_by('-id').first()
+        latest_log = BotReplicationLogs.objects(bot=source_bot).order_by('-id').first()
         if latest_log and latest_log.event_status == EVENT_STATUS.ENQUEUED.value:
             latest_log.delete()
