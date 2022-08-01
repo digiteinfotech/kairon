@@ -595,6 +595,7 @@ class ModelTraining(Document):
     end_timestamp = DateTimeField(default=None)
     model_path = StringField(default=None)
     exception = StringField(default=None)
+    model_config = DictField()
 
 
 @push_notification.apply

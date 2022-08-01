@@ -36,7 +36,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -280,10 +280,10 @@ class TestMongoProcessor:
                                     'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
                                                        'application_name': [
                                                            {'type': 'from_entity', 'entity': 'application_name'}]}}}
-        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application', "kairon_two_stage_fallback",
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                             'action_get_microsoft_application']
+                                                                             'action_get_microsoft_application', "kairon_two_stage_fallback"]
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
         assert domain.templates == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
@@ -368,7 +368,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {
             'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 29
@@ -2356,7 +2356,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2464,7 +2464,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2522,7 +2522,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2575,7 +2575,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2635,7 +2635,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2744,7 +2744,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 5
+        assert domain.user_actions.__len__() == 6
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2772,7 +2772,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 44
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -7034,7 +7034,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7053,7 +7053,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
         assert actions == {
-            'actions': ['action_check'],
+            'actions': ['action_check'], 'two_stage_fallback': [],
             'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
@@ -7074,7 +7074,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
-                           'http_action': [], 'google_search_action': [], 'jira_action': [],
+                           'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -7353,7 +7353,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [],
+            'hubspot_forms_action': [], 'two_stage_fallback': ['kairon_two_stage_fallback'],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7458,7 +7458,7 @@ class TestMongoProcessor:
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == {
-            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [],
+            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
@@ -8223,7 +8223,26 @@ class TestMongoProcessor:
             Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
-            
+
+    def test_add_custom_2_stage_fallback_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        ob_id = processor.add_two_stage_fallback_action(bot, user, "custom_fallback")
+        action = Actions.objects(id=ob_id).get()
+        assert action.name == "custom_fallback"
+        assert action.type == ActionType.two_stage_fallback.value
+
+    def test_delete_2_stage_fallback_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action("custom_fallback", bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name="custom_fallback", status=True, bot=bot).get()
+        with pytest.raises(AppException, match="Cannot remove default kairon action"):
+            processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
+
     def test_add_secret(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -8582,6 +8601,7 @@ class TestModelProcessor:
         assert test_set_training_status_inprogress.first().bot == "tests"
         assert test_set_training_status_inprogress.first().user == "testUser"
         assert test_set_training_status_inprogress.first().status == "Inprogress"
+        assert test_set_training_status_inprogress.first().model_config == MongoProcessor().load_config("tests")
         training_status_inprogress_id = test_set_training_status_inprogress.first().id
 
         ModelProcessor.set_training_status(bot="tests",
