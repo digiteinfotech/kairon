@@ -118,6 +118,14 @@ class ActionUtility:
         return request_body, request_body_log
 
     @staticmethod
+    def retrieve_value_for_custom_action_parameter(tracker_data: dict, action_config_param: dict, bot: Text):
+        value = None
+        if action_config_param:
+            request_body, _ = ActionUtility.prepare_request(tracker_data, [action_config_param], bot)
+            value = request_body[action_config_param['key']]
+        return value
+
+    @staticmethod
     def build_context(tracker: Tracker):
         """
         Creates a dict of tracker object that contains contextual information

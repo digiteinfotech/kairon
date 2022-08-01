@@ -29,7 +29,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -1983,7 +1983,7 @@ class TestActions:
                 action_name="email_action",
                 smtp_url="test.localhost",
                 smtp_port=293,
-                smtp_password="test",
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
                 from_email="test@demo.com",
                 subject="test",
                 to_email=["test@test.com","test1@test.com"],
@@ -1998,7 +1998,8 @@ class TestActions:
             assert expected['response'] == actual['response']
             assert 'test.localhost' == actual['smtp_url']
             assert expected['smtp_port'] == actual['smtp_port']
-            assert "test" == actual['smtp_password']
+            assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password', 'encrypt': False, 'value': 'test',
+                    'parameter_type': 'value'} == actual['smtp_password']
             assert 'test@demo.com' == actual['from_email']
             assert expected['to_email'] == actual['to_email']
             assert expected.get("smtp_userid") == actual.get("smtp_userid")
@@ -2007,8 +2008,8 @@ class TestActions:
                 action_name="email_action1",
                 smtp_url="test.localhost",
                 smtp_port=293,
-                smtp_userid='test.user_id',
-                smtp_password="test",
+                smtp_userid=CustomActionRequestParameters(value='test.user_id'),
+                smtp_password=CustomActionRequestParameters(value="test"),
                 from_email="test@demo.com",
                 subject="test",
                 to_email=["test@test.com", "test1@test.com"],
@@ -2023,10 +2024,13 @@ class TestActions:
             assert expected['response'] == actual['response']
             assert 'test.localhost' == actual['smtp_url']
             assert expected['smtp_port'] == actual['smtp_port']
-            assert "test" == actual['smtp_password']
+            assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password', 'encrypt': False, 'value': 'test',
+                    'parameter_type': 'value'} == actual['smtp_password'] == actual['smtp_password']
             assert 'test@demo.com' == actual['from_email']
             assert expected['to_email'] == actual['to_email']
-            assert 'test.user_id' == actual.get("smtp_userid")
+            assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_userid', 'encrypt': False,
+                    'value': 'test.user_id', 'parameter_type': 'value'} == actual['smtp_userid'] == actual.get(
+                "smtp_userid")
 
     def test_email_action_not_found(self):
         with pytest.raises(ActionFailure, match="No Email action found for given action and bot"):
@@ -2044,12 +2048,12 @@ class TestActions:
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='google_search_action', type=ActionType.google_search_action.value, bot=bot, user=user).save()
-        GoogleSearchAction(name='google_search_action', api_key='1234567890',
+        GoogleSearchAction(name='google_search_action', api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user).save()
         actual = ActionUtility.get_action(bot, 'google_search_action')
         assert actual['type'] == ActionType.google_search_action.value
         actual = ActionGoogleSearch(bot, 'google_search_action').retrieve_config()
-        assert actual['api_key'] == '1234567890'
+        assert actual['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567890'}
         assert actual['search_engine_id'] == 'asdfg::123456'
 
     def test_get_google_search_action_config_not_exists(self):
@@ -2224,8 +2228,8 @@ class TestActions:
         with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_response):
             JiraAction(
                 name='jira_action', bot=bot, user=user, url='https://test-digite.atlassian.net', user_name='test@digite.com',
-                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
-                response='Successfully created').save()
+                api_token=CustomActionRequestParameters(value='ASDFGHJKL'), project_key='HEL', issue_type='Bug',
+                summary='fallback', response='Successfully created').save()
         action = ActionUtility.get_action(bot, 'jira_action')
         assert action['type'] == 'jira_action'
         action = ActionJiraTicket(bot, 'jira_action').retrieve_config()
@@ -2233,7 +2237,8 @@ class TestActions:
         action.pop('timestamp')
         assert action == {
             'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'fallback',
+            'api_token':  {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'parameter_type': 'value',
+                           'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'fallback',
             'response': 'Successfully created', 'bot': 'test_action_server', 'user': 'test_user', 'status': True
         }
 
@@ -2375,13 +2380,14 @@ class TestActions:
         with patch('zenpy.Zenpy'):
             ZendeskAction(
                 name='zendesk_action', bot=bot, user=user, subdomain='digite751', user_name='test@digite.com',
-                api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
+                api_token=CustomActionRequestParameters(value='ASDFGHJKL'), subject='new user detected', response='Successfully created').save()
         action = ActionZendeskTicket(bot, 'zendesk_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
             'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'subject': 'new user detected',
+            'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                          'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'subject': 'new user detected',
             'response': 'Successfully created', 'bot': 'test_action_server', 'user': 'test_user', 'status': True
         }
 
@@ -2443,7 +2449,7 @@ class TestActions:
     def test_google_search_action_config_data_object(self):
         GoogleSearchAction(
             name='google_action',
-            api_key='sd234567',
+            api_key=CustomActionRequestParameters(value='sd234567'),
             search_engine_id='asdfgh2345678',
             failure_response=None,
             num_results='asdf2345',
@@ -2467,7 +2473,8 @@ class TestActions:
 
         with patch('pipedrive.client.Client'):
             PipedriveLeadsAction(
-                name='pipedrive_leads_action', bot=bot, user=user, domain='digite751', api_token='ASDFGHJKL',
+                name='pipedrive_leads_action', bot=bot, user=user, domain='digite751',
+                api_token=CustomActionRequestParameters(value='ASDFGHJKL'),
                 title='new user detected', response='Lead successfully added',
                 metadata={'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}).save()
         action = ActionUtility.get_action(bot, 'pipedrive_leads_action')
@@ -2477,7 +2484,9 @@ class TestActions:
         action.pop('_id')
         action.pop('timestamp')
         assert action == {
-            'name': 'pipedrive_leads_action', 'domain': 'digite751', 'api_token': 'ASDFGHJKL',
+            'name': 'pipedrive_leads_action', 'domain': 'digite751',
+            'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token',
+                          'parameter_type': 'value', 'value': 'ASDFGHJKL'},
             'title': 'new user detected', 'response': 'Lead successfully added', 'bot': 'test_action_server',
             'user': 'test_user', 'status': True, 'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
         }
@@ -2656,8 +2665,8 @@ class TestActions:
         user = 'test_user'
 
         fields = [
-            {'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot', 'encrypt': False},
-            {'key': 'firstname', 'parameter_type': 'value', 'value': 'udit', 'encrypt': False}
+            {'_cls': 'HttpActionRequestBody', 'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot', 'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'firstname', 'parameter_type': 'value', 'value': 'udit', 'encrypt': False}
         ]
         HubspotFormsAction(
             name='hubspot_forms_action', portal_id='asdf45', form_guid='2345678gh', fields=fields, bot=bot, user=user,
