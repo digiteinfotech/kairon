@@ -297,25 +297,25 @@ class TestMongoProcessor:
         assert actions == {'http_action': [
             {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com', 'content_type': 'json',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
-             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                                                  {'key': 'testParam4', 'value': 'testvalue1',
+             'request_method': 'GET', 'headers': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
                                                    'parameter_type': 'slot', 'encrypt': False}],
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
             {'action_name': 'action_get_microsoft_application', 'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
-                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
                                                                                                      'utter_default',
@@ -5550,7 +5550,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {"value": 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5609,7 +5609,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         processor = MongoProcessor()
@@ -5660,7 +5660,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5719,7 +5719,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
 
@@ -5738,7 +5738,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
 
@@ -5758,7 +5758,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5788,7 +5788,7 @@ class TestMongoProcessor:
         issue_type = 'ProdIssue'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': issue_type, 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': issue_type, 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5849,7 +5849,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5909,13 +5909,17 @@ class TestMongoProcessor:
         jira_actions = list(processor.list_jira_actions(bot))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type':'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+             'summary': 'new user',
              'response': 'We have logged a ticket'}]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'},
+             'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
              'response': 'We have logged a ticket'}]
 
     @responses.activate
@@ -5925,7 +5929,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
             'summary': 'new user',
             'response': 'We have logged a ticket'
         }
@@ -5999,14 +6003,18 @@ class TestMongoProcessor:
         jira_actions = list(processor.list_jira_actions(bot))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL',
+             'issue_type': 'Subtask', 'parent_key': 'HEL-4',
              'summary': 'new user', 'response': 'We have logged a ticket'}
         ]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL',
+             'issue_type': 'Subtask', 'parent_key': 'HEL-4',
              'summary': 'new user', 'response': 'We have logged a ticket'}
         ]
 
@@ -6049,8 +6057,8 @@ class TestMongoProcessor:
     def test_add_zendesk_action(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
-                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
+                  'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
         with patch('zenpy.Zenpy'):
             assert processor.add_zendesk_action(action, bot, user)
@@ -6079,7 +6087,7 @@ class TestMongoProcessor:
     def test_add_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
@@ -6096,7 +6104,7 @@ class TestMongoProcessor:
     def test_add_zendesk_action_invalid_credentials(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
@@ -6113,7 +6121,8 @@ class TestMongoProcessor:
     def test_add_zendesk_action_already_exists(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751',
+                  'api_token': {'value': '123456789'}, 'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
@@ -6146,8 +6155,8 @@ class TestMongoProcessor:
 
         bot = 'test'
         user = 'test'
-        action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
-                  'user_name': 'udit.pandey@digite.com', 'response': {"value": 'ticket filed'}}
+        action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
+                  'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': {"value": 'ticket filed'}}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
             assert processor.add_zendesk_action(action, bot, user)
@@ -6155,7 +6164,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': {'value': '123456789999'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
         processor = MongoProcessor()
@@ -6165,7 +6174,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com',
                   'response': 'ticket filed'}
 
@@ -6182,7 +6191,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action_does_not_exists(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
@@ -6194,7 +6203,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot)) == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
-             'api_token': '123456789***', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket',
+             'response': 'ticket filed here'}]
         bot = 'test_1'
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot)) == []
@@ -6204,7 +6215,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot, False)) == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
-             'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket', 'response': 'ticket filed here'}]
 
     def test_delete_zendesk_action(self):
         processor = MongoProcessor()
@@ -6223,7 +6235,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6240,7 +6252,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6256,7 +6268,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6297,7 +6309,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6312,7 +6324,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads_action',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6326,7 +6338,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == '12345***'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['domain'] == 'https://digite751.pipedrive.com/'
         assert actions[0]['response'] == 'I have failed to create lead for you'
         assert actions[0]['title'] == 'new lead'
@@ -6339,7 +6351,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6354,7 +6366,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite7.pipedrive.com/',
-            'api_token': 'asdfghjklertyui',
+            'api_token': {'value': 'asdfghjklertyui'},
             'title': 'new lead generated',
             'response': 'Failed to create lead for you',
             'metadata': {'name': 'name', 'email': 'email', 'phone': 'phone'}
@@ -6367,7 +6379,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot, False))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == 'asdfghjklertyui'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -6375,7 +6387,7 @@ class TestMongoProcessor:
 
         actions = list(processor.list_pipedrive_actions(bot, True))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == 'asdfghjklert***'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -6586,10 +6598,10 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action == {'action_name': 'test_add_http_action_config_no_response', 'http_url': 'http://www.google.com',
                                       'request_method': 'GET', 'content_type': 'json', 'params_list': [
-                {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
-                {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
+                {'_cls': 'HttpActionRequestBody', 'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
+                {'_cls': 'HttpActionRequestBody', 'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
                                       'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
@@ -7780,7 +7792,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
@@ -7817,7 +7829,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7860,7 +7872,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com"],
                         "subject": "Test Subject",
@@ -7877,7 +7889,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com"],
                         "subject": "Test Subject",
@@ -7894,7 +7906,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
@@ -7910,7 +7922,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7953,7 +7965,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7974,7 +7986,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8009,7 +8021,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8024,7 +8036,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'test_action',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8037,7 +8049,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot))
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == '12345***'
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
         assert actions[0]['num_results'] == 1
@@ -8048,7 +8060,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8063,7 +8075,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '1234567889',
+            'api_key': {'value': '1234567889'},
             'search_engine_id': 'asdfg:12345689',
             'failure_response': 'Failed to perform search',
         }
@@ -8076,7 +8088,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot, False))
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == '1234567889'
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
         assert actions[0]['num_results'] == 1
@@ -8208,10 +8220,10 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'action_hubspot_forms'
         assert actions[0]['portal_id'] == '123456785787'
         assert actions[0]['form_guid'] == 'asdfg:12345678787'
-        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+        assert actions[0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
     def test_delete_hubspot_forms_action(self):

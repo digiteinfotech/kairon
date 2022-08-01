@@ -5,7 +5,6 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.utils import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import GoogleSearchAction, ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
@@ -34,7 +33,6 @@ class ActionGoogleSearch(ActionsBase):
         try:
             action = GoogleSearchAction.objects(bot=self.bot, name=self.name, status=True).get().to_mongo().to_dict()
             logger.debug("google_search_action_config: " + str(action))
-            action['api_key'] = Utility.decrypt_message(action['api_key'])
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Google search action found for given action and bot")
@@ -54,11 +52,13 @@ class ActionGoogleSearch(ActionsBase):
         latest_msg = tracker.latest_message.get('text')
         action_config = self.retrieve_config()
         bot_response = action_config.get("failure_response")
+        api_key = action_config.get('api_key')
         try:
+            tracker_data = ActionUtility.build_context(tracker)
+            api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             if not ActionUtility.is_empty(latest_msg):
                 results = ActionUtility.perform_google_search(
-                    action_config['api_key'], action_config['search_engine_id'], latest_msg,
-                    num=action_config.get("num_results")
+                    api_key, action_config['search_engine_id'], latest_msg, num=action_config.get("num_results")
                 )
                 if results:
                     bot_response = ActionUtility.format_search_result(results)

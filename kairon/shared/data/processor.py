@@ -38,7 +38,8 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
+    CustomActionRequestParameters
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
@@ -2636,9 +2637,12 @@ class MongoProcessor:
             del http_config_dict['_id']
             for param in http_config_dict.get('headers', []):
                 Utility.decrypt_action_parameter(param)
+                param.pop('_cls')
 
             for param in http_config_dict.get('params_list', []):
                 Utility.decrypt_action_parameter(param)
+                param.pop('_cls')
+
             http_config_dict['content_type'] = {
                 HttpRequestContentType.json.value: HttpContentType.application_json.value,
                 HttpRequestContentType.data.value: HttpContentType.urlencoded_form_data.value
@@ -2709,7 +2713,7 @@ class MongoProcessor:
         )
         action = GoogleSearchAction(
             name=action_config['name'],
-            api_key=action_config['api_key'],
+            api_key=CustomActionRequestParameters(**action_config['api_key']),
             search_engine_id=action_config['search_engine_id'],
             failure_response=action_config.get('failure_response'),
             num_results=action_config.get('num_results'),
@@ -2733,7 +2737,7 @@ class MongoProcessor:
         if not Utility.is_exist(GoogleSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
             raise AppException(f'Google search action with name "{action_config.get("name")}" not found')
         action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
-        action.api_key = action_config['api_key']
+        action.api_key = CustomActionRequestParameters(**action_config['api_key'])
         action.search_engine_id = action_config['search_engine_id']
         action.failure_response = action_config.get('failure_response')
         action.num_results = action_config.get('num_results')
@@ -2749,9 +2753,6 @@ class MongoProcessor:
         """
         for action in GoogleSearchAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['api_key'] = Utility.decrypt_message(action['api_key'])
-            if mask_characters:
-                action['api_key'] = action['api_key'][:-3] + '***'
             action.pop('_id')
             action.pop('user')
             action.pop('bot')
@@ -3887,8 +3888,8 @@ class MongoProcessor:
         email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
         email_action.smtp_url = action['smtp_url']
         email_action.smtp_port = action['smtp_port']
-        email_action.smtp_userid = action['smtp_userid']
-        email_action.smtp_password = action['smtp_password']
+        email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action['smtp_userid'] else None
+        email_action.smtp_password = CustomActionRequestParameters(**action['smtp_password'])
         email_action.from_email = action['from_email']
         email_action.subject = action['subject']
         email_action.to_email = action['to_email']
@@ -3906,13 +3907,6 @@ class MongoProcessor:
         """
         for action in EmailActionConfig.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['smtp_url'] = Utility.decrypt_message(action['smtp_url'])
-            action['smtp_password'] = Utility.decrypt_message(action['smtp_password'])
-            action['from_email'] = Utility.decrypt_message(action['from_email'])
-            if not Utility.check_empty_string(action.get('smtp_userid')):
-                action['smtp_userid'] = Utility.decrypt_message(action['smtp_userid'])
-            if mask_characters:
-                action['smtp_password'] = action['smtp_password'][:-3] + '***'
             action.pop('_id')
             action.pop('user')
             action.pop('bot')
@@ -3956,7 +3950,7 @@ class MongoProcessor:
         jira_action = JiraAction.objects(name=action.get('name'), bot=bot, status=True).get()
         jira_action.url = action['url']
         jira_action.user_name = action['user_name']
-        jira_action.api_token = action['api_token']
+        jira_action.api_token = CustomActionRequestParameters(**action['api_token'])
         jira_action.project_key = action['project_key']
         jira_action.issue_type = action['issue_type']
         jira_action.parent_key = action['parent_key']
@@ -3984,10 +3978,6 @@ class MongoProcessor:
         """
         for action in JiraAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-            if mask_characters:
-                action['api_token'] = action['api_token'][:-3] + '***'
             action.pop('_id')
             action.pop('user')
             action.pop('bot')
@@ -4031,7 +4021,7 @@ class MongoProcessor:
         zendesk_action = ZendeskAction.objects(name=action.get('name'), bot=bot, status=True).get()
         zendesk_action.subdomain = action['subdomain']
         zendesk_action.user_name = action['user_name']
-        zendesk_action.api_token = action['api_token']
+        zendesk_action.api_token = CustomActionRequestParameters(**action['api_token'])
         zendesk_action.subject = action['subject']
         zendesk_action.response = action['response']
         zendesk_action.user = user
@@ -4046,10 +4036,6 @@ class MongoProcessor:
         """
         for action in ZendeskAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-            if mask_characters:
-                action['api_token'] = action['api_token'][:-3] + '***'
             action.pop('_id')
             action.pop('user')
             action.pop('bot')
@@ -4091,7 +4077,7 @@ class MongoProcessor:
             raise AppException(f'Action with name "{action.get("name")}" not found')
         pipedrive_action = PipedriveLeadsAction.objects(name=action.get('name'), bot=bot, status=True).get()
         pipedrive_action.domain = action['domain']
-        pipedrive_action.api_token = action['api_token']
+        pipedrive_action.api_token = CustomActionRequestParameters(**action['api_token'])
         pipedrive_action.title = action['title']
         pipedrive_action.response = action['response']
         pipedrive_action.metadata = action['metadata']
@@ -4107,9 +4093,6 @@ class MongoProcessor:
         """
         for action in PipedriveLeadsAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
-            if mask_characters:
-                action['api_token'] = action['api_token'][:-3] + '***'
             action.pop('_id')
             action.pop('user')
             action.pop('bot')
