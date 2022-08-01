@@ -10446,7 +10446,7 @@ def test_multilingual_translate():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.json_params_matcher(
-                {'source_bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': False, 'translate_actions': False})],
     )
     response = client.post(
@@ -10537,7 +10537,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.json_params_matcher(
-                {'source_bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': True, 'translate_actions': True})],
     )
 
