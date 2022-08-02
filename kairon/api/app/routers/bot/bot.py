@@ -1458,3 +1458,21 @@ async def add_metrics(
     return Response(
         message='Metrics added'
     )
+
+
+@router.post("/metrics/user/logs/{log_type}", response_model=Response)
+async def add_metrics(
+        request_data: DictData,
+        log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores End User Metrics
+    """
+    data = request_data.dict()["data"]
+    EndUserMetricsProcessor.add_log(
+        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
+    )
+    return Response(
+        message='Metrics added'
+    )
