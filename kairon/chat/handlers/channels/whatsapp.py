@@ -13,6 +13,7 @@ import html
 from tornado.escape import json_decode
 
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon import Utility
 
 logger = logging.getLogger(__name__)
 
@@ -132,8 +133,18 @@ class WhatsappBot(OutputChannel):
             **kwargs: Any,
     ) -> None:
         """Sends custom json data to the output."""
-        messaging_type = kwargs.get("messaging_type") or "interactive"
-        self.whatsapp_client.send(json_message, recipient_id, messaging_type)
+        from kairon.chat.converters.channels.constants import CHANNEL_TYPES, ELEMENT_TYPE
+        type_list = Utility.system_metadata.get("type_list")
+        message = json_message.get("data")
+        type = json_message.get("type")
+        if type is not None and type in type_list:
+            messaging_type = "text" if json_message["type"] == ELEMENT_TYPE.LINK.value else json_message["type"]
+            from kairon.chat.converters.channels.responseconverter import ConverterFactory
+            converter_instance = ConverterFactory.getConcreteInstance(type, CHANNEL_TYPES.WHATSAPP.value)
+            response = await converter_instance.messageConverter(message)
+            self.whatsapp_client.send(response, recipient_id, messaging_type)
+        else:
+            self.send(recipient_id, {"preview_url": True, "body": str(json_message)})
 
 
 class WhatsappHandler(MessengerHandler):

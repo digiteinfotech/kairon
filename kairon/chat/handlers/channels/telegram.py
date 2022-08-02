@@ -21,6 +21,9 @@ from tornado.escape import json_decode, json_encode
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.tornado.handlers.base import BaseHandler
 from kairon.chat.agent_processor import AgentProcessor
+from kairon import Utility
+from kairon.chat.converters.channels.responseconverter import ConverterFactory
+from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -136,11 +139,29 @@ class TelegramOutput(TeleBot, OutputChannel):
             ): "send_invoice",
         }
 
-        for params in send_functions.keys():
-            if all(json_message.get(p) is not None for p in params):
-                args = [json_message.pop(p) for p in params]
-                api_call = getattr(self, send_functions[params])
-                api_call(recipient_id, *args, **json_message)
+        try:
+            message = json_message.get("data")
+            message_type = json_message.get("type")
+            type_list = Utility.system_metadata.get("type_list")
+            if message_type is not None and message_type in type_list:
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, CHANNEL_TYPES.TELEGRAM.value)
+                ops_type = json_message.get("type")
+                response = await converter_instance.messageConverter(message)
+                response_list = []
+                if ops_type == "image":
+                    response_list.append(response.get("photo"))
+                    del response["photo"]
+                    api_call = getattr(self, send_functions[("photo",)])
+                    api_call(recipient_id, *response_list, **response)
+                elif ops_type == "link":
+                    response_list.append(response.get("text"))
+                    del response["text"]
+                    api_call = getattr(self, send_functions[("text",)])
+                    api_call(recipient_id, *response_list, **response)
+            else:
+                self.send_message(recipient_id, str(json_message))
+        except Exception as ap:
+            raise Exception(f"Error in telegram send_custom_json {str(ap)}")
 
 
 class TelegramHandler(InputChannel, BaseHandler):

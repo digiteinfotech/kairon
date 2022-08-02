@@ -14,6 +14,10 @@ from tornado.escape import json_encode, json_decode
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon import Utility
+from kairon.chat.converters.channels.responseconverter import ConverterFactory
+from kairon.chat.converters.channels.constants import CHANNEL_TYPES
+
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +185,18 @@ class HangoutsOutput(OutputChannel):
         """Custom json payload is simply forwarded to Google Hangouts without
         any modifications. Use this for more complex cards, which can be created
         in actions.py."""
-        await self._persist_message(json_message)
+        try:
+            message = json_message.get("data")
+            message_type = json_message.get("type")
+            type_list = Utility.system_metadata.get("type_list")
+            if message_type is not None and message_type in type_list:
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, CHANNEL_TYPES.HANGOUT.value)
+                response = await converter_instance.messageConverter(message)
+                await self._persist_message(response)
+            else:
+                await self._persist_message({"text": str(json_message)})
+        except Exception as ap:
+            raise Exception(f"Error in Hangout send_custom_json {str(ap)}")
 
 
 # Google Hangouts input channel
