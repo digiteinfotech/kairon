@@ -10252,6 +10252,19 @@ def test_get_end_user_metrics_empty():
     assert actual["data"] == []
 
 
+def test_add_end_user_metrics():
+    log_type = "user_metrics"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English"}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
 def test_get_end_user_metrics():
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
@@ -10266,7 +10279,10 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
+    assert len(actual["data"]) == 6
+    actual["data"][5].pop('timestamp')
+    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+                           'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
@@ -10275,7 +10291,6 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 2
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
