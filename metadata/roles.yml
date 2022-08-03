@@ -13,9 +13,7 @@ roles:
       administration: true
       chatHistory: true
       analytics: true
-      actionLogs: true
-      dataValidationLogs: true
-      modelTestingLogs: true
+      logs: true
     pages:
       chatbots:
         renameBot: true
@@ -98,9 +96,7 @@ roles:
       administration: true
       chatHistory: true
       analytics: true
-      actionLogs: true
-      dataValidationLogs: true
-      modelTestingLogs: true
+      logs: true
     pages:
       chatbots:
         renameBot: false
@@ -183,9 +179,7 @@ roles:
       administration: false
       chatHistory: true
       analytics: true
-      actionLogs: true
-      dataValidationLogs: true
-      modelTestingLogs: true
+      logs: true
     pages:
       chatbots:
         renameBot: false
@@ -268,9 +262,7 @@ roles:
       administration: false
       chatHistory: true
       analytics: true
-      actionLogs: true
-      dataValidationLogs: true
-      modelTestingLogs: true
+      logs: true
     pages:
       chatbots:
         renameBot: false
