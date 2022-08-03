@@ -1,5 +1,4 @@
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon import Utility
 from kairon.chat.converters.channels.constants import ELEMENT_TYPE
 
 class WhatsappResponseConverter(ElementTransformerOps):
