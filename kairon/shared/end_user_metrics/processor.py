@@ -1,8 +1,10 @@
 import json
 from typing import Text
 
+from kairon.shared.constants import PluginTypes
 from kairon.shared.end_user_metrics.constants import MetricTypes
 from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
+from kairon.shared.plugins.factory import PluginFactory
 
 
 class EndUserMetricsProcessor:
@@ -25,6 +27,10 @@ class EndUserMetricsProcessor:
             bot=bot,
             sender_id=sender_id,
         )
+        if kwargs.get("ip"):
+            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(kwargs.get("ip"))
+            if location_info:
+                kwargs.update(location_info)
         for key, value in kwargs.items():
             setattr(metric, key, value)
         metric.save()
