@@ -118,6 +118,30 @@
                     }],
   "json_generator": [{"name": "testadmin","bot": 123}, {"name": "testadmin1", "bot": 100}],
   "json_generator_nolist": {"name": "testadmin","bot": 123},
-  "json_generator_nodata": []
+  "json_generator_nodata": [],
+  "link_wrong_json": [
+    {
+      "type": "paragraph",
+      "children": [
+        {
+          "text": "This is"
+        },
+        {
+          "type": "link",
+          "children": [
+            {
+              "text": "GoogleLink"
+            }
+          ]
+        },
+        {
+          "text": "use for search"
+        },
+        {
+          "text": " "
+        }
+      ]
+    }
+  ]
 
 }

@@ -29,10 +29,6 @@ class MessengerResponseConverter(ElementTransformerOps):
             if message_template is not None:
                 response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type, self.message_type)
                 return response
-            else:
-                message_config = Utility.system_metadata.get("No_Config_error_message")
-                message_config = str(message_config).format(self.channel, self.message_type)
-                raise Exception(message_config)
         except Exception as ex:
             raise Exception(f" Error in MessengerResponseConverter::link_transformer {str(ex)}")
 
