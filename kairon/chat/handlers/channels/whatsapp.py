@@ -138,7 +138,7 @@ class WhatsappBot(OutputChannel):
         messagetype = json_message.get("type")
         if messagetype is not None and messagetype in type_list:
             messaging_type = "text" if json_message["type"] == ELEMENT_TYPE.LINK.value else json_message["type"]
-            from kairon.chat.converters.channels.responseconverter import ConverterFactory
+            from kairon.chat.converters.channels.response_factory import ConverterFactory
             converter_instance = ConverterFactory.getConcreteInstance(messagetype, CHANNEL_TYPES.WHATSAPP.value)
             response = await converter_instance.messageConverter(message)
             self.whatsapp_client.send(response, recipient_id, messaging_type)

@@ -19,7 +19,8 @@ from kairon.shared.utils import Utility
 from unittest.mock import patch
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from kairon.chat.converters.channels.responseconverter import ElementTransformerOps, ConverterFactory
+from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.chat.converters.channels.response_factory import ConverterFactory
 import json
 
 class TestUtility:
