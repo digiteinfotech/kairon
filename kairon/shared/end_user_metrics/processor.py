@@ -28,7 +28,7 @@ class EndUserMetricsProcessor:
             sender_id=sender_id,
         )
         if kwargs.get("ip"):
-            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(kwargs.get("ip"))
+            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(**kwargs)
             if location_info:
                 kwargs.update(location_info)
         for key, value in kwargs.items():

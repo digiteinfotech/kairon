@@ -10339,11 +10339,11 @@ def test_get_end_user_metrics():
     actual["data"][6].pop('timestamp')
     actual["data"][7].pop('timestamp')
     assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
-                                 'bot': '62ea78435261c28805382eb3',
+                                 'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': '62ea78435261c28805382eb3',
+    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(

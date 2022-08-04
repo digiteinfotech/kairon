@@ -23,12 +23,12 @@ class TestUtility:
 
     @responses.activate
     def test_ipinfo_plugin(self, monkeypatch):
-        ip = "192.222.100.106"
+        ip = {"ip": "192.222.100.106"}
         token = "abcgd563"
         enable = True
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-        url = f"https://ipinfo.io/{ip}?token={token}"
+        url = f"https://ipinfo.io/{ip.get('ip')}?token={token}"
         expected = {
             "ip": "140.82.201.129",
             "city": "Mumbai",
@@ -40,23 +40,23 @@ class TestUtility:
             "timezone": "Asia/Kolkata"
         }
         responses.add("GET", url, json=expected)
-        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip)
+        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
         assert response == expected
 
     def test_enable_plugin(self):
-        ip = "192.222.100.106"
-        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip)
+        ip = {"ip": "192.222.100.106"}
+        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
         assert not response
 
     def test_token_plugin(self, monkeypatch):
-        ip = "192.222.100.106"
+        ip = {"ip": "192.222.100.106"}
         token = "abcgd563"
         enable = True
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-        url = f"https://ipinfo.io/{ip}?token={token}"
+        url = f"https://ipinfo.io/{ip.get('ip')}?token={token}"
         responses.add("GET", url, status= 400)
-        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip)
+        response = PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
         assert not response
 
     def test_plugin_type(self):
@@ -64,4 +64,9 @@ class TestUtility:
         with pytest.raises(AppException, match=re.escape(f"location is not a valid event. Accepted event types: {valid_plugins}")):
             PluginFactory.get_instance("location")
 
-
+    def test_empty_ip(self, monkeypatch):
+        ip = {"ip": " "}
+        enable = True
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+        with pytest.raises(AppException, match="ip is required"):
+            PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
