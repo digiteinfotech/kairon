@@ -10252,6 +10252,71 @@ def test_get_end_user_metrics_empty():
     assert actual["data"] == []
 
 
+def test_add_end_user_metrics():
+    log_type = "user_metrics"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English"}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_add_end_user_metrics_with_ip(monkeypatch):
+    log_type = "user_metrics"
+    ip = "192.222.100.106"
+    token = "abcgd563"
+    enable = True
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+    url = f"https://ipinfo.io/{ip}?token={token}"
+    expected = {
+        "ip": "140.82.201.129",
+        "city": "Mumbai",
+        "region": "Maharashtra",
+        "country": "IN",
+        "loc": "19.0728,72.8826",
+        "org": "AS13150 CATO NETWORKS LTD",
+        "postal": "400070",
+        "timezone": "Asia/Kolkata"
+    }
+    responses.add("GET", url, json=expected)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_add_end_user_metrics_ip_request_failure(monkeypatch):
+    log_type = "user_metrics"
+    ip = "192.222.100.106"
+    token = "abcgd563"
+    enable = True
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+    url = f"https://ipinfo.io/{ip}?token={token}"
+    responses.add("GET", url, status=500)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English"}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
 def test_get_end_user_metrics():
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
@@ -10266,7 +10331,20 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
+    print(actual["data"])
+    assert len(actual["data"]) == 8
+    actual["data"][5].pop('timestamp')
+    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+                           'source': 'Digite.com', 'language': 'English'}
+    actual["data"][6].pop('timestamp')
+    actual["data"][7].pop('timestamp')
+    assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+                                 'bot': pytest.bot,
+                                 'source': 'Digite.com', 'language': 'English',
+                                 'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                                 'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
+    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+                                 'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
@@ -10275,7 +10353,6 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 2
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
