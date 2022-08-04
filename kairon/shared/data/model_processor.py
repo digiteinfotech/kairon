@@ -44,8 +44,9 @@ class ModelProcessor:
             doc.model_config = MongoProcessor().load_config(bot)
             doc.status = status
             doc.start_timestamp = datetime.utcnow()
-            if status in [EVENT_STATUS.FAIL, EVENT_STATUS.DONE]:
-                doc.end_timestamp = datetime.utcnow()
+
+        if status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.DONE.value]:
+            doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user

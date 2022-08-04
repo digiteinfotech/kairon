@@ -122,18 +122,20 @@ class ModelTestingLogProcessor:
         """
         from kairon.shared.utils import Utility
 
-        if not (Utility.check_empty_string(log_type) and Utility.check_empty_string(reference_id)):
+        if not Utility.check_empty_string(log_type) and not Utility.check_empty_string(reference_id):
             logs = ModelTestingLogProcessor.get_by_id_and_type(reference_id, bot, log_type, start_idx, page_size)
         else:
-            logs = ModelTestingLogProcessor.get_all(bot)
+            logs = ModelTestingLogProcessor.get_all(bot, start_idx, page_size)
         return logs
 
     @staticmethod
-    def get_all(bot: str):
+    def get_all(bot: str, start_idx: int = 0, page_size: int = 10):
         """
         Get all logs for data importer event.
         @param bot: bot id.
         @return: list of logs.
+        @param start_idx: start index in list field
+        @param page_size: number of rows from start index
         """
         return list(ModelTestingLogs.objects(bot=bot).aggregate([
             {"$set": {"data.type": "$type"}},
@@ -147,7 +149,7 @@ class ModelTestingLogProcessor:
                 '_id': 0, 'reference_id': '$_id',
                 'data': {'$filter': {'input': '$data', 'as': 'data', 'cond': {'$ne': ['$$data.type', 'common']}}},
                 'status': 1, 'event_status': 1, 'exception': 1, 'start_timestamp': 1, 'end_timestamp': 1}},
-            {"$sort": {"start_timestamp": -1}}]))
+            {"$sort": {"start_timestamp": -1}}]))[start_idx:start_idx+page_size]
 
     @staticmethod
     def get_by_id_and_type(reference_id: str, bot: str, log_type: str, start_idx: int = 0, page_size: int = 10):
@@ -171,21 +173,26 @@ class ModelTestingLogProcessor:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == 'nlu' and filtered_data:
+            intent_failures, entity_failures, response_selection_failures = [], [], []
+            intent_failure_cnt, entity_failure_cnt, response_selection_failure_cnt = 0, 0, 0
             filtered_data = filtered_data.get()
-            intent_evaluation_logs = filtered_data.data.get('intent_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
-            entity_evaluation_logs = filtered_data.data.get('entity_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
-            response_selection_evaluation_logs = filtered_data.data.get('response_selection_evaluation', {}).get('errors', [])[start_idx:start_idx+page_size]
-            intent_evaluation_fail_cnt = filtered_data.data.get('intent_evaluation', {}).get('failure_count', 0)
-            entity_evaluation_fail_cnt = filtered_data.data.get('entity_evaluation', {}).get('failure_count', 0)
-            response_selection_evaluation_fail_cnt = filtered_data.data.get('response_selection_evaluation', {}).get('failure_count', 0)
+            if filtered_data.data.get('intent_evaluation') and filtered_data.data['intent_evaluation'].get('errors'):
+                intent_failures = filtered_data.data['intent_evaluation']['errors'][start_idx:start_idx+page_size]
+                intent_failure_cnt = filtered_data.data['intent_evaluation'].get('failure_count') or 0
+            if filtered_data.data.get('entity_evaluation') and filtered_data.data['entity_evaluation'].get('errors'):
+                entity_failures = filtered_data.data['entity_evaluation']['errors'][start_idx:start_idx+page_size]
+                entity_failure_cnt = filtered_data.data['entity_evaluation']['failure_count'] or 0
+            if filtered_data.data.get('response_selection_evaluation') and filtered_data.data['response_selection_evaluation'].get('errors'):
+                response_selection_failures = filtered_data.data['response_selection_evaluation']['errors'][start_idx:start_idx+page_size]
+                response_selection_failure_cnt = filtered_data.data['response_selection_evaluation']['failure_count'] or 0
             logs = {
-                "intent_evaluation": {'errors': intent_evaluation_logs, 'total': intent_evaluation_fail_cnt},
-                "entity_evaluation": {'errors': entity_evaluation_logs, 'total': entity_evaluation_fail_cnt},
+                "intent_evaluation": {'errors': intent_failures, 'total': intent_failure_cnt},
+                "entity_evaluation": {'errors': entity_failures, 'total': entity_failure_cnt},
                 "response_selection_evaluation": {
-                    'errors': response_selection_evaluation_logs, 'total': response_selection_evaluation_fail_cnt
+                    'errors': response_selection_failures, 'total': response_selection_failure_cnt
                 }
             }
-            if intent_evaluation_fail_cnt or entity_evaluation_fail_cnt or response_selection_evaluation_fail_cnt:
+            if intent_failure_cnt or entity_failure_cnt or response_selection_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         return logs
