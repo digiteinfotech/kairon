@@ -1,0 +1,108 @@
+type_list: ["image","link"]
+slack:
+  image: '{
+	"blocks": [
+		{
+			"type": "image",
+              "title": {
+                "type": "plain_text",
+                "text": "<alttext>",
+                "emoji": true
+              },
+              "image_url": "<imageurl>",
+              "alt_text": "<alttext>"
+		}
+	]
+  }'
+  link: '{
+	"blocks": [
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "<data>"
+			}
+		}
+	]
+  }'
+
+hangout:
+  link: '{
+  "text": "<data>"
+}'
+  image: '{
+	"cards": [{
+		"sections": [{
+			"widgets": [{
+					"textParagraph": {
+						"text": "<alttext>"
+					}
+				},
+				{
+					"image": {
+						"imageUrl": "<imageurl>",
+						"onClick": {
+							"openLink": {
+								"url": "<imageurl>"
+							}
+						}
+					}
+				}
+			]
+		}]
+	}]
+}'
+
+messenger:
+  image: '{
+	"attachment": {
+		"type": "template",
+		"payload": {
+			"template_type": "generic",
+			"elements": [{
+				"title": "<alttext>",
+				"image_url": "<imageurl>",
+				"default_action": {
+					"type": "web_url",
+					"url": "<imageurl>"
+				}
+			}]
+		}
+	}
+}'
+  link: '{"text":"<data>"}'
+
+whatsapp:
+  image: '{
+    "link":"<imageurl>",
+    "caption":"<alttext>"
+ }'
+
+  link: '{
+    "preview_url": true,
+    "body":"<data>"
+ }'
+
+telegram:
+  image: '{"photo":"<imageurl>","caption":"<alttext>"}'
+  link: '{"text":"<data>",
+  "parse_mode":"HTML","disable_web_page_preview":false,
+  "disable_notification":false,
+  "reply_to_message_id":0}'
+
+No_Config_error_message: Configuration not provided for channel {} and elementtype {}
+
+channel_messagetype_and_key_mapping: '{"slack": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                 "link": {"data": "<data>"}},
+                       "messenger": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                 "link": {"data": "<data>"} } ,
+                       "hangout": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                     "link": {"data": "<data>"}},
+                       "telegram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                   "link": {"data": "<data>"}},
+                       "whatsapp": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                     "link": {"data": "<data>"}},
+                       "instagram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                    "link": {"data": "<data>"}}
+                                     }'
+channel_key_mapping_missing: Element key mapping missing for {} or {}
