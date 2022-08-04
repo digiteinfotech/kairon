@@ -125,3 +125,8 @@ multilingual:
     token_uri: ${SERVICE_ACCOUNT_TOKEN_URL:"https://oauth2.googleapis.com/token"}
     auth_provider_x509_cert_url: ${SERVICE_ACCOUNT_AUTH_PROVIDER_CERT_URL:"https://www.googleapis.com/oauth2/v1/certs"}
     client_x509_cert_url: ${SERVICE_ACCOUNT_CLIENT_CERT_URL}
+
+plugins:
+  location:
+    enable: ${ENABLE_LOCATION_PLUGIN}
+    token: ${LOCATION_PLUGIN_TOKEN}
