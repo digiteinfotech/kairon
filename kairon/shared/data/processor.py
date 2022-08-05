@@ -2195,7 +2195,7 @@ class MongoProcessor:
                         step['type'] = StoryStepType.pipedrive_leads_action.value
                     elif event['name'] in hubspot_forms_actions:
                         step['type'] = StoryStepType.hubspot_forms_action.value
-                    elif event['name'] == ActionType.two_stage_fallback.value:
+                    elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
