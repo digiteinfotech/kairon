@@ -1346,7 +1346,9 @@ class Utility:
         try:
             logger.info(f"Event started: {http_url}")
             if request_method.lower() == 'get':
-                response = requests.get(http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout'))
+                response = requests.request(
+                    request_method.upper(), http_url, data=request_body, headers=headers, timeout=kwargs.get('timeout')
+                )
             elif request_method.lower() in ['post', 'put', 'delete']:
                 response = requests.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')

@@ -4358,6 +4358,25 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Empty name is allowed only for active_loop"):
             processor.add_complex_story(story_dict, bot, user)
 
+    def test_create_two_stage_fallback_rule(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "nlu_fallback", "type": "INTENT"},
+            {"name": ActionType.two_stage_fallback, "type": "TWO_STAGE_FALLBACK_ACTION"}
+        ]
+        story_dict = {'name': "activate two stage fallback", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        rule = Rules.objects(block_name="activate two stage fallback", bot=bot,
+                             events__name=ActionType.two_stage_fallback, status=True).get()
+        assert rule.to_mongo().to_dict()['events'] == [{'name': '...', 'type': 'action'},
+                                                       {'name': 'nlu_fallback', 'type': 'user'},
+                                                       {'name': 'two_stage_fallback', 'type': 'action'}]
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "activate two stage fallback"]
+        assert story_with_form[0]['steps'] == steps
+
     def test_create_form_activation_and_deactivation_rule(self):
         processor = MongoProcessor()
         bot = 'test'

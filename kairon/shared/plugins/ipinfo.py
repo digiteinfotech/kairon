@@ -13,9 +13,10 @@ class IpInfoTracker(BasePlugin):
             if Utility.check_empty_string(ip):
                 raise AppException("ip is required")
             try:
+                headers = {"user-agent": "IPinfoClient/Python3.8/4.2.1", "accept": "application/json"}
                 token = Utility.environment["plugins"]["location"]["token"]
                 url = f"https://ipinfo.io/{ip}?token={token}"
-                tracking_info = Utility.execute_http_request("GET", url)
+                tracking_info = Utility.execute_http_request("GET", url, headers=headers)
                 return tracking_info
             except Exception as e:
                 logger.exception(e)
