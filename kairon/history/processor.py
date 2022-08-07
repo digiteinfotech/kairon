@@ -92,6 +92,7 @@ class HistoryProcessor:
                         result["intent"] = parse_data["intent"]["name"]
                         result["confidence"] = parse_data["intent"]["confidence"]
                     elif event["event"] == "bot":
+                        result['data'] = event['data']
                         if bot_action:
                             result["action"] = bot_action
 
