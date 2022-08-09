@@ -987,7 +987,8 @@ class HistoryProcessor:
                                        "sort": {"$cond": {"if": sort_by_date, "then": "$t_stamp", "else": "_id"}}}},
                          {"$sort": {"sort": -1}},
                          {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": 1,
-                                       "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}}, "bot_response": 1}}
+                                       "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
+                                       "bot_response_text": 1, "bot_response_data": 1}}
                          ], allowDiskUse=True))
             except Exception as e:
                 logger.error(e)
