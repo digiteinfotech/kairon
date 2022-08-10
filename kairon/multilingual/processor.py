@@ -9,6 +9,7 @@ from kairon.shared.account.data_objects import Bot
 from loguru import logger
 import re
 from ..exceptions import AppException
+from ..shared.data.utils import DataUtility
 
 
 class MultilingualTranslator:
@@ -67,6 +68,7 @@ class MultilingualTranslator:
         examples_list = []
         for example in training_data.training_examples:
             text = example.data.get('text')
+            text = DataUtility.extract_text_and_entities(text)[0]
             if text:
                 examples_list.append(text)
 
@@ -75,6 +77,7 @@ class MultilingualTranslator:
 
             # Assuming the list of training examples is always ordered
             for i, example in enumerate(training_data.training_examples):
+
                 example.data['text'] = str(examples_translations[i])
         else:
             logger.info("Training examples empty.")
