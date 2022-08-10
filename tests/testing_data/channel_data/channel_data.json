@@ -1,0 +1,147 @@
+{
+  "link": [
+    {
+      "type": "paragraph",
+      "children": [
+        {
+          "text": "This is"
+        },
+        {
+          "type": "link",
+          "href": "http://www.google.com",
+          "children": [
+            {
+              "text": "GoogleLink"
+            }
+          ]
+        },
+        {
+          "text": "use for search"
+        },
+        {
+          "text": " "
+        }
+      ]
+    }
+  ],
+  "hangout_link_op": {
+    "text": "This is <http://www.google.com|GoogleLink> use for search"
+  },
+  "image": [
+            {
+              "type":"paragraph",
+              "children":[{
+                "text":""
+              }]
+            },
+            {
+              "type":"image",
+              "alt":"Dog Image",
+              "src":"https://i.imgur.com/nFL91Pc.jpeg",
+              "children":[{
+                "text":"Dog Image"
+              }]
+            }
+          ],
+  "hangout_image_op":{"cards": [{"sections": [{"widgets": [{"textParagraph": {"text": "Dog Image"}}, {"image": {"imageUrl": "https://i.imgur.com/nFL91Pc.jpeg", "onClick": {"openLink": {"url": "https://i.imgur.com/nFL91Pc.jpeg"}}}}]}]}]},
+  "slack_link_op": {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "This is <http://www.google.com|GoogleLink> use for search"}}]},
+  "slack_image_op": {"blocks": [{"type": "image", "title": {"type": "plain_text", "text": "Dog Image", "emoji": true}, "image_url": "https://i.imgur.com/nFL91Pc.jpeg", "alt_text": "Dog Image"}]},
+  "messenger_link_op": {"text": "This is http://www.google.com use for search"},
+  "messenger_image_op": {"attachment": {"type": "template", "payload": {"template_type": "generic", "elements": [{"title": "Dog Image", "image_url": "https://i.imgur.com/nFL91Pc.jpeg", "default_action": {"type": "web_url", "url": "https://i.imgur.com/nFL91Pc.jpeg"}}]}}},
+  "whatsapp_link_op": {"preview_url": true, "body": "This is http://www.google.com use for search"},
+  "whatsapp_image_op": {"link": "https://i.imgur.com/nFL91Pc.jpeg", "caption": "Dog Image"},
+  "telegram_link_op": {"text": "This is http://www.google.com use for search", "parse_mode": "HTML", "disable_web_page_preview": false, "disable_notification": false, "reply_to_message_id": 0},
+  "telegram_image_op": {"photo": "https://i.imgur.com/nFL91Pc.jpeg", "caption": "Dog Image"},
+  "multi_link": [{
+                    "type": "paragraph",
+                    "children": [{
+                            "text": "This is"
+                        },
+                        {
+                            "type": "link",
+                            "href": "http://www.google.com",
+                            "children": [{
+                                "text": "GoogleLink"
+                            }]
+                        },
+                        {
+                            "text": "use for search"
+                        },
+                        {
+                            "text": " "
+                        }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "children": [{
+                                "text": "and you can also see news on"
+                            },
+                            {
+                                "type": "link",
+                                "href": "https://www.indiatoday.in/",
+                                "children": [{
+                                    "text": "Indiatoday"
+                                }]
+                            },
+                            {
+                                "text": "and slatejs details on"
+                            },
+                            {
+                                "type": "link",
+                                "href": "https://www.slatejs.org/examples/richtext",
+                                "children": [{
+                                    "text": "SlateJS"
+                                }]
+                            },
+                            {
+                                "text": " "
+                            }
+                        ]
+                    }],
+  "only_link": [{
+                    "type": "paragraph",
+                    "children": [{
+                            "text": " "
+                        },
+                        {
+                            "type": "link",
+                            "href": "http://www.google.com",
+                            "children": [{
+                                "text": "GoogleLink"
+                            }]
+                        },
+                        {
+                            "text": " "
+                        }
+                        ]
+                    }],
+  "json_generator": [{"name": "testadmin","bot": 123}, {"name": "testadmin1", "bot": 100}],
+  "json_generator_nolist": {"name": "testadmin","bot": 123},
+  "json_generator_nodata": [],
+  "link_wrong_json": [
+    {
+      "type": "paragraph",
+      "children": [
+        {
+          "text": "This is"
+        },
+        {
+          "type": "link",
+          "children": [
+            {
+              "text": "GoogleLink"
+            }
+          ]
+        },
+        {
+          "text": "use for search"
+        },
+        {
+          "text": " "
+        }
+      ]
+    }
+  ]
+
+}

@@ -25,6 +25,7 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
+from kairon.shared.end_user_metrics.constants import MetricTypes
 from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
@@ -1438,4 +1439,22 @@ async def end_user_metrics(
     """
     return Response(
         data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
+    )
+
+
+@router.post("/metrics/user/logs/{log_type}", response_model=Response)
+async def add_metrics(
+        request_data: DictData,
+        log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores End User Metrics
+    """
+    data = request_data.dict()["data"]
+    EndUserMetricsProcessor.add_log(
+        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
+    )
+    return Response(
+        message='Metrics added'
     )

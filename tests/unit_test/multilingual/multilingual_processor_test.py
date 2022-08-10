@@ -65,7 +65,7 @@ class TestMultilingualProcessor:
         with patch('zenpy.Zenpy') as mock:
             ZendeskAction(
                 name='zendesk_action', bot="test_bot", user="test_user", subdomain='digite751', user_name='test@digite.com',
-                api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
+                api_token={"value": "ASDFGHJKL"}, subject='new user detected', response='Successfully created').save()
 
             with patch("google.oauth2.service_account.Credentials", autospec=True):
                 with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:
@@ -264,7 +264,7 @@ class TestMultilingualProcessor:
                 action_name="email_action",
                 smtp_url="test.localhost",
                 smtp_port=293,
-                smtp_password="test",
+                smtp_password={"value": "test"},
                 from_email="test@demo.com",
                 subject="test",
                 to_email=["test@test.com","test1@test.com"],
@@ -276,7 +276,7 @@ class TestMultilingualProcessor:
             with patch('zenpy.Zenpy'):
                 ZendeskAction(
                     name='zendesk_action', bot="test_bot", user="test_user", subdomain='digite751', user_name='test@digite.com',
-                    api_token='ASDFGHJKL', subject='new user detected', response='Successfully created').save()
+                    api_token={"value": 'ASDFGHJKL'}, subject='new user detected', response='Successfully created').save()
 
                 with patch("google.oauth2.service_account.Credentials", autospec=True):
                     with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mocked_new:

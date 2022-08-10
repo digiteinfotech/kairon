@@ -29,6 +29,9 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
 
+from kairon.shared.data.data_objects import StoryEvents, Rules
+from kairon.shared.data.processor import MongoProcessor
+
 
 class TestEventDefinitions:
 
@@ -154,8 +157,42 @@ class TestEventDefinitions:
     def test_model_training_presteps_no_training_data(self):
         bot = 'test_definitions'
         user = 'test_user'
-        with pytest.raises(AppException, match='Please add at least 2 stories and 2 intents before training the bot!'):
+        with pytest.raises(AppException, match='Please add at least 2 flows and 2 intents before training the bot!'):
             ModelTrainingEvent(bot, user).validate()
+        logs = list(ModelProcessor.get_training_history(bot))
+        assert len(logs) == 0
+
+    def test_model_training_presteps_rule_exists(self):
+        bot = 'test_definitions'
+        user = 'test_user'
+        story = 'new_story'
+        intent = 'test_intent'
+        action = 'test_action'
+        story_event = [StoryEvents(name=intent, type="user"),
+                       StoryEvents(name="bot", type="slot", value=bot),
+                       StoryEvents(name="http_action_config", type="slot", value=action),
+                       StoryEvents(name="kairon_http_action", type="action")]
+        Rules(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False)
+        Rules(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False)
+
+        with pytest.raises(AppException, match='Please add at least 2 flows and 2 intents before training the bot!'):
+            ModelTrainingEvent(bot, user).validate()
+        processor = MongoProcessor()
+        assert processor.add_intent("greeting", bot, user, is_integration=False)
+        with pytest.raises(AppException, match='Please add at least 2 flows and 2 intents before training the bot!'):
+            ModelTrainingEvent(bot, user).validate()
+        assert processor.add_intent("goodbye", bot, user, is_integration=False)
+        ModelTrainingEvent(bot, user).validate()
         logs = list(ModelProcessor.get_training_history(bot))
         assert len(logs) == 0
 

@@ -107,10 +107,15 @@ form_validation_action:
 
 google_search_action:
 - name: google_search_action_1
-  api_key: asdfghjklrtyu
+  api_key:
+    key: api_key
+    value: asdfghjklrtyu
+    parameter_type: value
   search_engine_id: sdfg34567dfgh
 - name: google_search_action_2
-  api_key: asdfghjklrtyu
+  api_key:
+    key: api_key
+    value: asdfghjklrtyu
   search_engine_id: sdfg34567dfgh
   failure_response: no response from google
   num_results: 2
@@ -119,7 +124,10 @@ jira_action:
 - name: jira_action_1
   url: http://digite.atlassian.net
   user_name: udit.pandey@digite.com
-  api_token: bkjbk1234567890
+  api_token:
+    key: api_token
+    value: bkjbk1234567890
+    parameter_type: value
   project_key: HEL
   issue_type: Subtask
   parent_key: TAS
@@ -128,7 +136,10 @@ jira_action:
 - name: jira_action_2
   url: http://digite.atlassian.net
   user_name: udit.pandey@digite.com
-  api_token: hgvj1234567890
+  api_token:
+    key: api_token
+    value: hgvj1234567890
+    parameter_type: value
   project_key: HEL
   issue_type: Task
   summary: new demo request
@@ -138,13 +149,19 @@ zendesk_action:
 - name: zendesk_action_1
   subdomain: digite751
   user_name: udit.pandey@digite.com
-  api_token: 123456wertyu
+  api_token:
+    key: api_token
+    value: 123456wertyu
+    parameter_type: value
   subject: new demo request
   response: Request taken
 - name: zendesk_action_2
   subdomain: digite751
   user_name: udit.pandey@digite.com
-  api_token: 1234567dfghjk
+  api_token:
+    key: api_token
+    value: 1234567dfghjk
+    parameter_type: value
   subject: new demo request
   response: Request taken
 
@@ -152,8 +169,14 @@ email_action:
 - action_name: email_action_1
   smtp_url: smtp.gmail.com
   smtp_port: 587
-  smtp_userid: udit.pandey@digite.com
-  smtp_password: dfgh4567
+  smtp_userid:
+    key: smtp_userid
+    value: udit.pandey@digite.com
+    parameter_type: value
+  smtp_password:
+    key: smtp_password
+    value: dfgh4567
+    parameter_type: value
   from_email: udit.pandey@digite.com
   subject: bot fallback
   to_email:
@@ -164,7 +187,10 @@ email_action:
 - action_name: email_action_2
   smtp_url: smtp.gmail.com
   smtp_port: 587
-  smtp_password: sdfgh5678
+  smtp_password:
+    key: smtp_password
+    value: sdfgh5678
+    parameter_type: value
   from_email: udit.pandey@digite.com
   subject: bot fallback
   to_email:
@@ -175,7 +201,10 @@ email_action:
 pipedrive_leads_action:
 - name: action_pipedrive_leads
   domain: https://digite751.pipedrive.com
-  api_token: asdfghjk456
+  api_token:
+    key: api_token
+    value: asdfghjk456
+    parameter_type: value
   title: new lead generated
   response: Lead created for you
   metadata:
@@ -185,7 +214,10 @@ pipedrive_leads_action:
     phone: phone_slot
 - name: action_create_lead
   domain: https://digite7.pipedrive.com
-  api_token: asdfghjk456dfghjk
+  api_token:
+    key: api_token
+    value: asdfghjk456dfghjk
+    parameter_type: value
   title: lead detected
   response: Thankyou for your time
   metadata:

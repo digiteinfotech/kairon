@@ -61,3 +61,7 @@ class EventExecutor(str, Enum):
 class MaskingStrategy(str, Enum):
     from_right = "from_right"
     from_left = "from_left"
+
+
+class PluginTypes(str, Enum):
+    ip_info = "ip_info"

@@ -33,8 +33,9 @@ RUN python -m pip install cryptography
 RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
+RUN python -m pip install fastapi>=0.68.1
 
-COPY kairon/actions /app/kairon/actions/
+COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
 COPY kairon/shared/actions /app/kairon/shared/actions
 COPY kairon/shared/account /app/kairon/shared/account

@@ -29,7 +29,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
 RUN python -m pip install fastapi>=0.68.1
-RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install gunicorn>=20.1.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install aiohttp==3.8.0
@@ -48,6 +48,7 @@ RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
+RUN python -m pip install google-cloud-translate
 RUN python -m pip install dramatiq
 RUN python -m pip install dramatiq-mongodb
 
@@ -70,4 +71,4 @@ ENV WORKER_TIMEOUT=240
 ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80
 
-CMD gunicorn -k uvicorn.workers.UvicornWorker ${APP_MODULE} --bind 0.0.0.0:80 --timeout ${WORKER_TIMEOUT}
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 80 --no-server-header
