@@ -68,7 +68,6 @@ class MultilingualTranslator:
         examples_list = []
         for example in training_data.training_examples:
             text = example.data.get('text')
-            text = DataUtility.extract_text_and_entities(text)[0]
             if text:
                 examples_list.append(text)
 
@@ -79,6 +78,8 @@ class MultilingualTranslator:
             for i, example in enumerate(training_data.training_examples):
 
                 example.data['text'] = str(examples_translations[i])
+                if example.data.get('entities'):
+                    del example.data['entities']
         else:
             logger.info("Training examples empty.")
 
@@ -160,7 +161,7 @@ class MultilingualTranslator:
     def __get_new_bot_name(base_bot_name: str, d_lang: str):
         name = base_bot_name+'_'+d_lang
         regex = re.compile(f"{name}.*")
-        record_count = Bot.objects(name=regex).count()
+        record_count = Bot.objects(name=regex, status=True).count()
         if record_count:
             name = name + '_' + str(record_count)
 
