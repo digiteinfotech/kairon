@@ -161,7 +161,7 @@ class MultilingualTranslator:
     def __get_new_bot_name(base_bot_name: str, d_lang: str):
         name = base_bot_name+'_'+d_lang
         regex = re.compile(f"{name}.*")
-        record_count = Bot.objects(name=regex, status=True).count()
+        record_count = Bot.objects(name=regex).count()
         if record_count:
             name = name + '_' + str(record_count)
 
