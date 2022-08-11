@@ -179,7 +179,7 @@ class Authentication:
 
     @staticmethod
     async def authenticate_and_get_collection(request: Request, token: str = Depends(DataUtility.oauth2_scheme_non_strict)):
-        token_configured = Utility.environment['authentication']['token']
+        token_configured = Utility.environment['tracker']['authentication']['token']
         if token_configured != token:
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,

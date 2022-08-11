@@ -5,7 +5,6 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.utils import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, ZendeskAction
 from kairon.shared.actions.exception import ActionFailure
@@ -34,8 +33,6 @@ class ActionZendeskTicket(ActionsBase):
         try:
             action = ZendeskAction.objects(bot=self.bot, name=self.name, status=True).get().to_mongo().to_dict()
             logger.debug("zendesk_action_config: " + str(action))
-            action['user_name'] = Utility.decrypt_message(action['user_name'])
-            action['api_token'] = Utility.decrypt_message(action['api_token'])
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Zendesk action found for given action and bot")
@@ -55,12 +52,15 @@ class ActionZendeskTicket(ActionsBase):
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
         subject = f"{tracker.sender_id} {action_config['subject']}"
+        api_token = action_config.get('api_token')
         try:
+            tracker_data = ActionUtility.build_context(tracker)
+            api_token = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_token, self.bot)
             comment = ActionUtility.prepare_email_body(tracker.events, action_config['subject'])
             ActionUtility.create_zendesk_ticket(
                 subdomain=action_config['subdomain'],
                 user_name=action_config['user_name'],
-                api_token=action_config['api_token'],
+                api_token=api_token,
                 subject=subject,
                 comment=comment,
                 tags=action_config.get('tags')

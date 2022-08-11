@@ -34,11 +34,6 @@ class ActionEmail(ActionsBase):
         try:
             action = EmailActionConfig.objects(bot=self.bot, action_name=self.name, status=True).get().to_mongo().to_dict()
             logger.debug("email_action_config: " + str(action))
-            action['smtp_url'] = Utility.decrypt_message(action['smtp_url'])
-            action['smtp_password'] = Utility.decrypt_message(action['smtp_password'])
-            action['from_email'] = Utility.decrypt_message(action['from_email'])
-            if not ActionUtility.is_empty(action.get('smtp_userid')):
-                action['smtp_userid'] = Utility.decrypt_message(action['smtp_userid'])
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Email action found for given action and bot")
@@ -58,7 +53,12 @@ class ActionEmail(ActionsBase):
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
         to_email = action_config['to_email']
+        smtp_password = action_config.get('smtp_password')
+        smtp_userid = action_config.get('smtp_userid')
         try:
+            tracker_data = ActionUtility.build_context(tracker)
+            password = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_password, self.bot)
+            userid = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_userid, self.bot)
             for mail in to_email:
                 body = ActionUtility.prepare_email_body(tracker.events, action_config['subject'], mail)
                 await Utility.trigger_email(email=[mail],
@@ -67,8 +67,8 @@ class ActionEmail(ActionsBase):
                                             smtp_url=action_config['smtp_url'],
                                             smtp_port=action_config['smtp_port'],
                                             sender_email=action_config['from_email'],
-                                            smtp_password=action_config['smtp_password'],
-                                            smtp_userid=action_config.get("smtp_userid"),
+                                            smtp_password=password,
+                                            smtp_userid=userid,
                                             tls=action_config['tls'],
                                             )
 

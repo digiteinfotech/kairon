@@ -44,6 +44,24 @@ class UserActivityType(str, Enum):
     link_usage = "link_usage"
 
 
+class EventClass(str, Enum):
+    model_training = "model_training"
+    model_testing = "model_testing"
+    data_importer = "data_importer"
+    delete_history = "delete_history"
+    multilingual = "multilingual"
+
+
+class EventExecutor(str, Enum):
+    aws_lambda = "aws_lambda"
+    dramatiq = "dramatiq"
+    standalone = "standalone"
+
+
 class MaskingStrategy(str, Enum):
     from_right = "from_right"
     from_left = "from_left"
+
+
+class PluginTypes(str, Enum):
+    ip_info = "ip_info"

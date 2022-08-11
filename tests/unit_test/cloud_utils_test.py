@@ -1,12 +1,26 @@
+import io
+import json
+import os
 from unittest import mock
+from unittest.mock import patch
+
 import pytest
 from boto3 import Session
 from botocore.exceptions import ClientError
+from botocore.response import StreamingBody
 from botocore.stub import Stubber
+
+from kairon import Utility
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.constants import EventClass
 
 
 class TestCloudUtils:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
 
     def test_file_upload(self):
         bucket_name = 'kairon'
@@ -134,3 +148,99 @@ class TestCloudUtils:
 
         with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
             CloudUtility.delete_file(bucket_name, 'tests/testing_data/actions/actions.yml')
+
+    def test_trigger_lambda_model_training(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.model_training] = 'train-model'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                            'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                            'ExecutedVersion': '$LATEST',
+                            'Payload': StreamingBody(io.BytesIO(response_payload),
+                                                     len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.model_training, {"BOT": "test", "USER": "test_user"})
+                assert resp == response
+
+    def test_trigger_lambda_model_testing(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.model_testing] = 'test-model'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                            'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                            'ExecutedVersion': '$LATEST',
+                            'Payload': StreamingBody(io.BytesIO(response_payload),
+                                                     len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'test-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.model_testing, {"BOT": "test", "USER": "test_user"})
+                assert resp == response
+
+    def test_trigger_lambda_data_importer(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.data_importer] = 'data-importer'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'data-importer', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.data_importer, {"BOT": "test", "USER": "test_user"})
+                assert resp == response
+
+    def test_trigger_lambda_delete_history(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.delete_history] = 'delete-history'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'delete-history', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.delete_history, {"BOT": "test", "USER": "test_user"})
+                assert resp == response

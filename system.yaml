@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://192.168.100.38:27017/conversations"}
+  url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
@@ -50,16 +50,13 @@ augmentation:
 model:
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
-    event_url: ${TRAIN_EVENT_URL}
   test:
     limit_per_day: ${TESTING_LIMIT_PER_DAY:5}
-    event_url: ${TEST_EVENT_URL}
     dataset_threshold: ${TEST_DATA_THRESHOLD:10}
     dataset_percentage: ${TEST_DATA_PERCENTAGE:10}
     augmentation_similarity_threshold: ${TEST_DATA_AUGMENTATION_SIMILARITY_THRESHOLD:0.70}
   data_importer:
     limit_per_day: ${IMPORTING_LIMIT_PER_DAY:5}
-    event_url: ${IMPORTER_EVENT_URL}
   agent:
     url: ${AGENT_URL}
   config_properties:
@@ -71,7 +68,6 @@ action:
 
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
-  event_url: ${DATA_GENERATION_EVENT_URL}
   kairon_url: ${KAIRON_URL}
 
 elasticsearch:
@@ -92,5 +88,48 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"ws://localhost:8082/events/"}
 
+events:
+  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
+  executor:
+    type: ${EVENTS_EXECUTOR_TYPE}
+    region: ${EVENTS_EXECUTOR_REGION}
+    timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
+  queue:
+    type: ${EVENTS_QUEUE_TYPE:"mongo"}
+    url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
+    name: kairon_events
+  task_definition:
+    model_training: ${MODEL_TRAINING_TASK_DEFINITION}
+    model_testing: ${MODEL_TESTING_TASK_DEFINITION}
+    data_importer: ${TRAINING_DATA_IMPORTER_TASK_DEFINITION}
+    delete_history: ${DELETE_HISTORY_TASK_DEFINITION}
+    multilingual: ${MULTILINGUAL_TASK_DEFINITION}
+
 evaluator:
-  url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+  url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
+
+multilingual:
+  project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
+  limit_per_day: ${TRANSLATION_LIMIT:2}
+  service_account_creds:
+    type: ${SERVICE_ACCOUNT_TYPE}
+    private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}
+    private_key: ${SERVICE_ACCOUNT_PRIVATE_KEY}
+    client_email: ${SERVICE_ACCOUNT_CLIENT_EMAIL}
+    client_id: ${SERVICE_ACCOUNT_CLIENT_ID}
+    auth_uri: ${SERVICE_ACCOUNT_AUTH_URL:"https://accounts.google.com/o/oauth2/auth"}
+    token_uri: ${SERVICE_ACCOUNT_TOKEN_URL:"https://oauth2.googleapis.com/token"}
+    auth_provider_x509_cert_url: ${SERVICE_ACCOUNT_AUTH_PROVIDER_CERT_URL:"https://www.googleapis.com/oauth2/v1/certs"}
+    client_x509_cert_url: ${SERVICE_ACCOUNT_CLIENT_CERT_URL}
+
+tracker:
+  type: ${TRACKER_TYPE:"static"}
+  url: ${TRACKER_URL:"mongodb://localhost:27017/rasa"}
+  collection: ${TRACKER_COLLECTION:"conversations"}
+  authentication:
+    token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
+
+plugins:
+  location:
+    enable: ${ENABLE_LOCATION_PLUGIN}
+    token: ${LOCATION_PLUGIN_TOKEN}

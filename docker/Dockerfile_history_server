@@ -22,7 +22,7 @@ RUN python -m pip install password-strength
 RUN python -m pip install loguru
 RUN python -m pip install smart-config==0.1.3
 RUN python -m pip install elastic-apm
-RUN python -m pip install uvicorn>=0.12.3
+RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
@@ -41,4 +41,4 @@ COPY email.yaml /app/email.yaml
 COPY system.yaml /app/system.yaml
 EXPOSE 8083
 
-CMD ["uvicorn", "kairon.history.main:app","--host","0.0.0.0","--port","8083"]
+CMD ["uvicorn", "kairon.history.main:app","--host","0.0.0.0","--port","8083", "--no-server-header"]

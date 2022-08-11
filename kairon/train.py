@@ -12,7 +12,7 @@ from rasa.model_training import _train_async_internal, handle_domain_if_not_exis
 from rasa.api import train
 from rasa.utils.common import TempDirectoryPath
 
-from kairon.shared.data.constant import MODEL_TRAINING_STATUS
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.importer import MongoDataImporter
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -152,32 +152,30 @@ def start_training(bot: str, user: str, token: str = None):
     model_file = None
     training_status = None
     apm_client = None
-    if Utility.environment.get('model') and Utility.environment['model']['train'].get('event_url'):
-        Utility.train_model_event(bot, user, token)
-    else:
-        try:
-            apm_client = Utility.initiate_fastapi_apm_client()
-            if apm_client:
-                elasticapm.instrument()
-                apm_client.begin_transaction(transaction_type="script")
-            model_file = train_model_for_bot(bot)
-            training_status = MODEL_TRAINING_STATUS.DONE.value
-            agent_url = Utility.environment['model']['agent'].get('url')
-            if agent_url:
-                if token:
-                    Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
-        except Exception as e:
-            logging.exception(e)
-            training_status = MODEL_TRAINING_STATUS.FAIL.value
-            exception = str(e)
-        finally:
-            if apm_client:
-                apm_client.end_transaction(name=__name__, result="success")
-            ModelProcessor.set_training_status(
-                bot=bot,
-                user=user,
-                status=training_status,
-                model_path=model_file,
-                exception=exception,
-            )
+    try:
+        apm_client = Utility.initiate_fastapi_apm_client()
+        if apm_client:
+            elasticapm.instrument()
+            apm_client.begin_transaction(transaction_type="script")
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
+        model_file = train_model_for_bot(bot)
+        training_status = EVENT_STATUS.DONE.value
+        agent_url = Utility.environment['model']['agent'].get('url')
+        if agent_url:
+            if token:
+                Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
+    except Exception as e:
+        logging.exception(e)
+        training_status = EVENT_STATUS.FAIL.value
+        exception = str(e)
+    finally:
+        if apm_client:
+            apm_client.end_transaction(name=__name__, result="success")
+        ModelProcessor.set_training_status(
+            bot=bot,
+            user=user,
+            status=training_status,
+            model_path=model_file,
+            exception=exception,
+        )
     return model_file

@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import Text
+
+from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from .constant import (
-    MODEL_TRAINING_STATUS
-)
-from .data_objects import (
-    ModelTraining,
-)
+from .constant import EVENT_STATUS
+from .data_objects import ModelTraining
 
 
 class ModelProcessor:
@@ -34,18 +32,21 @@ class ModelProcessor:
         :param exception: exception while training
         :return: None
         """
+        from kairon.shared.data.processor import MongoProcessor
+
         try:
-            doc = ModelTraining.objects(bot=bot).get(
-                status=MODEL_TRAINING_STATUS.INPROGRESS
-            )
+            doc = ModelTraining.objects(bot=bot).filter(
+                Q(status__ne=EVENT_STATUS.DONE.value) &
+                Q(status__ne=EVENT_STATUS.FAIL.value)).get()
             doc.status = status
-            doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
+            doc.model_config = MongoProcessor().load_config(bot)
             doc.status = status
             doc.start_timestamp = datetime.utcnow()
-            if status in [MODEL_TRAINING_STATUS.FAIL, MODEL_TRAINING_STATUS.DONE]:
-                doc.end_timestamp = datetime.utcnow()
+
+        if status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.DONE.value]:
+            doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user
@@ -63,9 +64,9 @@ class ModelProcessor:
         :return: None
         :raises: AppException
         """
-        if ModelTraining.objects(
-                bot=bot, status=MODEL_TRAINING_STATUS.INPROGRESS.value
-        ).count():
+        if ModelTraining.objects(bot=bot).filter(
+                Q(status__ne=EVENT_STATUS.DONE.value) &
+                Q(status__ne=EVENT_STATUS.FAIL.value)).count():
             if raise_exception:
                 raise AppException("Previous model training in progress.")
             else:
@@ -110,3 +111,12 @@ class ModelProcessor:
             item.pop("bot")
             item["_id"] = item["_id"].__str__()
             yield item
+
+    @staticmethod
+    def delete_enqueued_event_log(bot: str):
+        """"
+        Deletes latest enqueued event.
+        """
+        latest_log = ModelTraining.objects(bot=bot).order_by('-id').first()
+        if latest_log and latest_log.status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()

@@ -3,12 +3,11 @@ from typing import Text
 
 from fastapi import APIRouter, Security
 from fastapi import Query
-from starlette.background import BackgroundTasks
 from starlette.responses import StreamingResponse
 from io import BytesIO
 
 from kairon.api.models import Response
-from kairon.events.events import EventsTrigger
+from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, ADMIN_ACCESS
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
@@ -389,38 +388,35 @@ async def total_sessions(month: int = Query(default=1, ge=1, le=6), current_user
 
 @router.delete("/delete/{sender}", response_model=Response)
 async def delete_user_chat_history(
-        background_tasks: BackgroundTasks, sender: Text, month: int = Query(default=3, ge=1, le=6),
+        sender: Text, month: int = Query(default=1, ge=1, le=6),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes user chat history up to certain months  min 3 month max 6 months
     """
-    HistoryDeletionLogProcessor.is_event_in_progress(bot=current_user.get_bot())
-    ChatHistoryUtils.validate_history_endpoint(bot=current_user.get_bot())
-    background_tasks.add_task(EventsTrigger.trigger_history_deletion, bot=current_user.get_bot(),
-                              user=current_user.get_user(),
-                              month=month, sender_id=sender)
+    event = DeleteHistoryEvent(current_user.get_bot(), current_user.get_user(), month=month, sender_id=sender)
+    event.validate()
+    event.enqueue()
     return {"message": "Delete user history initiated. It may take a while. Check logs!"}
 
 
 @router.delete("/bot/delete", response_model=Response)
 async def delete_bot_conversations_history(
-        background_tasks: BackgroundTasks, month: int = Query(default=3, ge=1, le=6),
+        month: int = Query(default=1, ge=1, le=6),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes bot chat history for all users up to certain months  min 1 month max 6 months
     """
-    HistoryDeletionLogProcessor.is_event_in_progress(bot=current_user.get_bot())
-    ChatHistoryUtils.validate_history_endpoint(bot=current_user.get_bot())
-    background_tasks.add_task(EventsTrigger.trigger_history_deletion, bot=current_user.get_bot(), user=current_user.get_user(),
-                              month=month)
+    event = DeleteHistoryEvent(current_user.get_bot(), current_user.get_user(), month=month)
+    event.validate()
+    event.enqueue()
     return {"message": "Delete chat history initiated. It may take a while. Check logs!"}
 
 
 @router.get("/delete/logs", response_model=Response)
 async def get_delete_history_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Get history deletion event logs.
     """

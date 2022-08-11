@@ -58,6 +58,7 @@ services:
       AGENT_URL: "http://kairon-chat:5000/"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
       KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
+      EVENT_SERVER_ENDPOINT: "http://kairon-event-server:5056"
 
 
   kairon-ui:
@@ -123,6 +124,38 @@ services:
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
       TEST_DB: "test_conversations"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:5000/"
+
+  kairon-event-server:
+    image: digite/kairon-event-server:latest
+    container_name: kairon-event-server
+    hostname: kairon-event-server
+    ports:
+      - 5056:5056
+    networks:
+      - chatbotnetwork
+    environment:
+      EVENTS_EXECUTOR_TYPE: "dramatiq"
+      EVENTS_QUEUE_URL: "mongodb://mongo:27017/kairon-events"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
+      TEST_DB: "kairon_conversations"
+
+  kairon-worker:
+    image: digite/kairon-worker:latest
+    container_name: kairon-worker
+    hostname: kairon-worker
+    networks:
+      - chatbotnetwork
+    environment:
+      AGENT_URL: "http://kairon-chat:5000/"
+      EVENTS_QUEUE_URL: "mongodb://mongo:27017/kairon-events"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
+      TEST_DB: "kairon_conversations"
+    volumes:
+      - ./models:/app/models
+      - ./data_generator:/app/data_generator
+      - ./training_data:/app/training_data
+      - ./testing_data:/app/testing_data
+      - ./api_tmp:/root/.cache/
 
 networks:
   chatbotnetwork:

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import MODEL_TRAINING_STATUS, EVENT_STATUS, SLOT_MAPPING_TYPE
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -471,6 +471,7 @@ class StoryEvents(EmbeddedDocument):
         return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
                and self.entities == other.entities
 
+
 @push_notification.apply
 class Stories(Document):
     block_name = StringField(required=True)
@@ -590,11 +591,12 @@ class Endpoints(Document):
 class ModelTraining(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    status = StringField(default=MODEL_TRAINING_STATUS.INPROGRESS.value)
+    status = StringField(default=EVENT_STATUS.INITIATED.value)
     start_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
     model_path = StringField(default=None)
     exception = StringField(default=None)
+    model_config = DictField()
 
 
 @push_notification.apply

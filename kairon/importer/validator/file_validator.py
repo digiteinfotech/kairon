@@ -20,6 +20,7 @@ from kairon.shared.actions.data_objects import FormValidationAction, SlotSetActi
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.utils import DataUtility
@@ -245,7 +246,7 @@ class TrainingDataValidator(Validator):
 
         utterance_actions = self.validator._gather_utterance_actions()
         fallback_action = DataUtility.parse_fallback_action(self.config)
-        system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES)
+        system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
         stories_utterances = set()
 
         for story in self.story_graph.story_steps:

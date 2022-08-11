@@ -36,7 +36,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -280,10 +280,10 @@ class TestMongoProcessor:
                                     'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
                                                        'application_name': [
                                                            {'type': 'from_entity', 'entity': 'application_name'}]}}}
-        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application', "kairon_two_stage_fallback",
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                             'action_get_microsoft_application']
+                                                                             'action_get_microsoft_application', "kairon_two_stage_fallback"]
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
         assert domain.templates == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
@@ -297,25 +297,25 @@ class TestMongoProcessor:
         assert actions == {'http_action': [
             {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com', 'content_type': 'json',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
-             'request_method': 'GET', 'headers': [{'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                                                  {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                                                  {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                                                  {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                                                  {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                                                  {'key': 'testParam4', 'value': 'testvalue1',
+             'request_method': 'GET', 'headers': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
                                                    'parameter_type': 'slot', 'encrypt': False}],
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
             {'action_name': 'action_get_microsoft_application', 'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
-             'params_list': [{'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
-                             {'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                             {'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                             {'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                             {'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                             {'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                             {'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
                                                                                                      'utter_default',
@@ -368,7 +368,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {
             'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 29
@@ -2356,7 +2356,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2464,7 +2464,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2522,7 +2522,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2575,7 +2575,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2635,7 +2635,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 50
+        assert domain.user_actions.__len__() == 51
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2744,7 +2744,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 5
+        assert domain.user_actions.__len__() == 6
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2772,7 +2772,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 44
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -4358,6 +4358,25 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Empty name is allowed only for active_loop"):
             processor.add_complex_story(story_dict, bot, user)
 
+    def test_create_two_stage_fallback_rule(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "nlu_fallback", "type": "INTENT"},
+            {"name": KAIRON_TWO_STAGE_FALLBACK, "type": "TWO_STAGE_FALLBACK_ACTION"}
+        ]
+        story_dict = {'name': "activate two stage fallback", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        rule = Rules.objects(block_name="activate two stage fallback", bot=bot,
+                             events__name=KAIRON_TWO_STAGE_FALLBACK, status=True).get()
+        assert rule.to_mongo().to_dict()['events'] == [{'name': '...', 'type': 'action'},
+                                                       {'name': 'nlu_fallback', 'type': 'user'},
+                                                       {'name': KAIRON_TWO_STAGE_FALLBACK, 'type': 'action'}]
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "activate two stage fallback"]
+        assert story_with_form[0]['steps'] == steps
+
     def test_create_form_activation_and_deactivation_rule(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -5550,7 +5569,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {"value": 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5609,7 +5628,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         processor = MongoProcessor()
@@ -5660,7 +5679,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5719,7 +5738,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
 
@@ -5738,7 +5757,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
 
@@ -5758,7 +5777,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5788,7 +5807,7 @@ class TestMongoProcessor:
         issue_type = 'ProdIssue'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': issue_type, 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': issue_type, 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5849,7 +5868,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'summary': 'new user',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'summary': 'new user',
             'response': 'We have logged a ticket'
         }
         responses.add(
@@ -5909,13 +5928,17 @@ class TestMongoProcessor:
         jira_actions = list(processor.list_jira_actions(bot))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type':'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+             'summary': 'new user',
              'response': 'We have logged a ticket'}]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'},
+             'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
              'response': 'We have logged a ticket'}]
 
     @responses.activate
@@ -5925,7 +5948,7 @@ class TestMongoProcessor:
         url = 'https://test-digite.atlassian.net'
         action = {
             'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-            'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+            'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
             'summary': 'new user',
             'response': 'We have logged a ticket'
         }
@@ -5999,14 +6022,18 @@ class TestMongoProcessor:
         jira_actions = list(processor.list_jira_actions(bot))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL',
+             'issue_type': 'Subtask', 'parent_key': 'HEL-4',
              'summary': 'new user', 'response': 'We have logged a ticket'}
         ]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL',
+             'issue_type': 'Subtask', 'parent_key': 'HEL-4',
              'summary': 'new user', 'response': 'We have logged a ticket'}
         ]
 
@@ -6049,8 +6076,8 @@ class TestMongoProcessor:
     def test_add_zendesk_action(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
-                  'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
+                  'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
         with patch('zenpy.Zenpy'):
             assert processor.add_zendesk_action(action, bot, user)
@@ -6079,7 +6106,7 @@ class TestMongoProcessor:
     def test_add_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
@@ -6096,7 +6123,7 @@ class TestMongoProcessor:
     def test_add_zendesk_action_invalid_credentials(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
@@ -6113,7 +6140,8 @@ class TestMongoProcessor:
     def test_add_zendesk_action_already_exists(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751',
+                  'api_token': {'value': '123456789'}, 'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
@@ -6146,8 +6174,8 @@ class TestMongoProcessor:
 
         bot = 'test'
         user = 'test'
-        action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
-                  'user_name': 'udit.pandey@digite.com', 'response': {"value": 'ticket filed'}}
+        action = {'name': 'test_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
+                  'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': {"value": 'ticket filed'}}
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action exists!'):
             assert processor.add_zendesk_action(action, bot, user)
@@ -6155,7 +6183,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': {'value': '123456789999'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
         processor = MongoProcessor()
@@ -6165,7 +6193,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action_invalid_subdomain(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com',
                   'response': 'ticket filed'}
 
@@ -6182,7 +6210,7 @@ class TestMongoProcessor:
     def test_edit_zendesk_action_does_not_exists(self):
         bot = 'test'
         user = 'test'
-        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+        action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
                   'subject': 'new ticket',
                   'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
         processor = MongoProcessor()
@@ -6194,7 +6222,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot)) == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
-             'api_token': '123456789***', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket',
+             'response': 'ticket filed here'}]
         bot = 'test_1'
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot)) == []
@@ -6204,7 +6234,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert list(processor.list_zendesk_actions(bot, False)) == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
-             'api_token': '123456789999', 'subject': 'new ticket', 'response': 'ticket filed here'}]
+             'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket', 'response': 'ticket filed here'}]
 
     def test_delete_zendesk_action(self):
         processor = MongoProcessor()
@@ -6223,7 +6254,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6240,7 +6271,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6256,7 +6287,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6297,7 +6328,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6312,7 +6343,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads_action',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6326,7 +6357,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == '12345***'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['domain'] == 'https://digite751.pipedrive.com/'
         assert actions[0]['response'] == 'I have failed to create lead for you'
         assert actions[0]['title'] == 'new lead'
@@ -6339,7 +6370,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_invalid_metadata',
             'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345678',
+            'api_token': {'value': '12345678'},
             'title': 'new lead',
             'response': 'I have failed to create lead for you',
             'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -6354,7 +6385,7 @@ class TestMongoProcessor:
         action = {
             'name': 'pipedrive_leads',
             'domain': 'https://digite7.pipedrive.com/',
-            'api_token': 'asdfghjklertyui',
+            'api_token': {'value': 'asdfghjklertyui'},
             'title': 'new lead generated',
             'response': 'Failed to create lead for you',
             'metadata': {'name': 'name', 'email': 'email', 'phone': 'phone'}
@@ -6367,7 +6398,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot, False))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == 'asdfghjklertyui'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -6375,7 +6406,7 @@ class TestMongoProcessor:
 
         actions = list(processor.list_pipedrive_actions(bot, True))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == 'asdfghjklert***'
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -6586,10 +6617,10 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action == {'action_name': 'test_add_http_action_config_no_response', 'http_url': 'http://www.google.com',
                                       'request_method': 'GET', 'content_type': 'json', 'params_list': [
-                {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
-                {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
+                {'_cls': 'HttpActionRequestBody', 'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
+                {'_cls': 'HttpActionRequestBody', 'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
                                       'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
@@ -7034,7 +7065,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7053,7 +7084,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
         assert actions == {
-            'actions': ['action_check'],
+            'actions': ['action_check'], 'two_stage_fallback': [],
             'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
@@ -7074,7 +7105,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
-                           'http_action': [], 'google_search_action': [], 'jira_action': [],
+                           'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -7353,7 +7384,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [],
+            'hubspot_forms_action': [], 'two_stage_fallback': ['kairon_two_stage_fallback'],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7458,7 +7489,7 @@ class TestMongoProcessor:
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
         assert actions == {
-            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [],
+            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
@@ -7780,7 +7811,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
@@ -7817,7 +7848,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7860,7 +7891,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com"],
                         "subject": "Test Subject",
@@ -7877,7 +7908,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com"],
                         "subject": "Test Subject",
@@ -7894,7 +7925,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": ["test@test.com","test1@test.com"],
                         "subject": "Test Subject",
@@ -7910,7 +7941,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7953,7 +7984,7 @@ class TestMongoProcessor:
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
-                        "smtp_password": "test",
+                        "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
                         "to_email": "test@test.com",
                         "subject": "Test Subject",
@@ -7974,7 +8005,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8009,7 +8040,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8024,7 +8055,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'test_action',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8037,7 +8068,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot))
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == '12345***'
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
         assert actions[0]['num_results'] == 1
@@ -8048,7 +8079,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'custom_search',
-            'api_key': '12345678',
+            'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
@@ -8063,7 +8094,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
-            'api_key': '1234567889',
+            'api_key': {'value': '1234567889'},
             'search_engine_id': 'asdfg:12345689',
             'failure_response': 'Failed to perform search',
         }
@@ -8076,7 +8107,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot, False))
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == '1234567889'
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
         assert actions[0]['num_results'] == 1
@@ -8208,10 +8239,10 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'action_hubspot_forms'
         assert actions[0]['portal_id'] == '123456785787'
         assert actions[0]['form_guid'] == 'asdfg:12345678787'
-        assert actions[0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                        {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+        assert actions[0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
     def test_delete_hubspot_forms_action(self):
@@ -8223,7 +8254,26 @@ class TestMongoProcessor:
             Actions.objects(name='action_hubspot_forms', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
-            
+
+    def test_add_custom_2_stage_fallback_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        ob_id = processor.add_two_stage_fallback_action(bot, user, "custom_fallback")
+        action = Actions.objects(id=ob_id).get()
+        assert action.name == "custom_fallback"
+        assert action.type == ActionType.two_stage_fallback.value
+
+    def test_delete_2_stage_fallback_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action("custom_fallback", bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name="custom_fallback", status=True, bot=bot).get()
+        with pytest.raises(AppException, match="Cannot remove default kairon action"):
+            processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
+
     def test_add_secret(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -8582,6 +8632,7 @@ class TestModelProcessor:
         assert test_set_training_status_inprogress.first().bot == "tests"
         assert test_set_training_status_inprogress.first().user == "testUser"
         assert test_set_training_status_inprogress.first().status == "Inprogress"
+        assert test_set_training_status_inprogress.first().model_config == MongoProcessor().load_config("tests")
         training_status_inprogress_id = test_set_training_status_inprogress.first().id
 
         ModelProcessor.set_training_status(bot="tests",

@@ -5,8 +5,9 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
-    HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse
+    HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters
 from kairon.shared.actions.models import ActionType
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
 from kairon.shared.utils import Utility
 from kairon.shared.actions.utils import ActionUtility
@@ -1414,7 +1415,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 action_name=action_name,
                 smtp_url="test.localhost",
                 smtp_port=293,
-                smtp_password="test",
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
                 from_email="test@demo.com",
                 subject="test",
                 to_email=["test@test.com"],
@@ -1485,7 +1486,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         from_email, password = args
         assert from_email == action_config.from_email
-        assert password == action_config.smtp_password
+        assert password == action_config.smtp_password.value
 
         name, args, kwargs = mock_smtp.method_calls.pop(0)
         assert name == '().sendmail'
@@ -1506,7 +1507,7 @@ class TestActionServer(AsyncHTTPTestCase):
             action_name=action_name,
             smtp_url="test.localhost",
             smtp_port=293,
-            smtp_password="test",
+            smtp_password=CustomActionRequestParameters(value="test"),
             from_email="test@demo.com",
             subject="test",
             to_email="test@test.com",
@@ -1745,7 +1746,7 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
         Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
-        GoogleSearchAction(name=action_name, api_key='1234567890',
+        GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user).save()
 
         def _run_action(*args, **kwargs):
@@ -1852,7 +1853,7 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
         Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
-        GoogleSearchAction(name=action_name, api_key='1234567890',
+        GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user).save()
 
         def _run_action(*args, **kwargs):
@@ -1953,7 +1954,7 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
         Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
-        GoogleSearchAction(name=action_name, api_key='1234567890',
+        GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user).save()
 
         def _run_action(*args, **kwargs):
@@ -2060,7 +2061,7 @@ class TestActionServer(AsyncHTTPTestCase):
             JiraAction(
                 name=action_name, bot=bot, user=user, url='https://test-digite.atlassian.net',
                 user_name='test@digite.com',
-                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
+                api_token=CustomActionRequestParameters(key="api_token", value='ASDFGHJKL'), project_key='HEL', issue_type='Bug', summary='fallback',
                 response='Successfully created').save()
 
         request_object = {
@@ -2167,7 +2168,7 @@ class TestActionServer(AsyncHTTPTestCase):
             JiraAction(
                 name=action_name, bot=bot, user=user, url='https://test-digite.atlassian.net',
                 user_name='test@digite.com',
-                api_token='ASDFGHJKL', project_key='HEL', issue_type='Bug', summary='fallback',
+                api_token=CustomActionRequestParameters(value='ASDFGHJKL'), project_key='HEL', issue_type='Bug', summary='fallback',
                 response='Successfully created').save()
 
         request_object = {
@@ -2442,7 +2443,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.zendesk_action.value, bot=bot, user='test_user').save()
         with patch('zenpy.Zenpy'):
             ZendeskAction(name=action_name, subdomain='digite751', user_name='udit.pandey@digite.com',
-                          api_token='1234567890', subject='new ticket', response='ticket created',
+                          api_token=CustomActionRequestParameters(value='1234567890'), subject='new ticket', response='ticket created',
                           bot=bot, user=user).save()
 
         request_object = {
@@ -2542,7 +2543,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.zendesk_action.value, bot=bot, user='test_user').save()
         with patch('zenpy.Zenpy'):
             ZendeskAction(name=action_name, subdomain='digite751', user_name='udit.pandey@digite.com',
-                          api_token='1234567890', subject='new ticket', response='ticket created',
+                          api_token=CustomActionRequestParameters(value='1234567890'), subject='new ticket', response='ticket created',
                           bot=bot, user=user).save()
 
         request_object = {
@@ -2735,7 +2736,8 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.pipedrive_leads_action.value, bot=bot, user='test_user').save()
         with patch('pipedrive.client.Client'):
             metadata = {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
-            PipedriveLeadsAction(name=action_name, domain='https://digite751.pipedrive.com/', api_token='1234567890',
+            PipedriveLeadsAction(name=action_name, domain='https://digite751.pipedrive.com/',
+                                 api_token=CustomActionRequestParameters(value='1234567890'),
                                  title='new lead generated', response='lead created', metadata=metadata, bot=bot,
                                  user=user).save()
 
@@ -2851,7 +2853,8 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.pipedrive_leads_action.value, bot=bot, user='test_user').save()
         with patch('pipedrive.client.Client'):
             metadata = {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
-            PipedriveLeadsAction(name=action_name, domain='https://digite751.pipedrive.com/', api_token='1234567890',
+            PipedriveLeadsAction(name=action_name, domain='https://digite751.pipedrive.com/',
+                                 api_token=CustomActionRequestParameters(value='1234567890'),
                                  title='new lead generated', response='new lead created', metadata=metadata, bot=bot,
                                  user=user).save()
 
@@ -3264,3 +3267,302 @@ class TestActionServer(AsyncHTTPTestCase):
                  'response': None, 'image': None, 'attachment': None}]})
         responses.stop()
         responses.reset()
+
+    def test_two_stage_fallback_action(self):
+        from kairon.shared.data.processor import MongoProcessor
+
+        action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
+        bot = "5f50fd0a56b698ca10d35d2e"
+        user = 'test_user'
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_two_stage_fallback_action(bot, user)
+        list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
+        list(mongo_processor.add_training_example(["bye", "bye bye"], "goodbye", bot, user, False))
+        list(mongo_processor.add_training_example(["yes", "go ahead"], "affirm", bot, user, False))
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [
+                    {"name": "test intent", "confidence": 0.253578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [])
+        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
+
+    def test_two_stage_fallback_action_no_intent_ranking(self):
+        from kairon.shared.data.processor import MongoProcessor
+
+        action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
+        bot = "5f50fd0a56b698ca10d35d2f"
+        user = 'test_user'
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_two_stage_fallback_action(bot, user)
+        list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
+        list(mongo_processor.add_training_example(["bye", "bye bye"], "goodbye", bot, user, False))
+        list(mongo_processor.add_training_example(["yes", "go ahead"], "affirm", bot, user, False))
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [
+                    {"name": "test intent", "confidence": 0.253578245639801}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json, {'events': [], 'responses': [
+            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_default',
+             'response': 'utter_default', 'image': None, 'attachment': None}]})
+
+    def test_two_stage_fallback_intent_deleted(self):
+        from kairon.shared.data.processor import MongoProcessor
+
+        action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
+        bot = "5f50fd0a56b698ca10d35d2g"
+        user = 'test_user'
+        mongo_processor = MongoProcessor()
+        mongo_processor.add_two_stage_fallback_action(bot, user)
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [
+                    {"name": "test intent", "confidence": 0.253578245639801}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json, {'events': [], 'responses': [
+            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_default',
+             'response': 'utter_default', 'image': None, 'attachment': None}]})

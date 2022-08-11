@@ -315,14 +315,6 @@ class HttpActionConfigRequest(BaseModel):
         return v.upper()
 
 
-class GoogleSearchActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
-    api_key: str
-    search_engine_id: str
-    failure_response: str = 'I have failed to process your request.'
-    num_results: int = 1
-
-
 class TrainingData(BaseModel):
     intent: constr(to_lower=True, strip_whitespace=True)
     training_examples: List[str]
@@ -586,12 +578,44 @@ class SlotSetActionRequest(BaseModel):
     set_slots: List[SetSlots]
 
 
+class CustomActionParameter(BaseModel):
+    value: str
+    parameter_type: ActionParameterType = ActionParameterType.value
+
+    @validator("parameter_type")
+    def validate_parameter_type(cls, v, values, **kwargs):
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault}
+        if v not in allowed_values:
+            raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
+        return v
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if values.get('parameter_type') == ActionParameterType.slot and Utility.check_empty_string(values.get('value')):
+            raise ValueError("Provide name of the slot as value")
+
+        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(values.get('value')):
+            raise ValueError("Provide key from key vault as value")
+
+        return values
+
+
+class GoogleSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    api_key: CustomActionParameter
+    search_engine_id: str
+    failure_response: str = 'I have failed to process your request.'
+    num_results: int = 1
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
     smtp_port: int
-    smtp_userid: str = None
-    smtp_password: str = None
+    smtp_userid: CustomActionParameter = None
+    smtp_password: CustomActionParameter
     from_email: str
     subject: str
     to_email: List[str]
@@ -603,7 +627,7 @@ class JiraActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     url: str
     user_name: str
-    api_token: str
+    api_token: CustomActionParameter
     project_key: str
     issue_type: str
     parent_key: str = None
@@ -615,7 +639,7 @@ class ZendeskActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     subdomain: str
     user_name: str
-    api_token: str
+    api_token: CustomActionParameter
     subject: str
     response: str
 
@@ -623,7 +647,7 @@ class ZendeskActionRequest(BaseModel):
 class PipedriveActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     domain: str
-    api_token: str
+    api_token: CustomActionParameter
     title: str
     response: str
     metadata: dict

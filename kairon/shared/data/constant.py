@@ -73,12 +73,6 @@ class STORY_EVENT(str, Enum):
     CONFIDENCE = "confidence"
 
 
-class MODEL_TRAINING_STATUS(str, Enum):
-    INPROGRESS = "Inprogress"
-    DONE = "Done"
-    FAIL = "Fail"
-
-
 class UTTERANCE_TYPE(str, Enum):
     BOT = "bot"
     HTTP = "http"
@@ -90,6 +84,7 @@ class CUSTOM_ACTIONS(str, Enum):
 
 
 class EVENT_STATUS(str, Enum):
+    ENQUEUED = "Enqueued"
     INITIATED = "Initiated"
     TASKSPAWNED = "Task Spawned"
     INPROGRESS = "In progress"
@@ -99,6 +94,7 @@ class EVENT_STATUS(str, Enum):
     SKIP_IMPORT = "Skipping importing data to kairon"
     TRIGGER_TRAINING = "Triggering model training"
     COMPLETED = "Completed"
+    DONE = "Done"
     FAIL = "Fail"
 
 
@@ -173,5 +169,7 @@ COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_exampl
 
 DEFAULT_NLU_FALLBACK_RULE = 'Ask the user to rephrase whenever they send a message with low NLU confidence'
 DEFAULT_NLU_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
+DEFAULT_NLU_FALLBACK_UTTERANCE_NAME = 'utter_default'
 DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
 REQUEST_TIMESTAMP_HEADER = "X-TimeStamp"
+KAIRON_TWO_STAGE_FALLBACK = "kairon_two_stage_fallback"

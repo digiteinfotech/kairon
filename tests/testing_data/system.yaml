@@ -91,5 +91,48 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT}
 
+events:
+  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
+  executor:
+    type: ${EVENTS_EXECUTOR_TYPE}
+    region: ${EVENTS_EXECUTOR_REGION}
+  queue:
+    type: ${EVENTS_QUEUE_TYPE:"mongo"}
+    url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
+    name: kairon_events
+  task_definition:
+    model_training: ${MODEL_TRAINING_TASK_DEFINITION}
+    model_testing: ${MODEL_TESTING_TASK_DEFINITION}
+    data_importer: ${TRAINING_DATA_IMPORTER_TASK_DEFINITION}
+    delete_history: ${DELETE_HISTORY_TASK_DEFINITION}
+    multilingual: ${MULTILINGUAL_TASK_DEFINITION}
+
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+
+multilingual:
+  project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
+  event_url: ${BOT_REPLICATION_EVENT_URL}
+  limit_per_day: ${TRANSLATION_LIMIT:10}
+  service_account_creds:
+    type: ${SERVICE_ACCOUNT_TYPE}
+    private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}
+    private_key: ${SERVICE_ACCOUNT_PRIVATE_KEY}
+    client_email: ${SERVICE_ACCOUNT_CLIENT_EMAIL}
+    client_id: ${SERVICE_ACCOUNT_CLIENT_ID}
+    auth_uri: ${SERVICE_ACCOUNT_AUTH_URL:"https://accounts.google.com/o/oauth2/auth"}
+    token_uri: ${SERVICE_ACCOUNT_TOKEN_URL:"https://oauth2.googleapis.com/token"}
+    auth_provider_x509_cert_url: ${SERVICE_ACCOUNT_AUTH_PROVIDER_CERT_URL:"https://www.googleapis.com/oauth2/v1/certs"}
+    client_x509_cert_url: ${SERVICE_ACCOUNT_CLIENT_CERT_URL}
+
+tracker:
+  type: ${TRACKER_TYPE:"static"}
+  url: ${TRACKER_URL:"mongodb://localhost:27017/rasa"}
+  collection: ${TRACKER_COLLECTION:"conversations"}
+  authentication:
+    token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
+
+plugins:
+  location:
+    enable: ${ENABLE_LOCATION_PLUGIN}
+    token: ${LOCATION_PLUGIN_TOKEN}

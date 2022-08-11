@@ -136,6 +136,19 @@ class TestModelTesting:
         assert logs['entity_evaluation']['total'] == 0
         assert logs['response_selection_evaluation']['total'] == 5
 
+        result['entity_evaluation'] = None
+        result['response_selection_evaluation'] = None
+        ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
+                                                 stories_result={},
+                                                 nlu_result=result,
+                                                 event_status='Completed')
+        logs = ModelTestingLogProcessor.get_logs('test_bot')
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs[0]['reference_id'])
+        assert len(logs['intent_evaluation']['errors']) == 10
+        assert logs['intent_evaluation']['total'] == 23
+        assert logs['entity_evaluation'] == {'errors': [], 'total': 0}
+        assert logs['response_selection_evaluation'] == {'errors': [], 'total': 0}
+
     def test_is_event_in_progress(self):
         assert not ModelTestingLogProcessor.is_event_in_progress('test_bot')
 

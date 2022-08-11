@@ -16,8 +16,9 @@ class TestHistory:
 
     @pytest.fixture(autouse=True)
     def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/tracker.yaml"
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
+        Utility.environment['tracker']['url'] = "mongodb://test_kairon:27016/conversation"
 
     def history_conversations(self, *args, **kwargs):
         json_data = json.load(

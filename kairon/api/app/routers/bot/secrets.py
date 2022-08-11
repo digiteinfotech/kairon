@@ -2,7 +2,7 @@ from fastapi import APIRouter, Path, Security
 
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, KeyVaultRequest
-from kairon.shared.constants import ADMIN_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.data.processor import MongoProcessor
 
@@ -35,7 +35,7 @@ async def get_secret(
 
 
 @router.get("/keys", response_model=Response)
-async def list_keys(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+async def list_keys(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns keys for bot.
     """

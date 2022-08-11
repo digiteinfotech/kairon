@@ -4,6 +4,7 @@ import shutil
 import tarfile
 import tempfile
 from io import BytesIO
+from urllib.parse import urljoin
 from zipfile import ZipFile
 
 import pytest
@@ -18,11 +19,12 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 
 from kairon.api.app.main import app
+from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.constants import EventClass
 from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
-from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
@@ -34,8 +36,10 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
+from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
+from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
 
@@ -64,6 +68,26 @@ def pytest_configure():
 
 async def mock_smtp(*args, **kwargs):
     return None
+
+
+def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
+    from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+    from kairon.events.definitions.model_training import ModelTrainingEvent
+    from kairon.events.definitions.model_testing import ModelTestingEvent
+    from kairon.events.definitions.history_delete import DeleteHistoryEvent
+
+    if event_class == EventClass.data_importer:
+        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).execute()
+    elif event_class == EventClass.model_training:
+        ModelTrainingEvent(bot, user).execute()
+    elif event_class == EventClass.model_testing:
+        ModelTestingEvent(bot, user).execute()
+    elif event_class == EventClass.delete_history:
+        DeleteHistoryEvent(bot, user).execute()
+    elif event_class == EventClass.multilingual:
+        MultilingualEvent(bot, user, dest_lang=kwargs.get('kwargs'),
+                          translate_responses=kwargs.get('translate_responses'),
+                          translate_actions=kwargs.get('translate_actions')).execute()
 
 
 def test_api_wrong_login():
@@ -442,7 +466,14 @@ def resource_test_upload_zip():
     shutil.rmtree(os.path.join('training_data', pytest.bot))
 
 
+@responses.activate
 def test_upload_zip(resource_test_upload_zip):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     files = (('training_files', ("data.zip", pytest.zip)),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))))
     response = client.post(
@@ -456,8 +487,17 @@ def test_upload_zip(resource_test_upload_zip):
     assert actual["data"] is None
     assert actual["success"]
 
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
 
+
+@responses.activate
 def test_upload():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
@@ -472,9 +512,17 @@ def test_upload():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
 
 
+@responses.activate
 def test_upload_yml():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     files = (('training_files', ("nlu.yml", open("tests/testing_data/valid_yml/data/nlu.yml", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/valid_yml/domain.yml", "rb"))),
              ('training_files', ("stories.yml", open("tests/testing_data/valid_yml/data/stories.yml", "rb"))),
@@ -492,6 +540,7 @@ def test_upload_yml():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
 
 
 def test_list_entities():
@@ -506,6 +555,18 @@ def test_list_entities():
     assert actual["success"]
 
 
+def test_model_testing_no_existing_models():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'No model trained yet. Please train a model to test'
+    assert not actual["success"]
+
+
+@responses.activate
 def test_train(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -516,6 +577,11 @@ def test_train(monkeypatch):
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -525,6 +591,7 @@ def test_train(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_upload_limit_exceeded(monkeypatch):
@@ -542,25 +609,12 @@ def test_upload_limit_exceeded(monkeypatch):
 
 
 @responses.activate
-def test_upload_using_event_overwrite(monkeypatch):
-    token = Authentication.create_access_token(data={'sub': pytest.username})
+def test_upload_using_event_failure(monkeypatch):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.add(
-        responses.POST,
-        "http://localhost/upload",
-        status=200,
-        match=[
-            responses.json_params_matcher(
-                [{'name': 'BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
-                 {'name': 'IMPORT_DATA', 'value': '--import-data'}, {'name': 'OVERWRITE', 'value': '--overwrite'}])],
+        "POST", event_url, json={"success": False, "message": "Failed to trigger url"}
     )
 
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'event_url', "http://localhost/upload")
-
-    def get_token(*args, **kwargs):
-        return token
-
-    monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", "http://localhost/upload")
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -576,37 +630,25 @@ def test_upload_using_event_overwrite(monkeypatch):
                )
     )
     actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
+    assert not actual["success"]
+    assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Upload in progress! Check logs."
-
-    # update status
-    log = ValidationLogs.objects(event_status=EVENT_STATUS.TASKSPAWNED.value).get()
-    log.event_status = EVENT_STATUS.COMPLETED.value
-    log.save()
+    assert actual["message"] == "Failed to trigger data_importer event: Failed to trigger url"
 
 
 @responses.activate
 def test_upload_using_event_append(monkeypatch):
-    token = Authentication.create_access_token(data={'sub': pytest.username})
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.add(
         responses.POST,
-        "http://localhost/upload",
+        event_url,
+        json={"success": True},
         status=200,
         match=[
             responses.json_params_matcher(
-                [{'name': 'BOT', 'value': pytest.bot}, {'name': 'USER', 'value': pytest.username},
-                 {'name': 'IMPORT_DATA', 'value': '--import-data'}, {'name': 'OVERWRITE', 'value': ''}])],
+                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': ''})],
     )
 
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'event_url', "http://localhost/upload")
-
-    def get_token(*args, **kwargs):
-        return token
-
-    monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], "event_url", "http://localhost/upload")
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -626,9 +668,10 @@ def test_upload_using_event_append(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Upload in progress! Check logs."
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
 
 
-def test_model_testing_limit_exceeded(monkeypatch):
+def test_model_testing_not_trained(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/test",
@@ -640,74 +683,32 @@ def test_model_testing_limit_exceeded(monkeypatch):
     assert not actual["success"]
 
 
-@responses.activate
-def test_model_testing_event(monkeypatch):
-    event_url = 'http://event.url'
-    monkeypatch.setitem(Utility.environment['model']['test'], 'event_url', event_url)
-    responses.add("POST",
-                  event_url,
-                  json={"message": "Event triggered successfully!"},
-                  status=200)
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/test",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual['message'] == 'Testing in progress! Check logs.'
-    assert actual["success"]
-
-
-def test_model_testing_in_progress():
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/test",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual['message'] == 'Event already in progress! Check logs.'
-    assert not actual["success"]
-
-
-def test_get_model_testing_logs():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual['data']
-    assert actual["success"]
-
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data'][0]['reference_id']}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["success"]
-
-
 def test_get_data_importer_logs():
     response = client.get(
         f"/api/bot/{pytest.bot}/importer/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.TASKSPAWNED.value
+    assert len(actual["data"]) == 4
+    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
     assert actual['data'][0]['is_data_uploaded']
     assert actual['data'][0]['start_timestamp']
-    assert actual['data'][2]['start_timestamp']
-    assert actual['data'][2]['end_timestamp']
-    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    del actual['data'][2]['start_timestamp']
-    del actual['data'][2]['end_timestamp']
-    del actual['data'][2]['files_received']
-    assert actual['data'][2] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
+    assert actual['data'][0]['end_timestamp']
+
+    assert actual['data'][1]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data'][1]['status'] == 'Success'
+    assert set(actual['data'][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data'][1]['is_data_uploaded']
+    assert actual['data'][1]['start_timestamp']
+    assert actual['data'][1]['end_timestamp']
+    del actual['data'][1]['start_timestamp']
+    del actual['data'][1]['end_timestamp']
+    del actual['data'][1]['files_received']
+    assert actual['data'][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
@@ -723,35 +724,43 @@ def test_get_data_importer_logs():
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
+
+    assert actual['data'][2]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data'][2]['status'] == 'Failure'
+    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert actual['data'][2]['is_data_uploaded']
+    assert actual['data'][2]['start_timestamp']
+    assert actual['data'][2]['end_timestamp']
+
+    assert actual['data'][3]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data'][3]['status'] == 'Failure'
+    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data'][3]['is_data_uploaded']
+    assert actual['data'][3]['start_timestamp']
+    assert actual['data'][3]['end_timestamp']
     assert actual['data'][3]['intents']['count'] == 16
-    assert actual['data'][3]['intents']['data']
+    assert len(actual['data'][3]['intents']['data']) == 21
     assert actual['data'][3]['utterances']['count'] == 25
+    assert len(actual['data'][3]['utterances']['data']) == 13
     assert actual['data'][3]['stories']['count'] == 16
-    assert actual['data'][3]['stories']['data']
-    assert actual['data'][3]['training_examples'] == {'count': 292, 'data': []}
-    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 9,
+    assert len(actual['data'][3]['stories']['data']) == 1
+    assert actual['data'][3]['rules']['count'] == 3
+    assert len(actual['data'][3]['rules']['data']) == 0
+    assert actual['data'][3]['training_examples']['count'] == 292
+    assert len(actual['data'][3]['training_examples']['data']) == 0
+    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
                                            'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data'][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 0, 'data': []},
+    assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}
-                                            ]
+                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
     assert actual['data'][3]['is_data_uploaded']
-    assert set(actual['data'][3]['files_received']) == {'stories', 'domain', 'config', 'nlu'}
-    assert actual['data'][3]['status'] == 'Failure'
-    assert actual['data'][3]['event_status'] == 'Completed'
-    assert actual['data'][4]['rules']['count'] == 3
-    assert not actual["message"]
-
-    # update status for upload event
-    log = ValidationLogs.objects(event_status=EVENT_STATUS.TASKSPAWNED.value).get()
-    log.event_status = EVENT_STATUS.COMPLETED.value
-    log.save()
+    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
 
 
 def test_get_slots():
@@ -1648,9 +1657,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1695,9 +1704,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1785,6 +1794,7 @@ def test_get_utterance_from_not_exist_intent():
     assert Utility.check_empty_string(actual["message"])
 
 
+@responses.activate
 def test_train_on_updated_data(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -1795,6 +1805,11 @@ def test_train_on_updated_data(monkeypatch):
     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1804,6 +1819,7 @@ def test_train_on_updated_data(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 @pytest.fixture
@@ -1820,7 +1836,7 @@ def test_train_inprogress(mock_is_training_inprogress_exception):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"] == False
+    assert actual["success"] is False
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "Previous model training in progress."
@@ -1856,6 +1872,72 @@ def test_get_model_training_history():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert "training_history" in actual["data"]
+
+
+def test_model_testing_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Daily limit exceeded.'
+    assert not actual["success"]
+
+
+@responses.activate
+def test_model_testing_event(monkeypatch):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+
+    )
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['message'] == 'Testing in progress! Check logs.'
+    assert actual["success"]
+
+
+@responses.activate
+def test_model_testing_in_progress():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Event already in progress! Check logs.'
+    assert not actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_testing)
+
+
+def test_get_model_testing_logs():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data'][0]['reference_id']}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
 
 
 def test_get_file_training_history():
@@ -3247,6 +3329,7 @@ def test_add_story_to_different_bot():
     assert actual["error_code"] == 0
 
 
+@responses.activate
 def test_train_on_different_bot(monkeypatch):
     def mongo_store(*arge, **kwargs):
         return None
@@ -3258,6 +3341,11 @@ def test_train_on_different_bot(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
     monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
 
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     response = client.post(
         f"/api/bot/{pytest.bot_2}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -3267,6 +3355,7 @@ def test_train_on_different_bot(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot_2, "integration@demo.ai", EventClass.model_training)
 
 
 def test_train_insufficient_data(monkeypatch):
@@ -3287,7 +3376,7 @@ def test_train_insufficient_data(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Please add at least 2 stories and 2 intents before training the bot!"
+    assert actual["message"] == "Please add at least 2 flows and 2 intents before training the bot!"
 
 
 def test_delete_bot():
@@ -4456,7 +4545,7 @@ def test_list_actions():
     print(actual['data']['http_action'])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [],
+        'hubspot_forms_action': [], 'two_stage_fallback': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -4482,12 +4571,10 @@ def test_list_actions():
 
 @responses.activate
 def test_train_using_event(monkeypatch):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
-        responses.POST,
-        "http://localhost/train",
-        status=200
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
-    monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4497,6 +4584,7 @@ def test_train_using_event(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_update_training_data_generator_status(monkeypatch):
@@ -5135,9 +5223,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5180,9 +5268,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5250,7 +5338,13 @@ def test_add_rule_with_multiple_intents():
     assert actual["data"] is None
 
 
+@responses.activate
 def test_validate():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
     response = client.post(
         f"/api/bot/{pytest.bot}/validate",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -5260,9 +5354,15 @@ def test_validate():
     assert actual["error_code"] == 0
     assert not actual["data"]
     assert actual["message"] == 'Event triggered! Check logs.'
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
 
 
+@responses.activate
 def test_upload_missing_data():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
     files = (('training_files', ("domain.yml", BytesIO(open("tests/testing_data/all/domain.yml", "rb").read()))),
              ('training_files', ("stories.md", BytesIO(open("tests/testing_data/all/data/stories.md", "rb").read()))),
              ('training_files', ("config.yml", BytesIO(open("tests/testing_data/all/config.yml", "rb").read()))),
@@ -5277,9 +5377,15 @@ def test_upload_missing_data():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
 
 
+@responses.activate
 def test_upload_valid_and_invalid_data():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
     files = (('training_files', ("nlu_1.md", None)),
              ('training_files', ("domain_5.yml", open("tests/testing_data/all/domain.yml", "rb"))),
              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
@@ -5294,6 +5400,7 @@ def test_upload_valid_and_invalid_data():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
 
 
 def test_upload_with_http_error():
@@ -7721,17 +7828,6 @@ def test_get_ui_config():
     assert actual["success"]
 
 
-def test_model_testing_no_existing_models():
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/test",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual['message'] == 'No model trained yet. Please train a model to test'
-    assert not actual["success"]
-
-
 def test_sso_redirect_url_invalid_type():
     response = client.get(
         url=f"/api/auth/login/sso/ethereum"
@@ -7914,7 +8010,53 @@ def test_add_email_action(mock_smtp):
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_from_different_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    request = {"action_name": "email_config_with_key_vault",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
                "from_email": "test@demo.com",
                "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -7932,6 +8074,69 @@ def test_add_email_action(mock_smtp):
     assert actual["message"] == "Action added"
 
 
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_from_invalid_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "intent"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com","test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "", "parameter_type": "key_vault"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_email_actions():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/email",
@@ -7941,8 +8146,26 @@ def test_list_email_actions():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
-    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25, 'smtp_password': 't***', 'from_email': 'test@demo.com', 'subject': 'Test Subject', 'to_email': ['test@test.com',"test1@test.com"], 'response': 'Test Response', 'tls': False}]
+    assert len(actual["data"]) == 3
+    assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'value'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False},
+                              {'action_name': 'email_config_with_slot', 'smtp_url': 'test.test.com', 'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'slot'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False},
+                              {'action_name': 'email_config_with_key_vault', 'smtp_url': 'test.test.com',
+                               'smtp_port': 25,
+                               'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
+                                                 'encrypt': False, 'value': 'test', 'parameter_type': 'key_vault'},
+                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
+                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'tls': False}]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -7951,7 +8174,7 @@ def test_edit_email_action(mock_smtp):
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
                "from_email": "test@demo.com",
                "to_email": ["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -7970,12 +8193,80 @@ def test_edit_email_action(mock_smtp):
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_different_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+    request = {"action_name": "email_config_with_key_vault",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_invalid_parameter_type(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "intent"},
+               "from_email": "test@demo.com",
+               "to_email": ["test@test.com", "test1@test.com"],
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action_does_not_exists(mock_smtp):
     request = {"action_name": "email_config1",
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": "test",
+               "smtp_password": {'value': "test"},
                "from_email": "test@demo.com",
                "to_email":["test@test.com","test1@test.com"],
                "subject": "Test Subject",
@@ -8029,7 +8320,7 @@ def test_list_google_search_action_no_actions():
 def test_add_google_search_action():
     action = {
         'name': 'google_custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8047,7 +8338,7 @@ def test_add_google_search_action():
 def test_add_google_search_exists():
     action = {
         'name': 'google_custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8062,10 +8353,61 @@ def test_add_google_search_exists():
     assert actual["message"] == 'Action with name "google_custom_search" exists'
 
 
+def test_add_google_search_different_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {'value': '12345678', "parameter_type": "slot"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added'
+
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {'value': '12345678', "parameter_type": "key_vault"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added'
+
+
+def test_add_google_search_invalid_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {'value': '12345678', "parameter_type": "chat_log"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_google_search_action_not_exists():
     action = {
         'name': 'custom_search',
-        'api_key': '12345678',
+        'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
     }
@@ -8083,7 +8425,7 @@ def test_edit_google_search_action_not_exists():
 def test_edit_google_search_action():
     action = {
         'name': 'google_custom_search',
-        'api_key': '1234567889',
+        'api_key': {"value": '1234567889'},
         'search_engine_id': 'asdfg:12345689',
         'failure_response': 'Failed to perform search',
     }
@@ -8098,6 +8440,57 @@ def test_edit_google_search_action():
     assert actual["message"] == 'Action updated'
 
 
+def test_edit_google_search_action_different_parameter_types():
+    action = {
+        'name': 'google_custom_search_slot',
+        'api_key': {"value": '1234567889', "parameter_type": "key_vault"},
+        'search_engine_id': 'asdfg:12345689',
+        'failure_response': 'Failed to perform search',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {"value": '1234567889', "parameter_type": "slot"},
+        'search_engine_id': 'asdfg:12345689',
+        'failure_response': 'Failed to perform search',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_edit_google_search_action_invalid_parameter_type():
+    action = {
+        'name': 'google_custom_search_key_vault',
+        'api_key': {'value': '12345678', "parameter_type": "user_message"},
+        'search_engine_id': 'asdfg:123456',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_google_search_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -8106,9 +8499,10 @@ def test_list_google_search_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 3
+    print(actual["data"])
     assert actual["data"][0]['name'] == 'google_custom_search'
-    assert actual["data"][0]['api_key'] == '1234567***'
+    assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
     assert actual["data"][0]['num_results'] == 1
@@ -8275,10 +8669,10 @@ def test_list_hubspot_forms_action():
     assert actual["data"][0]['name'] == 'action_hubspot_forms'
     assert actual["data"][0]['portal_id'] == '123456785787'
     assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
-    assert actual["data"][0]['fields'] == [{'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                    {'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                    {'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                    {'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+    assert actual["data"][0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                    {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
     assert actual["data"][0]['response'] == 'Hubspot Form submitted'
 
 
@@ -8594,7 +8988,7 @@ def test_add_jira_action_invalid_config(monkeypatch):
     url = 'https://test_add_jira_action_invalid_config.net'
     action = {
         'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
     monkeypatch.setattr(ActionUtility, 'get_jira_client', _mock_error)
@@ -8624,7 +9018,7 @@ def test_list_jira_action_empty():
 def test_add_jira_action():
     url = 'https://test-digite.atlassian.net'
     action = {
-        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com', 'api_token': 'ASDFGHJKL',
+        'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com', 'api_token': {'value': 'ASDFGHJKL'},
         'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
     }
     responses.add(
@@ -8685,6 +9079,62 @@ def test_add_jira_action():
     assert actual["message"] == "Action added"
 
 
+@patch("kairon.shared.actions.utils.ActionUtility.get_jira_client", autospec=True)
+@patch("kairon.shared.actions.utils.ActionUtility.validate_jira_action", autospec=True)
+def test_add_jira_action_different_parameter_type(mock_jira_client, mock_validate):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "slot"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    action = {
+        'name': 'jira_action_key_vault', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+@patch("kairon.shared.actions.data_objects.JiraAction.validate", autospec=True)
+def test_add_jira_action_invalid_parameter_type(moack_jira):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "user_message"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_list_jira_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/jira",
@@ -8693,10 +9143,20 @@ def test_list_jira_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
+    print(actual["data"])
     assert actual["data"] == [
-            {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-             'api_token': 'ASDFGH***', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
-             'response': 'We have logged a ticket'}]
+        {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'},
+        {'name': 'jira_action_slot', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'ASDFGHJKL', 'parameter_type': 'slot'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'},
+        {'name': 'jira_action_key_vault', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': 'AWS_KEY', 'parameter_type': 'key_vault'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+         'summary': 'new user', 'response': 'We have logged a ticket'}]
 
 
 @responses.activate
@@ -8704,7 +9164,7 @@ def test_edit_jira_action():
     url = 'https://test-digite.atlassian.net'
     action = {
         'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Subtask', 'parent_key': 'HEL-4',
         'summary': 'new user',
         'response': 'We have logged a ticket'
     }
@@ -8766,11 +9226,67 @@ def test_edit_jira_action():
     assert actual["message"] == "Action updated"
 
 
+@patch("kairon.shared.actions.utils.ActionUtility.get_jira_client", autospec=True)
+@patch("kairon.shared.actions.utils.ActionUtility.validate_jira_action", autospec=True)
+def test_edit_jira_action_different_parameter_type(mock_jira_client, mock_validate):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+    action = {
+        'name': 'jira_action_key_vault', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "slot"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+@patch("kairon.shared.actions.utils.ActionUtility", autospec=True)
+def test_edit_jira_action_invalid_parameter_type(mock_jira):
+    url = 'https://test-digite.atlassian.net'
+    action = {
+        'name': 'jira_action_slot', 'url': url, 'user_name': 'test@digite.com',
+        'api_token': {'value': 'ASDFGHJKL', "parameter_type": "chat_log"},
+        'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user', 'response': 'We have logged a ticket'
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/jira",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_jira_action_invalid_config(monkeypatch):
     url = 'https://test_edit_jira_action_invalid_config.net'
     action = {
         'name': 'jira_action', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
 
@@ -8790,7 +9306,7 @@ def test_edit_jira_action_not_found():
     url = 'https://test-digite.atlassian.net'
     action = {
         'name': 'jira_action_new', 'url': url, 'user_name': 'test@digite.com',
-        'api_token': 'ASDFGHJKL', 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+        'api_token': {'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
         'response': 'We have logged a ticket'
     }
 
@@ -8810,7 +9326,7 @@ def test_add_zendesk_action_invalid_config(monkeypatch):
         from zenpy.lib.exception import APIException
         raise APIException({"error": {"title": "No help desk at digite751.zendesk.com"}})
 
-    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
     with patch('zenpy.Zenpy') as mock:
         mock.side_effect = __mock_zendesk_error
@@ -8837,7 +9353,7 @@ def test_list_zendesk_action_empty():
 
 
 def test_add_zendesk_action():
-    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789', 'subject': 'new ticket',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': '123456789'}, 'subject': 'new ticket',
               'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
     with patch('zenpy.Zenpy'):
         response = client.post(
@@ -8851,6 +9367,52 @@ def test_add_zendesk_action():
         assert actual["message"] == "Action added"
 
 
+@patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+def test_add_zendesk_action_different_parameter_type(mock_zedesk):
+    action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+    action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+              'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_add_zendesk_action_invalid_parameter_type():
+    action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+
+
 def test_list_zendesk_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/zendesk",
@@ -8859,13 +9421,22 @@ def test_list_zendesk_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
+    print(actual["data"])
     assert actual["data"] == [
-        {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456***', 'subject': 'new ticket',
-         'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}]
+        {'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
+                       'value': '123456789', 'parameter_type': 'value'}, 'subject': 'new ticket',
+         'response': 'ticket filed'},
+        {'name': 'zendesk_action_slot', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'value': '123456789',
+                       'parameter_type': 'slot'}, 'subject': 'new ticket', 'response': 'ticket filed'},
+        {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
+         'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'value': 'AWS_KEY',
+                       'parameter_type': 'key_vault'}, 'subject': 'new ticket', 'response': 'ticket filed'}]
 
 
 def test_edit_zendesk_action():
-    action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': '123456789999',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite756', 'api_token': {'value': '123456789999'},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed here'}
     with patch('zenpy.Zenpy'):
         response = client.put(
@@ -8879,8 +9450,54 @@ def test_edit_zendesk_action():
         assert actual["message"] == "Action updated"
 
 
+@patch("kairon.shared.actions.data_objects.ZendeskAction.validate", autospec=True)
+def test_edit_zendesk_action_different_parameter_type(mock_zendesk):
+    action = {'name': 'zendesk_action_slot', 'subdomain': 'digite751',
+              'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+    action = {'name': 'zendesk_action_key_vault', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "slot"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_zendesk_action_invalid_parameter_type():
+    action = {'name': 'zendesk_action_intent', 'subdomain': 'digite751',
+              'api_token': {'value': '123456789', "parameter_type": "intent"}, 'subject': 'new ticket',
+              'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
+    with patch('zenpy.Zenpy'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/zendesk",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+
+
 def test_edit_zendesk_action_invalid_config(monkeypatch):
-    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action', 'subdomain': 'digite751', 'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
     def __mock_zendesk_error(*args, **kwargs):
@@ -8901,7 +9518,7 @@ def test_edit_zendesk_action_invalid_config(monkeypatch):
 
 
 def test_edit_zendesk_action_not_found():
-    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': '123456789',
+    action = {'name': 'zendesk_action_1', 'subdomain': 'digite751', 'api_token': {'value': '123456789'},
               'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com', 'response': 'ticket filed'}
 
     response = client.put(
@@ -8922,7 +9539,7 @@ def test_add_pipedrive_leads_action_invalid_config(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -8943,7 +9560,7 @@ def test_add_pipedrive_leads_name_not_filled(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -8974,7 +9591,7 @@ def test_add_pipedrive_action():
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -8991,6 +9608,66 @@ def test_add_pipedrive_action():
         assert actual["message"] == "Action added"
 
 
+def test_add_pipedrive_action_different_parameter_types():
+    action = {
+        'name': 'pipedrive_leads_slot',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "slot"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action added"
+
+
+def test_add_pipedrive_action_invalid_parameter_types():
+    action = {
+        'name': 'pipedrive_leads_sender_id',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+    with patch('pipedrive.client.Client'):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+
+
 def test_list_pipedrive_action():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/pipedrive",
@@ -8999,22 +9676,31 @@ def test_list_pipedrive_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [
-        {
-            'name': 'pipedrive_leads',
-            'domain': 'https://digite751.pipedrive.com/',
-            'api_token': '12345***',
-            'title': 'new lead',
-            'response': 'I have failed to create lead for you',
-            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
-        }]
+    assert actual["data"] == [{'name': 'pipedrive_leads', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': '12345678', 'parameter_type': 'value'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'},
+                              {'name': 'pipedrive_leads_slot', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': '12345678', 'parameter_type': 'slot'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'},
+                              {'name': 'pipedrive_leads_slot_key_vault', 'domain': 'https://digite751.pipedrive.com/',
+                               'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
+                                             'encrypt': False, 'value': 'AWS_KEY', 'parameter_type': 'key_vault'},
+                               'title': 'new lead',
+                               'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                            'phone': 'phone'}, 'response': 'I have failed to create lead for you'}]
 
 
 def test_edit_pipedrive_action():
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite7.pipedrive.com/',
-        'api_token': '1asdfghjklqwertyuio',
+        'api_token': {'value': '1asdfghjklqwertyuio'},
         'title': 'new lead generated',
         'response': 'Failed to create lead for you',
         'metadata': {'name': 'name'}
@@ -9032,11 +9718,74 @@ def test_edit_pipedrive_action():
         assert actual["message"] == "Action updated"
 
 
+@patch("kairon.shared.actions.data_objects.PipedriveLeadsAction.validate", autospec=True)
+def test_edit_pipedrive_action_different_parameter_type(mock_pipedrive):
+    action = {
+        'name': 'pipedrive_leads_slot',
+        'domain': 'https://digite7.pipedrive.com/',
+        'api_token': {'value': 'AWS_KEY', "parameter_type": "key_vault"},
+        'title': 'new lead generated',
+        'response': 'Failed to create lead for you',
+        'metadata': {'name': 'name'}
+    }
+
+    with patch('pipedrive.client.Client'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite7.pipedrive.com/',
+        'api_token': {'value': '1asdfghjklqwertyuio', "parameter_type": "slot"},
+        'title': 'new lead generated',
+        'response': 'Failed to create lead for you',
+        'metadata': {'name': 'name'}
+    }
+
+    with patch('pipedrive.client.Client'):
+        response = client.put(
+            f"/api/bot/{pytest.bot}/action/pipedrive",
+            json=action,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["message"] == "Action updated"
+
+
+def test_edit_pipedrive_action_invalid_parameter_type():
+    action = {
+        'name': 'pipedrive_leads_slot_key_vault',
+        'domain': 'https://digite751.pipedrive.com/',
+        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'title': 'new lead',
+        'response': 'I have failed to create lead for you',
+        'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/pipedrive",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_edit_pipedrive_action_invalid_config(monkeypatch):
     action = {
         'name': 'pipedrive_leads',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9061,7 +9810,7 @@ def test_edit_pipedrive_action_not_found():
     action = {
         'name': 'pipedrive_action',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': '12345678',
+        'api_token': {'value': '12345678'},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -9503,6 +10252,71 @@ def test_get_end_user_metrics_empty():
     assert actual["data"] == []
 
 
+def test_add_end_user_metrics():
+    log_type = "user_metrics"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English"}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_add_end_user_metrics_with_ip(monkeypatch):
+    log_type = "user_metrics"
+    ip = "192.222.100.106"
+    token = "abcgd563"
+    enable = True
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+    url = f"https://ipinfo.io/{ip}?token={token}"
+    expected = {
+        "ip": "140.82.201.129",
+        "city": "Mumbai",
+        "region": "Maharashtra",
+        "country": "IN",
+        "loc": "19.0728,72.8826",
+        "org": "AS13150 CATO NETWORKS LTD",
+        "postal": "400070",
+        "timezone": "Asia/Kolkata"
+    }
+    responses.add("GET", url, json=expected)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_add_end_user_metrics_ip_request_failure(monkeypatch):
+    log_type = "user_metrics"
+    ip = "192.222.100.106"
+    token = "abcgd563"
+    enable = True
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+    url = f"https://ipinfo.io/{ip}?token={token}"
+    responses.add("GET", url, status=500)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": {"source": "Digite.com", "language": "English"}}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+
+
 def test_get_end_user_metrics():
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
@@ -9517,7 +10331,20 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
+    print(actual["data"])
+    assert len(actual["data"]) == 8
+    actual["data"][5].pop('timestamp')
+    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+                           'source': 'Digite.com', 'language': 'English'}
+    actual["data"][6].pop('timestamp')
+    actual["data"][7].pop('timestamp')
+    assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+                                 'bot': pytest.bot,
+                                 'source': 'Digite.com', 'language': 'English',
+                                 'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                                 'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
+    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+                                 'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
@@ -9526,7 +10353,6 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 2
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
@@ -9655,6 +10481,7 @@ def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
 
+
 def test_save_client_config_invalid_domain_format():
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -9669,6 +10496,7 @@ def test_save_client_config_invalid_domain_format():
     assert actual["error_code"] == 422
     assert actual["message"] == 'One of the domain is invalid'
 
+
 def get_client_config_valid_domain():
     response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
@@ -9677,6 +10505,183 @@ def get_client_config_valid_domain():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"]["whitelist"] == ["kairon.digite.com", "kairon-api.digite.com"]
+
+
+def test_multilingual_translate_logs_empty():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == []
+
+
+@responses.activate
+def test_multilingual_translate():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher(
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': False, 'translate_actions': False})],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"dest_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["message"] == "Bot translation in progress! Check logs."
+    assert response["error_code"] == 0
+    MultilingualLogProcessor.add_log(pytest.bot, "integ1@gmail.com", event_status="Completed", status="Success")
+
+
+def test_multilingual_translate_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/multilingual/translate",
+        json={"dest_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_no_destination_lang():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "dest_lang"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"dest_lang": " ", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "body",
+                "dest_lang"
+            ],
+            "msg": "dest_lang cannot be empty",
+            "type": "value_error"
+        }
+    ]
+    assert response["error_code"] == 422
+
+
+def test_multilingual_translate_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"dest_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+@responses.activate
+def test_multilingual_translate_using_event_with_actions_and_responses(monkeypatch):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")
+    responses.add(
+        responses.POST,
+        event_url,
+        status=200,
+        json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher(
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': True, 'translate_actions': True})],
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"dest_lang": "es", "translate_responses": True, "translate_actions": True},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["message"] == "Bot translation in progress! Check logs."
+
+
+def test_multilingual_translate_in_progress():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/multilingual/translate",
+        json={"dest_lang": "es", "translate_responses": False, "translate_actions": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
+
+
+def test_multilingual_translate_logs():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 2
+    assert actual["data"][0]["d_lang"] == 'es'
+    assert actual["data"][0]["copy_type"] == 'Translation'
+    assert actual["data"][0]["translate_responses"]
+    assert actual["data"][0]["translate_actions"]
+    assert actual["data"][0]["event_status"] == 'Enqueued'
+    assert actual["data"][0]["start_timestamp"]
+    assert actual["data"][1]["d_lang"] == 'es'
+    assert actual["data"][1]["copy_type"] == 'Translation'
+    assert actual["data"][1]["translate_responses"] == False
+    assert actual["data"][1]["translate_actions"] == False
+    assert actual["data"][1]["event_status"] == 'Completed'
+    assert actual["data"][1]["status"] == 'Success'
+    assert actual["data"][1]["start_timestamp"]
+    assert actual["data"][1]["end_timestamp"]
+
+
+def test_multilingual_language_support(monkeypatch):
+
+    def _mock_supported_languages(*args, **kwargs):
+        return ['es', 'en', 'hi']
+
+    monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/multilingual/languages",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    ).json()
+
+    assert response['data'] == ['es', 'en', 'hi']
+    assert response['success']
+    assert response['error_code'] == 0
+
 
 def test_delete_account():
     response_log = client.post(
@@ -9762,6 +10767,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     assert message == 'Session expired. Please login again.'
     assert error_code == 401
 
+
 def test_create_access_token_with_iat():
 
     access_token = Authentication.create_access_token(
@@ -9787,6 +10793,7 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
     assert actual["message"] == "Success! Your password has been changed"
     assert actual['data'] is None
 
+
 def test_login_new_password():
     response = client.post(
         "/api/auth/login",
@@ -9799,6 +10806,7 @@ def test_login_new_password():
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
 
+
 def test_login_old_password():
     response = client.post(
         "/api/auth/login",
@@ -9809,6 +10817,7 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
     email = "samepasswrd@demo.ai"
@@ -9842,6 +10851,7 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
     response = passwrd_change_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
+
 
 def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     Utility.environment['user']['reset_password_cooldown_period'] = 0

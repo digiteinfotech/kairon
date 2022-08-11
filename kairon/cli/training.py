@@ -4,7 +4,7 @@ from typing import List
 from loguru import logger
 from rasa.cli import SubParsersAction
 
-from kairon.train import start_training
+from kairon.events.definitions.model_training import ModelTrainingEvent
 
 
 def train(args):
@@ -12,7 +12,7 @@ def train(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
     logger.info("token exists: {}", str("token" in arguments_dict))
-    start_training(args.bot, args.user, arguments_dict.get("token"))
+    ModelTrainingEvent(args.bot, args.user).execute(token=arguments_dict.get("token"))
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
