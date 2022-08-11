@@ -68,7 +68,6 @@ class MultilingualTranslator:
         examples_list = []
         for example in training_data.training_examples:
             text = example.data.get('text')
-            text = DataUtility.extract_text_and_entities(text)[0]
             if text:
                 examples_list.append(text)
 
@@ -79,6 +78,8 @@ class MultilingualTranslator:
             for i, example in enumerate(training_data.training_examples):
 
                 example.data['text'] = str(examples_translations[i])
+                if example.data.get('entities'):
+                    del example.data['entities']
         else:
             logger.info("Training examples empty.")
 
