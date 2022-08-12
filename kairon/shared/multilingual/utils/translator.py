@@ -34,6 +34,7 @@ class Translator:
                 "auth_provider_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['auth_provider_x509_cert_url'],
                 "client_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['client_x509_cert_url']
             }
+            logger.debug(service_account_info_json)
             credentials = service_account.Credentials.from_service_account_info(service_account_info_json)
             client = translate.TranslationServiceClient(credentials=credentials)
 
@@ -80,6 +81,7 @@ class Translator:
             "auth_provider_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['auth_provider_x509_cert_url'],
             "client_x509_cert_url": Utility.environment['multilingual']['service_account_creds']['client_x509_cert_url']
         }
+        logger.debug(service_account_info_json)
         credentials = service_account.Credentials.from_service_account_info(service_account_info_json)
         client = translate.TranslationServiceClient(credentials=credentials)
 
