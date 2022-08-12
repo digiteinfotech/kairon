@@ -414,7 +414,7 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
-        assert body['month'] == 10
+        assert body['month'] == str(10)
         assert body['sender_id'] == 'udit.pandey@digite.com'
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1

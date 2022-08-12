@@ -933,7 +933,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'month': month, 'sender_id': sender_id})],
+                              {'bot': bot, 'user': user, 'month': str(month), 'sender_id': sender_id})],
                       )
         responses.start()
         event = DeleteHistoryEvent(bot, user, month=1, sender_id=None)
