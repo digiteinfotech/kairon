@@ -46,6 +46,9 @@ RUN chmod 777 -R /tmp
 
 COPY kairon ${TASK_HOME}/kairon
 COPY system.yaml ${TASK_HOME}/
+COPY email.yaml ${TASK_HOME}/
+COPY metadata ${TASK_HOME}/metadata
+COPY template ${TASK_HOME}/template
 
 ENV BOT default
 ENV USER default
