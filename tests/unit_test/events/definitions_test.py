@@ -527,7 +527,7 @@ class TestEventDefinitions:
                       match=[
                           responses.json_params_matcher(
                               {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang':  d_lang,
-                               'translate_responses': False, 'translate_actions': True})]
+                               'translate_responses': '', 'translate_actions': '--translate-actions'})]
                       )
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False, translate_actions=True).enqueue()
 

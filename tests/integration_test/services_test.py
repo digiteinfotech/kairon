@@ -10524,7 +10524,7 @@ def test_multilingual_translate():
         match=[
             responses.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': False, 'translate_actions': False})],
+                  'translate_responses': "", 'translate_actions': ""})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -10615,7 +10615,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         match=[
             responses.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': True, 'translate_actions': True})],
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
     )
 
     response = client.post(
