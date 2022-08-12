@@ -49,6 +49,7 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history-dev:latest .
     -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server-dev:latest .
     -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual-dev:latest .
 
 build-release:
   tags:
@@ -70,3 +71,4 @@ build-release:
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history:latest .
     -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server:latest .
     -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker:latest .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:latest .
