@@ -1393,7 +1393,7 @@ class Utility:
         logger.debug(payload)
         resp = Utility.execute_http_request(
             "POST", urljoin(event_server_url, f'/api/events/execute/{event_class}'),
-            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True, timeout=3
+            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
         )
         if not resp['success']:
             raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
