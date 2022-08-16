@@ -169,6 +169,7 @@ def test_recaptcha_verified_request(monkeypatch):
                 "confirm_password": "Welcome@1",
                 "account": "integration1234567",
                 "bot": "integration",
+                "add_trusted_device": True
             },
         )
         actual = response.json()

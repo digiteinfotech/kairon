@@ -13,9 +13,11 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from kairon.api.models import TokenData
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.constants import PluginTypes
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility
 from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
@@ -305,3 +307,15 @@ class Authentication:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Access to bot is denied',
             )
+
+    @staticmethod
+    async def validate_trusted_device(user: Text, fingerprint: Text, ip: Text, add_trusted_device: bool = False):
+        if add_trusted_device:
+            AccountProcessor.add_trusted_device(user, fingerprint)
+        else:
+            if Utility.environment['user']['validate_trusted_device']:
+                trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
+                if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
+                    geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
+                    geo_location = geo_location or {}
+                    await Utility.format_and_send_mail(mail_type='untrusted_login', email=user, first_name=user, **geo_location)
