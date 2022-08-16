@@ -23,6 +23,7 @@ RUN python -m pip install password-strength
 RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install nlpaug
 RUN python -m pip install torch
@@ -38,7 +39,7 @@ RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
-
+RUN python -m pip install google-cloud-translate
 
 RUN mkdir ssl
 RUN mkdir testing_data
@@ -54,6 +55,8 @@ COPY kairon ${MODEL_TESTER_HOME}/kairon
 COPY metadata ${MODEL_TESTER_HOME}/app/metadata
 COPY augmentation ${MODEL_TESTER_HOME}/augmentation
 COPY system.yaml ${MODEL_TESTER_HOME}/
+COPY email.yaml ${MODEL_TESTER_HOME}/
+COPY template ${MODEL_TESTER_HOME}/template
 
 ENV BOT default
 ENV USER default

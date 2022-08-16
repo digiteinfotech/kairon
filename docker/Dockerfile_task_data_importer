@@ -22,6 +22,7 @@ RUN python -m pip install password-strength
 RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
@@ -30,6 +31,8 @@ RUN python -m pip install blinker
 RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
+RUN python -m pip install google-cloud-translate
+
 RUN mkdir ssl
 RUN mkdir training_data
 RUN chmod 777 -R /tmp
@@ -39,6 +42,9 @@ RUN python -m pip install ujson==5.1.0
 COPY kairon ${IMPORTER_HOME}/kairon
 COPY metadata /app/metadata
 COPY system.yaml ${IMPORTER_HOME}/
+COPY email.yaml ${IMPORTER_HOME}/
+COPY metadata ${IMPORTER_HOME}/metadata
+COPY template ${IMPORTER_HOME}/template
 
 ENV BOT default
 ENV USER default

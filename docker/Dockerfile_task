@@ -37,6 +37,7 @@ RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install blinker
+RUN python -m pip install google-cloud-translate
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

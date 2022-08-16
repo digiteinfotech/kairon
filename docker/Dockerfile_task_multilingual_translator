@@ -22,6 +22,7 @@ RUN python -m pip install password-strength
 RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
@@ -45,4 +46,4 @@ ENV DEST_LANG default
 ENV TRANSLATE_RESPONSES default
 ENV TRANSLATE_ACTIONS default
 
-CMD ["sh","-c","python -m kairon multilingual ${SOURCE_BOT} ${USER} ${DEST_LANG} ${TRANSLATE_RESPONSES} ${TRANSLATE_ACTIONS}"]
+CMD ["sh","-c","python -m kairon multilingual ${BOT} ${USER} ${DEST_LANG} ${TRANSLATE_RESPONSES} ${TRANSLATE_ACTIONS}"]
