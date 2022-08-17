@@ -10319,11 +10319,11 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metrics/user/logs",
@@ -10335,16 +10335,16 @@ def test_get_end_user_metrics():
     print(actual["data"])
     assert len(actual["data"]) == 8
     actual["data"][5].pop('timestamp')
-    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert actual["data"][5] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
     actual["data"][6].pop('timestamp')
     actual["data"][7].pop('timestamp')
-    assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    assert actual["data"][6] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"][7] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(

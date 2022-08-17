@@ -28,6 +28,7 @@ from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
@@ -1889,8 +1890,35 @@ class TestAccountProcessor:
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_add_device(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
-        await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", "10.11.12.13", True)
+        token = "abcgd563"
+        enable = True
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+        monkeypatch.setitem(Utility.email_conf["email"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", enable)
+
+        url = f"https://ipinfo.io/10.11.12.13?token={token}"
+        expected = {
+            "ip": "10.11.12.13",
+            "city": "Mumbai",
+            "region": "Maharashtra",
+            "country": "IN",
+            "loc": "19.0728,72.8826",
+            "org": "AS13150 CATO NETWORKS LTD",
+            "postal": "400070",
+            "timezone": "Asia/Kolkata"
+        }
+        responses.start()
+        responses.add("GET", url, json=expected)
+        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", "10.11.12.13", True)
+        log = EndUserMetricsProcessor.get_logs(log_type='user_login')
+        del log[0]['timestamp']
+        assert log[0] == {'log_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
+                          'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                          'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
+        assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == ["kjhdsaqewrrtyuio879"]
+        responses.stop()
+        responses.reset()
 
     def test_list_trusted_device(self):
         assert AccountProcessor.list_trusted_device_fingerprints("udit.pandey@digite.com") == [
@@ -1899,7 +1927,7 @@ class TestAccountProcessor:
     @pytest.mark.asyncio
     async def test_validate_trusted_device(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
-        await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", "10.11.12.13")
+        await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", "10.11.12.13")
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_invalid(self, monkeypatch):
@@ -1923,12 +1951,14 @@ class TestAccountProcessor:
         responses.start()
         responses.add("GET", url, json=expected)
         with patch("kairon.shared.utils.SMTP", autospec=True):
-            await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", "10.11.12.13")
+            await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", "10.11.12.13")
         responses.stop()
         responses.reset()
 
-    def test_remove_trusted_device_not_exists_2(self):
-        AccountProcessor.remove_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879")
+    @pytest.mark.asyncio
+    async def test_remove_trusted_device_not_exists_2(self):
+        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
+                                                             "10.11.12.13", remove_trusted_device=True)
 
     def test_list_fingerprint_not_exists(self):
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
