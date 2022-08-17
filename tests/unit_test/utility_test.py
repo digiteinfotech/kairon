@@ -1316,10 +1316,9 @@ class TestUtility:
         monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
-        data = {"ws_url": "http://localhost:5000/event_url"}
         event_config = EventConfig(bot=bot,
                                    user=user,
-                                   data=data)
+                                   ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user, action="save").count()
@@ -1332,11 +1331,11 @@ class TestUtility:
         monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
-        data = {"ws_url": "http://localhost:5000/event_url",
-                "headers": {'Autharization': '123456789'}}
         event_config = EventConfig(bot=bot,
                                    user=user,
-                                   data=data)
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}",
+                                   method="GET")
         kwargs = {"action": "save"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user, action="save").count()
@@ -1349,11 +1348,10 @@ class TestUtility:
         monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
-        data = {"ws_url": "http://localhost:5000/event_url",
-                "headers": {'Autharization': '123456789'}}
         event_config = EventConfig(bot=bot,
                                    user=user,
-                                   data=data)
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user, action="update").count()
@@ -1366,19 +1364,26 @@ class TestUtility:
         monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
-        data = {"ws_url": "http://localhost:5000/event_url",
-                "headers": {'Autharization': '123456789'}}
         event_config = EventConfig(bot=bot,
                                    user=user,
-                                   data=data)
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user).count()
-        assert count == 3
+        assert count >= 3
 
-    def test_publish_log(self, monkeypatch):
+    def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
         def execute_http_request(*args, **kwargs):
             return None
         monkeypatch.setattr(Utility, "execute_http_request", execute_http_request)
-        Utility.publish_auditlog()
-        assert None
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
+        kwargs = {"action": "update"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user).count()
+        assert count >= 3

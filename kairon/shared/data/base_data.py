@@ -13,12 +13,8 @@ class AuditLogData(Document):
     data = DictField()
 
     @queryset_manager
-    def objects(doc_cls, queryset):
+    def objects(cls, queryset):
         return queryset.order_by('-timestamp')
-
-    # @queryset_manager
-    # def top_n_records(doc_cls, queryset, top_n=300):
-    #     return queryset.order_by('-timestamp')
 
 
 class Auditlog(Document):

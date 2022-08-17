@@ -4262,6 +4262,7 @@ class MongoProcessor:
             event_config.ws_url = data.get("ws_url")
             event_config.headers = data.get("headers") if data.get("headers") is not None else Utility.decrypt_message(
                 event_config.headers)
+            event_config.method = data.get("method")
         else:
             event_config = EventConfig(
                 bot=bot,

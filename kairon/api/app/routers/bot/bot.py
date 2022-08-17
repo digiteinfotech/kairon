@@ -1459,14 +1459,14 @@ async def add_metrics(
 
 
 @router.post("/audit/event/config", response_model=Response)
-async def set_client_config(request: DictData, current_user: User = Security(Authentication.get_current_user_and_bot,
+async def set_auditlog_config(request: DictData, current_user: User = Security(Authentication.get_current_user_and_bot,
                                                                              scopes=DESIGNER_ACCESS)):
     mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request.data)
     return {"message": "Event config saved"}
 
 
 @router.get("/audit/event/config", response_model=Response)
-async def get_client_config(current_user: User = Security(Authentication.get_current_user_and_bot,
+async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
                                                                              scopes=DESIGNER_ACCESS)):
     data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
     return Response(data=data)
