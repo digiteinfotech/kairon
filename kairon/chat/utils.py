@@ -50,7 +50,7 @@ class ChatUtils:
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
                 EndUserMetricsProcessor.add_log(
-                    MetricTypes.agent_handoff.value, bot, sender_id,
+                    MetricTypes.agent_handoff.value, sender_id, bot,
                     agent_type=metadata.get("type"), bot_predictions=bot_predictions, exception=exception
                 )
 
