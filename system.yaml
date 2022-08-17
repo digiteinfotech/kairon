@@ -8,6 +8,7 @@ app:
 user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
+  validate_trusted_device: ${VALIDATE_TRUSTED_DEVICE:false}
 
 storage:
   assets:

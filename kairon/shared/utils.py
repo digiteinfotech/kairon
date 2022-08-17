@@ -664,6 +664,13 @@ class Utility:
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
+        elif mail_type == 'untrusted_login':
+            geo_location = ""
+            body = Utility.email_conf['email']['templates']['untrusted_login']
+            for key, value in kwargs.items():
+                geo_location = f"{geo_location}<li>{key}: {value}</li>"
+            body = body.replace('GEO_LOCATION', geo_location)
+            subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return

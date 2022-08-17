@@ -1089,7 +1089,7 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
 
-                assert len(EndUserMetricsProcessor.get_logs(bot)) == 1
+                assert len(EndUserMetricsProcessor.get_logs(bot=bot)) == 1
 
     def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -1192,7 +1192,7 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
-                assert len(EndUserMetricsProcessor.get_logs(bot)) == 2
+                assert len(EndUserMetricsProcessor.get_logs(bot=bot)) == 2
 
     def test_chat_with_live_agent(self):
         responses.reset()
@@ -1363,7 +1363,7 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': None}
                 responses.reset()
                 responses.stop()
-                logs = EndUserMetricsProcessor.get_logs(bot)
+                logs = EndUserMetricsProcessor.get_logs(bot=bot)
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
 
