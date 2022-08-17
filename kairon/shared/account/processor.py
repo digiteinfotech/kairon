@@ -11,7 +11,7 @@ from validators import email as mail_check
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData
+    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
@@ -605,6 +605,7 @@ class AccountProcessor:
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
+                untrusted_login=open('template/emails/untrusted_login.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -618,6 +619,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
+        Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
 
     @staticmethod
     async def confirm_email(token: str):
@@ -834,3 +836,21 @@ class AccountProcessor:
         account_obj.status = False
         account_obj.save()
         UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
+
+    @staticmethod
+    def add_trusted_device(user: Text, fingerprint: Text):
+        if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint):
+            TrustedDevice(user=user, fingerprint=fingerprint).save()
+
+    @staticmethod
+    def remove_trusted_device(user: Text, fingerprint: Text):
+        try:
+            trusted_device = TrustedDevice.objects(user=user, fingerprint=fingerprint).get()
+            trusted_device.status = False
+            trusted_device.save()
+        except DoesNotExist as e:
+            logging.exception(e)
+
+    @staticmethod
+    def list_trusted_device_fingerprints(user: Text):
+        return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))

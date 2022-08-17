@@ -42,7 +42,10 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
             client_id: Optional[str] = Form(None),
             client_secret: Optional[str] = Form(None),
             recaptcha_response: str = Form(None),
-            remote_ip: str = Form(None)
+            remote_ip: str = Form(None),
+            fingerprint: str = Form(None),
+            add_trusted_device: bool = Form(False),
+            remove_trusted_device: bool = Form(False),
     ):
         """
         @param grant_type: the OAuth2 spec says it is required and MUST be the fixed string "password".
@@ -58,6 +61,9 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         using HTTP Basic auth, as: client_id:client_secret
         @param recaptcha_response: optional string. recaptcha response.
         @param remote_ip: optional string.  remote ip address.
+        @param fingerprint: optional string. device fingerprint.
+        @param add_trusted_device: Add device as a trusted device. False, by default.
+        @param remove_trusted_device: Removes trusted device. False, by default.
         """
         from kairon.shared.utils import Utility
 
@@ -65,6 +71,11 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
             Utility.validate_recaptcha(recaptcha_response, remote_ip)
         OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
+        self.recaptcha_response = recaptcha_response
+        self.remote_ip = remote_ip
+        self.fingerprint = fingerprint
+        self.add_trusted_device = add_trusted_device
+        self.remove_trusted_device = remove_trusted_device
 
 
 class Token(BaseModel):

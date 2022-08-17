@@ -1438,7 +1438,7 @@ async def end_user_metrics(
     List end user logs.
     """
     return Response(
-        data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
+        data=EndUserMetricsProcessor.get_logs(start_idx, page_size, bot=current_user.get_bot())
     )
 
 
@@ -1452,8 +1452,8 @@ async def add_metrics(
     Stores End User Metrics
     """
     data = request_data.dict()["data"]
-    EndUserMetricsProcessor.add_log(
-        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
+    EndUserMetricsProcessor.add_log_with_geo_location(
+        log_type=log_type.value, bot=current_user.get_bot(), user_id=current_user.get_user(), **data
     )
     return Response(
         message='Metrics added'
