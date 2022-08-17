@@ -16,7 +16,8 @@ from validators import ValidationFailure, url
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
     EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from validators import email
 
@@ -76,8 +77,9 @@ class HttpActionResponse(EmbeddedDocument):
             raise ValidationError("response is required for dispatch")
 
 
+@auditlogger.log
 @push_notification.apply
-class HttpActionConfig(Document):
+class HttpActionConfig(Auditlog):
     action_name = StringField(required=True)
     http_url = StringField(required=True)
     request_method = StringField(required=True)
@@ -148,8 +150,9 @@ class ActionServerLogs(Document):
     status = StringField(default="SUCCESS")
 
 
+@auditlogger.log
 @push_notification.apply
-class Actions(Document):
+class Actions(Auditlog):
     name = StringField(required=True)
     type = StringField(choices=[type.value for type in ActionType], default=None)
     bot = StringField(required=True)
@@ -189,8 +192,9 @@ class SetSlots(EmbeddedDocument):
         return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value
 
 
+@auditlogger.log
 @push_notification.apply
-class SlotSetAction(Document):
+class SlotSetAction(Auditlog):
     name = StringField(required=True)
     set_slots = ListField(EmbeddedDocumentField(SetSlots), required=True)
     bot = StringField(required=True)
@@ -208,8 +212,9 @@ class SlotSetAction(Document):
             slot_to_set.validate()
 
 
+@auditlogger.log
 @push_notification.apply
-class FormValidationAction(Document):
+class FormValidationAction(Auditlog):
     name = StringField(required=True)
     slot = StringField(required=True)
     validation_semantic = DictField(default={})
@@ -235,8 +240,9 @@ class CustomActionRequestParameters(HttpActionRequestBody):
                                  choices=[ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault])
 
 
+@auditlogger.log
 @push_notification.apply
-class EmailActionConfig(Document):
+class EmailActionConfig(Auditlog):
     action_name = StringField(required=True)
     smtp_url = StringField(required=True)
     smtp_port = IntField(required=True)
@@ -279,8 +285,9 @@ class EmailActionConfig(Document):
             self.smtp_password.key = "smtp_password"
 
 
+@auditlogger.log
 @push_notification.apply
-class GoogleSearchAction(Document):
+class GoogleSearchAction(Auditlog):
     name = StringField(required=True)
     api_key = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
     search_engine_id = StringField(required=True)
@@ -306,8 +313,9 @@ class GoogleSearchAction(Document):
             self.num_results = 1
 
 
+@auditlogger.log
 @push_notification.apply
-class JiraAction(Document):
+class JiraAction(Auditlog):
     name = StringField(required=True)
     url = StringField(required=True)
     user_name = StringField(required=True)
@@ -344,8 +352,9 @@ class JiraAction(Document):
             self.api_token.key = "api_token"
 
 
+@auditlogger.log
 @push_notification.apply
-class ZendeskAction(Document):
+class ZendeskAction(Auditlog):
     name = StringField(required=True)
     subdomain = StringField(required=True)
     user_name = StringField(required=True)
@@ -378,8 +387,9 @@ class ZendeskAction(Document):
             self.api_token.key = "api_token"
 
 
+@auditlogger.log
 @push_notification.apply
-class PipedriveLeadsAction(Document):
+class PipedriveLeadsAction(Auditlog):
     name = StringField(required=True)
     domain = StringField(required=True)
     api_token = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
@@ -414,8 +424,9 @@ class PipedriveLeadsAction(Document):
             self.api_token.key = "api_token"
 
 
+@auditlogger.log
 @push_notification.apply
-class HubspotFormsAction(Document):
+class HubspotFormsAction(Auditlog):
     name = StringField(required=True)
     portal_id = StringField(required=True)
     form_guid = StringField(required=True)

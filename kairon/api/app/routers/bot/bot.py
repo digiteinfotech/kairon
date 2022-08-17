@@ -1425,3 +1425,56 @@ async def list_bot_assets(
     Deletes bot assets from repository.
     """
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
+
+
+@router.get("/metrics/user/logs", response_model=Response)
+async def end_user_metrics(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    List end user logs.
+    """
+    return Response(
+        data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
+    )
+
+
+@router.post("/metrics/user/logs/{log_type}", response_model=Response)
+async def add_metrics(
+        request_data: DictData,
+        log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores End User Metrics
+    """
+    data = request_data.dict()["data"]
+    EndUserMetricsProcessor.add_log(
+        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
+    )
+    return Response(
+        message='Metrics added'
+    )
+
+
+@router.post("/audit/event/config", response_model=Response)
+async def set_client_config(request: DictData, current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request.data)
+    return {"message": "Event config saved"}
+
+
+@router.get("/audit/event/config", response_model=Response)
+async def get_client_config(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
+    return Response(data=data)
+
+
+@router.get("/auditlog/data", response_model=Response)
+async def get_auditlog_for_bot(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    data = mongo_processor.get_auditlog_for_bot(current_user.get_bot())
+    return Response(data=data)
+

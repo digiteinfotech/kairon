@@ -10914,3 +10914,21 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     response = passwrd_rechange_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
+
+def test_getauditlog_for_user():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    actual = response.json()
+    assert actual["data"] is not None
+    assert actual["data"][0]["action"] == "save"
+    assert actual["data"][0]["action_on"] == "Actions"
+    assert actual["data"][0]["user"] == email
+

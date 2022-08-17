@@ -44,6 +44,7 @@ from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
 from kairon.shared.utils import Utility
+from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -79,7 +80,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -4252,3 +4253,46 @@ class MongoProcessor:
         :param name: action name
         """
         return self.add_action(name, bot, user, raise_exception=False, action_type=ActionType.two_stage_fallback)
+
+    @staticmethod
+    def save_auditlog_event_config(bot, user, data):
+        if Utility.is_exist(EventConfig, exp_message="No event config saved for the bot", raise_error=False,
+                            bot__iexact=bot):
+            event_config = EventConfig.objects(bot=bot).get()
+            event_config.ws_url = data.get("ws_url")
+            event_config.headers = data.get("headers") if data.get("headers") is not None else Utility.decrypt_message(
+                event_config.headers)
+        else:
+            event_config = EventConfig(
+                bot=bot,
+                user=user,
+                ws_url=data.get("ws_url"),
+                headers=data.get("headers"),
+                method=data.get("method")
+            )
+        event_config.save()
+
+    @staticmethod
+    def get_auditlog_event_config(bot):
+        event_config = {}
+        if Utility.is_exist(EventConfig, exp_message="No event config saved for the bot", raise_error=False,
+                            bot__iexact=bot):
+            event_config_data = EventConfig.objects(bot=bot).get()
+            event_config["bot"] = event_config_data.bot
+            event_config["ws_url"] = event_config_data.ws_url
+            event_config["headers"] = Utility.decrypt_message(event_config_data.headers)
+            event_config["method"] = event_config_data.method
+        return event_config
+
+    @staticmethod
+    def get_auditlog_for_bot(bot, top_n=100):
+        auditlog_data_list = []
+        if Utility.is_exist(AuditLogData, exp_message="No data logged for current bot", raise_error=False,
+                            bot__iexact=bot):
+            auditlog_data = AuditLogData.objects(bot=bot)[:top_n]
+            for audit_data in auditlog_data:
+                dict_data = audit_data.to_mongo().to_dict()
+                dict_data.pop('_id')
+                dict_data['data'].pop('_id')
+                auditlog_data_list.append(dict_data)
+        return auditlog_data_list

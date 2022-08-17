@@ -49,6 +49,7 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
 from .constants import EventClass
+from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE
 from ..exceptions import AppException
 
@@ -401,6 +402,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
+
     @staticmethod
     def extract_db_config(uri: str):
         """
@@ -1198,7 +1200,7 @@ class Utility:
             root = ast.parse(fh.read(), path)
 
         for node in ast.iter_child_nodes(root):
-            if not(isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom)):
+            if not (isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom)):
                 continue
 
             for n in node.names:
@@ -1503,3 +1505,27 @@ class Utility:
                 masked_value = '*' * str_len
 
         return masked_value
+
+    @staticmethod
+    def save_and_publish_auditlog(document, name, **kwargs):
+        audit_log = AuditLogData(bot=document.bot,
+                                 user=document.user,
+                                 action=kwargs.get("action"),
+                                 action_on=name,
+                                 data=document.to_mongo().to_dict())
+        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        audit_log.save()
+
+    @staticmethod
+    def publish_auditlog(auditlog, event_url=None):
+        from .data.data_objects import EventConfig
+        event_config = EventConfig.objects(bot=auditlog.bot)
+
+        if len(event_config) > 0:
+            event_config = event_config.get()
+            headers = Utility.decrypt_message(EventConfig.headers)
+            ws_url = event_config.ws_url
+            method = event_config.method
+            if ws_url is not None:
+                Utility.execute_http_request(request_method=method, http_url=ws_url,
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers)

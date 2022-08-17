@@ -14,6 +14,7 @@ from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConf
     MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
+from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.utils import Utility
@@ -605,7 +606,6 @@ class AccountProcessor:
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
-                untrusted_login=open('template/emails/untrusted_login.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -619,7 +619,6 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
-        Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
 
     @staticmethod
     async def confirm_email(token: str):
@@ -854,3 +853,16 @@ class AccountProcessor:
     @staticmethod
     def list_trusted_device_fingerprints(user: Text):
         return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))
+
+    @staticmethod
+    def get_auditlog_for_user(user, top_n=100):
+        auditlog_data_list = []
+        if Utility.is_exist(AuditLogData, exp_message="No data logged for current user", raise_error=False,
+                            user__iexact=user):
+            auditlog_data = AuditLogData.objects(user=user)[:top_n]
+            for audit_data in auditlog_data:
+                dict_data = audit_data.to_mongo().to_dict()
+                dict_data.pop('_id')
+                dict_data['data'].pop('_id')
+                auditlog_data_list.append(dict_data)
+        return auditlog_data_list

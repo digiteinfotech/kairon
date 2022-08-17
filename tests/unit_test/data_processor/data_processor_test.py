@@ -34,6 +34,7 @@ from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, Act
     SetSlotsUsingActionResponse
 from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.base_data import Auditlog, AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
@@ -8717,3 +8718,62 @@ class TestModelProcessor:
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
+
+    def test_save_auditlog_event_config_without_headers(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url"}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert headers == {}
+
+    def test_save_auditlog_event_config(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url",
+                "headers": {'Autharization': '123456789'}}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert len(headers.keys()) == 1
+        assert result.get("method") == "GET"
+
+    def test_save_auditlog_event_config_without_eventurl(self):
+        bot = "tests"
+        user = "testuser"
+        data = {}
+        with pytest.raises(ValidationError, match='Event url can not be empty'):
+            MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+
+    def test_auditlog_for_chat_client_config(self):
+        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', action_on='ChatClientConfig'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data[0] is not None
+        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].action_on == "ChatClientConfig"
+
+    def test_auditlog_for_intent(self):
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', action_on='Intents'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data is not None
+        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].action_on == "Intents"
+
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', action_on='Intents'))
+        #No hard delete supported for intents
+        assert len(auditlog_data) == 0
+
+    def test_get_auditlog_for_invalid_bot(self):
+        bot = "invalid"
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        assert auditlog_data == []
+
+    def test_get_auditlog_for_bot(self):
+        bot = "test"
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        assert len(auditlog_data) > 0
