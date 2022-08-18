@@ -25,7 +25,8 @@ class ChatHandler(BaseHandler, ABC):
         try:
             user: User = super().authenticate(self.request, bot=bot)
             body = json_decode(self.request.body.decode("utf8"))
-            response = await ChatUtils.chat(body.get("data"), bot, user.get_user())
+            response = await ChatUtils.chat(body.get("data"), user.account, bot, user.get_user(),
+                                            user.is_integration_user)
             logger.info(f"text={body.get('data')} response={response}")
         except HTTPError as ex:
             logger.exception(ex)

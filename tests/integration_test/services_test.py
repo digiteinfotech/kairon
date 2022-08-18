@@ -6006,6 +6006,21 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["message"] == 'Access denied for this endpoint'
 
 
+def test_get_metering():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/test_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/prod_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
+
+
 def test_add_story_with_no_type():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",
@@ -10244,7 +10259,7 @@ def test_get_live_agent_config_after_delete():
 
 def test_get_end_user_metrics_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10256,7 +10271,7 @@ def test_get_end_user_metrics_empty():
 def test_add_end_user_metrics():
     log_type = "user_metrics"
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10287,7 +10302,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     }
     responses.add("GET", url, json=expected)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
     )
@@ -10308,7 +10323,7 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
     url = f"https://ipinfo.io/{ip}?token={token}"
     responses.add("GET", url, status=500)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10326,7 +10341,7 @@ def test_get_end_user_metrics():
     EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10348,7 +10363,7 @@ def test_get_end_user_metrics():
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
+        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10356,7 +10371,7 @@ def test_get_end_user_metrics():
     assert actual["error_code"] == 0
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
+        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3&page_size=1",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()

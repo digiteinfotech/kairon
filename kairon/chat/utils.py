@@ -3,6 +3,7 @@ from typing import Text
 
 from loguru import logger
 from pymongo.errors import ServerSelectionTimeoutError
+from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
@@ -17,9 +18,11 @@ from ..shared.live_agent.processor import LiveAgentsProcessor
 class ChatUtils:
 
     @staticmethod
-    async def chat(data: Text, bot: Text, user: Text):
+    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
         model = AgentProcessor.get_agent(bot)
-        chat_response = await model.handle_text(data, sender_id=user)
+        msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
+                                                          "account": account})
+        chat_response = await model.handle_message(msg)
         ChatUtils.__attach_agent_handoff_metadata(bot, user, chat_response, model.tracker_store)
         return chat_response
 
