@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from mongoengine import DynamicDocument, StringField, DateField, IntField, DynamicField, LongField
+from mongoengine import DynamicDocument, StringField, DateField, DynamicField, LongField
 
 from kairon.shared.metering.constants import MetricType
 
