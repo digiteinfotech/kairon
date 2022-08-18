@@ -1,4 +1,4 @@
-type_list: ["image","link"]
+type_list: ["image","link","video"]
 slack:
   image: '{
 	"blocks": [
@@ -25,6 +25,17 @@ slack:
 		}
 	]
   }'
+  video: '{
+  	"blocks": [
+  		{
+  			"type": "section",
+  			"text": {
+  				"type": "mrkdwn",
+  				"text": "<data>"
+  			}
+  		}
+  	]
+    }'
 
 hangout:
   link: '{
@@ -51,7 +62,10 @@ hangout:
 			]
 		}]
 	}]
-}'
+    }'
+  video: '{
+    "text": "<data>"
+  }'
 
 messenger:
   image: '{
@@ -71,6 +85,7 @@ messenger:
 	}
 }'
   link: '{"text":"<data>"}'
+  video: '{"text":"<data>"}'
 
 whatsapp:
   image: '{
@@ -82,6 +97,10 @@ whatsapp:
     "preview_url": true,
     "body":"<data>"
  }'
+  video: '{
+      "preview_url": true,
+      "body":"<data>"
+   }'
 
 telegram:
   image: '{"photo":"<imageurl>","caption":"<alttext>"}'
@@ -89,20 +108,21 @@ telegram:
   "parse_mode":"HTML","disable_web_page_preview":false,
   "disable_notification":false,
   "reply_to_message_id":0}'
+  video: '{"text":"<data>"}'
 
 No_Config_error_message: Configuration not provided for channel {} and elementtype {}
 
 channel_messagetype_and_key_mapping: '{"slack": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                 "link": {"data": "<data>"}},
+                                 "link": {"data": "<data>"},"video":{"data": "<data>"}},
                        "messenger": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                 "link": {"data": "<data>"} } ,
+                                 "link": {"data": "<data>"},"video":{"data": "<data>"} } ,
                        "hangout": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                     "link": {"data": "<data>"}},
+                                     "link": {"data": "<data>"},"video":{"data": "<data>"}},
                        "telegram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                   "link": {"data": "<data>"}},
+                                   "link": {"data": "<data>"}, "video":{"data": "<data>"}},
                        "whatsapp": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                     "link": {"data": "<data>"}},
+                                     "link": {"data": "<data>"}, "video":{"data": "<data>"}},
                        "instagram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                    "link": {"data": "<data>"}}
+                                    "link": {"data": "<data>"}, "video":{"data": "<data>"}}
                                      }'
 channel_key_mapping_missing: Element key mapping missing for {} or {}
