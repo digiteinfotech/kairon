@@ -188,7 +188,7 @@ class TelegramHandler(InputChannel, BaseHandler):
         self.write(json_encode({"status": "ok"}))
 
     async def post(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
+        user = super().authenticate_channel(token, bot, self.request)
         telegram = ChatDataProcessor.get_channel_config("telegram", bot, mask_characters=False)
         out_channel = TelegramOutput(telegram['config']['access_token'])
         request_dict = json_decode(self.request.body)
@@ -216,7 +216,7 @@ class TelegramHandler(InputChannel, BaseHandler):
                 self.write("success")
                 return
         sender_id = msg.chat.id
-        metadata = {"out_channel": out_channel.name()}
+        metadata = {"out_channel": out_channel.name(), "is_integration_user": True, "bot": bot, "account": user.account}
         try:
             if text == (INTENT_MESSAGE_PREFIX + USER_INTENT_RESTART):
                 await self.process_message(bot, UserMessage(

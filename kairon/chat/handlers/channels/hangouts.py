@@ -275,7 +275,7 @@ class HangoutHandler(InputChannel, BaseHandler):
         self.write(json_encode({"status": "ok"}))
 
     async def post(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
+        user = super().authenticate_channel(token, bot, self.request)
         hangout = ChatDataProcessor.get_channel_config("hangouts", bot=bot, mask_characters=False)
         project_id = hangout['config']['project_id']
         request_data = json_decode(self.request.body)
@@ -293,12 +293,14 @@ class HangoutHandler(InputChannel, BaseHandler):
         collector = HangoutsOutput()
 
         try:
+            metadata = {"is_integration_user": True, "bot": bot, "account": user.account, "room": room_name,
+                        "out_channel": collector.name()}
             await AgentProcessor.get_agent(bot).handle_message(UserMessage(
                     text,
                     collector,
                     sender_id,
                     input_channel=input_channel,
-                    metadata={"room": room_name, "out_channel": collector.name()},
+                    metadata=metadata,
                 ))
         except CancelledError:
             logger.error(

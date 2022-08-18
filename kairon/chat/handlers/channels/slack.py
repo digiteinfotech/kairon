@@ -415,7 +415,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
         self.write(json.dumps({"status": "ok"}))
 
     async def post(self, bot: Text, token: Text):
-        super().authenticate_channel(token, bot, self.request)
+        user = super().authenticate_channel(token, bot, self.request)
         content_type = self.request.headers.get("content-type")
         conversation_granularity = "sender"
         slack_config = ChatDataProcessor.get_channel_config("slack", bot=bot, mask_characters=False)
@@ -439,7 +439,8 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             event = output.get("event", {})
             user_message = event.get("text", "")
             sender_id = event.get("user", "")
-            metadata = self.get_metadata(self.request)
+            metadata = self.get_metadata(self.request) or {}
+            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
             channel_id = metadata.get("out_channel")
             thread_id = metadata.get("thread_id")
             conversation_id = self._get_conversation_id(
