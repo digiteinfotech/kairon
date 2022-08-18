@@ -6,7 +6,7 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, DictData
-from kairon.shared.constants import ADMIN_ACCESS, DESIGNER_ACCESS, TESTER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, CHAT_ACCESS
 from kairon.shared.models import User
 from kairon.shared.data.processor import MongoProcessor
 
@@ -15,8 +15,9 @@ mongo_processor = MongoProcessor()
 
 
 @router.get("/{metric_type}", response_model=Response)
-async def get_metric(metric_type: MetricType = Path(default=None, description="metric type", example="test_chat, prod_chat"),
-                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+async def get_metering_data(
+        metric_type: MetricType = Path(default=None, description="metric type", example="test_chat, prod_chat"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     """
     Returns metering for supplied type.
     """
@@ -25,7 +26,7 @@ async def get_metric(metric_type: MetricType = Path(default=None, description="m
 
 
 @router.get("/user/logs", response_model=Response)
-async def end_user_metrics(
+async def get_end_user_metrics(
         start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -38,10 +39,10 @@ async def end_user_metrics(
 
 
 @router.post("/user/logs/{log_type}", response_model=Response)
-async def add_metrics(
+async def add_end_user_metrics(
         request_data: DictData,
         log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
     Stores End User Metrics
