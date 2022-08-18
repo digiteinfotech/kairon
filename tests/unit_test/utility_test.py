@@ -781,7 +781,6 @@ class TestUtility:
         input_json = json_data.get("image")
         element_resolver = ElementTransformerOps("image", "hangout")
         response = element_resolver.message_extractor(input_json, "image")
-        print(f"response {response}")
         expected_output = {"type": "image", "URL": "https://i.imgur.com/nFL91Pc.jpeg",
                            "caption": "Dog Image"}
         assert expected_output == response
@@ -791,7 +790,6 @@ class TestUtility:
         input_json = json_data.get("link")
         element_resolver = ElementTransformerOps("link", "hangout")
         response = element_resolver.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is <http://www.google.com|GoogleLink> use for search"
         assert expected_output == output
@@ -801,7 +799,6 @@ class TestUtility:
         input_json = json_data.get("link")
         element_resolver = ElementTransformerOps("link", "slack")
         response = element_resolver.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is <http://www.google.com|GoogleLink> use for search"
         assert expected_output == output
@@ -812,7 +809,6 @@ class TestUtility:
         from kairon.chat.converters.channels.messenger import MessengerResponseConverter
         messenger = MessengerResponseConverter("link", "messenger")
         response = messenger.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is http://www.google.com use for search"
         assert expected_output == output
@@ -823,7 +819,6 @@ class TestUtility:
         from kairon.chat.converters.channels.telegram import TelegramResponseConverter
         telegram = TelegramResponseConverter("link", "telegram")
         response = telegram.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is http://www.google.com use for search"
         assert expected_output == output
@@ -834,7 +829,6 @@ class TestUtility:
         from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
         whatsapp = WhatsappResponseConverter("link", "whatsapp")
         response = whatsapp.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is http://www.google.com use for search"
         assert expected_output == output
@@ -844,7 +838,6 @@ class TestUtility:
         input_json = json_data.get("multi_link")
         element_resolver = ElementTransformerOps("link", "hangout")
         response = element_resolver.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is <http://www.google.com|GoogleLink> use for search and you can also see news on <https://www.indiatoday.in/|Indiatoday> and slatejs details on <https://www.slatejs.org/examples/richtext|SlateJS>"
         assert expected_output.strip() == output
@@ -855,7 +848,6 @@ class TestUtility:
         from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
         whatsapp = WhatsappResponseConverter("link", "whatsapp")
         response = whatsapp.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "This is http://www.google.com use for search and you can also see news on https://www.indiatoday.in/ and slatejs details on https://www.slatejs.org/examples/richtext"
         assert expected_output.strip() == output
@@ -865,7 +857,6 @@ class TestUtility:
         input_json = json_data.get("only_link")
         element_resolver = ElementTransformerOps("link", "hangout")
         response = element_resolver.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "<http://www.google.com|GoogleLink>"
         assert expected_output.strip() == output
@@ -876,7 +867,6 @@ class TestUtility:
         from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
         whatsapp = WhatsappResponseConverter("link", "whatsapp")
         response = whatsapp.message_extractor(input_json, "link")
-        print(f"response {response}")
         output = response.get("data")
         expected_output = "http://www.google.com"
         assert expected_output.strip() == output
@@ -888,7 +878,6 @@ class TestUtility:
         element_resolver = ElementTransformerOps("image", "hangout")
         extract_response = element_resolver.message_extractor(input_json, "image")
         response = ElementTransformerOps.replace_strategy(message_tmp, extract_response, "hangout", "image")
-        print(f"response {response}")
         expected_output = "{'cards': [{'sections': [{'widgets': [{'textParagraph': {'text': 'Dog Image'}}, {'image': {'imageUrl': 'https://i.imgur.com/nFL91Pc.jpeg', 'onClick': {'openLink': {'url': 'https://i.imgur.com/nFL91Pc.jpeg'}}}}]}]}]}"
         assert expected_output == str(response).strip()
 
@@ -909,7 +898,6 @@ class TestUtility:
         input_json = json_data.get("image")
         elementops = ElementTransformerOps("image", "hangout")
         response = elementops.image_transformer(input_json)
-        print(f"response {response}")
         expected_output = "{'cards': [{'sections': [{'widgets': [{'textParagraph': {'text': 'Dog Image'}}, {'image': {'imageUrl': 'https://i.imgur.com/nFL91Pc.jpeg', 'onClick': {'openLink': {'url': 'https://i.imgur.com/nFL91Pc.jpeg'}}}}]}]}]}"
         assert expected_output == str(response).strip()
 
@@ -918,7 +906,6 @@ class TestUtility:
         input_json = json_data.get("link")
         element_resolver = ElementTransformerOps("link", "hangout")
         response = element_resolver.link_transformer(input_json)
-        print(f"response {response}")
         output = str(response)
         expected_output = "{'text': 'This is <http://www.google.com|GoogleLink> use for search'}"
         assert expected_output == output
@@ -929,7 +916,6 @@ class TestUtility:
         from kairon.chat.converters.channels.messenger import MessengerResponseConverter
         messenger = MessengerResponseConverter("link", "messenger")
         response = messenger.link_transformer(input_json)
-        print(f"response {response}")
         output = response.get('text')
         expected_output = "This is http://www.google.com use for search"
         assert expected_output == output
@@ -940,7 +926,6 @@ class TestUtility:
         from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
         whatsapp = WhatsappResponseConverter("link", "whatsapp")
         response = whatsapp.link_transformer(input_json)
-        print(f"response {response}")
         output = str(response)
         expected_output = """{'preview_url': True, 'body': 'This is http://www.google.com use for search'}"""
         assert expected_output == output
@@ -951,7 +936,6 @@ class TestUtility:
         from kairon.chat.converters.channels.telegram import TelegramResponseConverter
         telegram = TelegramResponseConverter("link", "telegram")
         response = telegram.link_transformer(input_json)
-        print(f"response {response}")
         output = str(response)
         expected_output = """{'text': 'This is http://www.google.com use for search', 'parse_mode': 'HTML', 'disable_web_page_preview': False, 'disable_notification': False, 'reply_to_message_id': 0}"""
         assert expected_output == output
@@ -969,11 +953,8 @@ class TestUtility:
     async def test_messageConverter_hangout_link(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
-        print(f"json_message {input_json}")
         hangout = ConverterFactory.getConcreteInstance("link", "hangout")
-        print(f"instance of {hangout}")
         response = await hangout.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("hangout_link_op")
         assert expected_output == response
 
@@ -992,7 +973,6 @@ class TestUtility:
         input_json = json_data.get("link")
         slack = ConverterFactory.getConcreteInstance("link", "slack")
         response = await slack.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("slack_link_op")
         assert expected_output == response
 
@@ -1002,7 +982,6 @@ class TestUtility:
         input_json = json_data.get("image")
         slack = ConverterFactory.getConcreteInstance("image", "slack")
         response = await slack.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("slack_image_op")
         assert expected_output == response
 
@@ -1011,9 +990,7 @@ class TestUtility:
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
         messenger = ConverterFactory.getConcreteInstance("link", "messenger")
-        print(f"instance of {messenger}")
         response = await messenger.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("messenger_link_op")
         assert expected_output == response
 
@@ -1023,7 +1000,6 @@ class TestUtility:
         input_json = json_data.get("image")
         messenger = ConverterFactory.getConcreteInstance("image", "messenger")
         response = await messenger.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("messenger_image_op")
         assert expected_output == response
 
@@ -1032,9 +1008,7 @@ class TestUtility:
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
         whatsapp = ConverterFactory.getConcreteInstance("link", "whatsapp")
-        print(f"instance of {whatsapp}")
         response = await whatsapp.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("whatsapp_link_op")
         assert expected_output == response
 
@@ -1044,7 +1018,6 @@ class TestUtility:
         input_json = json_data.get("image")
         whatsapp = ConverterFactory.getConcreteInstance("image", "whatsapp")
         response = await whatsapp.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("whatsapp_image_op")
         assert expected_output == response
 
@@ -1053,9 +1026,7 @@ class TestUtility:
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
         telegram = ConverterFactory.getConcreteInstance("link", "telegram")
-        print(f"instance of {telegram}")
         response = await telegram.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("telegram_link_op")
         assert expected_output == response
 
@@ -1065,7 +1036,6 @@ class TestUtility:
         input_json = json_data.get("image")
         telegram = ConverterFactory.getConcreteInstance("image", "telegram")
         response = await telegram.messageConverter(input_json)
-        print(f"response {response}")
         expected_output = json_data.get("telegram_image_op")
         assert expected_output == response
 
@@ -1205,3 +1175,104 @@ class TestUtility:
         whatsapp = WhatsappResponseConverter("link", "messenger")
         with pytest.raises(Exception):
             whatsapp.message_extractor(input_json,"link")
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_hangout_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        hangout = ConverterFactory.getConcreteInstance("video", "hangout")
+        response = await hangout.messageConverter(input_json)
+        expected_output = json_data.get("hangout_video_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_slack_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        hangout = ConverterFactory.getConcreteInstance("video", "slack")
+        response = await hangout.messageConverter(input_json)
+        expected_output = json_data.get("slack_video_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        hangout = ConverterFactory.getConcreteInstance("video", "messenger")
+        response = await hangout.messageConverter(input_json)
+        expected_output = json_data.get("messenger_video_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        hangout = ConverterFactory.getConcreteInstance("video", "whatsapp")
+        response = await hangout.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_video_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_telegram_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        hangout = ConverterFactory.getConcreteInstance("video", "telegram")
+        response = await hangout.messageConverter(input_json)
+        expected_output = json_data.get("telegram_video_op")
+        assert expected_output == response
+
+    def test_message_extractor_slack_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        element_resolver = ElementTransformerOps("video", "slack")
+        response = element_resolver.message_extractor(input_json, "video")
+        output = response.get("data")
+        expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+        assert expected_output == output
+
+    def test_message_extractor_hangout_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        element_resolver = ElementTransformerOps("video", "hangout")
+        response = element_resolver.message_extractor(input_json, "video")
+        output = response.get("data")
+        expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+        assert expected_output == output
+
+    def test_message_extractor_messenger_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("link", "messenger")
+        response = messenger.message_extractor(input_json, "video")
+        output = response.get("data")
+        expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+        assert expected_output == output
+
+    def test_message_extractor_whatsapp_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("link", "messenger")
+        response = whatsapp.message_extractor(input_json, "video")
+        output = response.get("data")
+        expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+        assert expected_output == output
+
+    def test_message_extractor_telegram_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        from kairon.chat.converters.channels.telegram import TelegramResponseConverter
+        telegram = TelegramResponseConverter("video", "telegram")
+        response = telegram.message_extractor(input_json, "video")
+        output = response.get("data")
+        expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+        assert expected_output == output
+
+    def test_video_transformer_hangout_video(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        elementops = ElementTransformerOps("video", "hangout")
+        response = elementops.video_transformer(input_json)
+        expected_output = {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"}
+        assert expected_output == response

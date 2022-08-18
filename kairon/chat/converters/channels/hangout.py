@@ -14,5 +14,7 @@ class HangoutResponseConverter(ElementTransformerOps):
                 return super().image_transformer(message)
             elif self.message_type == ELEMENT_TYPE.LINK.value:
                 return super().link_transformer(message)
+            elif self.message_type == ELEMENT_TYPE.VIDEO.value:
+                return super().video_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in HangoutResponseConverter::messageConverter {str(ex)}")
