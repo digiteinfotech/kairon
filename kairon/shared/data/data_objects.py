@@ -716,13 +716,15 @@ from mongoengine import signals
 signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
 
 
-class EventConfig(Document):
+@auditlogger.log
+@push_notification.apply
+class EventConfig(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow())
     ws_url = StringField(required=True)
-    headers = DictField(default={})
-    method = StringField(default="GET")
+    headers = StringField()
+    method = StringField(choices=["POST", "GET", "PATCH"])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.ws_url):

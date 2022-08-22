@@ -28,7 +28,7 @@ from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -10699,6 +10699,52 @@ def test_multilingual_language_support(monkeypatch):
     assert response['error_code'] == 0
 
 
+def test_get_auditlog_for_user_1():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    actual = response.json()
+    assert actual["data"] is not None
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+    assert actual["data"][0]["entity"] == "Actions"
+    assert actual["data"][0]["user"] == email
+
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+
+
+def test_get_auditlog_for_user_2():
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login_2 = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login_2["data"]["token_type"] + " " + login_2["data"]["access_token"]}
+    )
+    actual = response.json()
+    audit_log_data = actual["data"]
+    assert audit_log_data is not None
+    actions = [d['action'] for d in audit_log_data]
+    from collections import Counter
+    counter = Counter(actions)
+    assert counter.get(AuditlogActions.SAVE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
+    assert audit_log_data[0]["entity"] == "Slots"
+    assert audit_log_data[0]["user"] == email
+
+
 def test_delete_account():
     response_log = client.post(
         "/api/auth/login",
@@ -10914,21 +10960,3 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     response = passwrd_rechange_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
-
-def test_getauditlog_for_user():
-    email = "integration1234567890@demo.ai"
-    response = client.post(
-        "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
-    )
-    login = response.json()
-    response = client.get(
-        f"/api/user/auditlog/data",
-        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
-    )
-    actual = response.json()
-    assert actual["data"] is not None
-    assert actual["data"][0]["action"] == "save"
-    assert actual["data"][0]["action_on"] == "Actions"
-    assert actual["data"][0]["user"] == email
-

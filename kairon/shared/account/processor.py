@@ -857,12 +857,13 @@ class AccountProcessor:
     @staticmethod
     def get_auditlog_for_user(user, top_n=100):
         auditlog_data_list = []
-        if Utility.is_exist(AuditLogData, exp_message="No data logged for current user", raise_error=False,
-                            user__iexact=user):
+        try:
             auditlog_data = AuditLogData.objects(user=user)[:top_n]
             for audit_data in auditlog_data:
                 dict_data = audit_data.to_mongo().to_dict()
                 dict_data.pop('_id')
                 dict_data['data'].pop('_id')
                 auditlog_data_list.append(dict_data)
+        except DoesNotExist:
+            return auditlog_data_list
         return auditlog_data_list

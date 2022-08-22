@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Text, Dict, List
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
@@ -86,6 +86,7 @@ from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
 from ..actions.utils import ActionUtility
+from ..constants import DATE_FORMAT_1
 
 
 class MongoProcessor:
@@ -4256,44 +4257,53 @@ class MongoProcessor:
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):
-        if Utility.is_exist(EventConfig, exp_message="No event config saved for the bot", raise_error=False,
-                            bot__iexact=bot):
+        headers = {} if data.get("headers") is None else data.get("headers")
+        try:
             event_config = EventConfig.objects(bot=bot).get()
-            event_config.ws_url = data.get("ws_url")
-            event_config.headers = data.get("headers") if data.get("headers") is not None else Utility.decrypt_message(
-                event_config.headers)
-            event_config.method = data.get("method")
-        else:
+            event_config.update(set__ws_url=data.get("ws_url"), set__headers=Utility.encrypt_message(json.dumps(headers)),
+                                set__method=data.get("method"))
+        except DoesNotExist:
             event_config = EventConfig(
                 bot=bot,
                 user=user,
                 ws_url=data.get("ws_url"),
-                headers=data.get("headers"),
+                headers=headers,
                 method=data.get("method")
             )
-        event_config.save()
+            event_config.save()
 
     @staticmethod
     def get_auditlog_event_config(bot):
-        event_config = {}
-        if Utility.is_exist(EventConfig, exp_message="No event config saved for the bot", raise_error=False,
-                            bot__iexact=bot):
+        try:
             event_config_data = EventConfig.objects(bot=bot).get()
-            event_config["bot"] = event_config_data.bot
-            event_config["ws_url"] = event_config_data.ws_url
+            event_config = event_config_data.to_mongo().to_dict()
+            event_config.pop("_id")
+            event_config.pop("timestamp")
             event_config["headers"] = Utility.decrypt_message(event_config_data.headers)
-            event_config["method"] = event_config_data.method
+        except DoesNotExist:
+            event_config = {}
         return event_config
 
     @staticmethod
-    def get_auditlog_for_bot(bot, top_n=100):
+    def get_auditlog_for_bot(bot, from_date=None, to_date=None, top_n=100):
+
         auditlog_data_list = []
-        if Utility.is_exist(AuditLogData, exp_message="No data logged for current bot", raise_error=False,
-                            bot__iexact=bot):
-            auditlog_data = AuditLogData.objects(bot=bot)[:top_n]
+        try:
+            if from_date is None and to_date is None:
+                auditlog_data = AuditLogData.objects(bot=bot)[:top_n]
+            elif None not in (from_date, to_date, top_n):
+                to_date = datetime.strptime(to_date, DATE_FORMAT_1) + timedelta(days=1)
+                from_date = datetime.strptime(from_date, DATE_FORMAT_1)
+                auditlog_data = AuditLogData.objects(bot=bot).filter(timestamp__gte=from_date, timestamp__lte=to_date)[:top_n]
+            else:
+                to_date = datetime.strptime(to_date, DATE_FORMAT_1) + timedelta(days=1)
+                from_date = datetime.strptime(from_date, DATE_FORMAT_1)
+                auditlog_data = AuditLogData.objects(bot=bot).filter(timestamp__gte=from_date, timestamp__lte=to_date)
             for audit_data in auditlog_data:
                 dict_data = audit_data.to_mongo().to_dict()
                 dict_data.pop('_id')
                 dict_data['data'].pop('_id')
                 auditlog_data_list.append(dict_data)
+        except DoesNotExist:
+            return []
         return auditlog_data_list
