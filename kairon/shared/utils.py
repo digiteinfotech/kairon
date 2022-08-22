@@ -49,7 +49,8 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
 from .constants import EventClass
-from .data.constant import TOKEN_TYPE
+from .data.base_data import AuditLogData
+from .data.constant import TOKEN_TYPE, AuditlogActions
 from ..exceptions import AppException
 
 
@@ -1503,3 +1504,37 @@ class Utility:
                 masked_value = '*' * str_len
 
         return masked_value
+
+    @staticmethod
+    def save_and_publish_auditlog(document, name, **kwargs):
+        try:
+            action = kwargs.get("action")
+            if not document.status:
+                action = AuditlogActions.SOFT_DELETE.value
+        except AttributeError:
+            action = kwargs.get("action")
+
+        audit_log = AuditLogData(bot=document.bot,
+                                 user=document.user,
+                                 action=action,
+                                 entity=name,
+                                 data=document.to_mongo().to_dict())
+        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        audit_log.save()
+
+    @staticmethod
+    def publish_auditlog(auditlog, event_url=None):
+        from .data.data_objects import EventConfig
+        from mongoengine.errors import DoesNotExist
+
+        try:
+            event_config = EventConfig.objects(bot=auditlog.bot).get()
+
+            headers = json.loads(Utility.decrypt_message(event_config.headers))
+            ws_url = event_config.ws_url
+            method = event_config.method
+            if ws_url is not None:
+                Utility.execute_http_request(request_method=method, http_url=ws_url,
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+        except (DoesNotExist, AppException):
+            return

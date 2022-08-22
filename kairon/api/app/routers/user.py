@@ -171,3 +171,11 @@ async def search_user(
     Lists active bot invites.
     """
     return Response(data={'matching_users': list(AccountProcessor.search_user(request_data.data))})
+
+
+@router.get("/auditlog/data", response_model=Response)
+async def get_auditlog_for_user(current_user: User = Security(Authentication.get_current_user)):
+    """
+    Get user specific auditlog .
+    """
+    return Response(data=AccountProcessor.get_auditlog_for_user(current_user.get_user()))

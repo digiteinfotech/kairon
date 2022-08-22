@@ -65,3 +65,6 @@ class MaskingStrategy(str, Enum):
 
 class PluginTypes(str, Enum):
     ip_info = "ip_info"
+
+
+DATE_FORMAT_1 = "%Y-%m-%d"
