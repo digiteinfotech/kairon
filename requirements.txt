@@ -58,3 +58,4 @@ openapi_spec_validator
 google-cloud-translate
 dramatiq
 dramatiq-mongodb
+huggingface_hub==0.8.1
