@@ -2,7 +2,11 @@ import datetime
 from bson import ObjectId
 from mongoengine import signals, QuerySet
 from loguru import logger
+from mongoengine.signals import Namespace
 
+_custom_signal = Namespace()
+
+auditlog = _custom_signal.signal("auditlog")
 
 def handler(event1):
     """Signal decorator to allow use of callback functions as class decorators."""
@@ -67,3 +71,22 @@ def push_bulk_update_notification(sender, documents, **kwargs):
                 Utility.push_notification(channel, event_type, sender.__name__, metadata)
         except Exception as e:
             logger.exception(e)
+
+
+def auditlogger_handler(event1):
+    """Signal decorator to allow use of callback functions as class decorators."""
+    def decorator(fn):
+        def log(cls):
+            event1.connect(fn, sender=cls)
+            return cls
+
+        fn.log = log
+        return fn
+
+    return decorator
+
+
+@auditlogger_handler(auditlog)
+def auditlogger(sender, document, **kwargs):
+    from kairon import Utility
+    Utility.save_and_publish_auditlog(document, sender.__name__, **kwargs)

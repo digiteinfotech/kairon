@@ -21,7 +21,7 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest
+    TextDataLowerCase, SlotMappingRequest, EventConfig
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
@@ -1425,3 +1425,26 @@ async def list_bot_assets(
     Deletes bot assets from repository.
     """
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
+
+
+@router.post("/audit/event/config", response_model=Response)
+async def set_auditlog_config(request_data: EventConfig, current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.dict())
+    return {"message": "Event config saved"}
+
+
+@router.get("/audit/event/config", response_model=Response)
+async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
+    return Response(data=data)
+
+
+@router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
+async def get_auditlog_for_bot(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+                               from_date: str = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
+                               to_date: str = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+                               ):
+    data = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date)
+    return Response(data=data)

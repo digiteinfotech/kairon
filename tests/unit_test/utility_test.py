@@ -14,6 +14,8 @@ from websockets import InvalidStatusCode
 from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
+from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.data_objects import EventConfig
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from unittest.mock import patch
@@ -1276,3 +1278,82 @@ class TestUtility:
         response = elementops.video_transformer(input_json)
         expected_output = {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"}
         assert expected_output == response
+
+    def test_save_and_publish_auditlog_action_save(self, monkeypatch):
+        def publish_auditlog(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url")
+        kwargs = {"action": "save"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user, action="save").count()
+        assert count == 1
+
+    def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
+        def publish_auditlog(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}",
+                                   method="GET")
+        kwargs = {"action": "save"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user, action="save").count()
+        assert count == 2
+
+    def test_save_and_publish_auditlog_action_update(self, monkeypatch):
+        def publish_auditlog(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
+        kwargs = {"action": "update"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user, action="update").count()
+        assert count == 1
+
+    def test_save_and_publish_auditlog_total_count(self, monkeypatch):
+        def publish_auditlog(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
+        kwargs = {"action": "update"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user).count()
+        assert count >= 3
+
+    def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
+        def execute_http_request(*args, **kwargs):
+            return None
+        monkeypatch.setattr(Utility, "execute_http_request", execute_http_request)
+        bot = "tests"
+        user = "testuser"
+        event_config = EventConfig(bot=bot,
+                                   user=user,
+                                   ws_url="http://localhost:5000/event_url",
+                                   headers="{'Autharization': '123456789'}")
+        kwargs = {"action": "update"}
+        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(bot=bot, user=user).count()
+        assert count >= 3

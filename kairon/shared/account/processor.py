@@ -14,6 +14,7 @@ from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConf
     MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
+from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.utils import Utility
@@ -854,3 +855,17 @@ class AccountProcessor:
     @staticmethod
     def list_trusted_device_fingerprints(user: Text):
         return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))
+
+    @staticmethod
+    def get_auditlog_for_user(user, top_n=100):
+        auditlog_data_list = []
+        try:
+            auditlog_data = AuditLogData.objects(user=user)[:top_n]
+            for audit_data in auditlog_data:
+                dict_data = audit_data.to_mongo().to_dict()
+                dict_data.pop('_id')
+                dict_data['data'].pop('_id')
+                auditlog_data_list.append(dict_data)
+        except DoesNotExist:
+            return auditlog_data_list
+        return auditlog_data_list

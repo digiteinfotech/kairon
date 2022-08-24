@@ -173,3 +173,13 @@ DEFAULT_NLU_FALLBACK_UTTERANCE_NAME = 'utter_default'
 DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
 REQUEST_TIMESTAMP_HEADER = "X-TimeStamp"
 KAIRON_TWO_STAGE_FALLBACK = "kairon_two_stage_fallback"
+
+
+class AuditlogActions(str, Enum):
+    SAVE = "save"
+    UPDATE = "update"
+    DELETE = "delete"
+    SOFT_DELETE = "soft_delete"
+    BULK_DELETE = "bulk_delete"
+    BULK_INSERT = "bulk_insert"
+    BULK_UPDATE = "bulk_update"

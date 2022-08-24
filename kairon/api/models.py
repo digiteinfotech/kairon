@@ -707,3 +707,23 @@ class KeyVaultRequest(BaseModel):
         if not v or Utility.check_empty_string(v):
             raise ValueError("value is required")
         return v
+
+
+class EventConfig(BaseModel):
+    ws_url: str
+    headers: dict
+    method: str
+
+    @validator("ws_url")
+    def validate_ws_url(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("url can not be empty")
+        return v
+
+    @validator("headers")
+    def validate_headers(cls, v, values, **kwargs):
+        if not v or len(v) < 1:
+            v = {}
+        return v
