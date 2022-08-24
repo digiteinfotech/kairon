@@ -4,6 +4,7 @@ import tempfile
 import uuid
 
 import pytest
+import responses
 from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
@@ -198,6 +199,7 @@ class TestModelTesting:
 
     @pytest.mark.asyncio
     async def test_data_generator(self, load_data, monkeypatch):
+        responses.reset()
         bot = 'test_events_bot'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -216,6 +218,7 @@ class TestModelTesting:
 
     @pytest.mark.asyncio
     async def test_data_generator_no_training_example_for_intent(self, load_data, monkeypatch):
+        responses.reset()
         bot = 'test_events_bot'
         user = 'test_user'
 
@@ -249,6 +252,7 @@ class TestModelTesting:
 
     @pytest.mark.asyncio
     async def test_data_generator_samples_threshold(self, load_data, monkeypatch):
+        responses.reset()
         bot = 'test_threshold'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'

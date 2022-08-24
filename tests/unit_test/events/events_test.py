@@ -820,6 +820,7 @@ class TestEventExecution:
         assert not Utility.check_empty_string(pytest.model_path)
 
     def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model, monkeypatch):
+        responses.reset()
         import rasa.utils.common
 
         bot = 'test_events_bot'
