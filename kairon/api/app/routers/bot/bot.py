@@ -25,8 +25,6 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.end_user_metrics.constants import MetricTypes
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
 from kairon.shared.data.data_objects import TrainingExamples

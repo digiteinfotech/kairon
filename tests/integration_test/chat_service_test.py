@@ -18,7 +18,6 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -174,7 +173,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert headers[10] == ('Permissions-Policy',
                                    'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
             assert headers[11] == ('Cache-Control', 'no-store')
-            assert len(MeteringProcessor.get_metrics(user['account'], MetricType.test_chat)) > 0
+            assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.test_chat)) > 0
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat, channel_type="chat_client") > 0
 
     def test_chat_with_user(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -206,6 +206,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["error_code"] == 0
             assert actual["data"]
             assert Utility.check_empty_string(actual["message"])
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
+                                                      channel_type="chat_client") >= 2
 
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -328,7 +330,9 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert actual['data']['response']
-        assert len(MeteringProcessor.get_metrics(user['account'], MetricType.prod_chat)) > 0
+        assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.prod_chat)) > 0
+        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                  channel_type="chat_client") > 0
 
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -816,6 +820,8 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
+        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                  channel_type="whatsapp") > 0
 
     @responses.activate
     def test_whatsapp_valid_button_message_request(self):
@@ -1093,7 +1099,8 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
 
-                assert len(EndUserMetricsProcessor.get_logs(bot=bot)) == 1
+                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 1
+                assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
     def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -1196,7 +1203,8 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
-                assert len(EndUserMetricsProcessor.get_logs(bot=bot)) == 2
+                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 2
+                assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) == 2
 
     def test_chat_with_live_agent(self):
         responses.reset()
@@ -1367,7 +1375,7 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': None}
                 responses.reset()
                 responses.stop()
-                logs = EndUserMetricsProcessor.get_logs(bot=bot)
+                logs = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
 
