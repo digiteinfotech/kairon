@@ -6,6 +6,7 @@ from urllib.parse import urlencode, quote_plus
 from mock import patch
 from mongoengine import connect
 from rasa.core.agent import Agent
+from slack.web.slack_response import SlackResponse
 from tornado.test.testing_test import AsyncHTTPTestCase
 
 from kairon.api.models import RegisterAccount
@@ -58,11 +59,31 @@ loop.run_until_complete(MongoProcessor().save_from_path(
 ))
 start_training(bot2, "test@chat.com")
 bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
-ChatDataProcessor.save_channel_config({"connector_type": "slack",
-                                       "config": {
-                                           "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                                           "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
-                                      bot, user="test@chat.com")
+
+with patch('slack.web.client.WebClient.team_info') as mock_slack_team_info:
+    mock_slack_team_info.return_value = SlackResponse(
+        client=None,
+        http_verb="POST",
+        api_url="https://slack.com/api/team.info",
+        req_args={},
+        data={
+            "ok": True,
+            "team": {
+                "id": "T03BNQE7HLY",
+                "name": "helicopter",
+                "avatar_base_url": "https://ca.slack-edge.com/",
+                "is_verified": False
+            }
+        },
+        headers=dict(),
+        status_code=200,
+        use_sync_aiohttp=False,
+    ).validate()
+    ChatDataProcessor.save_channel_config({
+        "connector_type": "slack", "config": {
+            "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b", "client_id": "sdfghj34567890",
+            "client_secret": "asdf3456789gfghjkl", "is_primary": True}}, bot, user="test@chat.com")
 ChatDataProcessor.save_channel_config({
     "connector_type": "whatsapp",
     "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
@@ -443,6 +464,55 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == "sjYDB2ccaT5wpcGyawz6BTDbiujZCBiVwSQR87t3Q3yqgoHFkkTy"
+
+    @patch('slack.web.client.WebClient.team_info')
+    @patch('slack.web.client.WebClient.oauth_v2_access')
+    def test_slack_install_app_using_oauth(self, mock_slack_oauth, mock_slack_team_info):
+        mock_slack_team_info.return_value = SlackResponse(
+            client=self,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLZ",
+                    "name": "airbus",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        mock_slack_oauth.return_value = SlackResponse(
+            client=self,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "access_token": "xoxb-987654321098-801939352912-v3zq6MYNu62oSs8vammWOY8K",
+                "team": {
+                    "id": "T03BNQE7HLZ",
+                    "name": "airbus",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        encoded_url_ = urlencode({'code': "98765432109765432asdfghjkl", "state": ""}, quote_via=quote_plus)
+        response = self.fetch(
+            f"/api/bot/slack/{bot}/{token}?{encoded_url_}",
+            method="GET",
+        )
+        print(response)
+        assert 'https://app.slack.com/client/T03BNQE7HLZ' == response.effective_url
+        self.assertEqual(response.code, 200)
 
     def test_slack_invalid_auth(self):
         headers = {'User-Agent': 'Slackbot 1.0 (+https://api.slack.com/robots)',

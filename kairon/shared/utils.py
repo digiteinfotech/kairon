@@ -402,6 +402,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
+
     @staticmethod
     def extract_db_config(uri: str):
         """
@@ -1250,6 +1251,18 @@ class Utility:
         payload = json.dumps(payload)
         io_loop = asyncio.get_event_loop()
         io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
+
+    @staticmethod
+    def get_slack_team_info(token: Text):
+        from slack import WebClient
+        from slack.errors import SlackApiError
+
+        try:
+            response = WebClient(token).team_info()
+            return {"id": response.data['team']['id'], "name": response.data['team']['name']}
+        except SlackApiError as e:
+            logger.exception(e)
+            raise AppException(e)
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
