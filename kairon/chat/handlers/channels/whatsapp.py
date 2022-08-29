@@ -48,7 +48,7 @@ class Whatsapp:
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
-
+        message.update(metadata)
         await self._handle_user_message(text, message["from"], message, bot)
 
     async def handle(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
