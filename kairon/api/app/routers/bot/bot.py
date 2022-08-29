@@ -1375,14 +1375,14 @@ async def get_channel_endpoint(
     return Response(data=ChatDataProcessor.get_channel_endpoint(name, current_user.get_bot()))
 
 
-@router.delete("/channels/{name}", response_model=Response)
+@router.delete("/channels/{channel_id}", response_model=Response)
 async def delete_channel_config(
-        name: str = Path(default=None, description="channel name", example="slack"),
+        channel_id: str = Path(default=None, description="channel id", example="698705012345"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
     Deletes the channel config.
     """
-    ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
+    ChatDataProcessor.delete_channel_config(current_user.get_bot(), id=channel_id)
     return Response(message='Channel deleted')
 
 

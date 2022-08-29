@@ -17,6 +17,7 @@ from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
+from slack.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -8899,7 +8900,10 @@ def test_add_channel_config_error():
     data = {"connector_type": "custom",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
         json=data,
@@ -8909,7 +8913,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'connector_type'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
+        {'loc': ['body', '__root__'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
 
     data = {"connector_type": "slack",
             "config": {
@@ -8924,7 +8928,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
@@ -8939,8 +8943,25 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
+
+    data = {"connector_type": "slack",
+            "config": {
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878", "is_primary": False
+            }}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
 
 
 def test_add_channel_config(monkeypatch):
@@ -8948,12 +8969,34 @@ def test_add_channel_config(monkeypatch):
     data = {"connector_type": "slack",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
-    response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
+    with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        mock_slack_resp.return_value = SlackResponse(
+            client=None,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLX",
+                    "name": "helicopter",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        response = client.post(
+            f"/api/bot/{pytest.bot}/channels",
+            json=data,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -8983,11 +9026,12 @@ def test_get_channels_config():
     assert actual["error_code"] == 0
     assert actual["message"] is None
     assert len(actual['data']) == 1
+    pytest.slack_channel_id = actual['data'][0]['_id']
 
 
 def test_delete_channels_config():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/channels/slack",
+        f"/api/bot/{pytest.bot}/channels/{pytest.slack_channel_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9863,8 +9907,8 @@ def test_channels_params():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
-    assert ["bot_user_oAuth_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel"] == actual['data']['slack']['optional_fields']
+    assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
+    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
 
 
 def test_get_channel_endpoint_not_configured():
