@@ -6067,21 +6067,6 @@ def test_get_chat_client_config_multilingual_enabled(monkeypatch):
     assert not actual["data"]['multilingual']['bots'][1]['is_enabled']
 
 
-def test_get_metering():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/metric/test_chat",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
-    response = client.get(
-        f"/api/bot/{pytest.bot}/metric/prod_chat",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
-
-
 def test_add_story_with_no_type():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",

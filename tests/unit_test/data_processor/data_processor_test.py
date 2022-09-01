@@ -3787,6 +3787,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
+        expected_config['host'] = Utility.environment['app']['server_url']
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']

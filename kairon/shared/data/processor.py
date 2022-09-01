@@ -3496,6 +3496,15 @@ class MongoProcessor:
                 raise AppException("Bot is disabled. Please use a valid bot.")
             for bot_info in accessible_bots:
                 bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
+                token = Authentication.generate_integration_token(
+                    bot_info["id"], user, expiry=30,
+                    access_limit=[
+                        '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
+                        '/api/bot/.+/metric/user/logs/{log_type}'
+                    ],
+                    token_type=TOKEN_TYPE.DYNAMIC.value
+                )
+                bot_info['authorization'] = f'Bearer {token}'
                 if bot_info["is_enabled"] or not is_client_live:
                     multilingual_config['bots'].append(bot_info)
 

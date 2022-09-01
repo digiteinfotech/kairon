@@ -1125,39 +1125,56 @@ class TestAccountProcessor:
         with pytest.raises(NotImplementedError):
             Authentication.generate_integration_token(bot, user, token_type=TOKEN_TYPE.LOGIN.value, role='chat')
 
-    def test_generate_integration_token(self):
+    def test_generate_integration_token(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
+        assert payload.get('account') == 1000
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert payload.get('role') == 'chat'
         assert not payload.get('exp')
 
-    def test_generate_integration_token_different_bot(self):
+    def test_generate_integration_token_different_bot(self, monkeypatch):
         bot = 'test_1'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1001}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
+        assert payload.get('account') == 1001
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert not payload.get('exp')
         assert payload.get('role') == 'tester'
 
-    def test_generate_integration_token_with_expiry(self):
+    def test_generate_integration_token_with_expiry(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry', role='designer')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
@@ -1169,13 +1186,18 @@ class TestAccountProcessor:
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp-iat).total_seconds() / 60) == 15
 
-    def test_generate_integration_token_with_access_limit(self):
+    def test_generate_integration_token_with_access_limit(self, monkeypatch):
         bot = 'test1'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         access_limit = ['/api/bot/endpoint']
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, name='integration_token_with_access_limit', role='admin')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
@@ -1193,22 +1215,37 @@ class TestAccountProcessor:
         bot = 'test'
         user = 'test_user'
         monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with pytest.raises(AppException, match='Integration token with this name has already been initiated'):
             Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
 
-    def test_generate_integration_token_limit_exceeded(self):
+    def test_generate_integration_token_limit_exceeded(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with pytest.raises(AppException, match='Integrations limit reached!'):
             Authentication.generate_integration_token(bot, user, name='integration_token1', role='chat')
 
-    def test_generate_integration_token_dynamic(self):
+    def test_generate_integration_token_dynamic(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         access_limit = ['/api/bot/endpoint']
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
@@ -1224,6 +1261,11 @@ class TestAccountProcessor:
     def test_generate_integration_token_without_name(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
         with pytest.raises(ValidationError, match='name is required to add integration'):
             Authentication.generate_integration_token(bot, user, expiry=15)

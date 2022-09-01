@@ -7,6 +7,7 @@ from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 
 from kairon.chat.utils import ChatUtils
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 import pytest
 import os
@@ -74,7 +75,11 @@ class TestChat:
                                                   "test",
                                                   "test")
 
-    def test_save_channel_config(self):
+    def test_save_channel_config(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                "config": {
                                                    "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
@@ -82,7 +87,11 @@ class TestChat:
                                               "test",
                                               "test")
 
-    def test_update_channel_config(self):
+    def test_update_channel_config(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         ChatDataProcessor.save_channel_config({"connector_type": "slack",
                                                "config": {
                                                    "bot_user_oAuth_token": "Test-801478018484-v3zq6MYNu62oSs8vammWOY8K",
