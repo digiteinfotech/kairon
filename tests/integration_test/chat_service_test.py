@@ -48,7 +48,7 @@ token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bots']['account_owned'][0]['_id']
-chat_client_config = MongoProcessor().get_chat_client_config(bot).to_mongo().to_dict()
+chat_client_config = MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
 start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(

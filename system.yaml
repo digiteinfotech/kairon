@@ -111,6 +111,7 @@ evaluator:
 multilingual:
   project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
   limit_per_day: ${TRANSLATION_LIMIT:2}
+  enable_chat_client: ${ENABLE_MULTILINGUAL_CHAT_CLIENT:false}
   service_account_creds:
     type: ${SERVICE_ACCOUNT_TYPE}
     private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}

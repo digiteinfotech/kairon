@@ -214,7 +214,8 @@ class Authentication:
             raise NotImplementedError
         iat: datetime = datetime.now(tz=timezone.utc)
         iat = iat.replace(microsecond=0)
-        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role}
+        account = AccountProcessor.get_bot(bot)['account']
+        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role, 'account': account}
         if not Utility.check_empty_string(name):
             data.update({"name": name})
         if expiry > 0:

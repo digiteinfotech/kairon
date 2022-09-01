@@ -3777,33 +3777,30 @@ class TestMongoProcessor:
 
     def test_get_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True}
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
-        actual_config = processor.get_chat_client_config('test_bot')
+        actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
+        expected_config['multilingual'] = {'enable': False, 'bots': []}
         assert expected_config == actual_config.config
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3843,9 +3840,6 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         scope = {
             "type": "http",
             "http_version": "1.1",
@@ -3862,7 +3856,6 @@ class TestMongoProcessor:
 
         request = Request(scope=scope)
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3872,16 +3865,13 @@ class TestMongoProcessor:
         config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
         processor.save_chat_client_config(config, 'test', 'testUser')
 
-        fetched_config = processor.get_chat_client_config('test')
+        fetched_config = processor.get_chat_client_config('test', 'user@integration.com')
+        fetched_config = fetched_config.to_mongo().to_dict()
         assert Utility.validate_request(request, fetched_config)
-
 
     def test_validate_white_listed_domain_attackers(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
-
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
 
         scope = {
             "type": "http",
@@ -3899,7 +3889,6 @@ class TestMongoProcessor:
 
         request = Request(scope=scope)
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3909,21 +3898,17 @@ class TestMongoProcessor:
         config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
         processor.save_chat_client_config(config, 'test', 'testUser')
 
-        fetched_config = processor.get_chat_client_config('test')
+        fetched_config = processor.get_chat_client_config('test', 'user@integration.com')
+        fetched_config = fetched_config.to_mongo().to_dict()
         assert not Utility.validate_request(request, fetched_config)
-
 
     def test_get_chat_client_config(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
-        actual_config = processor.get_chat_client_config('test')
+        actual_config = processor.get_chat_client_config('test', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
 
@@ -3934,15 +3919,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         monkeypatch.setattr(os.path, 'exists', _mock_exception)
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Config not found'):
-            processor.get_chat_client_config('test_bot')
+            processor.get_chat_client_config('test_bot', 'user@integration.com')
 
     def test_add__and_get_regex(self):
         processor = MongoProcessor()
