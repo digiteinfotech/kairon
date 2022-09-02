@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Path, Security
 
 from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, DictData
@@ -36,11 +37,17 @@ async def get_end_user_metrics(
     """
     List end user logs.
     """
+    logs = MeteringProcessor.get_logs(
+        current_user.account, start_idx, page_size, start_date, end_date,
+        metric_type=metric_type, bot=current_user.get_bot()
+    )
+    row_cnt = mongo_processor.get_row_count(Metering, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
     return Response(
-        data=MeteringProcessor.get_logs(
-            current_user.account, start_idx, page_size, start_date, end_date,
-            metric_type=metric_type, bot=current_user.get_bot()
-        )
+        data=data
     )
 
 
