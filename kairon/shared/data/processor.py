@@ -2834,14 +2834,15 @@ class MongoProcessor:
             )
 
     @staticmethod
-    def get_row_count(document: Document, bot: str):
+    def get_row_count(document: Document, bot: str, **kwargs):
         """
         Gets the count of rows in a document for a particular bot.
         :param document: Mongoengine document for which count is to be given
         :param bot: bot id
         :return: Count of rows
         """
-        return document.objects(bot=bot).count()
+        kwargs.update({"bot": bot})
+        return document.objects(**kwargs).count()
 
     @staticmethod
     def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
@@ -4286,21 +4287,22 @@ class MongoProcessor:
         return event_config
 
     @staticmethod
-    def get_auditlog_for_bot(bot, from_date=None, to_date=None, top_n=100):
-
+    def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
         auditlog_data_list = []
         try:
             if from_date is None and to_date is None:
-                auditlog_data = AuditLogData.objects(bot=bot)[:top_n]
-            elif None not in (from_date, to_date, top_n):
+                auditlog_data = AuditLogData.objects(bot=bot)
+            elif None not in (from_date, to_date):
                 to_date = datetime.strptime(to_date, DATE_FORMAT_1) + timedelta(days=1)
                 from_date = datetime.strptime(from_date, DATE_FORMAT_1)
-                auditlog_data = AuditLogData.objects(bot=bot).filter(timestamp__gte=from_date, timestamp__lte=to_date)[
-                                :top_n]
+                auditlog_data = AuditLogData.objects(bot=bot).filter(
+                    timestamp__gte=from_date, timestamp__lte=to_date).skip(start_idx).limit(page_size)
+
             else:
                 to_date = datetime.strptime(to_date, DATE_FORMAT_1) + timedelta(days=1)
                 from_date = datetime.strptime(from_date, DATE_FORMAT_1)
-                auditlog_data = AuditLogData.objects(bot=bot).filter(timestamp__gte=from_date, timestamp__lte=to_date)
+                auditlog_data = AuditLogData.objects(bot=bot).filter(
+                    timestamp__gte=from_date, timestamp__lte=to_date).skip(start_idx).limit(page_size)
             for audit_data in auditlog_data:
                 dict_data = audit_data.to_mongo().to_dict()
                 dict_data.pop('_id')

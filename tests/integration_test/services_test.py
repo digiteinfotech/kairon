@@ -694,30 +694,31 @@ def test_model_testing_not_trained(monkeypatch):
 
 def test_get_data_importer_logs():
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 4
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['end_timestamp']
+    assert len(actual["data"]["logs"]) == 4
+    assert actual["data"]["total"] == 4
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert set(actual['data']["logs"][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
 
-    assert actual['data'][1]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][1]['status'] == 'Success'
-    assert set(actual['data'][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][1]['is_data_uploaded']
-    assert actual['data'][1]['start_timestamp']
-    assert actual['data'][1]['end_timestamp']
-    del actual['data'][1]['start_timestamp']
-    del actual['data'][1]['end_timestamp']
-    del actual['data'][1]['files_received']
-    assert actual['data'][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
+    assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][1]['is_data_uploaded']
+    assert actual['data']["logs"][1]['start_timestamp']
+    assert actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['start_timestamp']
+    del actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['files_received']
+    assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
@@ -734,33 +735,33 @@ def test_get_data_importer_logs():
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
 
-    assert actual['data'][2]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][2]['status'] == 'Failure'
-    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
-    assert actual['data'][2]['is_data_uploaded']
-    assert actual['data'][2]['start_timestamp']
-    assert actual['data'][2]['end_timestamp']
+    assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert actual['data']["logs"][2]['is_data_uploaded']
+    assert actual['data']["logs"][2]['start_timestamp']
+    assert actual['data']["logs"][2]['end_timestamp']
 
-    assert actual['data'][3]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][3]['status'] == 'Failure'
-    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][3]['is_data_uploaded']
-    assert actual['data'][3]['start_timestamp']
-    assert actual['data'][3]['end_timestamp']
-    assert actual['data'][3]['intents']['count'] == 16
-    assert len(actual['data'][3]['intents']['data']) == 21
-    assert actual['data'][3]['utterances']['count'] == 25
-    assert len(actual['data'][3]['utterances']['data']) == 13
-    assert actual['data'][3]['stories']['count'] == 16
-    assert len(actual['data'][3]['stories']['data']) == 1
-    assert actual['data'][3]['rules']['count'] == 3
-    assert len(actual['data'][3]['rules']['data']) == 0
-    assert actual['data'][3]['training_examples']['count'] == 292
-    assert len(actual['data'][3]['training_examples']['data']) == 0
-    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
+    assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert actual['data']["logs"][3]['start_timestamp']
+    assert actual['data']["logs"][3]['end_timestamp']
+    assert actual['data']["logs"][3]['intents']['count'] == 16
+    assert len(actual['data']["logs"][3]['intents']['data']) == 21
+    assert actual['data']["logs"][3]['utterances']['count'] == 25
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 13
+    assert actual['data']["logs"][3]['stories']['count'] == 16
+    assert len(actual['data']["logs"][3]['stories']['data']) == 1
+    assert actual['data']["logs"][3]['rules']['count'] == 3
+    assert len(actual['data']["logs"][3]['rules']['data']) == 0
+    assert actual['data']["logs"][3]['training_examples']['count'] == 292
+    assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
                                            'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
-    assert actual['data'][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+    assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
+    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
@@ -768,8 +769,8 @@ def test_get_data_importer_logs():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
-    assert actual['data'][3]['is_data_uploaded']
-    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
 
 
 def test_get_slots():
@@ -1932,7 +1933,7 @@ def test_model_testing_in_progress():
 
 def test_get_model_testing_logs():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test",
+        url=f"/api/bot/{pytest.bot}/logs/test?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1941,7 +1942,7 @@ def test_get_model_testing_logs():
     assert actual["success"]
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data'][0]['reference_id']}",
+        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data']['logs'][0]['reference_id']}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4907,7 +4908,7 @@ def test_file_upload_error(mock_file_upload, monkeypatch):
 
 def test_list_action_server_logs_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/actions/logs",
+        f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
 
     actual = response.json()
@@ -5430,22 +5431,23 @@ def test_upload_with_http_error():
     assert actual["success"]
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 4
-    assert actual['data'][0]['status'] == 'Failure'
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    print(actual['data'][0]['actions'])
-    assert 'Required http action fields' in actual['data'][0]['actions'][0]['data'][0]
-    assert actual['data'][0]['config']['data'] == ['Invalid component XYZ']
+    assert len(actual["data"]["logs"]) == 4
+    assert actual["data"]["total"] == 4
+    assert actual['data']["logs"][0]['status'] == 'Failure'
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['start_timestamp']
+    print(actual['data']["logs"][0]['actions'])
+    assert 'Required http action fields' in actual['data']["logs"][0]['actions'][0]['data'][0]
+    assert actual['data']["logs"][0]['config']['data'] == ['Invalid component XYZ']
 
 
 def test_upload_actions_and_config():
@@ -5465,19 +5467,20 @@ def test_upload_actions_and_config():
     assert actual["success"]
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
-    assert actual['data'][0]['status'] == 'Success'
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['end_timestamp']
-    assert actual['data'][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+    assert len(actual["data"]["logs"]) == 5
+    assert actual["data"]["total"] == 5
+    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
+    assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
@@ -5485,7 +5488,7 @@ def test_upload_actions_and_config():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0}]
-    assert not actual['data'][0]['config']['data']
+    assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
         f"/api/bot/{pytest.bot}/action/httpaction",
@@ -10310,13 +10313,14 @@ def test_get_live_agent_config_after_delete():
 
 def test_get_end_user_metrics_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs/prod_chat",
+        f"/api/bot/{pytest.bot}/metric/user/logs/prod_chat?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"]["logs"] == []
+    assert actual["data"]["total"] == 0
 
 
 def test_add_end_user_metrics():
@@ -10397,37 +10401,39 @@ def test_get_end_user_metrics():
     MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert len(actual["data"]) == 5
+    assert len(actual["data"]["logs"]) == 5
+    assert actual["data"]["total"] == 8
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics",
+        f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert len(actual["data"]) == 3
-    actual["data"][0].pop('timestamp')
-    actual["data"][0].pop('account')
-    assert actual["data"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert len(actual["data"]["logs"]) == 3
+    assert actual["data"]["total"] == 8
+    actual["data"]["logs"][0].pop('timestamp')
+    actual["data"]["logs"][0].pop('account')
+    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
-    actual["data"][1].pop('timestamp')
-    actual["data"][1].pop('account')
-    actual["data"][2].pop('timestamp')
-    actual["data"][2].pop('account')
-    assert actual["data"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    actual["data"]["logs"][1].pop('timestamp')
+    actual["data"]["logs"][1].pop('account')
+    actual["data"]["logs"][2].pop('timestamp')
+    actual["data"]["logs"][2].pop('account')
+    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
@@ -10445,7 +10451,8 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 8
 
 
 def test_get_roles():
@@ -10593,11 +10600,12 @@ def get_client_config_valid_domain():
 
 def test_multilingual_translate_logs_empty():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual['data'] == []
+    assert actual['data']['logs'] == []
+    assert actual['data']['total'] == 0
 
 
 @responses.activate
@@ -10726,28 +10734,29 @@ def test_multilingual_translate_in_progress():
 
 def test_multilingual_translate_logs():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
 
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 2
-    assert actual["data"][0]["d_lang"] == 'es'
-    assert actual["data"][0]["copy_type"] == 'Translation'
-    assert actual["data"][0]["translate_responses"]
-    assert actual["data"][0]["translate_actions"]
-    assert actual["data"][0]["event_status"] == 'Enqueued'
-    assert actual["data"][0]["start_timestamp"]
-    assert actual["data"][1]["d_lang"] == 'es'
-    assert actual["data"][1]["copy_type"] == 'Translation'
-    assert actual["data"][1]["translate_responses"] == False
-    assert actual["data"][1]["translate_actions"] == False
-    assert actual["data"][1]["event_status"] == 'Completed'
-    assert actual["data"][1]["status"] == 'Success'
-    assert actual["data"][1]["start_timestamp"]
-    assert actual["data"][1]["end_timestamp"]
+    assert len(actual["data"]["logs"]) == 2
+    assert actual["data"]["total"] == 2
+    assert actual["data"]["logs"][0]["d_lang"] == 'es'
+    assert actual["data"]["logs"][0]["copy_type"] == 'Translation'
+    assert actual["data"]["logs"][0]["translate_responses"]
+    assert actual["data"]["logs"][0]["translate_actions"]
+    assert actual["data"]["logs"][0]["event_status"] == 'Enqueued'
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][1]["d_lang"] == 'es'
+    assert actual["data"]["logs"][1]["copy_type"] == 'Translation'
+    assert actual["data"]["logs"][1]["translate_responses"] == False
+    assert actual["data"]["logs"][1]["translate_actions"] == False
+    assert actual["data"]["logs"][1]["event_status"] == 'Completed'
+    assert actual["data"]["logs"][1]["status"] == 'Success'
+    assert actual["data"]["logs"][1]["start_timestamp"]
+    assert actual["data"]["logs"][1]["end_timestamp"]
 
 
 def test_multilingual_language_support(monkeypatch):
