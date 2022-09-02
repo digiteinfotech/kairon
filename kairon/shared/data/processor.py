@@ -3485,30 +3485,29 @@ class MongoProcessor:
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
-        multilingual_config = {"enable": Utility.environment['multilingual']['enable_chat_client'], "bots": []}
-        if Utility.environment['multilingual']['enable_chat_client']:
+        if client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
             enabled_bots = {}
-            if client_config.config.get('multilingual') and client_config.config['multilingual'].get('bots'):
+            if client_config.config['multilingual'].get('bots'):
                 enabled_bots = list(filter(lambda bot_info: bot_info.get("is_enabled"), client_config.config['multilingual']['bots']))
                 enabled_bots = set(map(lambda bot_info: bot_info["id"], enabled_bots))
             if is_client_live and bot not in enabled_bots:
                 raise AppException("Bot is disabled. Please use a valid bot.")
+            client_config.config['multilingual']['bots'] = []
             for bot_info in accessible_bots:
                 bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
-                token = Authentication.generate_integration_token(
-                    bot_info["id"], user, expiry=30,
-                    access_limit=[
-                        '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                        '/api/bot/.+/metric/user/logs/{log_type}'
-                    ],
-                    token_type=TOKEN_TYPE.DYNAMIC.value
-                )
-                bot_info['authorization'] = f'Bearer {token}'
                 if bot_info["is_enabled"] or not is_client_live:
-                    multilingual_config['bots'].append(bot_info)
+                    token = Authentication.generate_integration_token(
+                        bot_info["id"], user, expiry=30,
+                        access_limit=[
+                            '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
+                            '/api/bot/.+/metric/user/logs/{log_type}'
+                        ],
+                        token_type=TOKEN_TYPE.DYNAMIC.value
+                    )
+                    bot_info['authorization'] = f'Bearer {token}'
+                    client_config.config['multilingual']['bots'].append(bot_info)
 
-        client_config.config['multilingual'] = multilingual_config
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):

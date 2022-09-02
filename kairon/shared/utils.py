@@ -890,7 +890,7 @@ class Utility:
 
         claims = Utility.decode_limited_access_token(token)
         bot_config = AccountProcessor.get_bot(bot)
-        multilingual_bots = AccountProcessor.get_multilingual_bots(bot)
+        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
         multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
 
         if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
