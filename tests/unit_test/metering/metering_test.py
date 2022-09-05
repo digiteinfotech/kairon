@@ -56,5 +56,3 @@ class TestMetering:
         assert prod_chat_count[1]['bot'] in {'bfg4657', 'abcb345'}
         assert prod_chat_count[1]['account'] == 12345
         assert prod_chat_count[1]['metric_type'] == 'prod_chat'
-        assert prod_chat_count == [{'bot': 'bfg4657', 'account': 12345, 'metric_type': 'prod_chat'},
-                                   {'bot': 'abcb345', 'account': 12345, 'metric_type': 'prod_chat'}]
