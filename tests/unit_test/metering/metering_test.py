@@ -41,9 +41,20 @@ class TestMetering:
         prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat)
         del test_chat_count[0]["timestamp"]
         del test_chat_count[1]["timestamp"]
-        assert test_chat_count == [{'bot': 'rhft284', 'account': 12345, 'metric_type': 'test_chat'},
-                                   {'bot': 'abcb345', 'account': 12345, 'metric_type': 'test_chat'}]
+        assert test_chat_count[0]['bot'] in {'rhft284', 'abcb345'}
+        assert test_chat_count[0]['account'] == 12345
+        assert test_chat_count[0]['metric_type'] == 'test_chat'
+        assert test_chat_count[1]['bot'] in {'rhft284', 'abcb345'}
+        assert test_chat_count[1]['account'] == 12345
+        assert test_chat_count[1]['metric_type'] == 'test_chat'
         del prod_chat_count[0]["timestamp"]
         del prod_chat_count[1]["timestamp"]
+        print(prod_chat_count)
+        assert prod_chat_count[0]['bot'] in {'bfg4657', 'abcb345'}
+        assert prod_chat_count[0]['account'] == 12345
+        assert prod_chat_count[0]['metric_type'] == 'prod_chat'
+        assert prod_chat_count[1]['bot'] in {'bfg4657', 'abcb345'}
+        assert prod_chat_count[1]['account'] == 12345
+        assert prod_chat_count[1]['metric_type'] == 'prod_chat'
         assert prod_chat_count == [{'bot': 'bfg4657', 'account': 12345, 'metric_type': 'prod_chat'},
                                    {'bot': 'abcb345', 'account': 12345, 'metric_type': 'prod_chat'}]

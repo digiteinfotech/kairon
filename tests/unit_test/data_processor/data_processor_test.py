@@ -8772,24 +8772,28 @@ class TestModelProcessor:
 
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert auditlog_data == []
 
     def test_get_auditlog_for_bot_top_n_default(self):
         bot = "test"
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_date_range(self):
         bot = "test"
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1))
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
         bot = "test"
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), top_n=50)
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), page_size=page_size)
         assert len(auditlog_data) == 50
