@@ -57,7 +57,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
-from kairon.shared.constants import SLOT_SET_TYPE, DATE_FORMAT_1
+from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType, HttpContentType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
