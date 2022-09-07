@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, Text
 
 from loguru import logger as logging
+from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
@@ -869,3 +870,21 @@ class AccountProcessor:
         except DoesNotExist:
             return auditlog_data_list
         return auditlog_data_list
+
+    @staticmethod
+    def get_accessible_multilingual_bots(bot: Text, email: Text):
+        accessible_bots = BotAccess.objects(accessor_email=email, status=ACTIVITY_STATUS.ACTIVE.value).values_list("bot")
+        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
+        accessible_multilingual_bots = filter(lambda bot_info: bot_info['id'] in accessible_bots, multilingual_bots)
+        return list(accessible_multilingual_bots)
+
+    @staticmethod
+    def get_multilingual_bots(bot: Text):
+        source_bot = AccountProcessor.get_bot(bot)['metadata'].get('source_bot_id')
+        if Utility.check_empty_string(source_bot):
+            source_bot = bot
+        for bot_info in Bot.objects(Q(metadata__source_bot_id=source_bot) | Q(id=bot), status=True):
+            bot_id = bot_info["id"].__str__()
+            yield {
+                "id": bot_id, "name": bot_info["name"], "language": bot_info['metadata']['language']
+            }

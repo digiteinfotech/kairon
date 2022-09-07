@@ -895,8 +895,14 @@ class Utility:
 
     @staticmethod
     def validate_bot_specific_token(bot: Text, token: Text):
+        from kairon.shared.account.processor import AccountProcessor
+
         claims = Utility.decode_limited_access_token(token)
-        if bot != claims.get('sub'):
+        bot_config = AccountProcessor.get_bot(bot)
+        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
+        multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
+
+        if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
             raise AppException("Invalid token")
         return claims
 
@@ -1459,7 +1465,7 @@ class Utility:
         from urllib.parse import urlparse
         http_referer = request.headers.get('HTTP_REFERER') if request.headers.get(
             'HTTP_REFERER') is not None else request.headers.get('referer')
-        white_listed_domain = config.white_listed_domain if config.white_listed_domain is not None else ["*"]
+        white_listed_domain = config['white_listed_domain'] if config.get('white_listed_domain') is not None else ["*"]
 
         if "*" in white_listed_domain:
             return True

@@ -208,7 +208,7 @@ class TestEventDefinitions:
         assert len(logs) == 0
 
     @responses.activate
-    def test_model_training_enqueue(self):
+    def test_model_training_enqueue(self, monkeypatch):
         bot = 'test_definitions'
         user = 'test_user'
         url = f"http://localhost:5001/api/events/execute/{EventClass.model_training}"
@@ -221,6 +221,11 @@ class TestEventDefinitions:
                 'ExecutedVersion': 'v1.0'
             }}
         )
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         ModelTrainingEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
@@ -253,9 +258,14 @@ class TestEventDefinitions:
             ModelTrainingEvent(bot, user).validate()
 
     @responses.activate
-    def test_model_training_enqueue_event_server_failure(self):
+    def test_model_training_enqueue_event_server_failure(self, monkeypatch):
         bot = 'test_definitions'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         responses.add(
             "POST", f"http://localhost:5001/api/events/execute/{EventClass.model_training}",
             json={"message": "Failed", "success": False, "error_code": 400, "data": None}
@@ -272,6 +282,10 @@ class TestEventDefinitions:
         def _mock_validation(*args, **kwargs):
             return None
 
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         monkeypatch.setattr(DataUtility, "validate_existing_data_train", _mock_validation)
         with pytest.raises(AppException, match='Failed to execute the url:*'):
             ModelTrainingEvent(bot, user).enqueue()

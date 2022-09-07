@@ -3466,6 +3466,7 @@ def test_list_bots_for_different_user_2():
     print(response)
     assert len(response['data']['shared']) == 1
     pytest.bot = response['data']['shared'][0]['_id']
+    pytest.account = response['data']['shared'][0]['account']
 
 
 def test_send_link_for_valid_id(monkeypatch):
@@ -6012,6 +6013,109 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == 'Access denied for this endpoint'
+
+
+def test_get_chat_client_config_multilingual_enabled_no_bots_enabled():
+    from bson import ObjectId
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]['multilingual']['enable'] = True
+    actual["data"]['multilingual']['bots'] = [{"id": ObjectId().__str__(), "is_enabled": True}]
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Bot is disabled. Please use a valid bot."
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_save_chat_client_config_enable_multilingual_bots():
+    AccountProcessor.add_bot(
+        name="demo-hi", account=pytest.account, user='integ1@gmail.com',
+        metadata={"language": "hi", "source_bot_id": pytest.bot, "source_language": "en"}
+    )
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['multilingual']['enable']
+    actual["data"]['multilingual']['bots'][0]['is_enabled'] = True
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+
+def test_save_chat_client_config_enable_multilingual_bots_no_bot_enabled():
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['multilingual']['enable']
+    actual["data"]['multilingual']['bots'][0]['is_enabled'] = False
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "At least one bot should be enabled!"
+
+
+def test_get_chat_client_config_multilingual_enabled():
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 1
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+
+    AccountProcessor.add_bot(
+        name="demo-mr", account=pytest.account, user='integ1@gmail.com',
+        metadata={"language": "hi", "source_bot_id": pytest.bot, "source_language": "en"}
+    )
+
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 1
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 3
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+    assert not actual["data"]['multilingual']['bots'][1]['is_enabled']
 
 
 def test_get_metering():
@@ -8814,7 +8918,7 @@ def test_integration_token_from_one_bot_on_another_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert len(response['data']['account_owned']) == 1
-    assert len(response['data']['shared']) == 1
+    assert len(response['data']['shared']) == 3
     bot1 = response['data']['account_owned'][0]['_id']
     bot2 = response['data']['shared'][0]['_id']
 
@@ -10519,6 +10623,7 @@ def test_generate_limited_access_temporary_token():
     actual = response.json()
     assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
 
+
 def test_get_client_config_using_uid_invalid_domains(monkeypatch):
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -10537,6 +10642,7 @@ def test_get_client_config_using_uid_invalid_domains(monkeypatch):
     assert not actual["data"]
     assert actual["message"] == "Domain not registered for kAIron client"
 
+
 def test_get_client_config_using_uid_valid_domains(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     response = client.get(pytest.url, headers={"HTTP_REFERER": "https://kairon-api.digite.com"})
@@ -10545,6 +10651,7 @@ def test_get_client_config_using_uid_valid_domains(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert None == actual.get("data").get("whitelist")
+
 
 def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
@@ -10555,9 +10662,9 @@ def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
     assert not actual["data"]
     assert actual["message"] == "Domain not registered for kAIron client"
 
+
 def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
-    chat_json = {"data": "Hi"}
     response = client.get(pytest.url, headers={"referer": "https://kairon-api.digite.com"})
     actual = response.json()
     assert actual["success"]

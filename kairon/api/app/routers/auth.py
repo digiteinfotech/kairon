@@ -42,7 +42,7 @@ async def generate_limited_access_temporary_token(
     """
     access_list = access_list or ['/api/bot/.+/chat/client/config$']
     access_token = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
+        current_user.get_bot(), current_user.email, ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
         access_limit=access_list, token_type=TOKEN_TYPE.DYNAMIC.value
     )
     return {

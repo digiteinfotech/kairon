@@ -45,5 +45,9 @@
   "userClassName": "",
   "botClassName": "",
   "formClassName": "",
-  "openButtonClassName": ""
+  "openButtonClassName": "",
+  "multilingual": {
+    "enable": false,
+    "bots": []
+  }
 }
