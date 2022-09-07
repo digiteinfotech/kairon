@@ -316,9 +316,9 @@ class HttpActionConfigRequest(BaseModel):
 
 
 class TrainingData(BaseModel):
-    intent: constr(to_lower=True, strip_whitespace=True)
-    training_examples: List[str]
-    response: str
+    intent: constr(to_lower=True, strip_whitespace=True) = None
+    training_examples: List[str] = None
+    response: str = None
 
 
 class BulkTrainingDataAddRequest(BaseModel):
@@ -333,7 +333,7 @@ class TrainingDataGeneratorResponseModel(BaseModel):
 
 
 class TrainingDataGeneratorStatusModel(BaseModel):
-    status: EVENT_STATUS
+    status: EVENT_STATUS = None
     response: List[TrainingData] = None
     exception: str = None
 

@@ -6,7 +6,7 @@ from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from .constant import EVENT_STATUS, TRAINING_DATA_GENERATOR_DIR
+from .constant import EVENT_STATUS, TRAINING_DATA_GENERATOR_DIR, TRAINING_DATA_SOURCE_TYPE
 from .data_objects import TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator
 
 
@@ -26,7 +26,7 @@ class TrainingDataGenerationProcessor:
             raise AppException("Matching history_id not found!")
 
     @staticmethod
-    def retreive_response_and_set_status(request_data, bot, user):
+    def retrieve_response_and_set_status(request_data, bot, user):
         training_data_list = None
         if request_data.response:
             training_data_list = []
@@ -46,7 +46,7 @@ class TrainingDataGenerationProcessor:
                         response=training_data.response
                     ))
         TrainingDataGenerationProcessor.set_status(
-            status=request_data.status,
+            status=request_data.status.value,
             response=training_data_list,
             exception=request_data.exception,
             bot=bot,
@@ -59,12 +59,14 @@ class TrainingDataGenerationProcessor:
             user: Text,
             status: Text,
             document_path=None,
+            source_type=None,
             response=None,
             exception: Text = None,
     ):
         """
         add or update training data generator status
 
+        :param source_type:
         :param bot: bot id
         :param user: user id
         :param status: InProgress, Done, Fail
@@ -84,12 +86,15 @@ class TrainingDataGenerationProcessor:
             doc = TrainingDataGenerator()
             doc.status = EVENT_STATUS.INITIATED.value
             doc.document_path = document_path
+            doc.source_type = source_type
             doc.start_timestamp = datetime.utcnow()
 
         doc.last_update_timestamp = datetime.utcnow()
-        if status in [EVENT_STATUS.FAIL, EVENT_STATUS.COMPLETED]:
+        if status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]:
             doc.end_timestamp = datetime.utcnow()
             doc.last_update_timestamp = doc.end_timestamp
+        if status:
+            doc.status = status
         doc.bot = bot
         doc.user = user
         doc.response = response
@@ -129,36 +134,36 @@ class TrainingDataGenerationProcessor:
         :return: None
         :raises: AppException
         """
-        if TrainingDataGenerator.objects(bot=bot).filter(
-                Q(status=EVENT_STATUS.INITIATED) |
-                Q(status=EVENT_STATUS.INPROGRESS) |
-                Q(status=EVENT_STATUS.TASKSPAWNED)).count():
+        if TrainingDataGenerator.objects(__raw__={
+            "bot": bot,
+            "status": {"$nin": [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]}}
+        ).count():
             if raise_exception:
-                raise AppException("Previous data generation process not completed")
+                raise AppException("Event already in progress! Check logs.")
             else:
                 return True
         else:
             return False
 
     @staticmethod
-    def get_training_data_generator_history(bot: Text):
+    def get_training_data_generator_history(bot: Text, source_type: str = TRAINING_DATA_SOURCE_TYPE.DOCUMENT.value):
         """
         fetches training data generator history
 
         :param bot: bot id
         :return: yield dict of training history
         """
-        return list(TrainingDataGenerationProcessor.__get_all_history(bot))
+        return list(TrainingDataGenerationProcessor.__get_all_history(bot, source_type))
 
     @staticmethod
-    def __get_all_history(bot: Text):
+    def __get_all_history(bot: Text, source_type: str = TRAINING_DATA_SOURCE_TYPE.DOCUMENT.value):
         """
         fetches training data generator history
 
         :param bot: bot id
         :return: yield dict of training history
         """
-        for value in TrainingDataGenerator.objects(bot=bot).order_by("-start_timestamp"):
+        for value in TrainingDataGenerator.objects(bot=bot, source_type=source_type).order_by("-start_timestamp"):
             item = value.to_mongo().to_dict()
             if item.get('document_path'):
                 item['document_path'] = item['document_path'].replace(TRAINING_DATA_GENERATOR_DIR + '/', '').__str__()
@@ -185,7 +190,7 @@ class TrainingDataGenerationProcessor:
         ).count()
         if doc_count >= Utility.environment['data_generation']["limit_per_day"]:
             if raise_exception:
-                raise AppException("Daily file processing limit exceeded.")
+                raise AppException("Daily limit exceeded.")
             else:
                 return True
         else:
@@ -230,3 +235,12 @@ class TrainingDataGenerationProcessor:
                 ))
         history.response = updated_training_data_with_flag
         history.save()
+
+    @staticmethod
+    def delete_enqueued_event_log(bot: str):
+        """
+        Deletes latest log if it is present in enqueued state.
+        """
+        latest_log = TrainingDataGenerator.objects(bot=bot).order_by('-id').first()
+        if latest_log and latest_log.status == EVENT_STATUS.ENQUEUED.value:
+            latest_log.delete()

@@ -98,6 +98,11 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
 
 
+class TRAINING_DATA_SOURCE_TYPE(str, Enum):
+    WEBSITE = "website"
+    DOCUMENT = "document"
+
+
 class ENDPOINT_TYPE(str, Enum):
     BOT_ENDPOINT = "bot_endpoint"
     ACTION_ENDPOINT = "action_endpoint"

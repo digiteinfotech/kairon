@@ -27,12 +27,16 @@ Usage:
         kairon multilingual <botid> <userid> <dlang> --translate-responses
         kairon multilingual <botid> <userid> <dlang> --translate-actions
         kairon multilingual <botid> <userid> <dlang> --translate-responses --translate-actions
+    
+    Training Data generation:
+        kairon generate-data <botid> <userid> <path> --from-website
+        kairon generate-data <botid> <userid> <path> --from-document
 
 """
 
 
 def create_argument_parser():
-    from kairon.cli import importer, training, testing, conversations_deletion, translator
+    from kairon.cli import importer, training, testing, conversations_deletion, translator, data_generator
 
     parser = ArgumentParser(
         prog="kairon",
@@ -47,6 +51,7 @@ def create_argument_parser():
     testing.add_subparser(subparsers, parents=parent_parsers)
     conversations_deletion.add_subparser(subparsers, parents=parent_parsers)
     translator.add_subparser(subparsers, parents=parent_parsers)
+    data_generator.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 

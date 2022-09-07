@@ -26,7 +26,7 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.app.routers import auth, augment, history, user, account
-from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual
+from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, data_generation
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -278,3 +278,4 @@ app.include_router(secrets.router, prefix="/api/bot/{bot}/secrets", tags=["KeyVa
 app.include_router(multilingual.router, prefix="/api/bot/{bot}/multilingual", tags=["Multilingual"])
 app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
+app.include_router(data_generation.router, prefix="/api/bot/{bot}/data/generator", tags=["DataGenerator"])

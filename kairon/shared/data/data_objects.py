@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TRAINING_DATA_SOURCE_TYPE
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -625,7 +625,8 @@ class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     document_path = StringField(default=None)
-    status = StringField(default=EVENT_STATUS.INITIATED)
+    source_type = StringField(choices=[TRAINING_DATA_SOURCE_TYPE.DOCUMENT.value, TRAINING_DATA_SOURCE_TYPE.WEBSITE.value], default=TRAINING_DATA_SOURCE_TYPE.DOCUMENT.value)
+    status = StringField(default=EVENT_STATUS.INITIATED.value)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)

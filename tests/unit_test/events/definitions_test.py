@@ -10,6 +10,7 @@ from mongoengine import connect
 from mongomock.mongo_client import MongoClient
 
 from kairon import Utility
+from kairon.events.definitions.data_generation import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -20,10 +21,11 @@ from kairon.history.processor import HistoryProcessor
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, TRAINING_DATA_SOURCE_TYPE
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
+from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -584,4 +586,75 @@ class TestEventDefinitions:
         with pytest.raises(AppException, match='Failed to execute the url: *'):
             MultilingualEvent(bot, user, dest_lang=d_lang, translate_responses=True, translate_actions=True).enqueue()
         logs = list(MultilingualLogProcessor.get_logs(bot))
+        assert len(logs) == 0
+
+    def test_trigger_website_data_generation_execute_presteps(self):
+        bot_name = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TRAINING_DATA_SOURCE_TYPE.WEBSITE
+        bot_obj = AccountProcessor.add_bot(bot_name, 1, user)
+        pytest.data_generation_bot = bot_obj['_id'].__str__()
+        DataGenerationEvent(pytest.data_generation_bot, user, website_url=website_url).validate()
+
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(pytest.data_generation_bot, source_type))
+        assert len(logs) == 0
+
+    @responses.activate
+    def test_trigger_website_data_generation_enqueue(self):
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TRAINING_DATA_SOURCE_TYPE.WEBSITE
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!", "success": True},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              {'bot': pytest.data_generation_bot, 'user': user, 'website_url': website_url})]
+                      )
+        DataGenerationEvent(pytest.data_generation_bot, user, website_url=website_url).enqueue()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(pytest.data_generation_bot, source_type))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
+
+    def test_trigger_website_data_generation_in_progress(self):
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TRAINING_DATA_SOURCE_TYPE.WEBSITE
+        with pytest.raises(AppException, match="Event already in progress! Check logs."):
+            DataGenerationEvent(pytest.data_generation_bot, user, website_url=website_url).validate()
+
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(pytest.data_generation_bot, source_type))
+        assert len(logs) == 1
+
+    def test_trigger_website_data_generation(self):
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TRAINING_DATA_SOURCE_TYPE.WEBSITE
+
+        DataGenerationEvent(pytest.data_generation_bot, user, website_url=website_url).execute()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(pytest.data_generation_bot, source_type))
+        assert len(logs) == 2
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('source_type') == source_type
+        assert logs[0].get('status') == EVENT_STATUS.COMPLETED.value
+        assert list(logs[0].get('response')[0].keys()) == ['intent', 'training_examples', 'response']
+
+    @responses.activate
+    def test_trigger_website_data_generation_event_connection_error(self):
+        bot = 'test_data_generation_bot_1'
+        user = 'test_user'
+        website_url = '/test/website.com'
+        source_type = TRAINING_DATA_SOURCE_TYPE.WEBSITE
+        with pytest.raises(AppException, match='Failed to execute the url: *'):
+            DataGenerationEvent(bot, user, website_url=website_url).enqueue()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0

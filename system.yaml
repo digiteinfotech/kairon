@@ -107,6 +107,7 @@ events:
     data_importer: ${TRAINING_DATA_IMPORTER_TASK_DEFINITION}
     delete_history: ${DELETE_HISTORY_TASK_DEFINITION}
     multilingual: ${MULTILINGUAL_TASK_DEFINITION}
+    data_generation: ${DATA_GENERATION_TASK_DEFINITION}
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}

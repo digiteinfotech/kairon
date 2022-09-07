@@ -28,7 +28,7 @@ from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, TRAINING_DATA_SOURCE_TYPE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -4589,7 +4589,7 @@ def test_train_using_event(monkeypatch):
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED.value
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4626,7 +4626,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]
     request_body = {
-        "status": EVENT_STATUS.COMPLETED,
+        "status": EVENT_STATUS.COMPLETED.value,
         "response": training_data
     }
     response = client.put(
@@ -4754,7 +4754,7 @@ def test_get_training_data_history_1(monkeypatch):
 
 def test_update_training_data_generator_status_exception(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4768,7 +4768,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
     request_body = {
-        "status": EVENT_STATUS.FAIL,
+        "status": EVENT_STATUS.FAIL.value,
         "exception": 'Exception message'
     }
     response = client.put(
@@ -4802,7 +4802,7 @@ def test_get_training_data_history_2(monkeypatch):
 
 def test_fetch_latest(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4992,7 +4992,7 @@ def test_list_action_server_logs():
 
 def test_add_training_data_invalid_id(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.COMPLETED.value
     }
     client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -5008,7 +5008,7 @@ def test_add_training_data_invalid_id(monkeypatch):
     assert actual["error_code"] == 0
     response = actual["data"]
     assert response is not None
-    response['status'] = 'Initiated'
+    response['status'] = 'Completed'
     assert actual["message"] is None
     doc_id = response['training_history'][0]['_id']
     training_data = {
@@ -10435,6 +10435,7 @@ def test_generate_limited_access_temporary_token():
     actual = response.json()
     assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
 
+
 def test_get_client_config_using_uid_invalid_domains(monkeypatch):
     config_path = "./template/chat-client/default-config.json"
     config = json.load(open(config_path))
@@ -10681,6 +10682,95 @@ def test_multilingual_language_support(monkeypatch):
     assert response['data'] == ['es', 'en', 'hi']
     assert response['success']
     assert response['error_code'] == 0
+
+
+@responses.activate
+def test_data_generation_from_website(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher(
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com',
+                 'website_url': 'website.com'})],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["success"]
+    assert response["message"] == "Story generator in progress! Check logs."
+    assert response["error_code"] == 0
+    TrainingDataGenerationProcessor.set_status(pytest.bot, "integ1@gmail.com", status="Completed")
+
+
+def test_data_generation_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_data_generation_no_website_url(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "query",
+                "website_url"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url= ",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "website_url cannot be empty"
+    assert response["error_code"] == 422
+
+
+def test_data_generation_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+def test_data_generation_in_progress(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
 
 
 def test_delete_account():
