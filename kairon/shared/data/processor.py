@@ -86,7 +86,6 @@ from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
 from ..actions.utils import ActionUtility
-from ..constants import DATE_FORMAT_1
 
 
 class MongoProcessor:
