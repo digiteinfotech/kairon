@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 from typing import Dict, Text
@@ -857,15 +858,6 @@ class AccountProcessor:
         return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))
 
     @staticmethod
-    def get_auditlog_for_user(user, top_n=100):
-        auditlog_data_list = []
-        try:
-            auditlog_data = AuditLogData.objects(user=user)[:top_n]
-            for audit_data in auditlog_data:
-                dict_data = audit_data.to_mongo().to_dict()
-                dict_data.pop('_id')
-                dict_data['data'].pop('_id')
-                auditlog_data_list.append(dict_data)
-        except DoesNotExist:
-            return auditlog_data_list
-        return auditlog_data_list
+    def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):
+        auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').to_json()
+        return json.loads(auditlog_data)

@@ -6,10 +6,12 @@ from fastapi import Query
 from starlette.responses import StreamingResponse
 from io import BytesIO
 
+from kairon.api.app.routers.bot.action import mongo_processor
 from kairon.api.models import Response
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, ADMIN_ACCESS
+from kairon.shared.data.data_objects import ConversationsHistoryDeleteLogs
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
@@ -416,9 +418,16 @@ async def delete_bot_conversations_history(
 
 @router.get("/delete/logs", response_model=Response)
 async def get_delete_history_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get history deletion event logs.
     """
-    logs = list(HistoryDeletionLogProcessor.get_logs(current_user.get_bot()))
-    return Response(data=logs)
+    logs = list(HistoryDeletionLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ConversationsHistoryDeleteLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)

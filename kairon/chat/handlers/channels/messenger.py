@@ -380,6 +380,7 @@ class MessengerHandler(InputChannel, BaseHandler):
         messenger = Messenger(page_access_token)
 
         metadata = self.get_metadata(self.request)
+        metadata.update({"channel_type": "messenger"})
         await messenger.handle(json_decode(self.request.body), metadata, bot)
         self.write("success")
         return
@@ -459,7 +460,7 @@ class InstagramHandler(MessengerHandler):
         messenger = Messenger(page_access_token)
 
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
+        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "instagram"})
         await messenger.handle(json_decode(self.request.body), metadata, bot)
         self.write("success")
         return

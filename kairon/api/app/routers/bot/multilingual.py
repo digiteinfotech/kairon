@@ -1,4 +1,6 @@
 from kairon.events.definitions.multilingual import MultilingualEvent
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.multilingual.data_objects import BotReplicationLogs
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.models import TranslationRequest
 from kairon.shared.models import User
@@ -9,16 +11,24 @@ from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.multilingual.utils.translator import Translator
 
 router = APIRouter()
+mongo_processor = MongoProcessor()
 
 
 @router.get('/logs', response_model=Response)
 async def get_multilingual_translation_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get multilingual translation logs
     """
-    logs = list(MultilingualLogProcessor.get_logs(current_user.get_bot()))
-    return Response(data=logs)
+    logs = list(MultilingualLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(BotReplicationLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.post("/translate", response_model=Response)

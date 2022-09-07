@@ -130,7 +130,10 @@ class KaironMessageProcessor(MessageProcessor):
         self._save_tracker(tracker)
         metadata = message.metadata
         metric_type = MetricType.prod_chat if metadata.get('is_integration_user') else MetricType.test_chat
-        MeteringProcessor.add_metrics(metadata.get('bot'), metadata.get('account'), metric_type)
+        MeteringProcessor.add_metrics(
+            metadata.get('bot'), metadata.get('account'), metric_type, user_id=message.sender_id,
+            channel_type=metadata.get('channel_type')
+        )
         if isinstance(message.output_channel, CollectingOutputChannel):
             response["response"] = message.output_channel.messages
             return response

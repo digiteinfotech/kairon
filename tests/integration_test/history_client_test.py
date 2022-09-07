@@ -74,6 +74,7 @@ def mock_auth(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "fetch_role_for_user", _mock_user_role)
     monkeypatch.setattr(AccountProcessor, "get_user_details", user_details)
     monkeypatch.setattr(AccountProcessor, "get_bot", bot_details)
+    monkeypatch.setattr(AccountProcessor, "get_user", user_details)
 
 
 @pytest.fixture(scope='function')
@@ -1071,9 +1072,9 @@ def test_get_delete_history_logs(mock_auth_admin, mock_mongo_processor_endpoint_
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]) == 2
-    assert actual['data'][0]['status'] == EVENT_STATUS.ENQUEUED.value
-    assert actual['data'][0]['bot'] == pytest.bot
-    assert actual['data'][0]['user'] == 'integration@demo.com'
-    assert actual['data'][1]['status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][1]['bot'] == pytest.bot
-    assert actual['data'][1]['user'] == 'integration@demo.com'
+    assert actual['data']["logs"][0]['status'] == EVENT_STATUS.ENQUEUED.value
+    assert actual['data']["logs"][0]['bot'] == pytest.bot
+    assert actual['data']["logs"][0]['user'] == 'integration@demo.com'
+    assert actual['data']["logs"][1]['status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][1]['bot'] == pytest.bot
+    assert actual['data']["logs"][1]['user'] == 'integration@demo.com'

@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
@@ -25,18 +26,19 @@ from kairon.api.models import (
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.end_user_metrics.constants import MetricTypes
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
+from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.models import User
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType, \
     TRAINING_DATA_SOURCE_TYPE
-from kairon.shared.data.data_objects import TrainingExamples
+from kairon.shared.data.data_objects import TrainingExamples, ModelTraining
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -469,13 +471,19 @@ async def reload_model(
 
 @router.get("/train/history", response_model=Response)
 async def get_model_training_history(
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Fetches model training history, when and who trained the bot
     """
-    training_history = list(ModelProcessor.get_training_history(current_user.get_bot()))
-    return {"data": {"training_history": training_history}}
+    training_history = list(ModelProcessor.get_training_history(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ModelTraining, current_user.get_bot())
+    data = {
+        "logs": training_history,
+        "total": row_cnt
+    }
+    return {"data": {"training_history": data}}
 
 
 @router.post("/deploy", response_model=Response)
@@ -611,7 +619,12 @@ async def model_testing_logs(
     List model testing logs.
     """
     logs = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    return Response(data=logs)
+    row_cnt = mongo_processor.get_row_count(ModelTestingLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.get("/endpoint", response_model=Response)
@@ -906,12 +919,19 @@ async def edit_slots(
 
 @router.get("/importer/logs", response_model=Response)
 async def get_data_importer_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get data importer event logs.
     """
-    logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot()))
-    return Response(data=logs)
+    logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ValidationLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.post("/validate", response_model=Response)
@@ -1444,9 +1464,16 @@ async def get_auditlog_config(current_user: User = Security(Authentication.get_c
 
 
 @router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
-async def get_auditlog_for_bot(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-                               from_date: str = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
-                               to_date: str = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
-                               ):
-    data = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date)
+async def get_auditlog_for_bot(
+        start_idx: int = 0, page_size: int = 10,
+        from_date: date = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
+        to_date: date = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    logs = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
+    row_cnt = mongo_processor.get_row_count(AuditLogData, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
     return Response(data=data)

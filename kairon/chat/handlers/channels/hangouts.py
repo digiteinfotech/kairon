@@ -294,7 +294,7 @@ class HangoutHandler(InputChannel, BaseHandler):
 
         try:
             metadata = {"is_integration_user": True, "bot": bot, "account": user.account, "room": room_name,
-                        "out_channel": collector.name()}
+                        "out_channel": collector.name(), "channel_type": "hangouts"}
             await AgentProcessor.get_agent(bot).handle_message(UserMessage(
                     text,
                     collector,
