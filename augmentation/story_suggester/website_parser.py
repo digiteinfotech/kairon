@@ -68,8 +68,6 @@ class WebsiteParser:
             url = initial_url + url
         elif url[0] == '#':
             url = initial_url + '/' + url
-        else:
-            url = url
         try:
             page = requests.get(url)
             if page.status_code == 200:
@@ -96,7 +94,7 @@ class WebsiteParser:
     def remove_footer(soup):
         footer_len = len(soup.find_all('footer'))
         if footer_len:
-            for i in range(footer_len):
+            for _ in range(footer_len):
                 if soup.footer:
                     soup.footer.decompose()
         return soup

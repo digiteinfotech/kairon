@@ -1,12 +1,9 @@
 from kairon.events.definitions.data_generation import DataGenerationEvent
-from kairon.shared.data.constant import EVENT_STATUS
-from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.models import User
 from fastapi import APIRouter, Security
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
-from kairon.shared.multilingual.utils.translator import Translator
+from kairon.shared.constants import DESIGNER_ACCESS
 
 router = APIRouter()
 

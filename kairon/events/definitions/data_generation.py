@@ -1,7 +1,5 @@
 from typing import Text
-
 from loguru import logger
-
 from augmentation.story_suggester.training_data_generator import WebsiteTrainingDataGenerator
 from kairon.api.models import TrainingDataGeneratorStatusModel
 from kairon.events.definitions.base import EventsBase
@@ -16,7 +14,6 @@ class DataGenerationEvent(EventsBase):
     """
     Event to create Training data from website link provided by user
     """
-    
     def __init__(self, bot: Text, user: Text, **kwargs):
         """
         Initialise the event
