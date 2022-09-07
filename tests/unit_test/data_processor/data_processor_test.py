@@ -8787,7 +8787,7 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), page_size=page_size)
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
@@ -8795,5 +8795,13 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), page_size=page_size)
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        assert len(auditlog_data) == 50
+
+    def test_get_auditlog_from_date_to_date_none(self):
+        bot = "test"
+        from_date = None
+        to_date = None
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) == 50
