@@ -174,8 +174,10 @@ async def search_user(
 
 
 @router.get("/auditlog/data", response_model=Response)
-async def get_auditlog_for_user(current_user: User = Security(Authentication.get_current_user)):
+async def get_auditlog_for_user(
+        current_user: User = Security(Authentication.get_current_user), start_idx: int = 0, page_size: int = 10
+):
     """
     Get user specific auditlog .
     """
-    return Response(data=AccountProcessor.get_auditlog_for_user(current_user.get_user()))
+    return Response(data=AccountProcessor.get_auditlog_for_user(current_user.get_user(), start_idx, page_size))
