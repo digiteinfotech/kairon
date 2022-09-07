@@ -1,0 +1,161 @@
+from bs4 import BeautifulSoup
+import requests
+from loguru import logger as logging
+
+
+class WebsiteParser:
+
+    @staticmethod
+    def data_preprocess(data):
+        processed_data = ''
+        for d in data:
+            if d.isalpha():
+                start_index = data.index(d)
+                processed_data = data[start_index:] + '?'
+                break
+
+        return processed_data
+
+    @staticmethod
+    def check_word_count(qn):
+        return len(qn.split(' '))
+
+    @staticmethod
+    def trunc_answer(ans, url):
+        # truncate long answers and append read more hyperlink
+        trunc_ans = " "
+        ans_list = ans.split(' ')
+        trunc_ans = trunc_ans.join(ans_list[:50])
+        a_tag = f'<a target="_blank" href={url}> read more </a>'
+        final_ans = trunc_ans + ' ... ' + a_tag
+        return final_ans
+
+    @staticmethod
+    def get_context(url, soup):
+        # add context to questions with less than 3 words
+        h1 = soup.find_all('h1')
+        if h1 and h1[0].text:
+            context = h1[0].text
+        else:
+            url_components = [context for context in url.split('/') if context]
+            context = url_components[-1].replace('-', ' ')
+        return context
+
+    @staticmethod
+    def get_all_links(initial_url, depth=0):
+        # extract all links from a web page
+        all_links = [initial_url]
+
+        if depth > 0:
+            page = requests.get(initial_url)
+            soup = BeautifulSoup(page.content, "html.parser")
+
+            for a in soup.find_all('a'):
+                try:
+                    all_links.append(a['href'])
+                except Exception as e:
+                    logging.info(str(e))
+                    continue
+            return list(set(all_links))
+        else:
+            return all_links
+
+    @staticmethod
+    def check_url_validity(initial_url, url):
+        # check the validity of a link
+        count, status = 0, 0
+        if url == '' or url[0] == '/':
+            url = initial_url + url
+        elif url[0] == '#':
+            url = initial_url + '/' + url
+        else:
+            url = url
+        try:
+            page = requests.get(url)
+            if page.status_code == 200:
+                status = 1
+        except Exception as e:
+            logging.info(str(e))
+            while count > 3:
+                count += 1
+                page = requests.get(url)
+                if page.status_code == 200:
+                    status = 1
+                    break
+        return {'status': status, 'url': url}
+
+    @staticmethod
+    def get_qna_dict(qn_list, ans_list):
+        # create QnA dict
+        qn_dup_free = dict(zip(qn_list, ans_list))  # remove duplicate questions
+        ans_dup_free = dict(zip(list(qn_dup_free.values()), list(qn_dup_free.keys())))   # remove duplicate answers
+        final_qna_dict = {v: k for k, v in ans_dup_free.items()}    # final dict without duplicate qn and ans entries
+        return final_qna_dict
+
+    @staticmethod
+    def remove_footer(soup):
+        footer_len = len(soup.find_all('footer'))
+        if footer_len:
+            for i in range(footer_len):
+                if soup.footer:
+                    soup.footer.decompose()
+        return soup
+
+    def get_qna(self, initial_url, depth=0):
+        try:
+
+            heading_tags = ["h1", "h2", "h3", "h4", "h5"]
+            questions = []
+            answers = []
+
+            links = self.get_all_links(initial_url, depth)
+            for link in links:
+                data = self.check_url_validity(initial_url, link)
+
+                if data['status']:
+                    url = data['url']
+                    page = requests.get(url)
+
+                    soup = BeautifulSoup(page.content, "html.parser")
+                    soup = self.remove_footer(soup)
+
+                    for tag in soup.find_all(heading_tags):
+                        if tag.text is None or tag.text == '':
+                            continue
+                        qn = self.data_preprocess(tag.text)
+                        if qn == '':
+                            continue
+                        # add context if word size is less than 2"
+                        if len(qn.split(' ')) < 3:
+                            context = self.get_context(url, soup)
+                            qn = context + ' ' + qn
+                        next_tag = tag
+                        ans = ''
+                        # consider all paragraph texts between 2 headers as the answer for a given qn
+                        while next_tag.find_next().name not in heading_tags:
+                            next_tag = next_tag.find_next()
+                            if next_tag.name == "p":
+                                ans = ans + next_tag.text
+                            elif next_tag.name == 'ul':
+                                li = next_tag.find_all('li')
+                                ul_text = ""
+                                for ind, i in enumerate(li):
+                                    ul_text = ul_text + '\n' + ' (' + str(ind+1) + ') ' + i.text
+                                ans = ans + ul_text + '\n'
+                            else:
+                                pass
+                            if next_tag.find_next() is None:
+                                break
+                        # truncate lengthy answers and leave a link
+                        if len(ans):
+                            questions.append(qn)
+                            if self.check_word_count(ans) > 40:
+                                ans = self.trunc_answer(ans, url)
+                            answers.append(ans)
+                else:
+                    continue
+
+            return self.get_qna_dict(questions, answers)
+        except Exception as e:
+            logging.info(e)
+            raise Exception(f"Story suggestions isn't fully supported on this website yet. Failed with exception: {str(e)}")
