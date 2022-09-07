@@ -21,7 +21,7 @@ class DataGenerationEvent(EventsBase):
         self.bot = bot
         self.user = user
         self.website_url = kwargs.get('website_url')
-        
+
     def validate(self):
         """
         Validates if an event is already running for that particular bot and also
