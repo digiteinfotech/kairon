@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
@@ -1463,8 +1464,8 @@ async def get_auditlog_config(current_user: User = Security(Authentication.get_c
 @router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
 async def get_auditlog_for_bot(
         start_idx: int = 0, page_size: int = 10,
-        from_date: str = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
-        to_date: str = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+        from_date: date = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
+        to_date: date = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 import re
 import shutil
@@ -10796,6 +10797,24 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
 
 
+def test_get_auditlog_for_bot():
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/auditlog/data/{from_date}/{to_date}?start_idx=0&page_size=100",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    audit_log_data = actual["data"]["logs"]
+    assert audit_log_data is not None
+    actions = [d['action'] for d in audit_log_data]
+    from collections import Counter
+    counter = Counter(actions)
+    assert counter.get(AuditlogActions.SAVE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+
 def test_get_auditlog_for_user_2():
     email = "integration@demo.ai"
     response = client.post(
@@ -10804,7 +10823,7 @@ def test_get_auditlog_for_user_2():
     )
     login_2 = response.json()
     response = client.get(
-        f"/api/user/auditlog/data",
+        f"/api/user/auditlog/data?start_idx=0&page_size=100",
         headers={"Authorization": login_2["data"]["token_type"] + " " + login_2["data"]["access_token"]}
     )
     actual = response.json()
