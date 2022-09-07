@@ -48,7 +48,7 @@ class Whatsapp:
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
-
+        message.update(metadata)
         await self._handle_user_message(text, message["from"], message, bot)
 
     async def handle(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
@@ -56,7 +56,8 @@ class Whatsapp:
             for changes in entry["changes"]:
                 self.last_message = changes
                 self.client = WhatsappClient(self.page_access_token, self.get_business_phone_number_id())
-                metadata = changes.get("value", {}).get("metadata")
+                msg_metadata = changes.get("value", {}).get("metadata", {})
+                metadata.update(msg_metadata)
                 messages = changes.get("value", {}).get("messages")
                 for message in messages:
                     return await self.message(message, metadata, bot)
@@ -70,7 +71,6 @@ class Whatsapp:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = WhatsappBot(self.client)
         await out_channel.mark_as_read(metadata["id"])
-
         user_msg = UserMessage(
             text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
         )
@@ -181,7 +181,7 @@ class WhatsappHandler(MessengerHandler):
         messenger = Whatsapp(access_token)
 
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
+        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "whatsapp"})
         await messenger.handle(json_decode(self.request.body), metadata, bot)
         self.write("success")
         return

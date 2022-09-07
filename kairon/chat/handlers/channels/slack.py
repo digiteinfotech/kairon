@@ -460,7 +460,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             user_message = event.get("text", "")
             sender_id = event.get("user", "")
             metadata = self.get_metadata(self.request) or {}
-            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
+            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "slack"})
             channel_id = metadata.get("out_channel")
             thread_id = metadata.get("thread_id")
             conversation_id = self._get_conversation_id(
@@ -508,6 +508,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                 text = self._get_interactive_response(payload["actions"][0])
                 if text is not None:
                     metadata = self.get_metadata(self.request)
+                    metadata.update({"sender_id": sender_id, "channel_type": "slack"})
                     channel_id = metadata.get("out_channel")
                     thread_id = metadata.get("thread_id")
                     conversation_id = self._get_conversation_id(

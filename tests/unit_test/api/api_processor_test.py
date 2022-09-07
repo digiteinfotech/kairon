@@ -28,7 +28,7 @@ from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Configs, Rules, Responses
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
@@ -1892,10 +1892,15 @@ class TestAccountProcessor:
     async def test_validate_trusted_device_add_device(self, monkeypatch):
         token = "abcgd563"
         enable = True
+
+        def _mock_get_user_details(*args, **kwargs):
+            return {"account": 10}
+
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
         monkeypatch.setitem(Utility.email_conf["email"], "enable", enable)
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
         monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", enable)
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_get_user_details)
 
         url = f"https://ipinfo.io/10.11.12.13?token={token}"
         expected = {
@@ -1911,9 +1916,11 @@ class TestAccountProcessor:
         responses.start()
         responses.add("GET", url, json=expected)
         await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", "10.11.12.13", True)
-        log = EndUserMetricsProcessor.get_logs(log_type='user_login')
+        account_details = AccountProcessor.get_user_details("pandey.udit867@gmail.com")
+        log = MeteringProcessor.get_logs(account=account_details["account"], metric_type='user_login')
         del log[0]['timestamp']
-        assert log[0] == {'log_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
+        del log[0]['account']
+        assert log[0] == {'metric_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
                           'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                           'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == ["kjhdsaqewrrtyuio879"]

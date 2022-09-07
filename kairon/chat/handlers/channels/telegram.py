@@ -216,7 +216,8 @@ class TelegramHandler(InputChannel, BaseHandler):
                 self.write("success")
                 return
         sender_id = msg.chat.id
-        metadata = {"out_channel": out_channel.name(), "is_integration_user": True, "bot": bot, "account": user.account}
+        metadata = {"out_channel": out_channel.name(), "is_integration_user": True, "bot": bot, "account": user.account,
+                    "channel_type": "telegram"}
         try:
             if text == (INTENT_MESSAGE_PREFIX + USER_INTENT_RESTART):
                 await self.process_message(bot, UserMessage(

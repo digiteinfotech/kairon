@@ -25,7 +25,6 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
-from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
@@ -35,6 +34,8 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -387,6 +388,12 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    account = response["data"]["user"]["account"]
+    assert MeteringProcessor.get_metric_count(account, metric_type=MetricType.user_login.value) == 2
 
 
 def test_add_bot():
@@ -4320,7 +4327,7 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
-    
+
     request_body = {
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action_6",
@@ -6013,13 +6020,13 @@ def test_get_metering():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/prod_chat",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
 
 
 def test_add_story_with_no_type():
@@ -10303,7 +10310,7 @@ def test_get_live_agent_config_after_delete():
 
 def test_get_end_user_metrics_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs/prod_chat",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10378,36 +10385,53 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    account = response["data"]["user"]["account"]
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert len(actual["data"]) == 8
-    actual["data"][5].pop('timestamp')
-    assert actual["data"][5] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert len(actual["data"]) == 5
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    assert len(actual["data"]) == 3
+    actual["data"][0].pop('timestamp')
+    actual["data"][0].pop('account')
+    assert actual["data"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
-    actual["data"][6].pop('timestamp')
-    actual["data"][7].pop('timestamp')
-    assert actual["data"][6] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com',
+    actual["data"][1].pop('timestamp')
+    actual["data"][1].pop('account')
+    actual["data"][2].pop('timestamp')
+    actual["data"][2].pop('account')
+    assert actual["data"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][7] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=3",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10415,7 +10439,7 @@ def test_get_end_user_metrics():
     assert actual["error_code"] == 0
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3&page_size=1",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=3&page_size=1",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
