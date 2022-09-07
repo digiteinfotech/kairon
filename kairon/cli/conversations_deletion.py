@@ -30,8 +30,8 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
     data_parser.add_argument('month',
-                             type=int,
-                             default=3,
+                             type=str,
+                             default="1",
                              help="month upto which history to be deleted", action='store')
     data_parser.add_argument('sender_id',
                              type=str,

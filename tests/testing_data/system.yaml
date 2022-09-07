@@ -9,6 +9,7 @@ app:
 user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
+  validate_trusted_device: ${VALIDATE_TRUSTED_DEVICE:false}
 
 storage:
   assets:
@@ -124,6 +125,13 @@ multilingual:
     token_uri: ${SERVICE_ACCOUNT_TOKEN_URL:"https://oauth2.googleapis.com/token"}
     auth_provider_x509_cert_url: ${SERVICE_ACCOUNT_AUTH_PROVIDER_CERT_URL:"https://www.googleapis.com/oauth2/v1/certs"}
     client_x509_cert_url: ${SERVICE_ACCOUNT_CLIENT_CERT_URL}
+
+tracker:
+  type: ${TRACKER_TYPE:"static"}
+  url: ${TRACKER_URL:"mongodb://localhost:27017/rasa"}
+  collection: ${TRACKER_COLLECTION:"conversations"}
+  authentication:
+    token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
 
 plugins:
   location:

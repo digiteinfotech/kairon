@@ -13,9 +13,13 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from kairon.api.models import TokenData
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.constants import PluginTypes
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.end_user_metrics.constants import MetricTypes
+from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.models import User
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility
 from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
@@ -179,7 +183,7 @@ class Authentication:
 
     @staticmethod
     async def authenticate_and_get_collection(request: Request, token: str = Depends(DataUtility.oauth2_scheme_non_strict)):
-        token_configured = Utility.environment['authentication']['token']
+        token_configured = Utility.environment['tracker']['authentication']['token']
         if token_configured != token:
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
@@ -305,3 +309,21 @@ class Authentication:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Access to bot is denied',
             )
+
+    @staticmethod
+    async def validate_trusted_device_and_log(
+            user: Text, fingerprint: Text, ip: Text, add_trusted_device: bool = False,
+            remove_trusted_device: bool = False
+    ):
+        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
+        geo_location = geo_location or {}
+        EndUserMetricsProcessor.add_log(MetricTypes.user_login.value, user, bot=None, **geo_location)
+        if add_trusted_device:
+            AccountProcessor.add_trusted_device(user, fingerprint)
+        elif remove_trusted_device:
+            AccountProcessor.remove_trusted_device(user, fingerprint)
+        else:
+            if Utility.environment['user']['validate_trusted_device']:
+                trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
+                if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
+                    await Utility.format_and_send_mail(mail_type='untrusted_login', email=user, first_name=user, **geo_location)

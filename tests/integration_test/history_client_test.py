@@ -987,7 +987,7 @@ def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
-                  match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com', 'month': 1, 'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
+                  match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com', 'month': "1", 'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
                   status=200)
 
     response = client.delete(

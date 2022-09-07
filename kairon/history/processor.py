@@ -92,6 +92,7 @@ class HistoryProcessor:
                         result["intent"] = parse_data["intent"]["name"]
                         result["confidence"] = parse_data["intent"]["confidence"]
                     elif event["event"] == "bot":
+                        result['data'] = event['data']
                         if bot_action:
                             result["action"] = bot_action
 
@@ -981,11 +982,13 @@ class HistoryProcessor:
                          {"$add": [{"$indexOfArray": ["$all_events", "$events"]}, 1]}, 100]}]}}},
                          {"$addFields": {"t_stamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}},
                          {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": "$action_bot_array.name"
-                          , "timestamp": "$t_stamp", "bot_response": "$action_bot_array.text", "sort": {
-                             "$cond": {"if": sort_by_date, "then": "$t_stamp", "else": "_id"}}}},
+                          , "timestamp": "$t_stamp", "bot_response_text": "$action_bot_array.text",
+                                       "bot_response_data": "$action_bot_array.data",
+                                       "sort": {"$cond": {"if": sort_by_date, "then": "$t_stamp", "else": "_id"}}}},
                          {"$sort": {"sort": -1}},
                          {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": 1,
-                                       "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}}, "bot_response": 1}}
+                                       "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
+                                       "bot_response_text": 1, "bot_response_data": 1}}
                          ], allowDiskUse=True))
             except Exception as e:
                 logger.error(e)

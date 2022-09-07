@@ -17,6 +17,8 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator, bind_display_str=False)
                 body = {"data": stringbuilder}
                 return body
+            if message_type == ELEMENT_TYPE.VIDEO.value:
+                return super().message_extractor(json_message, message_type)
         except Exception as ex:
             raise Exception(f" Error in WhatsappResponseConverter::message_extractor {str(ex)}")
 
@@ -36,5 +38,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 return super().image_transformer(message)
             elif self.message_type == ELEMENT_TYPE.LINK.value:
                 return self.link_transformer(message)
+            elif self.message_type == ELEMENT_TYPE.VIDEO.value:
+                return super().video_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::messageConverter {str(ex)}")

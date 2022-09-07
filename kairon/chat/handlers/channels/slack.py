@@ -410,18 +410,38 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             )
             return False
 
-    async def get(self):
+    def install_slack_to_workspace(self, bot: Text, token: Text, code: Text):
+        user = super().authenticate_channel(token, bot, self.request)
+        slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__is_primary=True)
+        client_id = slack_config['config']['client_id']
+        client_secret = slack_config['config']['client_secret']
+        response = WebClient().oauth_v2_access(
+            client_id=client_id, client_secret=client_secret, code=code
+        )
+        if slack_config.get('_id'):
+            del slack_config['_id']
+        slack_config['config']['bot_user_oAuth_token'] = response.data['access_token']
+        slack_config['config']['is_primary'] = False
+        slack_config['config']['team'] = response.data['team']
+        slack_config['connector_type'] = "slack"
+        ChatDataProcessor.save_channel_config(slack_config, bot, user.get_user())
+        self.redirect(f"https://app.slack.com/client/{response.data['team']['id']}")
+
+    async def get(self, bot: Text = None, token: Text = None):
+        code = self.get_argument('code', None)
+        if not Utility.check_empty_string(bot) and not Utility.check_empty_string(token) and not Utility.check_empty_string(code):
+            self.install_slack_to_workspace(bot, token, code)
+            return
         self.set_status(HTTPStatus.OK)
         self.write(json.dumps({"status": "ok"}))
 
     async def post(self, bot: Text, token: Text):
-        super().authenticate_channel(token, bot, self.request)
+        user = super().authenticate_channel(token, bot, self.request)
         content_type = self.request.headers.get("content-type")
         conversation_granularity = "sender"
-        slack_config = ChatDataProcessor.get_channel_config("slack", bot=bot, mask_characters=False)
-        slack_token = slack_config['config']['bot_user_oAuth_token']
-        slack_signing_secret = slack_config['config']['slack_signing_secret']
-        slack_channel = slack_config['config'].get('slack_channel')
+        primary_slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__is_primary=True)
+        slack_signing_secret = primary_slack_config['config']['slack_signing_secret']
+        slack_channel = primary_slack_config['config'].get('slack_channel')
         self.set_status(HTTPStatus.OK)
         if 'x-slack-retry-num' in self.request.headers:
             return
@@ -439,7 +459,8 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             event = output.get("event", {})
             user_message = event.get("text", "")
             sender_id = event.get("user", "")
-            metadata = self.get_metadata(self.request)
+            metadata = self.get_metadata(self.request) or {}
+            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
             channel_id = metadata.get("out_channel")
             thread_id = metadata.get("thread_id")
             conversation_id = self._get_conversation_id(
@@ -465,6 +486,9 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                 )
                 self.write("channel not supported.")
                 return
+
+            slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__team__id=output.get('team_id'))
+            slack_token = slack_config['config']['bot_user_oAuth_token']
             await self.process_message(
                 self.request,
                 bot,
@@ -489,6 +513,9 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                     conversation_id = self._get_conversation_id(
                         conversation_granularity, sender_id, channel_id, thread_id
                     )
+
+                    slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__team__id=output.get('team_id'))
+                    slack_token = slack_config['config']['bot_user_oAuth_token']
                     await self.process_message(
                         self.request, bot, text, conversation_id, metadata, slack_token=slack_token
                     )

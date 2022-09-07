@@ -416,7 +416,7 @@ async def delete_bot_conversations_history(
 
 @router.get("/delete/logs", response_model=Response)
 async def get_delete_history_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Get history deletion event logs.
     """

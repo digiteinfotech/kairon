@@ -157,12 +157,13 @@ def start_training(bot: str, user: str, token: str = None):
         if apm_client:
             elasticapm.instrument()
             apm_client.begin_transaction(transaction_type="script")
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
         model_file = train_model_for_bot(bot)
         training_status = EVENT_STATUS.DONE.value
         agent_url = Utility.environment['model']['agent'].get('url')
         if agent_url:
             if token:
-                Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/model/reload"), token, user)
+                Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
     except Exception as e:
         logging.exception(e)
         training_status = EVENT_STATUS.FAIL.value

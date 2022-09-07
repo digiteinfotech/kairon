@@ -21,7 +21,7 @@ class DeleteHistoryEvent(EventsBase):
         """
         self.bot = bot
         self.user = user
-        self.month = kwargs.get('month', 1)
+        self.month = int(kwargs.get('month', 1))
         self.sender_id = kwargs.get('sender_id')
 
     def validate(self):
@@ -37,7 +37,7 @@ class DeleteHistoryEvent(EventsBase):
         Send event to event server.
         """
         try:
-            payload = {'bot': self.bot, 'user': self.user, 'month': self.month, 'sender_id': self.sender_id}
+            payload = {'bot': self.bot, 'user': self.user, 'month': str(self.month), 'sender_id': self.sender_id}
             HistoryDeletionLogProcessor.add_log(
                 self.bot, self.user, self.month, status=EVENT_STATUS.ENQUEUED.value, sender_id=self.sender_id
             )

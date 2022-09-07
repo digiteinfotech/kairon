@@ -1,5 +1,7 @@
+import json
 import re
 from datetime import datetime
+from .base_data import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TRAINING_DATA_SOURCE_TYPE
 from mongoengine import (
     Document,
@@ -25,7 +27,7 @@ from rasa.shared.core.slots import (
     BooleanSlot, AnySlot,
 )
 from validators import url, ValidationFailure
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
@@ -184,8 +186,9 @@ class RegexFeatures(Document):
                 raise AppException("invalid regular expression " + self.pattern)
 
 
+@auditlogger.log
 @push_notification.apply
-class Intents(Document):
+class Intents(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -224,8 +227,9 @@ class Entities(Document):
             raise ValidationError("Entity Name cannot be empty or blank spaces")
 
 
+@auditlogger.log
 @push_notification.apply
-class Forms(Document):
+class Forms(Auditlog):
     name = StringField(required=True)
     ignored_intents = ListField(StringField(), default=None)
     required_slots = ListField(StringField(), required=True)
@@ -247,8 +251,9 @@ class Forms(Document):
             self.required_slots[i] = self.required_slots[i].lower()
 
 
+@auditlogger.log
 @push_notification.apply
-class SlotMapping(Document):
+class SlotMapping(Auditlog):
     slot = StringField(required=True)
     mapping = ListField(required=True)
     bot = StringField(required=True)
@@ -296,8 +301,9 @@ class SlotMapping(Document):
             raise ValidationError(e)
 
 
+@auditlogger.log
 @push_notification.apply
-class Utterances(Document):
+class Utterances(Auditlog):
     name = StringField(required=True)
     form_attached = StringField(default=None)
     bot = StringField(required=True)
@@ -351,8 +357,9 @@ class ResponseCustom(EmbeddedDocument):
             raise ValidationError("Utterance must be dict type and must not be empty")
 
 
+@auditlogger.log
 @push_notification.apply
-class Responses(Document):
+class Responses(Auditlog):
     name = StringField(required=True)
     text = EmbeddedDocumentField(ResponseText)
     custom = EmbeddedDocumentField(ResponseCustom)
@@ -388,8 +395,9 @@ class SessionConfigs(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
 
+@auditlogger.log
 @push_notification.apply
-class Slots(Document):
+class Slots(Auditlog):
     name = StringField(required=True)
     type = StringField(
         required=True,
@@ -472,8 +480,9 @@ class StoryEvents(EmbeddedDocument):
                and self.entities == other.entities
 
 
+@auditlogger.log
 @push_notification.apply
-class Stories(Document):
+class Stories(Auditlog):
     block_name = StringField(required=True)
     start_checkpoints = ListField(StringField(), required=True)
     end_checkpoints = ListField(StringField())
@@ -501,8 +510,9 @@ class Stories(Document):
             event.clean()
 
 
+@auditlogger.log
 @push_notification.apply
-class Rules(Document):
+class Rules(Auditlog):
     block_name = StringField(required=True)
     condition_events_indices = ListField(IntField(), default=[])
     start_checkpoints = ListField(StringField(), required=True)
@@ -529,8 +539,9 @@ class Rules(Document):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
+@auditlogger.log
 @push_notification.apply
-class Configs(Document):
+class Configs(Auditlog):
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)
     policies = ListField(DictField(), required=True)
@@ -567,8 +578,9 @@ class EndPointBot(EmbeddedDocument):
             raise AppException("Invalid Bot server url")
 
 
+@auditlogger.log
 @push_notification.apply
-class Endpoints(Document):
+class Endpoints(Auditlog):
     bot_endpoint = EmbeddedDocumentField(EndPointBot)
     action_endpoint = EmbeddedDocumentField(EndPointAction)
     history_endpoint = EmbeddedDocumentField(EndPointHistory)
@@ -634,8 +646,9 @@ class TrainingDataGenerator(Document):
     exception = StringField(default=None)
 
 
+@auditlogger.log
 @push_notification.apply
-class BotSettings(Document):
+class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
     bot = StringField(required=True)
@@ -644,8 +657,9 @@ class BotSettings(Document):
     status = BooleanField(default=True)
 
 
+@auditlogger.log
 @push_notification.apply
-class ChatClientConfig(Document):
+class ChatClientConfig(Auditlog):
     config = DictField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -660,8 +674,9 @@ class ChatClientConfig(Document):
                     raise ValidationError("One of the domain is invalid")
 
 
+@auditlogger.log
 @push_notification.apply
-class ConversationsHistoryDeleteLogs(Document):
+class ConversationsHistoryDeleteLogs(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     sender_id = StringField(default=None)
@@ -672,8 +687,9 @@ class ConversationsHistoryDeleteLogs(Document):
     exception = StringField(default=None)
 
 
+@auditlogger.log
 @push_notification.apply
-class BotAssets(Document):
+class BotAssets(Auditlog):
     asset_type = StringField(required=True)
     path = StringField(required=True)
     url = StringField(required=True)
@@ -697,4 +713,27 @@ class KeyVault(Document):
 
 
 from mongoengine import signals
+
 signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+
+
+@auditlogger.log
+@push_notification.apply
+class EventConfig(Auditlog):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow())
+    ws_url = StringField(required=True)
+    headers = StringField()
+    method = StringField(choices=["POST", "GET", "PATCH"])
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.ws_url):
+            raise ValidationError("Event url can not be empty")
+
+    @classmethod
+    def pre_save_post_validation(self, sender, document, **kwargs):
+        document.headers = Utility.encrypt_message(json.dumps(document.headers))
+
+
+signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)

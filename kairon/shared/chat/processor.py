@@ -20,27 +20,44 @@ class ChatDataProcessor:
         :param user: user id
         :return: None
         """
+        primary_slack_config_changed = False
         try:
-            channel = Channels.objects(bot=bot, connector_type=configuration['connector_type']).get()
+            filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
+            channel = Channels.objects(**filter_args).get()
             channel.config = configuration['config']
+            primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get('is_primary') else False
         except DoesNotExist:
             channel = Channels(**configuration)
-            channel.bot = bot
+        channel.bot = bot
         channel.user = user
         channel.timestamp = datetime.utcnow()
         channel.save()
+        if primary_slack_config_changed:
+            ChatDataProcessor.delete_channel_config(bot, connector_type="slack", config__is_primary=False)
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
 
     @staticmethod
-    def delete_channel_config(connector_type: Text, bot: Text):
+    def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
+        filter_args = {"bot": bot, "connector_type": configuration['connector_type']}
+        if configuration['connector_type'] == 'slack':
+            auth_token = configuration['config'].get('bot_user_oAuth_token')
+            if Utility.check_empty_string(auth_token):
+                raise AppException("Missing 'bot_user_oAuth_token' in config")
+            if not configuration['config'].get('team'):
+                configuration['config']['team'] = Utility.get_slack_team_info(auth_token)
+            filter_args["config__team__id"] = configuration['config']['team']['id']
+        return filter_args
+
+    @staticmethod
+    def delete_channel_config(bot: Text, **kwargs):
         """
         Delete a particular channel configuration for bot
-        :param connector_type: channel name
         :param bot: bot id
         :return: None
         """
-        Utility.hard_delete_document([Channels], bot=bot, connector_type=connector_type)
+        kwargs.update({"bot": bot})
+        Utility.hard_delete_document([Channels], **kwargs)
 
     @staticmethod
     def list_channel_config(bot: Text, mask_characters: bool = True):
@@ -50,8 +67,9 @@ class ChatDataProcessor:
         :param mask_characters: whether to mask the security keys default is True
         :return: List
         """
-        for channel in Channels.objects(bot=bot).exclude("user", "timestamp", "id"):
+        for channel in Channels.objects(bot=bot).exclude("user", "timestamp"):
             data = channel.to_mongo().to_dict()
+            data['_id'] = data['_id'].__str__()
             data.pop("timestamp")
             channel_params = Utility.system_metadata['channels'][data['connector_type']]
             for require_field in channel_params['required_fields']:
@@ -61,7 +79,7 @@ class ChatDataProcessor:
             yield data
 
     @staticmethod
-    def get_channel_config(connector_type: Text, bot: Text, mask_characters=True):
+    def get_channel_config(connector_type: Text, bot: Text, mask_characters=True, **kwargs):
         """
         fetch particular channel config for bot
         :param connector_type: channel name
@@ -69,7 +87,8 @@ class ChatDataProcessor:
         :param mask_characters: whether to mask the security keys default is True
         :return: Dict
         """
-        config = Channels.objects(bot=bot, connector_type=connector_type).exclude("user").get().to_mongo().to_dict()
+        kwargs.update({"bot": bot, "connector_type": connector_type})
+        config = Channels.objects(**kwargs).exclude("user").get().to_mongo().to_dict()
         logger.debug(config)
         config.pop("timestamp")
         channel_params = Utility.system_metadata['channels'][config['connector_type']]

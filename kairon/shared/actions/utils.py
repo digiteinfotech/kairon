@@ -374,9 +374,9 @@ class ActionUtility:
         for event in msgtrail:
             msg = ""
             if list(event.keys())[0] == 'bot':
-                msg = bot_msg_template.replace('BOT_MESSAGE', event['bot'])
+                msg = bot_msg_template.replace('BOT_MESSAGE', event.get('bot', ""))
             elif list(event.keys())[0] == 'user':
-                msg = user_msg_template.replace('USER_MESSAGE', event['user'])
+                msg = user_msg_template.replace('USER_MESSAGE', event.get('user', ""))
             html_output = f"{html_output}{msg}"
         conversation_mail_template = conversation_mail_template.replace('SUBJECT', subject)
         if not ActionUtility.is_empty(user_email):

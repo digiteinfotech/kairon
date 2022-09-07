@@ -137,7 +137,7 @@ class WhatsappBot(OutputChannel):
         message = json_message.get("data")
         messagetype = json_message.get("type")
         if messagetype is not None and messagetype in type_list:
-            messaging_type = "text" if json_message["type"] == ELEMENT_TYPE.LINK.value else json_message["type"]
+            messaging_type = "text" if json_message["type"] in ["link", "video"] else json_message["type"]
             from kairon.chat.converters.channels.response_factory import ConverterFactory
             converter_instance = ConverterFactory.getConcreteInstance(messagetype, CHANNEL_TYPES.WHATSAPP.value)
             response = await converter_instance.messageConverter(message)
@@ -166,7 +166,7 @@ class WhatsappHandler(MessengerHandler):
             return
 
     async def post(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
+        user = super().authenticate_channel(token, bot, self.request)
         messenger_conf = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
 
         app_secret = messenger_conf["config"]["app_secret"]
@@ -180,7 +180,8 @@ class WhatsappHandler(MessengerHandler):
 
         messenger = Whatsapp(access_token)
 
-        metadata = self.get_metadata(self.request)
+        metadata = self.get_metadata(self.request) or {}
+        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
         await messenger.handle(json_decode(self.request.body), metadata, bot)
         self.write("success")
         return

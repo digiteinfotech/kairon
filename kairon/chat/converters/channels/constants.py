@@ -10,3 +10,4 @@ class CHANNEL_TYPES(str, Enum):
 class ELEMENT_TYPE(str, Enum):
     LINK = "link"
     IMAGE = "image"
+    VIDEO = "video"

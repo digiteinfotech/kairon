@@ -3,6 +3,7 @@ from typing import Text
 
 from loguru import logger
 from pymongo.errors import ServerSelectionTimeoutError
+from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
@@ -17,9 +18,11 @@ from ..shared.live_agent.processor import LiveAgentsProcessor
 class ChatUtils:
 
     @staticmethod
-    async def chat(data: Text, bot: Text, user: Text):
+    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
         model = AgentProcessor.get_agent(bot)
-        chat_response = await model.handle_text(data, sender_id=user)
+        msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
+                                                          "account": account})
+        chat_response = await model.handle_message(msg)
         ChatUtils.__attach_agent_handoff_metadata(bot, user, chat_response, model.tracker_store)
         return chat_response
 
@@ -50,7 +53,7 @@ class ChatUtils:
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
                 EndUserMetricsProcessor.add_log(
-                    MetricTypes.agent_handoff.value, bot, sender_id,
+                    MetricTypes.agent_handoff.value, sender_id, bot,
                     agent_type=metadata.get("type"), bot_predictions=bot_predictions, exception=exception
                 )
 
@@ -95,7 +98,8 @@ class ChatUtils:
                     {"$match": {"sender_id": sender_id}},
                     {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                     {"$match": {"events.event": {"$in": ["session_started", "user", "bot"]}}},
-                    {"$project": {"sender_id": 1, "events.event": 1, "events.timestamp": 1, "events.text": 1}},
+                    {"$project": {"sender_id": 1, "events.event": 1, "events.timestamp": 1, "events.text": 1,
+                                  "events.data": 1}},
                     {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
                                 "all_events": {"$push": "$events"}}},
                     {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},

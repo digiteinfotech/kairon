@@ -416,7 +416,7 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
-        assert body['month'] == 10
+        assert body['month'] == str(10)
         assert body['sender_id'] == 'udit.pandey@digite.com'
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -528,8 +528,8 @@ class TestEventDefinitions:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'source_bot': pytest.multilingual_bot, 'user': user, 'dest_lang':  d_lang,
-                               'translate_responses': False, 'translate_actions': True})]
+                              {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang':  d_lang,
+                               'translate_responses': '', 'translate_actions': '--translate-actions'})]
                       )
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False, translate_actions=True).enqueue()
 

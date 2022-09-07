@@ -79,6 +79,8 @@ class MultilingualTranslator:
             for i, example in enumerate(training_data.training_examples):
 
                 example.data['text'] = str(examples_translations[i])
+                if example.data.get('entities'):
+                    del example.data['entities']
         else:
             logger.info("Training examples empty.")
 

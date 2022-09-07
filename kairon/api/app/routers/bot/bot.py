@@ -21,7 +21,7 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest
+    TextDataLowerCase, SlotMappingRequest, EventConfig
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
@@ -443,7 +443,6 @@ async def augment_chat(
 
 @router.post("/train", response_model=Response)
 async def train(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -451,13 +450,12 @@ async def train(
     """
     event = ModelTrainingEvent(current_user.get_bot(), current_user.get_user())
     event.validate()
-    background_tasks.add_task(event.enqueue)
+    event.enqueue()
     return {"message": "Model training started."}
 
 
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
-        background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
@@ -1379,14 +1377,14 @@ async def get_channel_endpoint(
     return Response(data=ChatDataProcessor.get_channel_endpoint(name, current_user.get_bot()))
 
 
-@router.delete("/channels/{name}", response_model=Response)
+@router.delete("/channels/{channel_id}", response_model=Response)
 async def delete_channel_config(
-        name: str = Path(default=None, description="channel name", example="slack"),
+        channel_id: str = Path(default=None, description="channel id", example="698705012345"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
     Deletes the channel config.
     """
-    ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
+    ChatDataProcessor.delete_channel_config(current_user.get_bot(), id=channel_id)
     return Response(message='Channel deleted')
 
 
@@ -1431,32 +1429,24 @@ async def list_bot_assets(
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
 
 
-@router.get("/metrics/user/logs", response_model=Response)
-async def end_user_metrics(
-        start_idx: int = 0, page_size: int = 10,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
-):
-    """
-    List end user logs.
-    """
-    return Response(
-        data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
-    )
+@router.post("/audit/event/config", response_model=Response)
+async def set_auditlog_config(request_data: EventConfig, current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.dict())
+    return {"message": "Event config saved"}
 
 
-@router.post("/metrics/user/logs/{log_type}", response_model=Response)
-async def add_metrics(
-        request_data: DictData,
-        log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Stores End User Metrics
-    """
-    data = request_data.dict()["data"]
-    EndUserMetricsProcessor.add_log(
-        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
-    )
-    return Response(
-        message='Metrics added'
-    )
+@router.get("/audit/event/config", response_model=Response)
+async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
+    return Response(data=data)
+
+
+@router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
+async def get_auditlog_for_bot(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+                               from_date: str = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
+                               to_date: str = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+                               ):
+    data = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date)
+    return Response(data=data)

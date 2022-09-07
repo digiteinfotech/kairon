@@ -39,14 +39,14 @@ class ModelProcessor:
                 Q(status__ne=EVENT_STATUS.DONE.value) &
                 Q(status__ne=EVENT_STATUS.FAIL.value)).get()
             doc.status = status
-            doc.end_timestamp = datetime.utcnow()
         except DoesNotExist:
             doc = ModelTraining()
             doc.model_config = MongoProcessor().load_config(bot)
             doc.status = status
             doc.start_timestamp = datetime.utcnow()
-            if status in [EVENT_STATUS.FAIL, EVENT_STATUS.DONE]:
-                doc.end_timestamp = datetime.utcnow()
+
+        if status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.DONE.value]:
+            doc.end_timestamp = datetime.utcnow()
 
         doc.bot = bot
         doc.user = user

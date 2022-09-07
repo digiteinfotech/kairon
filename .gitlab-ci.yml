@@ -10,7 +10,7 @@ before_script:
 
 test:
   tags:
-    - kairon
+    - kairon-test
   stage: test
   script:
     - python3.8 -V
@@ -31,7 +31,7 @@ test:
 
 build-dev:
   tags:
-    - kairon
+    - kairon-build-dev
   only:
     - master
   stage: build-dev
@@ -47,10 +47,13 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_chat -t kairon-chat-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual-dev:latest .
 
 build-release:
   tags:
-    - kairon
+    - kairon-build-release
   only:
     - release
   stage: build-release
@@ -66,3 +69,6 @@ build-release:
     -  docker build -f ./docker/Dockerfile_chat -t kairon-chat:latest .
     -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history:latest .
+    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server:latest .
+    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker:latest .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:latest .

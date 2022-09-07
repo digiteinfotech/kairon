@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from typing import List
 from starlette.datastructures import Headers, URL
@@ -34,6 +34,7 @@ from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, Act
     SetSlotsUsingActionResponse
 from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
@@ -56,7 +57,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
-from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, DATE_FORMAT_1
 from kairon.shared.models import StoryEventType, HttpContentType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
@@ -1598,7 +1599,7 @@ class TestMongoProcessor:
         bot = "tests"
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/{bot}/model/reload",
+            f"http://localhost/api/bot/{bot}/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
@@ -1611,7 +1612,7 @@ class TestMongoProcessor:
         monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
         responses.add(
             responses.GET,
-            f"http://localhost/api/bot/tests/model/reload",
+            f"http://localhost/api/bot/tests/reload",
             json='{"message": "Reloading Model!"}',
             status=200
         )
@@ -3790,6 +3791,9 @@ class TestMongoProcessor:
         actual_config = processor.get_chat_client_config('test_bot')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
+        assert actual_config.config['host']
+        del actual_config.config['host']
+        del expected_config['host']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
@@ -4357,6 +4361,25 @@ class TestMongoProcessor:
         story_dict = {'name': "activate form", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Empty name is allowed only for active_loop"):
             processor.add_complex_story(story_dict, bot, user)
+
+    def test_create_two_stage_fallback_rule(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "nlu_fallback", "type": "INTENT"},
+            {"name": KAIRON_TWO_STAGE_FALLBACK, "type": "TWO_STAGE_FALLBACK_ACTION"}
+        ]
+        story_dict = {'name': "activate two stage fallback", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        rule = Rules.objects(block_name="activate two stage fallback", bot=bot,
+                             events__name=KAIRON_TWO_STAGE_FALLBACK, status=True).get()
+        assert rule.to_mongo().to_dict()['events'] == [{'name': '...', 'type': 'action'},
+                                                       {'name': 'nlu_fallback', 'type': 'user'},
+                                                       {'name': KAIRON_TWO_STAGE_FALLBACK, 'type': 'action'}]
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "activate two stage fallback"]
+        assert story_with_form[0]['steps'] == steps
 
     def test_create_form_activation_and_deactivation_rule(self):
         processor = MongoProcessor()
@@ -8695,3 +8718,78 @@ class TestModelProcessor:
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
+
+    def test_save_auditlog_event_config_without_eventurl(self):
+        bot = "tests"
+        user = "testuser"
+        data = {}
+        with pytest.raises(ValidationError, match='Event url can not be empty'):
+            MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+
+    def test_save_auditlog_event_config_without_headers(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url"}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert headers == {}
+
+    def test_save_auditlog_event_config(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url",
+                "headers": {'Autharization': '123456789'},
+                "method": "GET"}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert len(headers.keys()) == 1
+        assert result.get("method") == "GET"
+
+
+    def test_auditlog_for_chat_client_config(self):
+        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', entity='ChatClientConfig'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data[0] is not None
+        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].entity == "ChatClientConfig"
+
+    def test_auditlog_for_intent(self):
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', entity='Intents'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data is not None
+        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].entity == "Intents"
+
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', entity='Intents'))
+        #No hard delete supported for intents
+        assert len(auditlog_data) == 0
+
+    def test_get_auditlog_for_invalid_bot(self):
+        bot = "invalid"
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        assert auditlog_data == []
+
+    def test_get_auditlog_for_bot_top_n_default(self):
+        bot = "test"
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        assert len(auditlog_data) > 90
+
+    def test_get_auditlog_for_bot_date_range(self):
+        bot = "test"
+        from_date = datetime.utcnow().date() - timedelta(days=1)
+        to_date = datetime.utcnow().date()
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1))
+        assert len(auditlog_data) > 90
+
+    def test_get_auditlog_for_bot_top_50(self):
+        bot = "test"
+        from_date = datetime.utcnow().date() - timedelta(days=1)
+        to_date = datetime.utcnow().date()
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), top_n=50)
+        assert len(auditlog_data) == 50

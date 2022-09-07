@@ -44,9 +44,11 @@ class MultilingualEvent(EventsBase):
         """
         Send event to event server.
         """
+        translate_responses = '--translate-responses' if self.translate_responses is True else ''
+        translate_actions = '--translate-actions' if self.translate_actions is True else ''
         payload = {
-            'source_bot': self.bot, 'user': self.user, "dest_lang": self.dest_lang,
-            "translate_responses": self.translate_responses, "translate_actions": self.translate_actions
+            'bot': self.bot, 'user': self.user, "dest_lang": self.dest_lang,
+            "translate_responses": translate_responses, "translate_actions": translate_actions
         }
         MultilingualLogProcessor.add_log(
             source_bot=self.bot, user=self.user, d_lang=self.dest_lang, translate_responses=self.translate_responses,

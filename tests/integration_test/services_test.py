@@ -17,6 +17,7 @@ from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
+from slack.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -28,7 +29,7 @@ from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, TRAINING_DATA_SOURCE_TYPE
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, TRAINING_DATA_SOURCE_TYPE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -169,6 +170,7 @@ def test_recaptcha_verified_request(monkeypatch):
                 "confirm_password": "Welcome@1",
                 "account": "integration1234567",
                 "bot": "integration",
+                "add_trusted_device": True
             },
         )
         actual = response.json()
@@ -1657,9 +1659,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -1704,9 +1706,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5223,9 +5225,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5268,9 +5270,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -6003,6 +6005,21 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == 'Access denied for this endpoint'
+
+
+def test_get_metering():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/test_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/prod_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': [], 'error_code': 0}
 
 
 def test_add_story_with_no_type():
@@ -8883,7 +8900,10 @@ def test_add_channel_config_error():
     data = {"connector_type": "custom",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
         json=data,
@@ -8893,7 +8913,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'connector_type'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
+        {'loc': ['body', '__root__'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
 
     data = {"connector_type": "slack",
             "config": {
@@ -8908,7 +8928,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
@@ -8923,8 +8943,25 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
+
+    data = {"connector_type": "slack",
+            "config": {
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878", "is_primary": False
+            }}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
 
 
 def test_add_channel_config(monkeypatch):
@@ -8932,12 +8969,34 @@ def test_add_channel_config(monkeypatch):
     data = {"connector_type": "slack",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
-    response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
+    with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        mock_slack_resp.return_value = SlackResponse(
+            client=None,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLX",
+                    "name": "helicopter",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        response = client.post(
+            f"/api/bot/{pytest.bot}/channels",
+            json=data,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -8967,11 +9026,12 @@ def test_get_channels_config():
     assert actual["error_code"] == 0
     assert actual["message"] is None
     assert len(actual['data']) == 1
+    pytest.slack_channel_id = actual['data'][0]['_id']
 
 
 def test_delete_channels_config():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/channels/slack",
+        f"/api/bot/{pytest.bot}/channels/{pytest.slack_channel_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9847,8 +9907,8 @@ def test_channels_params():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
-    assert ["bot_user_oAuth_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel"] == actual['data']['slack']['optional_fields']
+    assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
+    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
 
 
 def test_get_channel_endpoint_not_configured():
@@ -10243,7 +10303,7 @@ def test_get_live_agent_config_after_delete():
 
 def test_get_end_user_metrics_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10255,7 +10315,7 @@ def test_get_end_user_metrics_empty():
 def test_add_end_user_metrics():
     log_type = "user_metrics"
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10286,7 +10346,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     }
     responses.add("GET", url, json=expected)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
     )
@@ -10307,7 +10367,7 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
     url = f"https://ipinfo.io/{ip}?token={token}"
     responses.add("GET", url, status=500)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10318,14 +10378,14 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
+    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, user_id="test_user").save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10334,20 +10394,20 @@ def test_get_end_user_metrics():
     print(actual["data"])
     assert len(actual["data"]) == 8
     actual["data"][5].pop('timestamp')
-    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert actual["data"][5] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
     actual["data"][6].pop('timestamp')
     actual["data"][7].pop('timestamp')
-    assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    assert actual["data"][6] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"][7] == {'log_type': 'user_metrics', 'user_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
+        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10355,7 +10415,7 @@ def test_get_end_user_metrics():
     assert actual["error_code"] == 0
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
+        f"/api/bot/{pytest.bot}/metric/user/logs?start_idx=3&page_size=1",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10524,8 +10584,8 @@ def test_multilingual_translate():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.json_params_matcher(
-                {'source_bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': False, 'translate_actions': False})],
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': "", 'translate_actions': ""})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -10615,8 +10675,8 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.json_params_matcher(
-                {'source_bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': True, 'translate_actions': True})],
+                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
     )
 
     response = client.post(
@@ -10771,6 +10831,52 @@ def test_data_generation_in_progress(monkeypatch):
     assert response["error_code"] == 422
     assert response['message'] == 'Event already in progress! Check logs.'
     assert not response["success"]
+
+
+def test_get_auditlog_for_user_1():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    actual = response.json()
+    assert actual["data"] is not None
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+    assert actual["data"][0]["entity"] == "Actions"
+    assert actual["data"][0]["user"] == email
+
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+
+
+def test_get_auditlog_for_user_2():
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login_2 = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login_2["data"]["token_type"] + " " + login_2["data"]["access_token"]}
+    )
+    actual = response.json()
+    audit_log_data = actual["data"]
+    assert audit_log_data is not None
+    actions = [d['action'] for d in audit_log_data]
+    from collections import Counter
+    counter = Counter(actions)
+    assert counter.get(AuditlogActions.SAVE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
+    assert audit_log_data[0]["entity"] == "Slots"
+    assert audit_log_data[0]["user"] == email
 
 
 def test_delete_account():

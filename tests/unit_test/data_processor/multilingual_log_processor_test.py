@@ -21,7 +21,7 @@ class TestMultilingualLogProcessor:
         user = 'test'
 
         MultilingualLogProcessor.add_log(source_bot=bot, user=user)
-        log = BotReplicationLogs.objects(source_bot=bot).get().to_mongo().to_dict()
+        log = BotReplicationLogs.objects(bot=bot).get().to_mongo().to_dict()
 
         assert not log.get('source_bot_name')
         assert not log.get('destination_bot')
@@ -43,7 +43,7 @@ class TestMultilingualLogProcessor:
 
         MultilingualLogProcessor.add_log(bot, user, exception='Translation failed', status='Failure',
                                          event_status=EVENT_STATUS.FAIL.value)
-        log = BotReplicationLogs.objects(source_bot=bot).get().to_mongo().to_dict()
+        log = BotReplicationLogs.objects(bot=bot).get().to_mongo().to_dict()
 
         assert not log.get('source_bot_name')
         assert not log.get('destination_bot')

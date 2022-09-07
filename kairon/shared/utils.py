@@ -49,7 +49,8 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy
 from .constants import EventClass
-from .data.constant import TOKEN_TYPE
+from .data.base_data import AuditLogData
+from .data.constant import TOKEN_TYPE, AuditlogActions
 from ..exceptions import AppException
 
 
@@ -401,6 +402,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
+
     @staticmethod
     def extract_db_config(uri: str):
         """
@@ -664,6 +666,13 @@ class Utility:
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
+        elif mail_type == 'untrusted_login':
+            geo_location = ""
+            body = Utility.email_conf['email']['templates']['untrusted_login']
+            for key, value in kwargs.items():
+                geo_location = f"{geo_location}<li>{key}: {value}</li>"
+            body = body.replace('GEO_LOCATION', geo_location)
+            subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -1244,6 +1253,18 @@ class Utility:
         io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
 
     @staticmethod
+    def get_slack_team_info(token: Text):
+        from slack import WebClient
+        from slack.errors import SlackApiError
+
+        try:
+            response = WebClient(token).team_info()
+            return {"id": response.data['team']['id'], "name": response.data['team']['name']}
+        except SlackApiError as e:
+            logger.exception(e)
+            raise AppException(e)
+
+    @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
         if channel in list(Utility.system_metadata['channels'].keys()):
             for required_field in Utility.system_metadata['channels'][channel]['required_fields']:
@@ -1346,7 +1367,9 @@ class Utility:
         try:
             logger.info(f"Event started: {http_url}")
             if request_method.lower() == 'get':
-                response = requests.get(http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout'))
+                response = requests.request(
+                    request_method.upper(), http_url, data=request_body, headers=headers, timeout=kwargs.get('timeout')
+                )
             elif request_method.lower() in ['post', 'put', 'delete']:
                 response = requests.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
@@ -1391,7 +1414,7 @@ class Utility:
         logger.debug(payload)
         resp = Utility.execute_http_request(
             "POST", urljoin(event_server_url, f'/api/events/execute/{event_class}'),
-            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True, timeout=3
+            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
         )
         if not resp['success']:
             raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
@@ -1494,3 +1517,37 @@ class Utility:
                 masked_value = '*' * str_len
 
         return masked_value
+
+    @staticmethod
+    def save_and_publish_auditlog(document, name, **kwargs):
+        try:
+            action = kwargs.get("action")
+            if not document.status:
+                action = AuditlogActions.SOFT_DELETE.value
+        except AttributeError:
+            action = kwargs.get("action")
+
+        audit_log = AuditLogData(bot=document.bot,
+                                 user=document.user,
+                                 action=action,
+                                 entity=name,
+                                 data=document.to_mongo().to_dict())
+        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        audit_log.save()
+
+    @staticmethod
+    def publish_auditlog(auditlog, event_url=None):
+        from .data.data_objects import EventConfig
+        from mongoengine.errors import DoesNotExist
+
+        try:
+            event_config = EventConfig.objects(bot=auditlog.bot).get()
+
+            headers = json.loads(Utility.decrypt_message(event_config.headers))
+            ws_url = event_config.ws_url
+            method = event_config.method
+            if ws_url is not None:
+                Utility.execute_http_request(request_method=method, http_url=ws_url,
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+        except (DoesNotExist, AppException):
+            return
