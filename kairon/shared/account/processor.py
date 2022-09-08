@@ -18,6 +18,8 @@ from kairon.shared.constants import UserActivityType
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -466,33 +468,46 @@ class AccountProcessor:
         )
 
     @staticmethod
-    def get_user(email: str):
+    def get_user(email: str, is_login_request: bool = False):
         """
         fetch user details
 
         :param email: user login id
+        :param is_login_request: logs invalid logins if true
         :return: user details
         """
         try:
             return User.objects(email__iexact=email, status=True).get().to_mongo().to_dict()
         except Exception as e:
             logging.error(e)
+            if is_login_request:
+                MeteringProcessor.add_log(metric_type=MetricType.invalid_login.value, **{"username": email})
             raise DoesNotExist("User does not exist!")
 
     @staticmethod
-    def get_user_details(email: str):
+    def get_user_details(email: str, is_login_request: bool = False):
         """
         fetches complete user details, checks for whether it is inactive
 
         :param email: login id
+        :param is_login_request: logs invalid logins if true
         :return: dict
         """
-        user = AccountProcessor.get_user(email)
-        AccountProcessor.check_email_confirmation(user["email"])
+        user = AccountProcessor.get_user(email, is_login_request)
+        AccountProcessor.check_email_confirmation(user, is_login_request)
+        kwargs = {"username": email}
         if not user["status"]:
+            if is_login_request:
+                kwargs.update({"error": "Inactive User please contact admin!"})
+                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                              account=user["account"], **kwargs)
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
+            if is_login_request:
+                kwargs.update({"error": "Inactive Account Please contact system admin!"})
+                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                              account=user["account"], **kwargs)
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
 
@@ -656,17 +671,25 @@ class AccountProcessor:
             raise AppException("Please verify your mail")
 
     @staticmethod
-    def check_email_confirmation(email: str):
+    def check_email_confirmation(user_info: dict, is_login_request: bool = False):
         """
         Checks if the account is verified through mail
 
-        :param email: email of the user
+        :param user_info: details of the user
+        :param is_login_request: login request
         :return: None
         """
         email_enabled = Utility.email_conf["email"]["enable"]
 
         if email_enabled:
-            AccountProcessor.is_user_confirmed(email)
+            try:
+                AccountProcessor.is_user_confirmed(user_info["email"])
+            except Exception as e:
+                if is_login_request:
+                    kwargs = {"username": user_info["email"], "error": "Please verify your mail"}
+                    MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                                  account=user_info["account"], **kwargs)
+                raise e
 
     @staticmethod
     async def send_reset_link(mail: str):
