@@ -57,7 +57,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
-from kairon.shared.constants import SLOT_SET_TYPE, DATE_FORMAT_1
+from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.models import StoryEventType, HttpContentType
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
@@ -8754,24 +8754,36 @@ class TestModelProcessor:
 
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert auditlog_data == []
 
     def test_get_auditlog_for_bot_top_n_default(self):
         bot = "test"
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot)
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_date_range(self):
         bot = "test"
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1))
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
         bot = "test"
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date.strftime(DATE_FORMAT_1), to_date=to_date.strftime(DATE_FORMAT_1), top_n=50)
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        assert len(auditlog_data) == 50
+
+    def test_get_auditlog_from_date_to_date_none(self):
+        bot = "test"
+        from_date = None
+        to_date = None
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) == 50

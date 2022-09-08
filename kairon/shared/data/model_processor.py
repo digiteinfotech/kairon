@@ -99,14 +99,16 @@ class ModelProcessor:
             return False
 
     @staticmethod
-    def get_training_history(bot: Text):
+    def get_training_history(bot: Text, start_idx: int = 0, page_size: int = 10):
         """
         fetches bot training history
 
         :param bot: bot id
+        :param start_idx: start index
+        :param page_size: page size
         :return: yield dict of training history
         """
-        for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp"):
+        for value in ModelTraining.objects(bot=bot).order_by("-start_timestamp").skip(start_idx).limit(page_size):
             item = value.to_mongo().to_dict()
             item.pop("bot")
             item["_id"] = item["_id"].__str__()

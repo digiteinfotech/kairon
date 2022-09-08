@@ -60,13 +60,15 @@ class HistoryDeletionLogProcessor:
         return start_time
 
     @staticmethod
-    def get_logs(bot: str):
+    def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):
         """
         Get all logs for history deletion event.
         @param bot: bot id.
+        @param start_idx: start index
+        @param page_size: page size
         @return: list of logs.
         """
-        for log in ConversationsHistoryDeleteLogs.objects(bot=bot).order_by("-start_timestamp"):
+        for log in ConversationsHistoryDeleteLogs.objects(bot=bot).order_by("-start_timestamp").skip(start_idx).limit(page_size):
             log = log.to_mongo().to_dict()
             log.pop('_id')
             yield log
