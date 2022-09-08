@@ -10,7 +10,6 @@ RUN amazon-linux-extras install python3.8
 RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
-RUN python -m pip install sentence-transformers
 RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install cython
@@ -19,8 +18,6 @@ RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install python-multipart
 RUN python -m pip install validators
 RUN python -m pip install secure
-RUN python -m spacy download en_core_web_md
-RUN python -m spacy link en_core_web_md en
 RUN python -m pip install password-strength
 RUN python -m pip install loguru
 RUN python -m pip install smart-config==0.1.3
@@ -28,29 +25,16 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi>=0.78.0
 RUN python -m pip install uvicorn>=0.18.2
-RUN python -m pip install gunicorn>=20.1.0
-RUN python -m pip install transformers==4.5.0
 RUN python -m pip install aiohttp==3.8.0
-RUN python -m pip install nlpaug
-RUN python -m pip install torch
-RUN python -m pip install nltk==3.6.6
-RUN python -m pip install pytest
 RUN python -m pip install fastapi_sso
 RUN python -m pip install json2html
-RUN python -m pip install blinker
-RUN python -m nltk.downloader wordnet
-RUN python -m nltk.downloader averaged_perceptron_tagger
-RUN python -m nltk.downloader omw-1.4
-RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install google-cloud-translate
-RUN python -m pip install dramatiq
-RUN python -m pip install dramatiq-mongodb
 
 RUN mkdir ssl
 RUN mkdir data_generator
