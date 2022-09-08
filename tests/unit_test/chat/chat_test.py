@@ -158,7 +158,11 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": False}}, "test", "test"
             )
 
-    def test_save_channel_config_slack_secondary_app(self):
+    def test_save_channel_config_slack_secondary_app(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
@@ -325,7 +329,11 @@ class TestChat:
         assert not str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
-    def test_delete_channel_config_slack_secondary(self):
+    def test_delete_channel_config_slack_secondary(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
