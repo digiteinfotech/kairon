@@ -10023,7 +10023,8 @@ def test_channels_params():
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
     assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
+    assert ["slack_channel", "team", "is_primary"] == actual['data']['slack']['optional_fields']
+    assert ["team", "is_primary"] == actual['data']['slack']['disabled_fields']
 
 
 def test_get_channel_endpoint_not_configured():

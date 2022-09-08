@@ -7,8 +7,11 @@ channels:
       - client_secret
     optional_fields:
       - slack_channel
-      - is_primary
       - team
+      - is_primary
+    disabled_fields:
+      - team
+      - is_primary
   telegram:
     required_fields:
       - access_token
