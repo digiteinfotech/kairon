@@ -34,13 +34,14 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     # Coveralls related steps
     - name: Coverage with coveralls
-      env:
-        COVERALLS_PARALLEL: true
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         python -m pip install coveralls
-        python -m pip install -U coverage
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/
+    - env:
+        COVERALLS_PARALLEL: true
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      name: Submit to coveralls.io
+      run: |
         coveralls --service=github
     - name: Coveralls Finished
       uses: coverallsapp/github-action@1.1.3
