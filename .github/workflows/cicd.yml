@@ -36,6 +36,7 @@ jobs:
     - name: Coverage with coveralls
       run: |
         python -m pip install coveralls
+        python -m pip install -U coverage
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
     - env:
         COVERALLS_PARALLEL: true
