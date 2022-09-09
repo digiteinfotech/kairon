@@ -10,7 +10,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  test:
     name: Python CI
     runs-on: ubuntu-latest
 
@@ -65,7 +65,7 @@ jobs:
       run: |
         aws s3 sync docs/_build/html s3://${{ secrets.S3_PATH }}
   finish:
-    needs: Python CI
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Coveralls Finished
