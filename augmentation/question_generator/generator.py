@@ -1,7 +1,6 @@
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
 
-
 class QuestionGenerator:
 
     """Class loads pipeline for generating questions from text"""
@@ -20,7 +19,7 @@ class QuestionGenerator:
         try:
             if len(text) < 50:
                 raise Exception("input too small")
-            generator_args = {'temperature': 1,'max_length': 100}
+            generator_args = {'temperature': 1, 'max_length': 100}
             text = "generate questions: " + text + " </s>"
             input_ids = QuestionGenerator.tokenizer.encode(text, return_tensors="pt")
             res = QuestionGenerator.model.generate(input_ids, **generator_args)
