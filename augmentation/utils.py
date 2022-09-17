@@ -61,26 +61,18 @@ class WebsiteParser:
             return all_links
 
     @staticmethod
-    def check_url_validity(initial_url, url):
+    def is_valid_url(initial_url, url):
         # check the validity of a link
-        count, status = 0, 0
         if url == '' or url[0] == '/':
             url = initial_url + url
         elif url[0] == '#':
             url = initial_url + '/' + url
         try:
-            page = requests.get(url)
-            if page.status_code == 200:
-                status = 1
+            if requests.get(url).status_code == 200:
+                return url, True
         except Exception as e:
             logging.info(str(e))
-            while count > 3:
-                count += 1
-                page = requests.get(url)
-                if page.status_code == 200:
-                    status = 1
-                    break
-        return {'status': status, 'url': url}
+        return url, False
 
     @staticmethod
     def get_qna_dict(qn_list, ans_list):
@@ -109,10 +101,9 @@ class WebsiteParser:
 
             links = WebsiteParser.get_all_links(initial_url, depth)
             for link in links:
-                data = WebsiteParser.check_url_validity(initial_url, link)
+                url, is_valid_url = WebsiteParser.is_valid_url(initial_url, link)
 
-                if data['status']:
-                    url = data['url']
+                if is_valid_url:
                     page = requests.get(url)
 
                     soup = BeautifulSoup(page.content, "html.parser")
