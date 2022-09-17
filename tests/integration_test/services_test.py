@@ -10789,8 +10789,10 @@ def test_data_generation_from_website(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'website_url': 'website.com', 'depth': 1})],
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 1
+            })],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
@@ -10866,8 +10868,10 @@ def test_data_generation_in_progress(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'website_url': 'website.com', 'depth': 0})],
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 0
+            })],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",

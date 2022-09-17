@@ -622,7 +622,7 @@ class TestEventDefinitions:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'website_url': website_url, 'depth': 0})]
+                              {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url, 'depth': 0})]
                       )
         DataGenerationEvent(bot, user, website_url=website_url).enqueue()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
