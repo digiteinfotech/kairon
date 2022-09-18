@@ -1,8 +1,9 @@
+from augmentation.story_generator.base import TrainingDataGeneratorBase
 from augmentation.utils import WebsiteParser
 from keybert import KeyBERT
 
 
-class WebsiteTrainingDataGenerator:
+class WebsiteTrainingDataGenerator(TrainingDataGeneratorBase):
 
     """Class contains logic to retrieve intents, training examples and responses from websites"""
 
@@ -11,7 +12,7 @@ class WebsiteTrainingDataGenerator:
         self.depth = depth
         self.kw_model = KeyBERT()
 
-    def get_training_data(self):
+    def extract(self):
         data = WebsiteParser.get_qna(self.initial_link, self.depth)
 
         training_data = []

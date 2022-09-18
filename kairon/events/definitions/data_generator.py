@@ -1,6 +1,7 @@
 from typing import Text
 from loguru import logger
-from augmentation.story_generator.generator import WebsiteTrainingDataGenerator
+
+from augmentation.story_generator.factory import TrainingDataGeneratorFactory
 from kairon.events.definitions.base import EventsBase
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -65,8 +66,9 @@ class DataGenerationEvent(EventsBase):
                 bot=self.bot, user=self.user, status=EVENT_STATUS.INPROGRESS.value,
                 source_type=TrainingDataSourceType.website.value, document_path=self.website_url
             )
-            generator = WebsiteTrainingDataGenerator(self.website_url, self.depth)
-            training_data = generator.get_training_data()
+            generator = TrainingDataGeneratorFactory.get_instance(TrainingDataSourceType.website.value)(
+                self.website_url, self.depth)
+            training_data = generator.extract()
             training_data = [TrainingDataGeneratorResponse(**t_data) for t_data in training_data]
             TrainingDataGenerationProcessor.set_status(
                 self.bot, self.user, EVENT_STATUS.COMPLETED.value, response=training_data
