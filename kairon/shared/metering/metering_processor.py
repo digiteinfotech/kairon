@@ -30,6 +30,18 @@ class MeteringProcessor:
         metric.save()
 
     @staticmethod
+    def add_log(metric_type: Text, **kwargs):
+        """
+        Adds custom metrics for an end user.
+
+        :param metric_type: metric_type
+        """
+        metric = Metering(metric_type=metric_type)
+        for key, value in kwargs.items():
+            setattr(metric, key, value)
+        metric.save()
+
+    @staticmethod
     def get_metric_count(account: int, metric_type: Text, start_date: date = None, end_date: date = None, **kwargs):
         """
         Retrieves custom metrics for a particular bot in a paginated fashion.

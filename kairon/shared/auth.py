@@ -143,10 +143,10 @@ class Authentication:
 
     @staticmethod
     def __authenticate_user(username: str, password: str):
-        user = AccountProcessor.get_user_details(username)
-        if not user:
-            return False
-        if not Utility.verify_password(password, user["password"]):
+        user = AccountProcessor.get_user_details(username, is_login_request=True)
+        if not user or not Utility.verify_password(password, user["password"]):
+            kwargs = {"username": username, "error": "Incorrect username or password"}
+            MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value, account=user["account"], **kwargs)
             return False
         return user
 
@@ -167,6 +167,8 @@ class Authentication:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         access_token = Authentication.create_access_token(data={"sub": user["email"]})
+        kwargs = {"username": username}
+        MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.login.value, account=user["account"], **kwargs)
         return access_token
 
     @staticmethod
