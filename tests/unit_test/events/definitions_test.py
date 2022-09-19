@@ -9,6 +9,7 @@ from fastapi import UploadFile
 from mongoengine import connect
 from mongomock.mongo_client import MongoClient
 
+from augmentation.utils import WebsiteParser
 from kairon import Utility
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
@@ -673,6 +674,26 @@ class TestEventDefinitions:
         assert logs[0].get('source_type') == source_type
         assert logs[0].get('status') == EVENT_STATUS.COMPLETED.value
         assert list(logs[0].get('response')[0].keys()) == ['intent', 'training_examples', 'response']
+
+    def test_trigger_website_data_generation_no_data_found(self, monkeypatch):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+
+        def _mock_get_qna(*args, **kwargs):
+            return {}
+
+        monkeypatch.setattr(WebsiteParser, "get_qna", _mock_get_qna)
+        DataGenerationEvent(bot, user, website_url=website_url).execute()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 2
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('source_type') == source_type
+        assert logs[0].get('status') == EVENT_STATUS.FAIL.value
+        assert logs[0].get('exception') == "No data could be scraped!"
 
     @responses.activate
     def test_trigger_website_data_generation_event_connection_error(self):

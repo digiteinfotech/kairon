@@ -2,6 +2,8 @@ from augmentation.story_generator.base import TrainingDataGeneratorBase
 from augmentation.utils import WebsiteParser
 from keybert import KeyBERT
 
+from kairon.exceptions import AppException
+
 
 class WebsiteTrainingDataGenerator(TrainingDataGeneratorBase):
 
@@ -14,6 +16,8 @@ class WebsiteTrainingDataGenerator(TrainingDataGeneratorBase):
 
     def extract(self):
         data = WebsiteParser.get_qna(self.initial_link, self.depth)
+        if not data:
+            raise AppException("No data could be scraped!")
 
         training_data = []
         for i, item in enumerate(data.items()):

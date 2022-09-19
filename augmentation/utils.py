@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 import requests
 from loguru import logger as logging
 
+from kairon.exceptions import AppException
+
 
 class WebsiteParser:
 
@@ -144,5 +146,5 @@ class WebsiteParser:
             return WebsiteParser.get_qna_dict(questions, answers)
         except Exception as e:
             logging.info(e)
-            raise Exception(
+            raise AppException(
                 f"Story suggestions isn't fully supported on this website yet. Failed with exception: {str(e)}")
