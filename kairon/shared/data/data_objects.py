@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from .base_data import Auditlog
 from mongoengine import (
     Document,
@@ -637,7 +637,10 @@ class TrainingDataGenerator(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     document_path = StringField(default=None)
-    status = StringField(default=EVENT_STATUS.INITIATED)
+    source_type = StringField(
+        choices=[TrainingDataSourceType.document.value, TrainingDataSourceType.website.value],
+        default=TrainingDataSourceType.document.value)
+    status = StringField(default=EVENT_STATUS.INITIATED.value)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
@@ -650,6 +653,7 @@ class TrainingDataGenerator(Document):
 class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
+    website_data_generator_depth_search_limit = IntField(default=2)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

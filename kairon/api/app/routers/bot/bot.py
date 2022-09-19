@@ -29,7 +29,8 @@ from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType, \
+    TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -816,7 +817,7 @@ async def update_training_data_generator_status(
     Update training data generator status
     """
     try:
-        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
+        TrainingDataGenerationProcessor.retrieve_response_and_set_status(request_data, current_user.get_bot(),
                                                                          current_user.get_user())
     except Exception as e:
         raise AppException(e)
@@ -825,12 +826,13 @@ async def update_training_data_generator_status(
 
 @router.get("/data/generation/history", response_model=Response)
 async def get_train_data_history(
+        log_type: TrainingDataSourceType = TrainingDataSourceType.document.value,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Fetches File Data Generation history, when and who initiated the process
     """
-    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot())
+    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot(), log_type)
     return {"data": {"training_history": file_history}}
 
 
