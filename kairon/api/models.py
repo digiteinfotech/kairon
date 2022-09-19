@@ -727,3 +727,48 @@ class EventConfig(BaseModel):
         if not v or len(v) < 1:
             v = {}
         return v
+
+
+class IDPConfig(BaseModel):
+    realm_name: str
+    client_id: str
+    client_secret: str
+    config_type: str
+    config: dict
+
+    @validator("config_type")
+    def validate_config_type(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("Config type can not be empty")
+        return v
+
+    @validator("realm_name")
+    def validate_realm_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("realm name can not be empty")
+        return v
+
+    @validator("client_id")
+    def validate_client_id(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("client id can not be empty")
+        return v
+
+    @validator("client_secret")
+    def validate_client_secret(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("client secret can not be empty")
+        return v
+
+    @validator("config")
+    def validate_config(cls, v, values, **kwargs):
+        if not v or len(v) == 0:
+            v = {}
+        return v

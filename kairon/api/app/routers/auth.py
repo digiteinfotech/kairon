@@ -3,6 +3,7 @@ from fastapi import Depends
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
+from kairon.idp.processor import IDPProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
@@ -132,4 +133,28 @@ async def sso_callback(
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": """It is your responsibility to keep the token secret.
         If leaked then other may have access to your system.""",
+    }
+
+
+@router.get('/login/idp/{realm_name}')
+async def idp_login(
+        realm_name: str = Path(default=None, description="Domain name for your company", example="KAIRON")):
+    """
+    Fetch redirect url for keycloak realm.
+    """
+    return await IDPProcessor.get_redirect_uri(realm_name)
+
+
+@router.get('/login/idp/callback/{realm_name}')
+async def idp_callback(session_state: str, code: str,
+                       realm_name: str = Path(default=None, description="Domain name for your company",
+                                              example="KAIRON"),
+                       ):
+    """
+    Identify user and create access token for user
+    """
+    access_token = IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+    return {
+        "data": {"access_token": access_token, "token_type": "bearer"},
+        "message": "User Authenticated",
     }
