@@ -39,6 +39,17 @@ COPY email.yaml ${KG_HOME}/
 
 ENV KAIRON_URL default
 ENV USER default
-ENV TOKEN default
+ENV TYPE default
+ENV WEBSITE_URL default
+ENV DEPTH default
 
-CMD ["sh","-c","python -m augmentation --generate-training-data ${KAIRON_URL} ${USER} ${TOKEN}"]
+if [ $TYPE == "--from-website" ]
+then
+    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE} ${WEBSITE_URL} ${DEPTH}"]
+elif [ $TYPE == "--from-document" ]
+then
+    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE}"]
+else
+    echo "Invalid option supplied"
+    exit 1
+fi

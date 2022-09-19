@@ -8565,16 +8565,16 @@ class TestTrainingDataProcessor:
         assert actual_response is False
 
     def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
         actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
         assert actual_response is True
 
     def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
         with pytest.raises(AppException) as exp:
             assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
 
-        assert str(exp.value) == "Daily file processing limit exceeded."
+        assert str(exp.value) == "Daily limit exceeded."
 
 
 class TestAgentProcessor:
@@ -8686,12 +8686,12 @@ class TestModelProcessor:
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 

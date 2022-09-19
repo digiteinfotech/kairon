@@ -36,6 +36,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
@@ -108,7 +109,10 @@ def test_api_wrong_login():
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
                                 'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
-
+    value = list(Metering.objects(username="test@demo.ai"))
+    assert value[0]["metric_type"] == "invalid_login"
+    assert value[0]["timestamp"]
+    assert len(value) == 1
 
 def test_account_registration_error():
     response = client.post(
@@ -290,6 +294,11 @@ def test_api_wrong_password():
     assert actual["error_code"] == 401
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
+    value = list(Metering.objects(username="INTEGRATION@DEMO.AI"))
+    assert value[0]["metric_type"] == "invalid_login"
+    assert value[0]["timestamp"]
+    assert value[0]["error"] == "Incorrect username or password"
+    assert len(value) == 1
 
 
 def test_api_login_with_recaptcha(monkeypatch):
@@ -2804,6 +2813,10 @@ def test_api_login_with_account_not_verified():
     assert actual['error_code'] == 422
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
+    value = list(Metering.objects(username="integration@demo.ai").order_by("-timestamp"))[0]
+    assert value["metric_type"] == "invalid_login"
+    assert value["timestamp"]
+    assert value["error"] == "Please verify your mail"
 
 
 def test_account_registration_with_confirmation(monkeypatch):
@@ -4601,7 +4614,7 @@ def test_train_using_event(monkeypatch):
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED.value
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4638,7 +4651,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]
     request_body = {
-        "status": EVENT_STATUS.COMPLETED,
+        "status": EVENT_STATUS.COMPLETED.value,
         "response": training_data
     }
     response = client.put(
@@ -4766,7 +4779,7 @@ def test_get_training_data_history_1(monkeypatch):
 
 def test_update_training_data_generator_status_exception(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4780,7 +4793,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
     request_body = {
-        "status": EVENT_STATUS.FAIL,
+        "status": EVENT_STATUS.FAIL.value,
         "exception": 'Exception message'
     }
     response = client.put(
@@ -4814,7 +4827,7 @@ def test_get_training_data_history_2(monkeypatch):
 
 def test_fetch_latest(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -5004,7 +5017,7 @@ def test_list_action_server_logs():
 
 def test_add_training_data_invalid_id(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.COMPLETED.value
     }
     client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -10885,6 +10898,115 @@ def test_multilingual_language_support(monkeypatch):
     assert response['error_code'] == 0
 
 
+@responses.activate
+def test_data_generation_from_website(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 1
+            })],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["success"]
+    assert response["message"] == "Story generator in progress! Check logs."
+    assert response["error_code"] == 0
+    TrainingDataGenerationProcessor.set_status(pytest.bot, "integ1@gmail.com", status="Completed")
+
+
+def test_data_generation_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_data_generation_no_website_url(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "query",
+                "website_url"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url= ",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "website_url cannot be empty"
+    assert response["error_code"] == 422
+
+
+@responses.activate
+def test_data_generation_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+def test_data_generation_in_progress(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    event_url = urljoin(Utility.environment['events']['server_url'],
+                        f"/api/events/execute/{EventClass.data_generator}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 0
+            })],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["success"]
+    assert response["message"] == "Story generator in progress! Check logs."
+    assert response["error_code"] == 0
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
+
+
 def test_get_auditlog_for_user_1():
     email = "integration1234567890@demo.ai"
     response = client.post(
@@ -11083,6 +11205,10 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+    value = list(Metering.objects(username="integ1@gmail.com").order_by("-timestamp"))[0]
+    assert value["metric_type"] == "invalid_login"
+    assert value["timestamp"]
+    assert value["error"] == "Incorrect username or password"
 
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):

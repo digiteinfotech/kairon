@@ -58,3 +58,5 @@ openapi_spec_validator
 google-cloud-translate
 dramatiq
 dramatiq-mongodb
+keybert
+bs4

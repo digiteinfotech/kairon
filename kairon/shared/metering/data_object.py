@@ -6,7 +6,7 @@ from kairon.shared.metering.constants import MetricType
 
 class Metering(DynamicDocument):
     bot = StringField()
-    account = LongField(required=True)
+    account = LongField()
     metric_type = StringField(required=True, choices=[m_type.value for m_type in MetricType])
     data = DynamicField()
     timestamp = DateTimeField(default=datetime.utcnow)
