@@ -281,10 +281,10 @@ class TestMongoProcessor:
                                     'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
                                                        'application_name': [
                                                            {'type': 'from_entity', 'entity': 'application_name'}]}}}
-        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application', "kairon_two_stage_fallback",
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                             'action_get_microsoft_application', "kairon_two_stage_fallback"]
+                                                                             'action_get_microsoft_application']
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
         assert domain.templates == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
@@ -369,7 +369,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {
             'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 29
@@ -2357,7 +2357,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2465,7 +2465,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2523,7 +2523,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2576,7 +2576,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2636,7 +2636,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2745,7 +2745,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 6
+        assert domain.user_actions.__len__() == 5
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2773,7 +2773,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 44
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -7388,7 +7388,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [], 'two_stage_fallback': ['kairon_two_stage_fallback'],
+            'hubspot_forms_action': [], 'two_stage_fallback': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -8048,7 +8048,7 @@ class TestMongoProcessor:
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
-        with pytest.raises(AppException, match='Action with name "google_custom_search" exists'):
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -8063,7 +8063,7 @@ class TestMongoProcessor:
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
-        with pytest.raises(AppException, match='Action with name "test_action" exists'):
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='test_action', status=True, bot=bot).get()
 
@@ -8259,24 +8259,125 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
 
-    def test_add_custom_2_stage_fallback_action(self):
+
+class TestProcessor:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection())
+
+    def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        ob_id = processor.add_two_stage_fallback_action(bot, user, "custom_fallback")
-        action = Actions.objects(id=ob_id).get()
-        assert action.name == "custom_fallback"
-        assert action.type == ActionType.two_stage_fallback.value
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+
+    def test_add_custom_2_stage_fallback_action_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
+    def test_add_custom_2_stage_fallback_action_rules_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_not_found'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        with pytest.raises(AppException, match=r"Rule {.+} do not exist in the bot"):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
+    def test_add_custom_2_stage_fallback_action_rules_only(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_only'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        steps = [
+            {"name": "mail", "type": "INTENT"},
+            {"name": "action_send_mail", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        steps = [
+            {"name": "contact", "type": "INTENT"},
+            {"name": "action_call", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}
+
+    def test_edit_custom_2_stage_fallback_action_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_edit_custom_2_stage_fallback_action_not_found'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        with pytest.raises(AppException, match=f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'):
+            processor.edit_two_stage_fallback_action(request, bot, user)
+
+    def test_get_2_stage_fallback_action_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_edit_custom_2_stage_fallback_action_not_found'
+        with pytest.raises(AppException, match="Action not found"):
+            processor.get_two_stage_fallback_action_config(bot)
+
+    def test_edit_custom_2_stage_fallback_action_recommendations_only(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_only'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        processor.edit_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+
+    def test_edit_custom_2_stage_fallback_action_rules_only(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        steps = [
+            {"name": "mail", "type": "INTENT"},
+            {"name": "action_send_mail", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        steps = [
+            {"name": "contact", "type": "INTENT"},
+            {"name": "action_call", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        processor.edit_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
+                          'trigger_rules': request['trigger_rules']}
 
     def test_delete_2_stage_fallback_action(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        processor.delete_action("custom_fallback", bot, user)
+        processor.delete_complex_story("activate two stage fallback", "RULE", bot, user)
+        processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
         with pytest.raises(DoesNotExist):
-            Actions.objects(name="custom_fallback", status=True, bot=bot).get()
-        with pytest.raises(AppException, match="Cannot remove default kairon action"):
-            processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
+            Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, status=True, bot=bot).get()
 
     def test_add_secret(self):
         processor = MongoProcessor()

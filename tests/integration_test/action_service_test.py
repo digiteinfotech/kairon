@@ -5,10 +5,12 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
-    HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters
+    HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
+    KaironTwoStageFallbackAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.actions.utils import ActionUtility
 from mongoengine import connect
@@ -3269,13 +3271,12 @@ class TestActionServer(AsyncHTTPTestCase):
         responses.reset()
 
     def test_two_stage_fallback_action(self):
-        from kairon.shared.data.processor import MongoProcessor
-
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
+        Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
+        KaironTwoStageFallbackAction(name=action_name, num_text_recommendations=3, bot=bot, user=user).save()
         mongo_processor = MongoProcessor()
-        mongo_processor.add_two_stage_fallback_action(bot, user)
         list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
         list(mongo_processor.add_training_example(["bye", "bye bye"], "goodbye", bot, user, False))
         list(mongo_processor.add_training_example(["yes", "go ahead"], "affirm", bot, user, False))
@@ -3373,15 +3374,19 @@ class TestActionServer(AsyncHTTPTestCase):
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
         self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
     def test_two_stage_fallback_action_no_intent_ranking(self):
-        from kairon.shared.data.processor import MongoProcessor
-
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
         bot = "5f50fd0a56b698ca10d35d2f"
         user = 'test_user'
         mongo_processor = MongoProcessor()
-        mongo_processor.add_two_stage_fallback_action(bot, user)
+        Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
+        KaironTwoStageFallbackAction(
+            name=action_name, num_text_recommendations=3, trigger_rules=[
+                {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
+            ], bot=bot, user=user
+        ).save()
         list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
         list(mongo_processor.add_training_example(["bye", "bye bye"], "goodbye", bot, user, False))
         list(mongo_processor.add_training_example(["yes", "go ahead"], "affirm", bot, user, False))
@@ -3468,18 +3473,21 @@ class TestActionServer(AsyncHTTPTestCase):
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response_json, {'events': [], 'responses': [
-            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_default',
-             'response': 'utter_default', 'image': None, 'attachment': None}]})
+        self.assertEqual(response_json['events'], [])
+        self.assertEquals(len(response_json['responses'][0]['buttons']), 2)
+        self.assertEquals(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
+                                                                     {"text": "Mail me", "payload": "/send_mail"}])
 
     def test_two_stage_fallback_intent_deleted(self):
-        from kairon.shared.data.processor import MongoProcessor
-
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
         bot = "5f50fd0a56b698ca10d35d2g"
         user = 'test_user'
-        mongo_processor = MongoProcessor()
-        mongo_processor.add_two_stage_fallback_action(bot, user)
+        Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
+        KaironTwoStageFallbackAction(
+            name=action_name, num_text_recommendations=3, trigger_rules=[
+                {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
+            ], bot=bot, user=user
+        ).save()
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -3563,6 +3571,16 @@ class TestActionServer(AsyncHTTPTestCase):
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [])
+        self.assertEquals(len(response_json['responses'][0]['buttons']), 2)
+        self.assertEquals(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
+                                                                     {"text": "Mail me", "payload": "/send_mail"}])
+
+        config = KaironTwoStageFallbackAction.objects(bot=bot, user=user).get()
+        config.trigger_rules = None
+        config.save()
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json, {'events': [], 'responses': [
-            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_default',
-             'response': 'utter_default', 'image': None, 'attachment': None}]})
+            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+             'image': None, 'attachment': None}]})
