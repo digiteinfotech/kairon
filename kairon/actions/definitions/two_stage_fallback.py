@@ -64,7 +64,6 @@ class ActionTwoStageFallback(ActionsBase):
                 except Exception as e:
                     exception = str(e)
                     logger.exception(e)
-                    pass
         if trigger_rules:
             for rule in trigger_rules:
                 rule['payload'] = f"/{rule['payload']}"
