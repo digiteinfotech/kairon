@@ -3496,7 +3496,17 @@ class TestActionServer(AsyncHTTPTestCase):
                 "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
                           'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
                 "latest_message": {'text': 'get intents', 'intent_ranking': [
-                    {"name": "test intent", "confidence": 0.253578245639801}]},
+                    {"name": "test intent", "confidence": 0.253578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}
+                ]},
                 "latest_event_time": 1537645578.314389,
                 "followup_action": "action_listen",
                 "paused": False,

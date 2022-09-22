@@ -8259,14 +8259,21 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
 
-
-class TestProcessor:
-
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
+    def test_add_hubspot_forms_action_reserved_keyword(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': KAIRON_TWO_STAGE_FALLBACK,
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
+            processor.add_hubspot_forms_action(action, bot, user)
 
     def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
@@ -8369,6 +8376,15 @@ class TestProcessor:
         config.pop("timestamp")
         assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
                           'trigger_rules': request['trigger_rules']}
+
+    def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
+
+        with pytest.raises(AppException, match=f"Rule {set(['send_dm'])} do not exist in the bot"):
+            processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_delete_2_stage_fallback_action(self):
         processor = MongoProcessor()

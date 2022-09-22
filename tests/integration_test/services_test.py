@@ -8756,6 +8756,21 @@ def test_add_kairon_two_stage_fallback_action_error():
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of num_text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
 
+    action = {
+        "num_text_recommendations": -1,
+        "trigger_rules": [{"text": "hi", "payload": "greet"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', '__root__'], 'msg': 'num_text_recommendations cannot be negative', 'type': 'value_error'}]
+
 
 def test_edit_kairon_two_stage_fallback_action_not_exists():
     action = {
