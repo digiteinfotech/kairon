@@ -1,13 +1,17 @@
 from typing import Text
 
+from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME
+from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.data.processor import MongoProcessor
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction
 from kairon.shared.actions.models import ActionType
+from loguru import logger
+
+from kairon.shared.data.utils import DataUtility
 
 
 class ActionTwoStageFallback(ActionsBase):
@@ -26,7 +30,13 @@ class ActionTwoStageFallback(ActionsBase):
         """
         Action does not have any configuration saved in the current implementation.
         """
-        pass
+        try:
+            action = KaironTwoStageFallbackAction.objects(bot=self.bot, name=self.name, status=True).get().to_mongo().to_dict()
+            logger.debug("kairon_two_stage_fallback_action_config: " + str(action))
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise ActionFailure("Two stage fallback action config not found")
+        return action
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
         """
@@ -39,22 +49,26 @@ class ActionTwoStageFallback(ActionsBase):
         """
         status = "SUCCESS"
         exception = None
-        tracker.get_intent_of_latest_message()
+        action_config = self.retrieve_config()
         intent_ranking = tracker.latest_message.get("intent_ranking")
-        if intent_ranking and intent_ranking[1:4]:
-            suggested_intents = []
+        num_text_recommendations = action_config['num_text_recommendations']
+        trigger_rules = action_config.get('trigger_rules')
+        suggested_intents = []
+        if num_text_recommendations and intent_ranking:
             mongo_processor = MongoProcessor()
-            for intent in intent_ranking[1:4]:
+            for intent in intent_ranking[1: 1+num_text_recommendations]:
                 try:
                     example = next(mongo_processor.get_training_examples(intent["name"], self.bot))
-                    suggested_intents.append(example['text'])
-                except Exception:
-                    pass
-            dispatcher.utter_message(buttons=suggested_intents)
-            bot_response = suggested_intents
-        else:
-            dispatcher.utter_template(DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, tracker)
-            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
+                    text = DataUtility.extract_text_and_entities(example['text'])[0]
+                    suggested_intents.append({"text": text, "payload": text})
+                except Exception as e:
+                    exception = str(e)
+                    logger.exception(e)
+        if trigger_rules:
+            for rule in trigger_rules:
+                rule['payload'] = f"/{rule['payload']}"
+                suggested_intents.append(rule)
+        dispatcher.utter_message(buttons=suggested_intents)
         ActionServerLogs(
             type=ActionType.two_stage_fallback.value,
             intent=tracker.get_intent_of_latest_message(),
@@ -62,7 +76,7 @@ class ActionTwoStageFallback(ActionsBase):
             sender=tracker.sender_id,
             bot=tracker.get_slot("bot"),
             exception=exception,
-            bot_response=str(bot_response),
+            bot_response=str(suggested_intents),
             status=status
         ).save()
         return {}

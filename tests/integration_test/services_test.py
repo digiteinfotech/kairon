@@ -29,7 +29,8 @@ from kairon.shared.constants import EventClass
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
+    KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -8391,7 +8392,7 @@ def test_add_google_search_exists():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Action with name "google_custom_search" exists'
+    assert actual["message"] == 'Action exists!'
 
 
 def test_add_google_search_different_parameter_types():
@@ -8720,6 +8721,155 @@ def test_list_hubspot_forms_action():
 def test_delete_hubspot_forms_action():
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/action_hubspot_forms",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_get_kairon_two_stage_fallback_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Action not found"
+
+
+def test_add_kairon_two_stage_fallback_action_error():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": []
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of num_text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
+
+    action = {
+        "num_text_recommendations": -1,
+        "trigger_rules": [{"text": "hi", "payload": "greet"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', '__root__'], 'msg': 'num_text_recommendations cannot be negative', 'type': 'value_error'}]
+
+
+def test_edit_kairon_two_stage_fallback_action_not_exists():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'
+
+
+def test_add_kairon_two_stage_fallback_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "kairon_two_stage_fallback_action",
+            "type": "RULE",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet_delete", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["message"])
+    assert actual["message"] == "Action added!"
+
+
+def test_add_kairon_two_stage_fallback_action_exists():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_edit_kairon_two_stage_fallback_action_action():
+    action = {
+        "num_text_recommendations": 4
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+
+
+def test_get_kairon_two_stage_fallback_action_1():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    del actual['data']['timestamp']
+    assert actual["data"] == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}
+
+
+def test_delete_kairon_two_stage_fallback_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/{KAIRON_TWO_STAGE_FALLBACK}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10917,7 +11067,7 @@ def test_get_auditlog_for_user_1():
     actual = response.json()
     assert actual["data"] is not None
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["entity"] == "Actions"
+    assert actual["data"][0]["entity"] == "Slots"
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
