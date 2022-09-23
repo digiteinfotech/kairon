@@ -682,7 +682,7 @@ class TestEventDefinitions:
         source_type = TrainingDataSourceType.website
 
         def _mock_get_qna(*args, **kwargs):
-            return {}
+            return {}, {}
 
         monkeypatch.setattr(WebsiteParser, "get_qna", _mock_get_qna)
         DataGenerationEvent(bot, user, website_url=website_url).execute()

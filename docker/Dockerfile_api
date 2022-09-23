@@ -28,7 +28,7 @@ RUN python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
-RUN python -m pip install fastapi>=0.78.0
+RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install gunicorn>=20.1.0
 RUN python -m pip install transformers==4.5.0
