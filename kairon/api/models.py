@@ -680,6 +680,24 @@ class HubspotFormsActionRequest(BaseModel):
     response: str
 
 
+class QuickReplies(BaseModel):
+    text: str
+    payload: str
+
+
+class TwoStageFallbackConfigRequest(BaseModel):
+    num_text_recommendations: int = 0
+    trigger_rules: List[QuickReplies] = None
+
+    @root_validator
+    def check(cls, values):
+        if values['num_text_recommendations'] < 0:
+            raise ValueError("num_text_recommendations cannot be negative")
+        if values['num_text_recommendations'] == 0 and not values['trigger_rules']:
+            raise ValueError("One of num_text_recommendations or trigger_rules should be defined")
+        return values
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_minutes: int = 0

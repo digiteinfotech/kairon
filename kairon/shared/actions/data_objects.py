@@ -17,6 +17,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRe
     EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from validators import email
@@ -440,6 +441,34 @@ class HubspotFormsAction(Auditlog):
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
+class QuickReplies(EmbeddedDocument):
+    text = StringField(required=True)
+    payload = StringField(required=True)
+
+
+@auditlogger.log
+@push_notification.apply
+class KaironTwoStageFallbackAction(Auditlog):
+    name = StringField(default=KAIRON_TWO_STAGE_FALLBACK)
+    num_text_recommendations = IntField(default=0)
+    trigger_rules = ListField(EmbeddedDocumentField(QuickReplies, default=None))
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+        if self.num_text_recommendations < 0:
+            raise ValidationError("num_text_recommendations cannot be negative")
+        if self.num_text_recommendations == 0 and not self.trigger_rules:
+            raise ValidationError("One of num_text_recommendations or trigger_rules should be defined")
 
     def clean(self):
         self.name = self.name.strip().lower()

@@ -15,7 +15,9 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
+from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -29,7 +31,8 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
-    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters
+    PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
+    KaironTwoStageFallbackAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2839,3 +2842,25 @@ class TestActions:
             "slot: experience || Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False}",
             "slot: score || script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': True, 'data': 2}",
             "slot: percentage || expression: ${a.b.43} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 30"]
+    
+    def test_retrieve_config_two_stage_fallback(self):
+        bot = "test_bot"
+        user = "test_user"
+        KaironTwoStageFallbackAction(
+            num_text_recommendations=3, trigger_rules=[
+                {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
+            ], bot=bot, user=user
+        ).save()
+        config = ActionTwoStageFallback(bot=bot, name=KAIRON_TWO_STAGE_FALLBACK).retrieve_config()
+        config.pop('_id')
+        config.pop('bot')
+        config.pop('user')
+        config.pop('timestamp')
+        config.pop('status')
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3,
+                          'trigger_rules': [{'text': 'Trigger', 'payload': 'set_context'},
+                                            {'text': 'Mail me', 'payload': 'send_mail'}]}
+
+    def test_retrieve_config_two_stage_fallback_not_found(self):
+        with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
+            ActionTwoStageFallback(bot="test", name=KAIRON_TWO_STAGE_FALLBACK).retrieve_config()
