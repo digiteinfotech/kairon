@@ -5,7 +5,7 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
-    ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest
+    ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -327,3 +327,35 @@ async def list_integration_fields(
     """
     return Response(data=Utility.system_metadata['actions'])
 
+
+@router.post("/fallback/two_stage", response_model=Response)
+async def add_two_stage_fallback_action(
+        request_data: TwoStageFallbackConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the two stage fallback action config.
+    """
+    mongo_processor.add_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action added!")
+
+
+@router.get("/fallback/two_stage", response_model=Response)
+async def get_two_stage_fallback_action(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns configuration for two stage fallback action.
+    """
+    config = mongo_processor.get_two_stage_fallback_action_config(bot=current_user.get_bot())
+    return Response(data=config)
+
+
+@router.put("/fallback/two_stage", response_model=Response)
+async def update_two_stage_fallback_action(
+        request_data: TwoStageFallbackConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the two stage fallback action config.
+    """
+    mongo_processor.edit_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action updated!")

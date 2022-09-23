@@ -98,8 +98,6 @@ class TestAccountProcessor:
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
-        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot['_id'].__str__(),
-                               type=ActionType.two_stage_fallback, status=True).get()
         pytest.bot = bot_response['_id'].__str__()
 
     def test_list_bots(self):

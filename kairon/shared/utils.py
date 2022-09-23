@@ -47,10 +47,10 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES
 from .constants import EventClass
 from .data.base_data import AuditLogData
-from .data.constant import TOKEN_TYPE, AuditlogActions
+from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
 from ..exceptions import AppException
 
 
@@ -1557,3 +1557,22 @@ class Utility:
                                              request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
         except (DoesNotExist, AppException):
             return
+
+    @staticmethod
+    def is_reserved_keyword(keyword: Text):
+        return keyword in {KAIRON_TWO_STAGE_FALLBACK}.union(SYSTEM_TRIGGERED_UTTERANCES)
+
+    @staticmethod
+    def is_valid_action_name(name: Text, bot: Text, document: Document):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.data_objects import HttpActionConfig
+        from kairon.shared.actions.data_objects import EmailActionConfig
+
+        if Utility.is_reserved_keyword(name):
+            raise AppException(f"{name} is a reserved keyword")
+        q_filter = {"name__iexact": name, "bot": bot, "status": True, "exp_message": "Action exists!"}
+        Utility.is_exist(Actions, **q_filter)
+        if document in {HttpActionConfig, EmailActionConfig}:
+            q_filter.pop("name__iexact")
+            q_filter["action_name__iexact"] = name
+        Utility.is_exist(document, **q_filter)
