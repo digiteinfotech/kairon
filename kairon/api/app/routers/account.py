@@ -52,7 +52,8 @@ async def password_change(data: Password, background_tasks: BackgroundTasks):
     Used to overwrite the account's password after the user has changed his/her password with a new one
     """
     mail, first_name = await AccountProcessor.overwrite_password(data.data, data.password.get_secret_value())
-    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail, first_name=first_name)
+    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail,
+                              first_name=first_name)
     return {"message": "Success! Your password has been changed"}
 
 
@@ -142,3 +143,23 @@ async def delete_account(current_user: User = Depends(Authentication.get_current
     """
     AccountProcessor.delete_account(current_user.account)
     return {"message": "Account deleted"}
+
+
+@router.post("/organization", response_model=Response)
+async def add_organization(request_data: DictData,
+                           current_user: User = Depends(Authentication.get_current_user)
+                           ):
+    """
+    Add organization.
+    """
+    AccountProcessor.upsert_organization(current_user, request_data.data)
+    return {"message": "organization added"}
+
+
+@router.get("/organization", response_model=Response)
+async def get_organization(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Get organization.
+    """
+    data = AccountProcessor.get_organization(current_user.account)
+    return Response(data=data)

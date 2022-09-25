@@ -142,18 +142,26 @@ async def idp_login(
     """
     Fetch redirect url for keycloak realm.
     """
-    return await IDPProcessor.get_redirect_uri(realm_name)
+    return IDPProcessor.get_redirect_uri(realm_name)
 
 
-@router.get('/login/idp/callback/{realm_name}')
+@router.get('/login/idp/callback/{realm_name}', response_model=Response)
 async def idp_callback(session_state: str, code: str,
-                       realm_name: str = Path(default=None, description="Domain name for your company",
+                       background_tasks: BackgroundTasks,
+                       realm_name: str = Path(default=None, description="Realm name",
                                               example="KAIRON"),
                        ):
     """
     Identify user and create access token for user
     """
-    access_token = IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+    existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name,
+                                                                                                   session_state, code)
+    if not existing_user and Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(
+            Utility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
+            first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
+        )
+
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": "User Authenticated",

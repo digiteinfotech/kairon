@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Path
 
 from kairon import Utility
 from kairon.api.models import Response, IDPConfig
@@ -33,8 +34,8 @@ async def set_idp_config(request_data: IDPConfig, current_user: User = Depends(A
     """
     Save keycloak config for account
     """
-    IDPProcessor.save_idp_config(current_user, request_data.dict())
-    return Response(data={"message": "Keycloak config saved"})
+    broker_redirect_uri = IDPProcessor.save_idp_config(current_user, request_data.dict())
+    return Response(message="config saved", data=broker_redirect_uri)
 
 
 @router.get("/config", response_model=Response)
@@ -43,4 +44,14 @@ async def get_idp_config(current_user: User = Depends(Authentication.get_current
     Fetch keycloak config for account
     """
     data = IDPProcessor.get_idp_config(current_user.account)
+    return Response(data=data)
+
+
+@router.delete("/config/{realm_name}", response_model=Response)
+async def delete_idp_config(current_user: User = Depends(Authentication.get_current_user),
+    realm_name: str = Path(default=None, description="Realm name", example="DOMAIN")):
+    """
+    Disable the config
+    """
+    data = IDPProcessor.delete_idp(realm_name)
     return Response(data=data)

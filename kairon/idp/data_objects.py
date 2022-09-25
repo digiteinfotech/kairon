@@ -1,15 +1,14 @@
+from datetime import datetime
+
 from mongoengine import (
     Document,
     signals,
     StringField,
     BooleanField,
-    LongField
+    LongField, DateTimeField, DictField
 )
-from mongoengine.errors import ValidationError
-from validators import url, ValidationFailure
 
 from kairon.idp.constants import IDPConfigType
-from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.signals import auditlogger
 from kairon.shared.utils import Utility
 
@@ -18,27 +17,24 @@ from kairon.shared.utils import Utility
 class IdpConfig(Document):
     user = StringField(required=True)
     account = LongField(required=True)
+    organization = StringField(required=True)
     status = BooleanField(default=True)
-    config_type = StringField(choices=[config_type.value for config_type in IDPConfigType])
-    idp_server = StringField()
+    timestamp = DateTimeField(default=datetime.utcnow)
+    config_type = StringField()
+    config_sub_type = StringField(choices=[config_type.value for config_type in IDPConfigType])
     realm_name = StringField()
-    client_id = StringField()
-    client_secret = StringField()
+    idp_client_id = StringField()
+    idp_client_secret = StringField()
+    idp_admin_client_secret = StringField()
+    config = DictField()
 
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
-        if Utility.check_empty_string(document.idp_server):
-            document.idp_server = Utility.environment["idp"]["server_url"]
-
-        document.client_id = Utility.encrypt_message(document.client_id)
-        document.client_secret = Utility.encrypt_message(document.client_secret)
+        config = document.config
+        for conf in document.config:
+            if conf in ("client_id", "client_secret"):
+                document.config[conf] = Utility.encrypt_message(document.config[conf])
+        document.config = config
 
 
 signals.pre_save_post_validation.connect(IdpConfig.pre_save_post_validation, sender=IdpConfig)
-
-
-class KeycloakRealm(Document):
-    user = StringField(required=True)
-    account = LongField(required=True)
-    status = BooleanField(default=True)
-    realm_name = StringField()
