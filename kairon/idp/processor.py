@@ -31,7 +31,6 @@ class IDPProcessor:
                                             tenant=config_data.get("tenant")
                                             )
 
-            idp_config.realm_name = config_data.get("realm_name")
             idp_config.config = config_data
 
             idp_config.save()
@@ -83,6 +82,8 @@ class IDPProcessor:
         try:
             idp_config_data = IdpConfig.objects(account=account).get()
             idp_config = idp_config_data.to_mongo().to_dict()
+            if not idp_config_data.status:
+                raise AppException("IDP config is deleted or disabled")
             result = idp_config.pop("config")
             result["client_id"] = Utility.decrypt_message(result["client_id"])[:-5] + "*****"
             result["client_secret"] = Utility.decrypt_message(result["client_secret"])[:-5] + "*****"

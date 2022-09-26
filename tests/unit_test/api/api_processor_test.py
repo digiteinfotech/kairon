@@ -2064,33 +2064,35 @@ class TestAccountProcessor:
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
 
     def test_upsert_organization_add(self):
+        org_name = {"name": "test"}
         mail = "test@demo.in"
-        org_name = "test"
-        user = User(account=mail, mail=mail)
+        account = "1234"
+        user = User(account=account, email=mail)
         AccountProcessor.upsert_organization(user=user, org_name=org_name)
 
-        result = Organization.objects().get(account=mail)
-        assert result.name == org_name
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
 
     def test_upsert_organization_update(self):
+        org_name = {"name": "new_test"}
         mail = "test@demo.in"
-        org_name = "new_test"
-        user = User(account=mail, mail=mail)
+        account = "1234"
+        user = User(account=account, email=mail)
         AccountProcessor.upsert_organization(user=user, org_name=org_name)
 
-        result = Organization.objects().get(account=mail)
-        assert result.name == org_name
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
 
         with pytest.raises(DoesNotExist):
-            Organization.objects().get(org_name="test")
+            Organization.objects().get(name="test")
 
     def test_get_organization_exists(self):
-        mail = "test@demo.in"
-        result = AccountProcessor.get_organization(account=mail)
+        account = "1234"
+        result = AccountProcessor.get_organization(account=account)
         assert result.get("name") == "new_test"
 
     def test_get_organization_not_exists(self):
-        mail = "test1@demo.in"
-        result = AccountProcessor.get_organization(account=mail)
+        account = "12345"
+        result = AccountProcessor.get_organization(account=account)
         assert result.get("name") is None
         assert result == {}

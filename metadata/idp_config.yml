@@ -6,8 +6,3 @@ providers:
         - realm_name
         - client_id
         - client_secret
-    keycloak_oidc:
-      required_fields:
-        - realm_name
-        - client_id
-        - client_secret

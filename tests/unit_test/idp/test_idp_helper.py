@@ -15,9 +15,9 @@ from stress_test.data_objects import User
 
 def get_user():
     return User(
-        email='test',
-        first_name='test',
-        last_name='test',
+        email='user@test.in',
+        first_name='Test',
+        last_name='User',
         account=2,
         status=True,
         is_integration_user=False)
@@ -144,18 +144,6 @@ class TestIDP:
                 "protocol": "openid-connect"
             },
                 {
-                    "id": "0300bb2f-7e3e-49fb-88f0-bec2d444e50e",
-                    "clientId": "account-console",
-                    "name": "${client_account-console}",
-                    "enabled": True,
-                    "alwaysDisplayInConsole": False,
-                    "clientAuthenticatorType": "client-secret",
-                    "bearerOnly": False,
-                    "directAccessGrantsEnabled": False,
-                    "serviceAccountsEnabled": False,
-                    "publicClient": True,
-                },
-                {
                     "id": "1011d6e4-0a5b-4d16-9c20-2e05e3a648a4",
                     "clientId": "admin-cli",
                     "name": "${client_admin-cli}",
@@ -164,22 +152,9 @@ class TestIDP:
                     "directAccessGrantsEnabled": True,
                     "serviceAccountsEnabled": True,
                     "publicClient": False,
-                    "frontchannelLogout": False,
                     "protocol": "openid-connect",
                     "attributes": {},
-                    "authenticationFlowBindingOverrides": {},
                     "fullScopeAllowed": True,
-                    "nodeReRegistrationTimeout": 0,
-                },
-                {
-                    "id": "8f38dc39-8328-406e-8d1a-8ae115194bc1",
-                    "clientId": "broker",
-                    "name": "${client_broker}",
-                    "bearerOnly": True,
-                    "directAccessGrantsEnabled": False,
-                    "serviceAccountsEnabled": False,
-                    "publicClient": False,
-                    "fullScopeAllowed": False,
                     "nodeReRegistrationTimeout": 0,
                 },
                 {
@@ -195,8 +170,8 @@ class TestIDP:
                 },
                 {
                     "id": "e15a3e48-0e1e-403f-929a-4f0c08f36d69",
-                    "clientId": "realm_name_1",
-                    "name": "realm_name_1",
+                    "clientId": "IDPTEST",
+                    "name": "IDPTEST",
                     "description": "Custom client",
                     "enabled": True,
                     "alwaysDisplayInConsole": False,
@@ -215,7 +190,9 @@ class TestIDP:
             ]
 
         def _allow_full_access_for_client(*args, **kwargs):
-            return "eyJhbGciOiJSUzI1NiIsInR5c", "12345"
+            if kwargs.get("get_service_user"):
+                return "eyJhbGciOiJSUzI1NiIsInR5c", "12345"
+            return "eyJhbGciOiJSUzI1NiIsInR5c"
 
         monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
         monkeypatch.setattr(IDPHelper, 'get_realm_clients', _get_realm_clients)
@@ -256,7 +233,7 @@ class TestIDP:
         )
 
         add_ipp_payload = {
-            "alias": "NEWTEST",
+            "alias": realm_name,
             "providerId": "keycloak-oidc1",
             "enabled": True,
             "updateProfileFirstLoginMode": "on",
@@ -285,5 +262,119 @@ class TestIDP:
 
         IDPProcessor.save_idp_config(data=data, user=get_user())
         saved_data = IdpConfig.objects(account=get_user().account).get()
-        saved_data = saved_data.to_mongo().to_dict()
         assert saved_data.realm_name == realm_name
+
+    def test_get_idp_config(self):
+        user = get_user()
+        idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert idp_config is not None
+        assert idp_config["client_id"] == "95280cec-93ca-4a94-a852-c23aa10*****"
+        assert idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert idp_config["organization"] == "Test"
+        assert idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64"
+
+    def test_get_idp_config_not_exists(self):
+        account = "5"
+        idp_config = IDPProcessor.get_idp_config(account=account)
+        assert idp_config is not None
+        assert idp_config == {}
+
+    def test_update_idp_config_tenant(self, monkeypatch, set_idp_props):
+        def _get_admin_token(*args, **kwargs):
+            return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
+
+        monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
+
+        realm_name = "IDPTEST"
+        user = get_user()
+        data = {
+            "organization": "Test",
+            "config": {
+                "realm_name": realm_name,
+                "config_type": "oidc",
+                "config_sub_type": "azure_oidc",
+                "client_id": "95280cec-93ca-4a94-a852-c23aa1039beb",
+                "client_secret": "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
+                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+            }
+        }
+
+        IDPProcessor.save_idp_config(data=data, user=get_user())
+
+        updated_idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert updated_idp_config is not None
+        assert updated_idp_config["client_id"] == "95280cec-93ca-4a94-a852-c23aa10*****"
+        assert updated_idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert updated_idp_config["organization"] == "Test"
+        assert updated_idp_config["tenant"] != "fa1b21ce-4ca5-4009-bdf5-09f040b36c64"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+
+    def test_update_idp_config_client_id(self, monkeypatch, set_idp_props):
+        def _get_admin_token(*args, **kwargs):
+            return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
+
+        monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
+
+        realm_name = "IDPTEST"
+        user = get_user()
+        data = {
+            "organization": "Test",
+            "config": {
+                "realm_name": realm_name,
+                "config_type": "oidc",
+                "config_sub_type": "azure_oidc",
+                "client_id": "new_95280cec-93ca-4a94-a852-c23aa1039beb",
+                "client_secret": "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
+                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+            }
+        }
+
+        IDPProcessor.save_idp_config(data=data, user=get_user())
+
+        updated_idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert updated_idp_config is not None
+        assert updated_idp_config["client_id"] == "new_95280cec-93ca-4a94-a852-c23aa10*****"
+        assert updated_idp_config["client_id"] != "95280cec-93ca-4a94-a852-c23aa10*****"
+        assert updated_idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert updated_idp_config["organization"] == "Test"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+
+    def test_update_idp_config_client_secret(self, monkeypatch, set_idp_props):
+        def _get_admin_token(*args, **kwargs):
+            return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
+
+        monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
+
+        realm_name = "IDPTEST"
+        user = get_user()
+        data = {
+            "organization": "Test",
+            "config": {
+                "realm_name": realm_name,
+                "config_type": "oidc",
+                "config_sub_type": "azure_oidc",
+                "client_id": "new_95280cec-93ca-4a94-a852-c23aa1039beb",
+                "client_secret": "new_F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
+                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+            }
+        }
+
+        IDPProcessor.save_idp_config(data=data, user=get_user())
+
+        updated_idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert updated_idp_config is not None
+        assert updated_idp_config["client_id"] == "new_95280cec-93ca-4a94-a852-c23aa10*****"
+        assert updated_idp_config["client_id"] != "95280cec-93ca-4a94-a852-c23aa10*****"
+        assert updated_idp_config["client_secret"] != "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert updated_idp_config["client_secret"] == "new_F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert updated_idp_config["organization"] == "Test"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+
+    def test_delete_idp_config(self):
+        realm_name = "IDPTEST"
+        IDPProcessor.delete_idp(realm_name=realm_name)
+
+    def test_get_idp_config_after_delete(self):
+        user = get_user()
+        with pytest.raises(AppException, match="IDP config is deleted or disabled"):
+            IDPProcessor.get_idp_config(account=user.account)
