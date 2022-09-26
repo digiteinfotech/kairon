@@ -283,6 +283,10 @@ class TestIDP:
         def _get_admin_token(*args, **kwargs):
             return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
 
+        def _upsert_identity_provider(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(IDPHelper, 'upsert_identity_provider', _upsert_identity_provider)
         monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
 
         realm_name = "IDPTEST"
@@ -313,6 +317,11 @@ class TestIDP:
         def _get_admin_token(*args, **kwargs):
             return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
 
+        def _upsert_identity_provider(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(IDPHelper, 'upsert_identity_provider', _upsert_identity_provider)
+
         monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
 
         realm_name = "IDPTEST"
@@ -342,6 +351,11 @@ class TestIDP:
     def test_update_idp_config_client_secret(self, monkeypatch, set_idp_props):
         def _get_admin_token(*args, **kwargs):
             return "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VY"
+
+        def _upsert_identity_provider(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(IDPHelper, 'upsert_identity_provider', _upsert_identity_provider)
 
         monkeypatch.setattr(IDPHelper, 'get_admin_access_token', _get_admin_token)
 
