@@ -11074,7 +11074,7 @@ def test_data_generation_in_progress(monkeypatch):
 
 
 def test_download_logs(monkeypatch):
-    start_date = datetime.utcnow() - timedelta(days=1)
+    start_date = datetime.utcnow()
     end_date = datetime.utcnow() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",

@@ -4349,7 +4349,7 @@ class MongoProcessor:
             filter_query = {
                 "bot": bot,
                 "start_timestamp__gte": start_time,
-                "end_timestamp__lte": end_time
+                "start_timestamp__lte": end_time
             }
         value = json.loads(logs[logtype].objects(**filter_query).to_json())
         return value
