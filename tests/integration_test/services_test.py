@@ -1843,6 +1843,16 @@ def test_train_on_updated_data(monkeypatch):
     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
+def test_download_model_training_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
+
+
 @pytest.fixture
 def mock_is_training_inprogress_exception(monkeypatch):
     def _inprogress_execption_response(*args, **kwargs):
@@ -1959,6 +1969,16 @@ def test_get_model_testing_logs():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
+
+
+def test_download_model_testing_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_testing?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
 
 
 def test_get_file_training_history():
@@ -11051,6 +11071,17 @@ def test_data_generation_in_progress(monkeypatch):
     assert response["error_code"] == 422
     assert response['message'] == 'Event already in progress! Check logs.'
     assert not response["success"]
+
+
+def test_download_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response == {'success': False, 'message': 'model_training logs not found!', 'data': None, 'error_code': 422}
 
 
 def test_get_auditlog_for_user_1():

@@ -540,7 +540,6 @@ class AccountProcessor:
         create new account
 
         :param account_setup: dict of account details
-        :param user: user id
         :return: dict user details, user email id, confirmation mail subject, mail body
         """
         from kairon.shared.data.processor import MongoProcessor
